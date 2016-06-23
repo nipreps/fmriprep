@@ -23,8 +23,8 @@ matplotlib.use('Agg')
 
 def preproc_and_reports(imaging_data, name='preproc_and_reports', settings=None):
     from nipype.pipeline import engine as pe
-    from .workflows import fmri_preprocess_single
-    from .viz.pipeline_reports import generate_report_workflow
+    from fmriprep.workflows import fmri_preprocess_single
+    from fmriprep.viz.pipeline_reports import generate_report_workflow
 
     preproc_wf = fmri_preprocess_single(settings=settings)
 #    report_wf = generate_report_workflow()
@@ -116,18 +116,19 @@ def main():
         os.makedirs(settings['output_dir'])
 
     # Logging and work directory
-    if opts.work_dir:
-        settings['work_dir'] = op.abspath(opts.work_dir)
+    settings['work_dir'] = (op.abspath(opts.work_dir)
+                            if opts.work_dir
+                            else op.abspath('.'))
 
-        log_dir = op.join(settings['work_dir'], 'log')
-        if not op.exists(log_dir):
-            os.makedirs(log_dir)
+    log_dir = op.join(settings['work_dir'], 'log')
+    if not op.exists(log_dir):
+        os.makedirs(log_dir)
 
-        # Set nipype config
-        ncfg.update_config({
-            'logging': {'log_directory': log_dir, 'log_to_file': True},
-            'execution': {'crashdump_dir': log_dir}
-        })
+    # Set nipype config
+    ncfg.update_config({
+        'logging': {'log_directory': log_dir, 'log_to_file': True},
+        'execution': {'crashdump_dir': log_dir}
+    })
 
     # nipype plugin configuration
     plugin_settings = {'plugin': 'Linear'}

@@ -2,6 +2,7 @@ import json
 import fmriprep.utils.misc as misc
 import re
 import unittest
+from future.utils import raise_from
 
 class TestCollectBids(unittest.TestCase):
     @classmethod
@@ -11,8 +12,8 @@ class TestCollectBids(unittest.TestCase):
             self.imaging_data = misc.collect_bids_data(self.dataset)
         except Exception as e:
             url = "http://googledrive.com/host/0BxI12kyv2olZbl9GN3BIOVVoelE"
-            raise Exception("Couldn't find data at " + self.dataset + 
-                            ". Download from " + url) from e
+            raise_from(Exception("Couldn't find data at " + self.dataset + 
+                                 ". Download from " + url), e)
 
     def test_collect_bids_data(self):
         ''' test data has at least one subject with at least one session '''
