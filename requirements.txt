@@ -1,3 +1,4 @@
+-e git+https://github.com/nipy/nipype.git@master#egg=nipype
 numpy
 lockfile
 future
@@ -6,6 +7,5 @@ matplotlib
 nilearn
 sklearn
 nibabel
-nipype
 niworkflows
 grabbit

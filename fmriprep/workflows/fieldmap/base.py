@@ -21,8 +21,8 @@ def sort_fmaps(fieldmaps): # i.e. filenames
     return fmaps
 
 
-def fieldmap_decider(subject_data, settings):
-    ''' Initialize FieldmapDecider to automatically find a
+def fieldmap_decider(fieldmap_data, settings):
+    ''' Run fieldmap_decider to automatically find a
     Fieldmap preprocessing workflow '''
 
     # POSSIBLE FILES ACCORDING TO BIDS 1.0.0
@@ -40,8 +40,8 @@ def fieldmap_decider(subject_data, settings):
 
     pprint(subject_data)
     try:
-        subject_data['fieldmaps'][0]
-    except KeyError as e:
+        fieldmap_data[0]
+    except (IndexError, TypeError) as e:
         raise_from(NotImplementedError("No fieldmap data found"), e)
 
     for filename in subject_data['fieldmaps']:

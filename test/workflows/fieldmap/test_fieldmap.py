@@ -39,10 +39,9 @@ class TestFieldMap(TestWorkflow):
                                'ApplyTOPUP', 'Function', 'DataSink',
                                'IdentityInterface', 'ReadSidecarJSON',
                                'IdentityInterface']
-        expected_outputs = ['fieldmaps', 'outputnode.mag_brain',
-                            'outputnode.fmap_mask', 'outputnode.fmap_fieldcoef',
-                            'outputnode.fmap_movpar']
-        expected_inputs = ['inputnode.fieldmaps']
+        expected_outputs = ['outputnode.fieldmap', 'outputnode.mag_brain',
+                            'outputnode.fmap_mask']
+        expected_inputs = []
 
         # RUN
         result = se_fmap_workflow.se_fmap_workflow(settings=mock_settings)
