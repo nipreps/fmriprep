@@ -32,7 +32,7 @@
 FROM oesteban/crn_nipype
 
 ARG GIT_BRANCH
-ENV GIT_BRANCH ${GIT_BRANCH:-master}
+ENV GIT_BRANCH ${GIT_BRANCH:-docker}
 
 ARG GIT_URL
 ENV GIT_URL ${GIT_URL:-"https://github.com/poldracklab/preprocessing-workflow.git"}
