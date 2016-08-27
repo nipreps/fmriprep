@@ -12,12 +12,12 @@ dependencies:
     - bash build/circle_setup.sh
   override:
     - if [[ -e ~/docker/image.tar ]]; then docker load -i ~/docker/image.tar; fi
-    - docker build -t poldracklab/preprocessing-workflow:latest .
-    - mkdir -p ~/docker; docker save poldracklab/preprocessing-workflow:latest > ~/docker/image.tar
+    - docker build -t oesteban/fmriprep:latest .
+    - mkdir -p ~/docker; docker save oesteban/fmriprep:latest > ~/docker/image.tar
 test:
   override:
-#    - docker run -t -v ~/scratch/data:/root/src/preprocessing-workflow/test_data --entrypoint="/usr/bin/run_unittests" -w "/root/src/preprocessing-workflow" poldracklab/preprocessing-workflow
-    - docker run -i -v /etc/localtime:/etc/localtime:ro -v ~/scratch:/scratch -w /scratch --entrypoint="/usr/bin/run_fmriprep" poldracklab/preprocessing-workflow /scratch/data/ds054 /scratch/outputs/ms-fmriprep/ participant --participant_label 100185 --debug :
+#    - docker run -t -v ~/scratch/data:/root/src/preprocessing-workflow/test_data --entrypoint="/usr/bin/run_unittests" -w "/root/src/preprocessing-workflow" oesteban/fmriprep
+    - docker run -i -v /etc/localtime:/etc/localtime:ro -v ~/scratch:/scratch -w /scratch --entrypoint="/usr/bin/run_fmriprep" oesteban/fmriprep /scratch/data/AA_Conn /scratch/outputs/ms-fmriprep/ participant --participant_label S5271NYO --debug :
         timeout: 4800
 
 general:
