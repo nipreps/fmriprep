@@ -17,8 +17,8 @@ dependencies:
     - mkdir -p ~/docker; docker save poldracklab/fmriprep:latest > ~/docker/image.tar
 test:
   override:
-#    - docker run -t -v ~/scratch/data:/root/src/preprocessing-workflow/test_data --entrypoint="/usr/bin/run_unittests" -w "/root/src/preprocessing-workflow" poldracklab/fmriprep:latest
-    - docker run -i -v /etc/localtime:/etc/localtime:ro -v ~/data:/data -v ~/scratch:/scratch -w /scratch poldracklab/fmriprep:latest /data/ds054 /scratch/out participant -w /scratch/work --debug :
+#    - docker run -t -v ~/scratch/data:/root/src/preprocessing-workflow/test_data --entrypoint="/usr/bin/run_unittests" -w "/root/src/preprocessing-workflow" poldracklab/preprocessing-workflow
+    - docker run -i -v /etc/localtime:/etc/localtime:ro -v ~/scratch:/scratch -w /scratch --entrypoint="/usr/bin/run_fmriprep" poldracklab/preprocessing-workflow /scratch/data/ds054 /scratch/outputs/ms-fmriprep/ participant --participant_label 100185 --debug :
         timeout: 4800
 
 general:
