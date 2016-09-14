@@ -17,7 +17,7 @@ def main():
 
     this_path = os.path.dirname(os.path.abspath(getfile(currentframe())))
     # Read vars from info file
-    module_file =os.path.join(this_path, 'fmriprep', 'info.py')
+    module_file = os.path.join(this_path, 'fmriprep', 'info.py')
     with open(module_file) as fvars:
         exec(compile(fvars.read(), module_file, 'exec'))
 
@@ -62,6 +62,20 @@ def main():
             'Programming Language :: Python :: 3.5'
         ],
     )
+
+    # if this is being set up in a git repo
+    if glob('.git'):
+        enforce_pep8()
+
+def enforce_pep8():
+    ''' copy commit hook to .git/hooks to ensure linting'''
+    import shutil
+    from future.utils import raise_from
+
+    try:
+        shutil.copy('./hooks/pre-commit', '.git/hooks/')
+    except StandardError as serror:
+        raise_from("failed to set up git hooks", serror)
 
 if __name__ == '__main__':
     LOCAL_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))

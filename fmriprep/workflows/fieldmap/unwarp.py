@@ -165,6 +165,8 @@ def _get_metadata(in_file):
         fields=['TotalReadoutTime', 'PhaseEncodingDirection'],
         in_file=in_file
     )
+    
+    out_dict = {}
 
     try:
         out_dict = info.run().outputs.out_dict

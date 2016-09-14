@@ -84,6 +84,11 @@ def main():
         'output_dir': op.abspath(opts.output_dir),
         'work_dir': op.abspath(opts.work_dir)
     }
+    settings['work_dir'] = settings['output_dir'] # other wfs assume this is set
+
+
+    # set up logger
+    logger = logging.getLogger('cli')
 
     # set up logger
     logger = logging.getLogger('cli')
@@ -107,17 +112,10 @@ def main():
         if not op.exists(derivatives):
             os.makedirs(derivatives)
 
-        if not op.exists(settings['work_dir']):
-            os.makedirs(settings['work_dir'])
-
         if not op.exists(log_dir):
             os.makedirs(log_dir)
 
     logger.addHandler(logging.FileHandler(op.join(log_dir, 'run_workflow')))
-
-    # Warn for default work/output directories
-    if settings['work_dir'] == parser.get_default('work_dir'):
-        logger.info('Using default working directory (%s)', settings['work_dir'])
 
     # Set nipype config
     ncfg.update_config({
@@ -157,7 +155,6 @@ def main():
 
     if opts.write_graph:
         preproc_wf.write_graph()
-
 
 if __name__ == '__main__':
     main()
