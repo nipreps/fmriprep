@@ -17,11 +17,13 @@ from nipype.interfaces import c3
 from nipype.interfaces import fsl
 from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
+from niworkflows.data import get_mni_template_ras
+from niworkflows.interfaces.masks import BETRPT
+from niworkflows.interfaces.registration import FLIRTRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import (DerivativesDataSink, FormatHMCParam,
-    ImageDataSink)
-from fmriprep.interfaces.bids import _splitext
+                                 ImageDataSink)
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 from fmriprep.workflows.sbref import _extract_wm
@@ -40,7 +42,7 @@ def epi_hmc(name='EPI_HMC', settings=None):
 
     pre_bet_mean = pe.Node(fsl.MeanImage(dimension='T'), name='PreBETMean')
 
-    bet = pe.Node(fsl.BET(functional=True, frac=0.6), name='EPI_bet')
+    bet = pe.Node(BETRPT(functional=True, frac=0.6), name='EPI_bet')
 
     # Head motion correction (hmc)
     hmc = pe.Node(fsl.MCFLIRT(
@@ -50,13 +52,12 @@ def epi_hmc(name='EPI_HMC', settings=None):
     hcm2itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
                          iterfield=['transform_file'], name='hcm2itk')
 
-
     avscale = pe.MapNode(fsl.utils.AvScale(all_param=True), name='AvScale',
                          iterfield=['mat_file'])
     avs_format = pe.Node(FormatHMCParam(), name='AVScale_Format')
 
     # Calculate EPI mask on the average after HMC
-    bet_hmc = pe.Node(fsl.BET(mask=True, frac=0.6), name='EPI_hmc_bet')
+    bet_hmc = pe.Node(BETRPT(mask=True, frac=0.6), name='EPI_hmc_bet')
 
     workflow.connect([
         (inputnode, pick_1st, [('epi', 'in_file')]),
@@ -81,17 +82,31 @@ def epi_hmc(name='EPI_HMC', settings=None):
     # Write corrected file in the designated output dir
     ds_hmc = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc'), name='DerivativesHMC')
+                            suffix='hmc'),
+        name='DerivativesHMC'
+    )
+
     ds_mats = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc'), name='DerivativesHMCmats')
+                            suffix='hmc'),
+        name='DerivativesHMCmats'
+    )
+
     ds_mask = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc_bmask'), name='DerivativesEPImask')
+                            suffix='hmc_bmask'),
+        name='DerivativesEPImask'
+    )
 
     ds_motion = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc'), name='DerivativesParamsHMC')
+                            suffix='hmc'),
+        name='DerivativesParamsHMC'
+    )
+
+    ds_betrpt = pe.Node(nio.DataSink(), name="BETRPTDS")
+    ds_betrpt.inputs.base_directory = op.join(settings['output_dir'],
+                                              'reports')
 
     mean_epi_stripped_overlay = pe.Node(
         niu.Function(
@@ -124,11 +139,12 @@ def epi_hmc(name='EPI_HMC', settings=None):
         (pre_bet_mean, mean_epi_overlay_ds, [('out_file', 'overlay_file')]),
         (bet_hmc, mean_epi_overlay_ds, [('mask_file', 'base_file')]),
         (mean_epi_stripped_overlay, mean_epi_overlay_ds,
-            [('out_file', 'in_file')]
-        )
+         [('out_file', 'in_file')]),
+        (bet, ds_betrpt, [('out_report', '@betrpt')])
     ])
 
     return workflow
+
 
 def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
     """
@@ -136,8 +152,10 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
     maps the EPI space into the T1-space
     """
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi', 'epi_mean', 't1_brain', 't1_seg']), name='inputnode'
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['epi', 'epi_mean', 't1_brain',
+                                      't1_seg']),
+        name='inputnode'
     )
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['mat_epi_to_t1', 'mat_t1_to_epi']),
@@ -147,14 +165,20 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
     # Extract wm mask from segmentation
     wm_mask = pe.Node(
         niu.Function(input_names=['in_file'], output_names=['out_file'],
-        function=_extract_wm),
+                     function=_extract_wm),
         name='WM_mask'
     )
 
-
-    flt_bbr_init = pe.Node(fsl.FLIRT(dof=6, out_matrix_file='init.mat'),
-        name='Flirt_BBR_init')
-    flt_bbr = pe.Node(fsl.FLIRT(dof=6, cost_func='bbr'), name='Flirt_BBR')
+    flt_bbr_init = pe.Node(
+        FLIRTRPT(generate_report=True, dof=6, out_matrix_file='init.mat',
+                 out_file='init.nii.gz'),
+        name='Flirt_BBR_init'
+    )
+    flt_bbr = pe.Node(
+        FLIRTRPT(generate_report=True, dof=6, cost_func='bbr',
+                 out_file='bbr.nii.gz'),
+        name='Flirt_BBR'
+    )
     flt_bbr.inputs.schedule = op.join(os.getenv('FSLDIR'),
                                       'etc/flirtsch/bbr.sch')
 
@@ -171,14 +195,24 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
     # Write EPI mean in T1w space
     ds_t1w = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc_t1'), name='DerivHMC_T1w')
+                            suffix='hmc_t1'),
+        name='DerivHMC_T1w'
+    )
     # Write registrated file in the designated output dir
     ds_tfm_fwd = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='epi2t1w_affine'), name='DerivEPI_to_T1w_fwd')
+                            suffix='epi2t1w_affine'),
+        name='DerivEPI_to_T1w_fwd'
+    )
     ds_tfm_inv = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='t1w2epi_affine'), name='DerivEPI_to_T1w_inv')
+                            suffix='t1w2epi_affine'),
+        name='DerivEPI_to_T1w_inv'
+    )
+
+    ds_flt_bbr = pe.Node(nio.DataSink(), name="FLTBBRDS")
+    ds_flt_bbr.inputs.base_directory = op.join(settings['output_dir'],
+                                                'reports')
 
     workflow.connect([
         (inputnode, wm_mask, [('t1_seg', 'in_file')]),
@@ -203,14 +237,17 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
         (inputnode, ds_t1w, [('epi', 'source_file')]),
         (fsl2itk_fwd, ds_tfm_fwd, [('itk_transform', 'in_file')]),
         (fsl2itk_inv, ds_tfm_inv, [('itk_transform', 'in_file')]),
-        (flt_bbr, ds_t1w, [('out_file', 'in_file')])
+        (flt_bbr, ds_t1w, [('out_file', 'in_file')]),
+        (flt_bbr, ds_flt_bbr, [('out_report', 'flt_bbr_rpt')])
     ])
 
     # Plots for report
-    epi_to_t1 = pe.Node(niu.Function(
-        input_names=['in_file', 'overlay_file', 'out_file'],
-        output_names=['out_file'],
-        function=stripped_brain_overlay),
+    epi_to_t1 = pe.Node(
+        niu.Function(
+            input_names=['in_file', 'overlay_file', 'out_file'],
+            output_names=['out_file'],
+            function=stripped_brain_overlay
+        ),
         name='PNG_epi_to_t1'
     )
     epi_to_t1.inputs.out_file = 'epi_to_t1.svg'
@@ -232,10 +269,12 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
 
     return workflow
 
+
 def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi', 'epi_brain', 'sbref_brain', 'sbref_brain_mask']),
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['epi', 'epi_brain', 'sbref_brain',
+                                      'sbref_brain_mask']),
         name='inputnode'
     )
     outputnode = pe.Node(niu.IdentityInterface(
@@ -243,18 +282,25 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
 
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='EPImean')
     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='EPImeanBias')
-    epi_sbref = pe.Node(fsl.FLIRT(dof=6, out_matrix_file='init.mat'),
+    epi_sbref = pe.Node(FLIRTRPT(generate_report=True, dof=6,
+                                 out_matrix_file='init.mat',
+                                 out_file='init.nii.gz'),
                         name='EPI2SBRefRegistration')
     # make equivalent inv
     sbref_epi = pe.Node(fsl.ConvertXFM(invert_xfm=True), name="SBRefEPI")
 
     epi_split = pe.Node(fsl.Split(dimension='t'), name='EPIsplit')
-    epi_xfm = pe.MapNode(fsl.ApplyXfm(), name='EPIapplyxfm', iterfield=['in_file'])
+    epi_xfm = pe.MapNode(fsl.preprocess.ApplyXFM(), name='EPIapplyXFM',
+                         iterfield=['in_file'])
     epi_merge = pe.Node(fsl.Merge(dimension='t'), name='EPImergeback')
 
     ds_sbref = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-            suffix='hmc_sbref'), name='DerivHMC_SBRef')
+                            suffix='hmc_sbref'), name='DerivHMC_SBRef')
+
+    ds_flirtrpt = pe.Node(nio.DataSink(), name="FLIRTRPTDS")
+    ds_flirtrpt.inputs.base_directory = op.join(settings['output_dir'],
+                                                'reports')
 
     workflow.connect([
         (inputnode, epi_split, [('epi_brain', 'in_file')]),
@@ -274,7 +320,8 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
         (sbref_epi, outputnode, [('out_file', 'out_mat_inv')]),
 
         (epi_merge, ds_sbref, [('merged_file', 'in_file')]),
-        (inputnode, ds_sbref, [('epi', 'source_file')])
+        (inputnode, ds_sbref, [('epi', 'source_file')]),
+        (epi_sbref, ds_flirtrpt, [('out_report', '@flirtrpt')])
     ])
 
     #  Plot for report
@@ -305,6 +352,7 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
     ])
 
     return workflow
+
 
 def epi_mni_transformation(name='EPIMNITransformation', settings=None):
     workflow = pe.Workflow(name=name)
@@ -384,24 +432,28 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
 
     return workflow
 
+
 # pylint: disable=R0914
 def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
     """ A workflow to correct EPI images """
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask', 't1_seg']), name='inputnode')
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask',
+                                      't1_seg']),
+        name='inputnode'
+    )
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['epi_unwarp', 'epi_mean', 'epi_mask']),
         name='outputnode'
     )
-
 
     unwarp = sdc_unwarp()
     unwarp.inputs.inputnode.hmc_movpar = ''
 
     # Compute outputs
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='EPImean')
-    bet = pe.Node(fsl.BET(frac=0.6, mask=True), name='EPIBET')
+    bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
+                  name='EPIBET')
 
     ds_epi_unwarp = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
@@ -468,13 +520,15 @@ def _gen_reference(fixed_image, moving_image, out_file=None):
     immov = nb.load(moving_image)
 
     orig = apply_affine(imref.affine, [-0.5] * 3)
-    end = apply_affine(imref.affine, [s - 0.5 for s in imref.get_data().shape[:3]])
+    end = apply_affine(imref.affine,
+                       [s - 0.5 for s in imref.get_data().shape[:3]])
 
     mov_spacing = immov.get_header().get_zooms()[:3]
     new_sizes = np.ceil((end-orig)/mov_spacing)
 
     new_affine = immov.affine
-    ref_center = apply_affine(imref.affine, (0.5 * (np.array(imref.get_data().shape[:3]))))
+    ref_center = apply_affine(imref.affine, (0.5 * (np.array(
+        imref.get_data().shape[:3]))))
 
     new_center = new_affine[:3, :3].dot(new_sizes)
     new_affine[:3, 3] = -0.5 * new_center + ref_center

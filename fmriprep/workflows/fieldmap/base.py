@@ -1,16 +1,17 @@
 from future.utils import raise_from
-from pprint import pprint
 
 from nipype import logging
 
 LOGGER = logging.getLogger('workflow')
+
 
 def is_fmap_type(fmap_type, filename):
     from fmriprep.utils import misc
     import re
     return re.search(misc.fieldmap_suffixes[fmap_type], filename)
 
-def sort_fmaps(fieldmaps): # i.e. filenames
+
+def sort_fmaps(fieldmaps):  # i.e. filenames
     from fmriprep.utils import misc
     from fmriprep.workflows.fieldmap.base import is_fmap_type
     fmaps = {}
@@ -38,22 +39,21 @@ def fieldmap_decider(fieldmap_data, settings):
     #             'outputnode.fmap_fieldcoef': None,
     #             'outputnode.fmap_movpar': None}
 
-    pprint(subject_data)
     try:
         fieldmap_data[0]
     except IndexError as e:
         raise_from(NotImplementedError("No fieldmap data found"), e)
 
     for filename in subject_data['fieldmaps']:
-        if is_fmap_type('phasediff', filename): # 8.9.1
+        if is_fmap_type('phasediff', filename):  # 8.9.1
             from fmriprep.workflows.fieldmap.phase_diff_and_magnitudes import phase_diff_and_magnitudes
             return phase_diff_and_magnitudes(settings)
-        elif is_fmap_type('phase', filename): # 8.9.2
+        elif is_fmap_type('phase', filename):  # 8.9.2
             raise NotImplementedError("No workflow for phase fieldmap data")
-        elif is_fmap_type('fieldmap', filename): # 8.9.3
+        elif is_fmap_type('fieldmap', filename):  # 8.9.3
             from fmriprep.workflows.fieldmap.fieldmap_to_phasediff import fieldmap_to_phasediff
             return fieldmap_to_phasediff(settings=settings)
-        elif is_fmap_type('topup', filename): # 8.0.4
+        elif is_fmap_type('topup', filename):  # 8.0.4
             from fmriprep.workflows.fieldmap.se_fmap_workflow import se_fmap_workflow
             return se_fmap_workflow(settings=settings)
 
@@ -115,4 +115,3 @@ def mcflirt2topup(in_files, in_mats, out_movpar=None):
 
     np.savetxt(out_movpar, params)
     return out_movpar
-

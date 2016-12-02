@@ -11,6 +11,7 @@ from fmriprep import interfaces
 
 FAST_DEFAULT_SEGS = ['CSF', 'gray matter', 'white matter']
 
+
 def discover_wf(settings, name="ConfoundDiscoverer"):
     ''' All input fields are required.
 
@@ -32,7 +33,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
                          name='outputnode')
 
     # registration using ANTs
-    t1_registration = pe.Node(fsl.ApplyXfm(), name='T1Registration')
+    t1_registration = pe.Node(fsl.preprocess.ApplyXFM(), name='T1Registration')
 
     # Global and segment regressors
     signals = pe.Node(nilearn.SignalExtraction(include_global=True, detrend=True,
@@ -46,7 +47,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     # CompCor
     tcompcor = pe.Node(confounds.TCompCor(components_file='tcompcor.tsv'), name="tCompCor")
     acompcor_roi = pe.Node(mask.BinarizeSegmentation(
-        false_values=[FAST_DEFAULT_SEGS.index('gray matter') + 1, 0]), # 0 denotes background
+        false_values=[FAST_DEFAULT_SEGS.index('gray matter') + 1, 0]),  # 0 denotes background
                            name="CalcaCompCorROI")
     acompcor = pe.Node(confounds.ACompCor(components_file='acompcor.tsv'), name="aCompCor")
 
@@ -98,6 +99,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
 
     return workflow
 
+
 def _gather_confounds(signals=None, dvars=None, frame_displace=None, tcompcor=None, acompcor=None):
     ''' load confounds from the filenames, concatenate together horizontally, and re-save '''
     import pandas as pd
@@ -108,10 +110,10 @@ def _gather_confounds(signals=None, dvars=None, frame_displace=None, tcompcor=No
         return ''.join(a_string.split()).lower().strip('#')
 
     all_files = [confound for confound in [signals, dvars, frame_displace, tcompcor, acompcor]
-                 if confound != None]
+                 if confound is not None]
 
     confounds_data = pd.DataFrame()
-    for file_name in all_files: # assumes they all have headings already
+    for file_name in all_files:  # assumes they all have headings already
         new = pd.read_csv(file_name, sep="\t")
         for column_name in new.columns:
             new.rename(columns={column_name: less_breakable(column_name)}, inplace=True)
@@ -121,6 +123,7 @@ def _gather_confounds(signals=None, dvars=None, frame_displace=None, tcompcor=No
     confounds_data.to_csv(combined_out, sep=str("\t"), index=False)
 
     return combined_out
+
 
 def reverse_order(inlist):
     ''' if a list, return the list in reversed order; else it is a single item, return it.'''

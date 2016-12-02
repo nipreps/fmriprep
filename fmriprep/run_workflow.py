@@ -29,13 +29,13 @@ def main():
     # IMPORTANT: they must go directly with the parser object
     parser.add_argument('bids_dir', action='store', default=os.getcwd())
     parser.add_argument('output_dir', action='store',
-                         default=op.join(os.getcwd(), 'out'))
+                        default=op.join(os.getcwd(), 'out'))
     parser.add_argument('analysis_level', choices=['participant'])
 
     # optional arguments
     parser.add_argument('--participant_label', action='store', nargs='+')
     parser.add_argument('-v', '--version', action='version',
-                         version='fmriprep v{}'.format(__version__))
+                        version='fmriprep v{}'.format(__version__))
 
     # Other options
     g_input = parser.add_argument_group('fMRIprep specific arguments')
@@ -51,17 +51,18 @@ def main():
     g_input.add_argument('--use-plugin', action='store', default=None,
                          help='nipype plugin configuration file')
     g_input.add_argument('-w', '--work-dir', action='store',
-                           default=op.join(os.getcwd(), 'work'))
+                         default=op.join(os.getcwd(), 'work'))
     g_input.add_argument('-t', '--workflow-type', default='ds005', required=False,
                          action='store', choices=['ds005', 'ds054', 'HPC', 'spiral'],
-                         help='workflow type, a monkeypatch while it is not automatically identified')
+                         help='''workflow type, a monkeypatch while it is not 
+                         automatically identified''')
 
     # ANTs options
     g_ants = parser.add_argument_group('specific settings for ANTs registrations')
     g_ants.add_argument('--ants-nthreads', action='store', type=int,
                         help='number of threads that will be set in ANTs processes')
     g_ants.add_argument('--skull-strip-ants', action='store_true', default=False,
-                         help='use ANTs-based skull-stripping')
+                        help='use ANTs-based skull-stripping')
 
     opts = parser.parse_args()
     create_workflow(opts)
@@ -72,7 +73,6 @@ def create_workflow(opts):
     from nipype import config as ncfg
     from fmriprep.utils import make_folder
     from fmriprep.viz.reports import run_reports
-    from fmriprep.workflows import base as fwb
     from fmriprep.workflows.base import base_workflow_enumerator
 
     settings = {
@@ -110,7 +110,8 @@ def create_workflow(opts):
     # Set nipype config
     ncfg.update_config({
         'logging': {'log_directory': log_dir, 'log_to_file': True},
-        'execution': {'crashdump_dir': log_dir}
+        'execution': {'crashdump_dir': log_dir, 
+                      'remove_unnecessary_outputs': False}
     })
 
     # nipype plugin configuration

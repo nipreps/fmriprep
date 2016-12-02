@@ -7,8 +7,6 @@ Created on Wed Dec  2 17:35:40 2015
 
 @author: craigmoodie
 """
-from copy import deepcopy
-
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
 
@@ -23,6 +21,7 @@ from fmriprep.workflows.epi import (
     epi_unwarp, epi_hmc, epi_sbref_registration,
     epi_mean_t1_registration, epi_mni_transformation)
 
+
 def base_workflow_enumerator(subject_list, settings):
     workflow = pe.Workflow(name='workflow_enumerator')
     generated_list = []
@@ -34,13 +33,15 @@ def base_workflow_enumerator(subject_list, settings):
 
     return workflow
 
+
 def base_workflow_generator(subject_id, settings):
     subject_data = collect_bids_data(settings['bids_root'], subject_id)
-    if (subject_data['t1w'] != [] and subject_data['sbref'] != []):
+    if subject_data['t1w'] != [] and subject_data['sbref'] != []:
         return wf_ds054_type(subject_data, settings, name=subject_id)
-    if (subject_data['t1w'] != [] and subject_data['sbref'] == []):
+    if subject_data['t1w'] != [] and subject_data['sbref'] == []:
         return wf_ds005_type(subject_data, settings, name=subject_id)
     return None
+
 
 def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
     """
@@ -194,6 +195,7 @@ def wf_ds005_type(subject_data, settings, name='fMRI_prep'):
     ])
 
     return workflow
+
 
 def _first(inlist):
     if isinstance(inlist, (list, tuple)):

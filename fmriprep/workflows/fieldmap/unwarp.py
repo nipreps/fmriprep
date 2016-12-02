@@ -13,11 +13,13 @@ from nipype.interfaces import fsl
 from nipype.interfaces import ants
 from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
+from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.utils.misc import gen_list
 from fmriprep.workflows.fieldmap.base import create_encoding_file
 
 SDC_UNWARP_NAME = 'SDC_unwarp'
+
 
 def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac'):
     """
@@ -59,9 +61,11 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac'):
     align.inputs.in_ref = ref_vol
 
     # Read metadata
-    meta = pe.MapNode(niu.Function(
-        input_names=['in_file'], output_names=['out_dict'], function=_get_metadata),
-        iterfield=['in_file'], name='metadata')
+    meta = pe.MapNode(
+        niu.Function(input_names=['in_file'], output_names=['out_dict'],
+                     function=_get_metadata),
+        iterfield=['in_file'], name='metadata'
+    )
 
     encfile = pe.Node(interface=niu.Function(
         input_names=['input_images', 'in_dict'], output_names=['parameters_file'],
@@ -94,7 +98,6 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac'):
 
     # Use the least-squares method to correct the dropout of the SBRef images
     unwarp = pe.Node(fsl.ApplyTOPUP(method=method, in_index=[1]), name='TopUpApply')
-
 
     workflow.connect([
         (inputnode, meta, [('in_file', 'in_file')]),
@@ -155,6 +158,7 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac'):
 
     return workflow
 
+
 def _get_metadata(in_file):
     import nibabel as nb
     from fmriprep.interfaces import ReadSidecarJSON
@@ -210,6 +214,7 @@ def _multiple_pe_hmc(in_files, in_movpar, in_ref=None):
     from six import string_types
     from nipype.interfaces import fsl
     from nipype.interfaces import ants
+    from niworkflows.interfaces.masks import BETRPT
 
     if isinstance(in_files, string_types):
         in_files = [in_files]
@@ -235,8 +240,7 @@ def _multiple_pe_hmc(in_files, in_movpar, in_ref=None):
         dimension=3, input_image=mean.run().outputs.out_file)
     inu_res = inu.run()
     out_ref = inu_res.outputs.output_image
-    bet = fsl.BET(
-        frac=0.6, mask=True, in_file=out_ref)
+    bet = BETRPT(generate_report=True, frac=0.6, mask=True, in_file=out_ref)
     out_mask = bet.run().outputs.mask_file
 
     return (out_file, out_ref, out_mask, out_movpar)
@@ -298,6 +302,7 @@ def _gen_coeff(in_file, in_ref, in_movpar):
     nb.Nifti1Image(img.get_data(), None, hdr).to_filename(out_fieldcoef)
 
     return out_fieldcoef, out_movpar
+
 
 def _fix_movpar(in_files):
     import numpy as np

@@ -9,6 +9,7 @@ from nipype.interfaces import fsl
 
 WORKFLOW_NAME = 'Fieldmap2Phasediff'
 
+
 def fieldmap_to_phasediff(name=WORKFLOW_NAME, settings=None):
     """Legacy workflow to create a phasediff map from a fieldmap, to be digested by FUGUE"""
 

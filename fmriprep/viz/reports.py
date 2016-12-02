@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import codecs
 import json
 import re
 import os
@@ -8,8 +7,9 @@ import os
 import jinja2
 from pkg_resources import resource_filename as pkgrf
 
+
 class Element(object):
-    
+
     def __init__(self, name, file_pattern, title, description):
         self.name = name
         self.file_pattern = re.compile(file_pattern)
@@ -40,7 +40,7 @@ class SubReport(object):
 
 
 class Report(object):
-    
+
     def __init__(self, path, config, out_dir, out_filename='report.html'):
         self.root = path
         self.sub_reports = []
@@ -86,6 +86,7 @@ class Report(object):
             fp.write(report_render)
         return report_render
 
+
 def run_reports(out_dir):
     path = os.path.join(out_dir, 'images/')
     config = pkgrf('fmriprep', 'viz/config.json')
@@ -95,9 +96,8 @@ def run_reports(out_dir):
         dir = root.split('/')[-1]
         try:
             subject = re.search('^(?P<subject_id>sub-[a-zA-Z0-9]+)$', dir).group()
-            out_filename='{}{}'.format(subject, '.html')
+            out_filename = '{}{}'.format(subject, '.html')
             report = Report(path, config, out_dir, out_filename)
             report.generate_report()
         except AttributeError:
             continue
-
