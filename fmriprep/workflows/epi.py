@@ -56,7 +56,8 @@ def epi_hmc(name='EPI_HMC', settings=None):
     avs_format = pe.Node(FormatHMCParam(), name='AVScale_Format')
 
     # Calculate EPI mask on the average after HMC
-    bet_hmc = pe.Node(BETRPT(mask=True, frac=0.6), name='EPI_hmc_bet')
+    bet_hmc = pe.Node(BETRPT(generate_report=True, mask=True, frac=0.6),
+                      name='EPI_hmc_bet')
 
     workflow.connect([
         (inputnode, pick_1st, [('epi', 'in_file')]),
