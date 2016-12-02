@@ -27,9 +27,9 @@ dependencies:
 test:
   override:
     - docker run -ti --rm --entrypoint="/usr/bin/run_unittests" poldracklab/fmriprep:latest
-    - docker run -i -v /etc/localtime:/etc/localtime:ro -v $HOME/data:/data:ro -v ~/.cache/stanford-crn:/root/.cache/stanford-crn -v $HOME/ds054/out:/out -w /scratch poldracklab/fmriprep:latest /data/ds054 /out/ participant -w work/ -t ds054 --debug :
+    - docker run -i -v /etc/localtime:/etc/localtime:ro -v $HOME/data:/data:ro -v ~/.cache/stanford-crn:/root/.cache/stanford-crn -v $HOME/ds054/out:/out -w /scratch poldracklab/fmriprep:latest /data/ds054 /out/ participant -w work/ -t ds054 --debug --nthreads 2 --ants-nthreads 1:
         timeout: 4800
-    - docker run -i -v /etc/localtime:/etc/localtime:ro -v $HOME/data:/data:ro -v ~/.cache/stanford-crn:/root/.cache/stanford-crn -v $HOME/ds005/out:/out -w /scratch poldracklab/fmriprep:latest /data/ds005 /out/ participant -w work/ -t ds005 --debug :
+    - docker run -i -v /etc/localtime:/etc/localtime:ro -v $HOME/data:/data:ro -v ~/.cache/stanford-crn:/root/.cache/stanford-crn -v $HOME/ds005/out:/out -w /scratch poldracklab/fmriprep:latest /data/ds005 /out/ participant -w work/ -t ds005 --debug --nthreads 2 --ants-nthreads 1:
         timeout: 4800
 
 general:
