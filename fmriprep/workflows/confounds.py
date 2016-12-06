@@ -6,7 +6,6 @@ from nipype.interfaces import utility, nilearn, fsl
 from nipype.algorithms import confounds
 from nipype.pipeline import engine as pe
 
-from fmriprep.interfaces import mask
 from fmriprep import interfaces
 
 FAST_DEFAULT_SEGS = ['CSF', 'GrayMatter', 'WhiteMatter']
@@ -27,7 +26,8 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
 
     inputnode = pe.Node(utility.IdentityInterface(fields=['fmri_file', 'movpar_file', 't1_seg',
                                                           'epi_mask', 't1_transform',
-                                                          'reference_image', 'motion_confounds_file',
+                                                          'reference_image',
+                                                          'motion_confounds_file',
                                                           'source_file']),
                         name='inputnode')
     outputnode = pe.Node(utility.IdentityInterface(fields=['confounds_file']),
@@ -47,16 +47,11 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     frame_displace = pe.Node(confounds.FramewiseDisplacement(), name="FramewiseDisplacement")
     # CompCor
     tcompcor = pe.Node(confounds.TCompCor(components_file='tcompcor.tsv'), name="tCompCor")
-    acompcor_roi = pe.Node(mask.BinarizeSegmentation(
-        false_values=[FAST_DEFAULT_SEGS.index('GrayMatter') + 1, 0]),  # 0 denotes background
-                           name="CalcaCompCorROI")
-    acompcor = pe.Node(confounds.ACompCor(components_file='acompcor.tsv'), name="aCompCor")
 
     # misc utilities
     concat = pe.Node(utility.Function(function=_gather_confounds, input_names=['signals', 'dvars',
                                                                                'frame_displace',
                                                                                'tcompcor',
-                                                                               'acompcor',
                                                                                'motion'],
                                       output_names=['combined_out']),
                      name="ConcatConfounds")
@@ -80,17 +75,12 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         # anatomical confound: signal extraction
         (t1_registration, signals, [('out_file', 'label_files')]),
         (inputnode, signals, [('fmri_file', 'in_file')]),
-        # anatomical confound: aCompCor
-        (inputnode, acompcor, [('fmri_file', 'realigned_file')]),
-        (t1_registration, acompcor_roi, [('out_file', 'in_segments')]),
-        (acompcor_roi, acompcor, [('out_mask', 'mask_file')]),
 
         # connect the confound nodes to the concatenate node
         (signals, concat, [('out_file', 'signals')]),
         (dvars, concat, [('out_all', 'dvars')]),
         (frame_displace, concat, [('out_file', 'frame_displace')]),
         (tcompcor, concat, [('components_file', 'tcompcor')]),
-        (acompcor, concat, [('components_file', 'acompcor')]),
         (inputnode, concat, [('motion_confounds_file', 'motion')]),
 
         (concat, outputnode, [('combined_out', 'confounds_file')]),

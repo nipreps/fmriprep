@@ -31,10 +31,8 @@ class TestConfounds(TestWorkflow):
         # Make sure mandatory inputs are set
         self.assert_inputs_set(workflow, {'outputnode': ['confounds_file'],
                                           'ConcatConfounds': ['signals', 'dvars', 'frame_displace',
-                                                              'tcompcor', 'acompcor'],
-                                          'tCompCor': ['components_file'],
-                                          'aCompCor': ['components_file', 'mask_file'], })
-
+                                                              'tcompcor'],
+                                          'tCompCor': ['components_file']})
     @mock.patch('pandas.read_csv')
     @mock.patch.object(pd.DataFrame, 'to_csv', autospec=True)
     @mock.patch.object(pd.DataFrame, '__eq__', autospec=True,
