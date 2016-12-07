@@ -23,8 +23,8 @@ from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT
 
 from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge,
-                                 ImageDataSink)
-from fmriprep.interfaces.utils import reorient
+                                 ImageDataSink, RASReorient)
+
 from fmriprep.viz import stripped_brain_overlay
 
 
@@ -43,14 +43,9 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                 't1_segmentation']), name='outputnode')
 
-    # 0. Align and merge if several T1w images are provided
-    t1wmrg = pe.Node(IntraModalMerge(), name='MergeT1s')
+    # 0. Align, reorient to RAS and merge if several T1w images are provided
+    t1wmrg = pe.Node(IntraModalMerge(to_ras=True, hmc=True), name='MergeT1s')
 
-    # 1. Reorient T1
-    arw = pe.Node(niu.Function(input_names=['in_file'],
-                               output_names=['out_file'],
-                               function=reorient),
-                  name='Reorient')
 
     # 2. T1 Bias Field Correction
     inu_n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3),
@@ -97,10 +92,21 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     tpms_mni.inputs.reference_image = op.join(get_mni_icbm152_nlin_asym_09c(),
                                               '1mm_T1.nii.gz')
 
+    ds_t1_seg_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='t1_seg', out_path_base='reports'),
+        name='DS_T1_Seg_Report'
+    )
+
+    ds_t1_2_mni_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='t1_2_mni', out_path_base='reports'),
+        name='DS_T1_2_MNI_Report'
+    )
+
     workflow.connect([
         (inputnode, t1wmrg, [('t1w', 'in_files')]),
-        (t1wmrg, arw, [('out_avg', 'in_file')]),
-        (arw, inu_n4, [('out_file', 'input_image')]),
+        (t1wmrg, inu_n4, [('out_avg', 'input_image')]),
         (inu_n4, asw, [('output_image', 'inputnode.in_file')]),
         (asw, t1_seg, [('outputnode.out_file', 'in_files')]),
         (inu_n4, t1_2_mni, [('output_image', 'moving_image')]),
@@ -121,7 +127,22 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         (t1_2_mni, tpms_mni, [('forward_transforms', 'transforms'),
                               ('forward_invert_flags', 'invert_transform_flags')]),
         (asw, outputnode, [('outputnode.out_file', 't1_brain')]),
+        (inputnode, ds_t1_seg_report, [('t1w', 'source_file')]),
+        (t1_seg, ds_t1_seg_report, [('out_report', 'in_file')]),
+        (inputnode, ds_t1_2_mni_report, [('t1w', 'source_file')]),
+        (t1_2_mni, ds_t1_2_mni_report, [('out_report', 'in_file')])
     ])
+
+    if settings.get('skull_strip_ants', False):
+        ds_t1_skull_strip_report = pe.Node(
+            DerivativesDataSink(base_directory=settings['output_dir'],
+                                suffix='t1_skull_strip', out_path_base='reports'),
+            name='DS_Report'
+        )
+        workflow.connect([
+            (inputnode, ds_t1_skull_strip_report, [('t1w', 'source_file')]),
+            (asw, ds_t1_skull_strip_report, [('outputnode.out_report', 'in_file')])
+        ])
 
     # Connect reporting nodes
     t1_stripped_overlay = pe.Node(
@@ -191,6 +212,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         name='datasink',
         parameterization=False
     )
+
 
     workflow.connect([
         (inu_n4, t1_stripped_overlay, [('output_image', 'overlay_file')]),
@@ -305,10 +327,10 @@ def skullstrip_ants(name='ANTsBrainExtraction', settings=None):
 
     workflow = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
+    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file', 'source_file']),
                         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['out_file', 'out_mask']), name='outputnode')
+        fields=['out_file', 'out_mask', 'out_report']), name='outputnode')
 
     t1_skull_strip = pe.Node(BrainExtractionRPT(
         dimension=3, use_floatingpoint_precision=1,
@@ -333,10 +355,12 @@ def skullstrip_ants(name='ANTsBrainExtraction', settings=None):
         'T_template0_BrainCerebellumRegistrationMask.nii.gz'
     )
 
+
     workflow.connect([
         (inputnode, t1_skull_strip, [('in_file', 'anatomical_image')]),
         (t1_skull_strip, outputnode, [('BrainExtractionMask', 'out_mask'),
-                                      ('BrainExtractionBrain', 'out_file')])
+                                      ('BrainExtractionBrain', 'out_file'),
+                                      ('out_report', 'out_report')])
     ])
 
     return workflow

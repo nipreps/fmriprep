@@ -14,16 +14,33 @@
 
 {% for sub_report in sub_reports %}
     <h2>{{ sub_report.name }}</h2>
-    {% for elem in sub_report.elements %}
-        {% if elem.files_contents %}
-        <h4>{{ elem.name }}<h4/>
-        <br>
-        {% for image in elem.files_contents %}
-            {{ image.1 }}<br>
-            {{ image.0 }}
+    {% if sub_report.run_reports %}
+        {% for run_report in sub_report.run_reports %}
+            <h3>Reports for {{ run_report.title }}</h3>
+            {% for elem in run_report.elements %}
+                {% if elem.files_contents %}
+                <h4>{{ elem.name }}<h4/>
+                <br>
+                {% for image in elem.files_contents %}
+                    {{ image.1 }}<br>
+                    {{ image.0 }}
+                {% endfor %}
+                {% endif %}
+            {% endfor %}
         {% endfor %}
-        {% endif %}
-    {% endfor %}
+    {% else %}
+        {% for elem in sub_report.elements %}
+            {% if elem.files_contents %}
+            <h4>{{ elem.name }}<h4/>
+            <br>
+            {% for image in elem.files_contents %}
+                {{ image.1 }}<br>
+                {{ image.0 }}
+            {% endfor %}
+            {% endif %}
+        {% endfor %}
+
+    {% endif %}
 {% endfor %}
 
 </body>

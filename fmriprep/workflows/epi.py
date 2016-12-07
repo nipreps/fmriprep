@@ -23,6 +23,7 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import (DerivativesDataSink, FormatHMCParam,
                                  ImageDataSink)
+from fmriprep.interfaces.utils import nii_concat
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 from fmriprep.workflows.sbref import _extract_wm
@@ -43,6 +44,7 @@ def epi_hmc(name='EPI_HMC', settings=None):
     # Head motion correction (hmc)
     hmc = pe.Node(fsl.MCFLIRT(
         save_mats=True, save_plots=True, mean_vol=True), name='EPI_hmc')
+    hmc.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
 
     hcm2itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
                          iterfield=['transform_file'], name='hcm2itk')
@@ -86,9 +88,11 @@ def epi_hmc(name='EPI_HMC', settings=None):
         name='DerivativesEPImask'
     )
 
-    ds_betrpt = pe.Node(nio.DataSink(), name="BETRPTDS")
-    ds_betrpt.inputs.base_directory = op.join(settings['output_dir'],
-                                              'reports')
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='bet_hmc', out_path_base='reports'),
+        name='DS_Report'
+    )
 
     mean_epi_stripped_overlay = pe.Node(
         niu.Function(
@@ -108,6 +112,7 @@ def epi_hmc(name='EPI_HMC', settings=None):
 
     workflow.connect([
         (inputnode, ds_hmc, [('epi', 'source_file')]),
+        (inputnode, ds_report, [('epi', 'source_file')]),
         (inputnode, ds_mask, [('epi', 'source_file')]),
         (inputnode, mean_epi_overlay_ds, [('epi', 'origin_file')]),
         (hmc, ds_hmc, [('out_file', 'in_file')]),
@@ -118,7 +123,7 @@ def epi_hmc(name='EPI_HMC', settings=None):
         (bet_hmc, mean_epi_overlay_ds, [('mask_file', 'base_file')]),
         (mean_epi_stripped_overlay, mean_epi_overlay_ds,
          [('out_file', 'in_file')]),
-        (bet_hmc, ds_betrpt, [('out_report', '@betrpt')])
+        (bet_hmc, ds_report, [('out_report', 'in_file')])
     ])
 
     return workflow
@@ -183,9 +188,11 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
         name='DerivEPI_to_T1w_inv'
     )
 
-    ds_flt_bbr = pe.Node(nio.DataSink(), name="FLTBBRDS")
-    ds_flt_bbr.inputs.base_directory = op.join(settings['output_dir'],
-                                                'reports')
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='flt_bbr', out_path_base='reports'),
+        name='ds_report'
+    )
 
     workflow.connect([
         (inputnode, wm_mask, [('t1_seg', 'in_file')]),
@@ -210,7 +217,8 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
         (inputnode, ds_tfm_inv, [('t1w', 'source_file')]),
         (fsl2itk_fwd, ds_tfm_fwd, [('itk_transform', 'in_file')]),
         (fsl2itk_inv, ds_tfm_inv, [('itk_transform', 'in_file')]),
-        (flt_bbr, ds_flt_bbr, [('out_report', 'flt_bbr_rpt')])
+        (flt_bbr, ds_report, [('out_report', 'in_file')]),
+        (inputnode, ds_report, [('epi', 'source_file')])
     ])
 
     # Plots for report
@@ -263,15 +271,18 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
     epi_split = pe.Node(fsl.Split(dimension='t'), name='EPIsplit')
     epi_xfm = pe.MapNode(fsl.preprocess.ApplyXFM(), name='EPIapplyXFM',
                          iterfield=['in_file'])
-    epi_merge = pe.Node(fsl.Merge(dimension='t'), name='EPImergeback')
+    epi_merge = pe.Node(niu.Function(input_names=["in_files"],
+                                     output_names=["merged_file"],
+                                     function=nii_concat), name='EPImergeback')
 
     ds_sbref = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
                             suffix='preproc'), name='DerivHMC_SBRef')
 
-    ds_flirtrpt = pe.Node(nio.DataSink(), name="FLIRTRPTDS")
-    ds_flirtrpt.inputs.base_directory = op.join(settings['output_dir'],
-                                                'reports')
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='epi_sbref', out_path_base='reports'), 
+        name="DS_Report")
 
     workflow.connect([
         (inputnode, epi_split, [('epi_brain', 'in_file')]),
@@ -291,7 +302,8 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
 
         (epi_merge, ds_sbref, [('merged_file', 'in_file')]),
         (inputnode, ds_sbref, [('epi', 'source_file')]),
-        (epi_sbref, ds_flirtrpt, [('out_report', '@flirtrpt')])
+        (inputnode, ds_report, [('epi', 'source_file')]),
+        (epi_sbref, ds_report, [('out_report', 'in_file')])
     ])
 
     #  Plot for report
@@ -350,13 +362,19 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
                                          '1mm_T1.nii.gz')
 
     split = pe.Node(fsl.Split(dimension='t'), name='SplitEPI')
+    split.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
+
     merge_transforms = pe.MapNode(niu.Merge(3),
                                   iterfield=['in3'], name='MergeTransforms')
     epi_to_mni_transform = pe.MapNode(
         ants.ApplyTransforms(), iterfield=['input_image', 'transforms'],
         name='EPIToMNITransform')
     epi_to_mni_transform.terminal_output = 'file'
-    merge = pe.Node(fsl.Merge(dimension='t'), name='MergeEPI')
+    merge = pe.Node(niu.Function(input_names=["in_files"],
+                                 output_names=["merged_file"],
+                                 function=nii_concat), name='MergeEPI')
+    merge.interface.estimated_memory_gb = settings[
+                                              "biggest_epi_file_size_gb"] * 3
 
     mask_merge_tfms = pe.Node(niu.Merge(2), name='MaskMergeTfms')
     mask_mni_tfm = pe.Node(
@@ -414,8 +432,7 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         name='outputnode'
     )
 
-    unwarp = sdc_unwarp()
-    unwarp.inputs.inputnode.hmc_movpar = ''
+    unwarp = sdc_unwarp(testing=settings.get('debug', False))
 
     # Compute outputs
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='EPImean')
@@ -428,6 +445,11 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         name='DerivUnwarp_EPUnwarp_EPI'
     )
 
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='epi_unwarp_bet', out_path_base='reports'),
+        name="DS_Report")
+
     workflow.connect([
         (inputnode, unwarp, [('fmap', 'inputnode.fmap'),
                              ('fmap_ref', 'inputnode.fmap_ref'),
@@ -439,7 +461,9 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         (bet, outputnode, [('out_file', 'epi_mean'),
                            ('mask_file', 'epi_mask')]),
         (unwarp, outputnode, [('outputnode.out_file', 'epi_unwarp')]),
-        (unwarp, ds_epi_unwarp, [('outputnode.out_file', 'in_file')])
+        (unwarp, ds_epi_unwarp, [('outputnode.out_file', 'in_file')]),
+        (inputnode, ds_report, [('epi', 'source_file')]),
+        (bet, ds_report, [('out_report', 'in_file')])
     ])
 
     # Plot result

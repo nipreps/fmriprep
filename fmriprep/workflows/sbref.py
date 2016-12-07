@@ -20,10 +20,8 @@ from nipype.interfaces import ants
 from niworkflows.interfaces.masks import BETRPT
 from niworkflows.interfaces.registration import FLIRTRPT
 
-from fmriprep.utils.misc import _first, gen_list
-from fmriprep.interfaces.utils import reorient
-from fmriprep.interfaces import (ReadSidecarJSON, IntraModalMerge,
-                                 DerivativesDataSink, ImageDataSink)
+from fmriprep.utils.misc import _first
+from fmriprep.interfaces import (RASReorient, DerivativesDataSink, ImageDataSink)
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 
@@ -42,12 +40,17 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
                          name='outputnode')
 
     # Unwarping
-    unwarp = sdc_unwarp()
-    unwarp.inputs.inputnode.hmc_movpar = ''
+    unwarp = sdc_unwarp(testing=settings.get('debug', False))
 
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='SBRefMean')
     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='SBRefBias')
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True), name='SBRefBET')
+
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='sbref_bet', out_path_base='reports'),
+        name='DS_Report'
+    )
 
     workflow.connect([
         (inputnode, unwarp, [('fmap', 'inputnode.fmap'),
@@ -57,63 +60,30 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         (unwarp, mean, [('outputnode.out_file', 'in_file')]),
         (mean, inu, [('out_file', 'input_image')]),
         (inu, bet, [('output_image', 'in_file')]),
+        (bet, ds_report, [('out_report', 'in_file')]),
+        (inputnode, ds_report, [(('sbref', _first), 'source_file')]),
         (bet, outputnode, [('out_file', 'sbref_unwarped'),
                            ('mask_file', 'sbref_unwarped_mask')])
     ])
 
-    # Plot result
-    sbref_corr = pe.Node(
-        niu.Function(
-            input_names=["in_file", "overlay_file", "out_file"],
-            output_names=["out_file"],
-            function=stripped_brain_overlay
-        ),
-        name="SBRefCorr"
-    )
-    sbref_corr.inputs.out_file = "corrected_SBRef.svg"
 
-    sbref_corr_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='SBRefCorrDS'
-    )
 
-    sbref_stripped_overlay = pe.Node(
-        niu.Function(
-            input_names=["in_file", "overlay_file", "out_file"],
-            output_names=["out_file"],
-            function=stripped_brain_overlay
-        ),
-        name="SbrefStrippedOverlay"
-    )
-    sbref_stripped_overlay.inputs.out_file = "sbref_stripped_overlay.svg"
-
-    sbref_stripped_overlay_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='SBRefStrippedOverlayDS'
-    )
-
-    datasink = pe.Node(
+    betniids = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='sdc'),
-        name='datasink'
+                            suffix='sdc_bet'),
+        name='BETniiDS'
+    )
+    betrptds = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='bet'),
+        name='BETRPTDS'
     )
 
     workflow.connect([
-        (inputnode, datasink, [(('sbref', _first), 'source_file')]),
-        (bet, datasink, [('out_file', 'in_file')]),
-        (mean, sbref_corr, [('out_file', 'overlay_file')]),
-        (inputnode, sbref_corr, [('fmap_mask', 'in_file')]),
-        (mean, sbref_corr_ds, [('out_file', 'overlay_file')]),
-        (inputnode, sbref_corr_ds, [('fmap_mask', 'base_file'),
-                                    (('sbref', _first), 'origin_file')]),
-        (sbref_corr, sbref_corr_ds, [('out_file', 'in_file')]),
-        (mean, sbref_stripped_overlay, [('out_file', 'overlay_file')]),
-        (bet, sbref_stripped_overlay, [('mask_file', 'in_file')]),
-        (inputnode, sbref_stripped_overlay_ds, [(('sbref', _first), 'origin_file')]),
-        (mean, sbref_stripped_overlay_ds, [('out_file', 'overlay_file')]),
-        (bet, sbref_stripped_overlay_ds, [('mask_file', 'base_file')]),
-        (sbref_stripped_overlay, sbref_stripped_overlay_ds, [('out_file', 'in_file')])
-
+        (inputnode, betniids, [(('sbref', _first), 'source_file')]),
+        (inputnode, betrptds, [(('sbref', _first), 'source_file')]),
+        (bet, betniids, [('out_file', 'in_file')]),
+        (bet, betrptds, [('out_report', 'in_file')])
     ])
     return workflow
 
@@ -135,10 +105,7 @@ def sbref_t1_registration(name='SBrefSpatialNormalization', settings=None):
     )
 
     # Make sure sbref is in RAS coordinates
-    to_ras = pe.Node(niu.Function(input_names=['in_file'],
-                                  output_names=['out_file'],
-                                  function=reorient),
-                     name='SBRefReorient')
+    to_ras = pe.Node(RASReorient(), name='SBRefReorient')
 
     # Extract wm mask from segmentation
     wm_mask = pe.Node(
@@ -158,6 +125,13 @@ def sbref_t1_registration(name='SBrefSpatialNormalization', settings=None):
     # make equivalent warp fields
     invt_bbr = pe.Node(fsl.ConvertXFM(invert_xfm=True), name="Flirt_BBR_Inv")
 
+
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='sbref_t1_flt_bbr', out_path_base='reports'),
+        name='DS_Report'
+    )
+
     workflow.connect([
         (inputnode, to_ras, [('sbref_brain', 'in_file')]),
         (inputnode, wm_mask, [('t1_seg', 'in_file')]),
@@ -169,7 +143,9 @@ def sbref_t1_registration(name='SBrefSpatialNormalization', settings=None):
         (wm_mask, flt_bbr, [('out_file', 'wm_seg')]),
         (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
         (flt_bbr, outputnode, [('out_matrix_file', 'mat_sbr_to_t1')]),
-        (invt_bbr, outputnode, [('out_file', 'mat_t1_to_sbr')])
+        (invt_bbr, outputnode, [('out_file', 'mat_t1_to_sbr')]),
+        (inputnode, ds_report, [(('sbref', _first), 'source_file')]),
+        (flt_bbr, ds_report, [('out_report', 'in_file')])
     ])
 
     # Plots for report

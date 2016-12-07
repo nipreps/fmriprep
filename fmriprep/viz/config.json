@@ -2,63 +2,71 @@
 "sub_reports":
 [
     {
-        "name": "Skull Strippings",
+        "name": "Anatomical",
         "elements":
         [
             {
-                "name": "t1_stripped_overlay",
-                "file_pattern": "t1_stripped_overlay",
+                "name": "skullstrip_ants/t1_skull_strip",
+                "file_pattern": "anat/.*skull_strip",
                 "title": "Skull Stripped T1",
                 "description": "Stripped T1 placed over an image of the unstripped T1"
             },
             {
-                "name": "sbref_stripped_overlay",
-                "file_pattern": "sbref_stripped_overlay",
+                "name": "t1w_preprocessing/t1_seg",
+                "file_pattern": "anat/.*t1_seg",
+                "title": "T1 Segmentation",
+                "description": " "
+            },
+            {
+                "name": "t1w_preprocessing/t1_2_mni",
+                "file_pattern": "anat/.*t1_2_mni",
+                "title": "T1 to MNI",
+                "description": "Corrected anatomical T1 image registered into MNI space"
+            }
+
+        ]
+    },
+    {
+        "name": "Functional",
+        "elements":
+        [
+            {
+                "name": "epi_hmc/bet_hmc",
+                "file_pattern": "func/.*bet_hmc",
+                "title" : "Skull Stripped EPI",
+                "description": "Skull stripped and head motion corrected epi pre registration"
+            },
+            {
+                "name": "sbref_preprocess/bet",
+                "file_pattern": "func/.*sbref_bet",
                 "title": "Skull Stripped Sbref",
                 "description": "Unwarped and stripped sbref with a background image of an unwarped sbref"
             },
             {
-                "name": "fmap_magnitude_stripped_overlay",
-                "file_pattern": "fmap_magnitude_stripped_overlay",
-                "title": "Skull Stripped Field Map Magnitude",
-                "description": "Stripped fieldmap magnitude estimated phase-difference image and one or more magnitude images corresponding to two or more gradient echo sequence acquisitions"
-            }
-        ]
-    },
-    {
-        "name": "Registration Outputs",
-        "elements":
-        [
-            {
-                "name": "t1_seg_native",
-                "file_pattern": "t1_seg_native",
-                "title": "Sbref to T1",
-                "description": "Corrected sbref image registred into t1 space."
-            },
-            {
-                "name": "t1_to_mni_overlay",
-                "file_pattern": "t1_to_mni_overlay",
-                "title": "T1 to MNI",
-                "description": "Corrected anatomical T1 image registered into MNI space"
-            },
-            {
-                "name": "mean_epi_overlay",
-                "file_pattern": "mean_epi_overlay",
+                "name": "epi_mean_t1_registration/flt_bbr",
+                "file_pattern": "func/.*flt_bbr",
                 "title": "EPI",
                 "description": " "
             },
             {
-                "name": "corrected_EPI",
-                "file_pattern": "corrected_EPI",
+                "name": "epi_unwarp/epi_unwarp_bet",
+                "file_pattern": "func/.*epi_unwarp_bet",
                 "title": "Corrected EPI",
                 "description": " "
             },
             {
-                "name": "mean_epi_to_sbref",
-                "file_pattern": "mean_epi_to_sbref",
+                "name": "sbref_t1_registration/flt_bbr",
+                "file_pattern": "func/.*flt_bbr",
+                "title": "SBRef to T1 registration",
+                "description": " "
+            },
+            {
+                "name": "epi_sbref_registration/epi_sbref",
+                "file_pattern": "func/.*epi_sbref",
                 "title": "Mean EPI to SBRef",
                 "description": " "
             }
+
         ]
     }
 ]

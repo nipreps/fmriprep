@@ -11,7 +11,34 @@ from bids.grabbids import BIDSLayout
 
 INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'sbref': []}
 
+
+def genfname(in_file, suffix=None, path=None, ext=None):
+    from os import getcwd
+    import os.path as op
+
+    fname, fext = op.splitext(op.basename(in_file))
+    if fext == '.gz':
+        fname, fext2 = op.splitext(fname)
+        fext = fext2 + fext
+
+    if path is None:
+        path = getcwd()
+
+    if ext is None:
+        ext = fext
+
+    if ext.startswith('.'):
+        ext = ext[1:]
+
+    if suffix is None:
+        suffix = 'mod'
+
+    return op.join(path, '{}_{}.{}'.format(fname, suffix, ext))
+
 def _first(inlist):
+    if not isinstance(inlist, (list, tuple)):
+        inlist = [inlist]
+
     return sorted(inlist)[0]
 
 def make_folder(folder):
@@ -46,7 +73,7 @@ fieldmap_suffixes = {
 }
 
 
-def collect_bids_data(dataset, subject, session=None, run=None):
+def collect_bids_data(dataset, subject, task=None, session=None, run=None):
     subject = str(subject)
     if subject.startswith('sub-'):
         subject = subject[4:]
@@ -73,6 +100,9 @@ def collect_bids_data(dataset, subject, session=None, run=None):
         'sbref': {'modality': 'func', 'type': 'sbref', 'ext': 'nii'},
         't1w': {'type': 'T1w', 'ext': 'nii'}
     }
+
+    if task:
+        queries['epi']['task'] = task
 
     #  Add a subject key pair to each query we make so that we only deal with
     #  files related to this workflows specific subject. Could be made opt...
@@ -113,6 +143,14 @@ def collect_bids_data(dataset, subject, session=None, run=None):
 
     return imaging_data
 
+
+def get_biggest_epi_file_size_gb(files):
+    max_size = 0
+    for file in files:
+        size = os.path.getsize(file)/(1024*1024*1024)
+        if size > max_size:
+            max_size = size
+    return max_size
 
 if __name__ == '__main__':
     pass

@@ -92,10 +92,13 @@ class DerivativesDataSinkOutputSpec(TraitedSpec):
 class DerivativesDataSink(BaseInterface):
     input_spec = DerivativesDataSinkInputSpec
     output_spec = DerivativesDataSinkOutputSpec
+    out_path_base = "derivatives"
     _always_run = True
 
-    def __init__(self, **inputs):
+    def __init__(self, out_path_base=None, **inputs):
         self._results = {'out_file': []}
+        if out_path_base:
+            self.out_path_base = out_path_base
         super(DerivativesDataSink, self).__init__(**inputs)
 
     def _run_interface(self, runtime):
@@ -121,7 +124,7 @@ class DerivativesDataSink(BaseInterface):
         if isdefined(self.inputs.base_directory):
             base_directory = op.abspath(self.inputs.base_directory)
 
-        out_path = 'derivatives/{subject_id}'.format(**m.groupdict())
+        out_path = '{}/{subject_id}'.format(self.out_path_base, **m.groupdict())
         if m.groupdict().get('ses_id') is not None:
             out_path += '/{ses_id}'.format(**m.groupdict())
         out_path += '/{}'.format(mod)

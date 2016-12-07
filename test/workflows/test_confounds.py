@@ -17,7 +17,7 @@ class TestConfounds(TestWorkflow):
 
     def test_discover_wf(self):
         # run
-        workflow = discover_wf(stub.settings())
+        workflow = discover_wf(stub.settings({'biggest_epi_file_size_gb': 1}))
         workflow.write_hierarchical_dotfile()
 
         # assert

@@ -62,7 +62,7 @@ def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
                       iterfield=['in_file'], name='metadata')
 
     encfile = pe.Node(interface=niu.Function(
-        input_names=['input_images', 'in_dict'], output_names=['parameters_file'],
+        input_names=['input_images', 'in_dict'], output_names=['parameters_file', 'discard'],
         function=create_encoding_file), name='TopUp_encfile', updatehash=True)
 
     # Head motion correction
