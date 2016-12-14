@@ -148,7 +148,7 @@ def hz2rads(in_file, out_file=None):
     if out_file is None:
         out_file = genfname(in_file, 'rads')
     nii = nb.load(in_file)
-    data = nii.get_data() * (2.0 * pi)
+    data = nii.get_data() * 2.0 * pi
     nb.Nifti1Image(data, nii.get_affine(),
                    nii.get_header()).to_filename(out_file)
     return out_file
