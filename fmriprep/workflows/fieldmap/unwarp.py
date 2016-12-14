@@ -82,15 +82,12 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
     fmap2ref = pe.Node(ANTSRegistrationRPT(from_file=ants_settings, output_warped_image=True,
                        generate_report=True), name='FMap2ImageMagnitude')
 
-
-    fugue = pe.Node(fsl.FUGUE(save_unmasked_fmap=True), name='fugue')
-
-
+    # fugue = pe.Node(fsl.FUGUE(save_unmasked_fmap=True), name='fugue')
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
         generate_report=True, dimension=3, interpolation='Linear'), name='FMap2ImageFieldmap')
 
     unwarp = pe.Node(niu.Function(input_names=['in_file', 'in_fieldmap', 'metadata'],
-                     output_names=['out_file'], function=_fugue_unwarp), name='FUGUE')
+                     output_names=['out_file'], function=_fugue_unwarp), name='Unwarping')
 
     workflow.connect([
         (inputnode, torads, [('fmap', 'in_file')]),
@@ -151,7 +148,7 @@ def hz2rads(in_file, out_file=None):
     if out_file is None:
         out_file = genfname(in_file, 'rads')
     nii = nb.load(in_file)
-    data = nii.get_data() / (2.0 * pi)
+    data = nii.get_data() * (2.0 * pi)
     nb.Nifti1Image(data, nii.get_affine(),
                    nii.get_header()).to_filename(out_file)
     return out_file
@@ -179,12 +176,19 @@ def _fugue_unwarp(in_file, in_fieldmap, metadata):
     for i, (tnii, tmeta) in enumerate(zip(nii_list, metadata)):
         tfile = genfname(in_file, 'vol%03d' % i)
         tnii.to_filename(tfile)
-        ec = tmeta['TotalReadoutTime']
+        ec = tmeta['EffectiveEchoSpacing']
         ud = tmeta['PhaseEncodingDirection'].replace('j', 'y')
 
+        vsm_file = genfname(in_file, 'vsm%03d' % i)
+        gen_vsm = FUGUE(
+            fmap_in_file=in_fieldmap, dwell_time=ec,
+            unwarp_direction=ud, shift_out_file=vsm_file)
+
+        print('Calculating VSM: %s' % gen_vsm.cmdline)
+        gen_vsm.run()
+
         fugue = FUGUE(
-            in_file=tfile, fmap_in_file=in_fieldmap, dwell_time=ec,
-            unwarp_direction=ud, icorr=True,
+            in_file=tfile, unwarp_direction=ud, icorr=True, shift_in_file=vsm_file,
             unwarped_file=genfname(in_file, 'unwarped%03d' % i))
 
         print('Running FUGUE: %s' % fugue.cmdline)

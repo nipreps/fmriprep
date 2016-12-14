@@ -25,7 +25,7 @@ from nipype.interfaces import ants
 from nipype.interfaces import fsl
 from niworkflows.interfaces.masks import BETRPT
 from fmriprep.interfaces import IntraModalMerge, CopyHeader
-from fmriprep.interfaces.fmap import FieldEnhance
+from fmriprep.interfaces.fmap import FieldEnhance, FieldMatchHistogram
 
 WORKFLOW_NAME = 'FMAP_fmap'
 def fmap_workflow(name=WORKFLOW_NAME):
@@ -57,8 +57,11 @@ def fmap_workflow(name=WORKFLOW_NAME):
     cphdr = pe.Node(CopyHeader(), name='FixHDR')
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='MagnitudeBET')
-    fmapenh = pe.Node(FieldEnhance(despike_threshold=1.0, mask_erode=1),
-                      name='FieldmapMassage')
+    fmapenh = pe.Node(FieldEnhance(
+        # despike_threshold=1.0, mask_erode=1),
+        despike=False), name='FieldmapMassage')
+
+    fmaphist = pe.Node(FieldMatchHistogram(), name='FieldmapHistogram')
 
     workflow.connect([
         (inputnode, sortfmaps, [('input_images', 'input_images')]),
@@ -69,8 +72,10 @@ def fmap_workflow(name=WORKFLOW_NAME):
         (cphdr, bet, [('out_file', 'in_file')]),
         (sortfmaps, fmapmrg, [('fieldmap', 'in_files')]),
         (fmapmrg, fmapenh, [('out_file', 'in_file')]),
-        (bet, fmapenh, [('mask_file', 'in_mask')]),
-        (fmapenh, outputnode, [('out_file', 'fmap_in_file')]),
+        (bet, fmaphist, [('mask_file', 'in_mask')]),
+        (fmapmrg, fmaphist, [('out_file', 'in_reference')]),
+        (fmapenh, fmaphist, [('out_file', 'in_file')]),
+        (fmaphist, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')])
     ])

@@ -130,7 +130,7 @@ class FieldEnhance(BaseInterface):
         if self.inputs.despike:
             data = _despike2d(data, self.inputs.despike_threshold)
 
-
+        masknii = None
         if isdefined(self.inputs.in_mask):
             masknii = nb.load(self.inputs.in_mask)
             mask = masknii.get_data().astype(np.uint8)
@@ -148,12 +148,60 @@ class FieldEnhance(BaseInterface):
         self._results['out_file'] = genfname(self.inputs.in_file, suffix='enh')
         self._results['out_coeff'] = genfname(self.inputs.in_file, suffix='coeff')
 
-        datanii = nb.Nifti1Image(data, fmap_nii.get_affine(), fmap_nii.get_header())
+        datanii = nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header)
         # data interpolation
         if self.inputs.bspline_smooth:
             datanii, coefnii = bspl_smoothing(datanii, masknii)
             coefnii.to_filename(self._results['out_coeff'])
 
+        datanii.to_filename(self._results['out_file'])
+        return runtime
+
+
+class FieldMatchHistogramInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input enhanced fieldmap')
+    in_reference = File(exists=True, mandatory=True, desc='input fieldmap')
+    in_mask = File(exists=True, mandatory=True, desc='brain mask')
+
+class FieldMatchHistogramOutputSpec(TraitedSpec):
+    out_file = File(desc='the output fieldmap')
+
+class FieldMatchHistogram(BaseInterface):
+    """
+    The FieldMatchHistogram interface wraps a workflow to massage the input fieldmap
+    and return it masked, despiked, etc.
+    """
+    input_spec = FieldMatchHistogramInputSpec
+    output_spec = FieldMatchHistogramOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(FieldMatchHistogram, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        from scipy import ndimage as sim
+
+        fmap_nii = nb.load(self.inputs.in_file)
+        data = np.squeeze(fmap_nii.get_data().astype(np.float32))
+
+        refdata = nb.load(self.inputs.in_reference).get_data()
+        maskdata = nb.load(self.inputs.in_mask).get_data()
+
+        ref85 = np.percentile(refdata[maskdata > 0], 85.0)
+        ref15 = np.percentile(refdata[maskdata > 0], 15.0)
+
+        fmap85 = np.percentile(data[maskdata > 0], 85.0)
+        fmap15 = np.percentile(data[maskdata > 0], 15.0)
+
+
+        data[data > 0] *= ref85 / fmap85
+        data[data < 0] *= ref15 / fmap15
+
+        self._results['out_file'] = genfname(self.inputs.in_file, suffix='histmatch')
+        datanii = nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header)
         datanii.to_filename(self._results['out_file'])
         return runtime
 
@@ -207,8 +255,8 @@ def _gen_coeff(in_file, in_ref, in_movpar=None):
     im0 = nb.load(in_file)
     data = np.zeros_like(im0.get_data())
     sizes = data.shape[:3]
-    spacings = im0.get_header().get_zooms()[:3]
-    im1 = nb.Nifti1Image(data, im0.get_affine(), im0.get_header())
+    spacings = im0.header.get_zooms()[:3]
+    im1 = nb.Nifti1Image(data, im0.affine, im0.header)
     im4d = nb.concat_images([im0, im1, im1])
     im4d_fname = '{}_{}'.format(out_topup, 'field4D.nii.gz')
     im4d.to_filename(im4d_fname)
@@ -225,7 +273,7 @@ def _gen_coeff(in_file, in_ref, in_movpar=None):
     # 4. Set correct header
     # see https://github.com/poldracklab/preprocessing-workflow/issues/92
     img = nb.load(get_first.run().outputs.roi_file)
-    hdr = img.get_header().copy()
+    hdr = img.header.copy()
     hdr['intent_p1'] = spacings[0]
     hdr['intent_p2'] = spacings[1]
     hdr['intent_p3'] = spacings[2]
@@ -261,7 +309,7 @@ def _approx(fmapnii, s=14.):
         s = np.array([s] * 2)
 
     data = fmapnii.get_data()
-    zooms = fmapnii.get_header().get_zooms()
+    zooms = fmapnii.header.get_zooms()
 
     knot_decimate = np.floor(s / np.array(zooms)[:2]).astype(np.uint8)
     knot_space = np.array(zooms)[:2] * knot_decimate
@@ -286,8 +334,8 @@ def _approx(fmapnii, s=14.):
         coeffs.append(interp_spline.get_coeffs().reshape(data2dsubs.shape))
 
     # Save smoothed data
-    hdr = fmapnii.get_header().copy()
-    caff = fmapnii.get_affine()
+    hdr = fmapnii.header.copy()
+    caff = fmapnii.affine
     datanii = nb.Nifti1Image(data.astype(np.float32), caff, hdr)
 
     # Save bspline coeffs
