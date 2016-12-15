@@ -27,10 +27,10 @@ def main():
         exec('\n'.join(pythoncode), globals(), ldict)
 
     extensions = [Extension(
-            "fmriprep.utils.maths",
-            ["fmriprep/utils/maths.pyx"],
-            include_dirs=[get_include(), "/usr/local/include/"],
-            library_dirs=["/usr/lib/"]),
+        "fmriprep.utils.maths",
+        ["fmriprep/utils/maths.pyx"],
+        include_dirs=[get_include(), "/usr/local/include/"],
+        library_dirs=["/usr/lib/"]),
     ]
 
     setup(
@@ -52,7 +52,11 @@ def main():
         tests_require=ldict['TESTS_REQUIRES'],
         extras_require=ldict['EXTRA_REQUIRES'],
         dependency_links=ldict['LINKS_REQUIRES'],
-        package_data={'fmriprep': ['data/*.json']},
+        package_data={'fmriprep': [
+            'data/*.json',
+            'viz/config.json',
+            'viz/report.tpl'
+        ]},
         entry_points={'console_scripts': ['fmriprep=fmriprep.run_workflow:main',]},
         packages=find_packages(),
         zip_safe=False,
