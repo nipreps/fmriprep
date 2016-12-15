@@ -61,7 +61,7 @@ def fmap_workflow(name=WORKFLOW_NAME):
         # despike_threshold=1.0, mask_erode=1),
         despike=False), name='FieldmapMassage')
 
-    fmaphist = pe.Node(FieldMatchHistogram(), name='FieldmapHistogram')
+    # fmaphist = pe.Node(FieldMatchHistogram(), name='FieldmapHistogram')
 
     workflow.connect([
         (inputnode, sortfmaps, [('input_images', 'input_images')]),
@@ -72,10 +72,11 @@ def fmap_workflow(name=WORKFLOW_NAME):
         (cphdr, bet, [('out_file', 'in_file')]),
         (sortfmaps, fmapmrg, [('fieldmap', 'in_files')]),
         (fmapmrg, fmapenh, [('out_file', 'in_file')]),
-        (bet, fmaphist, [('mask_file', 'in_mask')]),
-        (fmapmrg, fmaphist, [('out_file', 'in_reference')]),
-        (fmapenh, fmaphist, [('out_file', 'in_file')]),
-        (fmaphist, outputnode, [('out_file', 'fmap')]),
+        # (bet, fmaphist, [('mask_file', 'in_mask')]),
+        # (fmapmrg, fmaphist, [('out_file', 'in_reference')]),
+        # (fmapenh, fmaphist, [('out_file', 'in_file')]),
+        # (fmaphist, outputnode, [('out_file', 'fmap')]),
+        (fmapenh, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')])
     ])
