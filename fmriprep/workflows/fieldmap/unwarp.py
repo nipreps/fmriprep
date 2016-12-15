@@ -260,4 +260,6 @@ def _warp_reference(fmap_ref, fmap, fmap_mask, metadata):
     return fugue.outputs.warped_file, out_mask
 
 def _last(inlist):
-    return inlist[-1]
+    if isinstance(inlist, list):
+        return inlist[-1]
+    return inlist
