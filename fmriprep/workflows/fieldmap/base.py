@@ -51,7 +51,7 @@ def fmap_estimator(subject_data, settings=None):
     if any(['phase' in fname for fname in subject_data['fmap']]):
         LOGGER.info('Fieldmap estimation: phase-difference images found')
         from .phdiff import phdiff_workflow
-        phwf = phdiff_workflow(settings)
+        phwf = phdiff_workflow(settings=settings)
         # set inputs
         phwf.inputs.inputnode.input_images = subject_data['fmap']
         estimator_wfs.append(phwf)
@@ -59,7 +59,7 @@ def fmap_estimator(subject_data, settings=None):
     if any(['fieldmap' in fname for fname in subject_data['fmap']]):
         LOGGER.info('Fieldmap estimation: fieldmap images found')
         from .fmap import fmap_workflow
-        fmapwf = fmap_workflow()
+        fmapwf = fmap_workflow(settings=settings)
         # set inputs
         fmapwf.inputs.inputnode.input_images = subject_data['fmap']
         estimator_wfs.append(fmapwf)
@@ -73,16 +73,20 @@ def fmap_estimator(subject_data, settings=None):
         estimator_wfs.append(pewf)
 
     if len(estimator_wfs) > 1:
-        LOGGER.warn('Averaging fieldmap estimators is not yet implemented')
         # Average estimated workflows (requires registration)
         mrgfmaps = pe.Node(niu.Merge(len(estimator_wfs)), name='MergeFMaps')
+        mrgrefs = pe.Node(niu.Merge(len(estimator_wfs)), name='MergeRefs')
+        mrgmask = pe.Node(niu.Merge(len(estimator_wfs)), name='MergeMasks')
+
         for i, est in enumerate(estimator_wfs):
             workflow.connect(est, 'outputnode.fmap', mrgfmaps, 'in%d' % (i+1))
+            workflow.connect(est, 'outputnode.fmap_ref', mrgrefs, 'in%d' % (i+1))
+            workflow.connect(est, 'outputnode.fmap_mask', mrgmask, 'in%d' % (i+1))
+
         workflow.connect([
-            (estimator_wfs[0], outputnode, [
-                ('outputnode.fmap', 'fmap'),
-                ('outputnode.fmap_ref', 'fmap_ref'),
-                ('outputnode.fmap_mask', 'fmap_mask')])
+            (mrgfmaps, outputnode, [('out', 'fmap')]),
+            (mrgrefs, outputnode, [('out', 'fmap_ref')]),
+            (mrgmask, outputnode, [('out', 'fmap_mask')])
         ])
     else:
         workflow.connect([
@@ -93,3 +97,6 @@ def fmap_estimator(subject_data, settings=None):
         ])
 
     return workflow
+
+def _tolist(in_value):
+    return [in_value]

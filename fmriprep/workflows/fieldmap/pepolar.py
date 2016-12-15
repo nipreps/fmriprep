@@ -63,9 +63,8 @@ def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
 
     # Run topup to estimate field distortions, do not estimate movement
     # since it is done in hmc_se
-    topup = pe.Node(fsl.TOPUP(
-#                    config=pkgrf('fmriprep.data', 'sbref2sbref.cnf')
-                    ), name='TOPUP_estimate')
+    topup = pe.Node(fsl.TOPUP(config=pkgrf('fmriprep.data', 'sbref2sbref.cnf')),
+                    name='TOPUP_estimate')
 
     # Use the least-squares method to correct the dropout of the SE images
     unwarp_mag = pe.Node(fsl.ApplyTOPUP(method='lsr'), name='TOPUP_apply')

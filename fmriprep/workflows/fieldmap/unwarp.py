@@ -16,14 +16,14 @@ from nipype.interfaces import ants
 from nipype.interfaces import utility as niu
 from niworkflows.interfaces.registration import ANTSRegistrationRPT, ANTSApplyTransformsRPT
 
-from fmriprep.interfaces.bids import ReadSidecarJSON
+from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink
 from fmriprep.interfaces.fmap import FieldCoefficients, GenerateMovParams
 from fmriprep.interfaces.topup import ConformTopupInputs
 from fmriprep.workflows.fieldmap.utils import create_encoding_file
 SDC_UNWARP_NAME = 'SDC_unwarp'
 
 
-def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
+def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
     """
     This workflow takes an estimated fieldmap and a target image and applies TOPUP,
     an :abbr:`SDC (susceptibility-derived distortion correction)` method in FSL to
@@ -75,7 +75,7 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
     ants_settings = pkgr.resource_filename('fmriprep', 'data/fmap-any_registration.json')
-    if testing:
+    if settings.get('debug', False):
         ants_settings = pkgr.resource_filename(
             'fmriprep', 'data/fmap-any_registration_testing.json')
 
@@ -84,10 +84,10 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
 
     # fugue = pe.Node(fsl.FUGUE(save_unmasked_fmap=True), name='fugue')
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=True, dimension=3, interpolation='Linear'), name='FMap2ImageFieldmap')
+        generate_report=False, dimension=3, interpolation='Linear'), name='FMap2ImageFieldmap')
 
     maskxfm = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=True, dimension=3, interpolation='NearestNeighbor'),
+        generate_report=False, dimension=3, interpolation='NearestNeighbor'),
                       name='FMap2ImageMask')
 
     unwarp = pe.Node(niu.Function(
@@ -95,13 +95,17 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
         output_names=['out_file', 'out_report'], function=_fugue_unwarp),
                      name='Unwarping')
 
+    dsunwarp = pe.Node(DerivativesDataSink(
+        base_directory=settings['output_dir'], suffix='unwarp',
+        out_path_base='reports'), name='DSunwarp')
+
     workflow.connect([
-        (inputnode, torads, [('fmap', 'in_file')]),
+        (inputnode, torads, [(('fmap', _last), 'in_file')]),
         (inputnode, meta, [('in_file', 'in_file')]),
         (inputnode, conform, [('in_file', 'in_files'),
                               ('hmc_movpar', 'in_mats')]),
-        (inputnode, warpref, [('fmap_ref', 'fmap_ref'),
-                              ('fmap_mask', 'fmap_mask')]),
+        (inputnode, warpref, [(('fmap_ref', _last), 'fmap_ref'),
+                              (('fmap_mask', _last), 'fmap_mask')]),
         (torads, warpref, [('out_file', 'fmap')]),
         (meta, warpref, [('out_dict', 'metadata')]),
         (warpref, fmap2ref, [('fmap_ref', 'moving_image'),
@@ -124,7 +128,9 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', testing=False):
         (applyxfm, unwarp, [('output_image', 'in_fieldmap')]),
         (maskxfm, unwarp, [('output_image', 'in_mask')]),
         (meta, unwarp, [('out_dict', 'metadata')]),
-        (unwarp, outputnode, [('out_file', 'out_file')])
+        (unwarp, outputnode, [('out_file', 'out_file')]),
+        (inputnode, dsunwarp, [('in_file', 'source_file')]),
+        (unwarp, dsunwarp, [('out_report', 'in_file')])
     ])
 
     # Disable ApplyTOPUP for now
@@ -252,3 +258,6 @@ def _warp_reference(fmap_ref, fmap, fmap_mask, metadata):
     nb.Nifti1Image(mask.astype(np.uint8), masknii.affine,
                    masknii.header).to_filename(out_mask)
     return fugue.outputs.warped_file, out_mask
+
+def _last(inlist):
+    return inlist[-1]

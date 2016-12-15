@@ -25,10 +25,10 @@ from nipype.interfaces import ants
 from nipype.interfaces import fsl
 from niworkflows.interfaces.masks import BETRPT
 from fmriprep.interfaces import IntraModalMerge, CopyHeader
-from fmriprep.interfaces.fmap import FieldEnhance, FieldMatchHistogram
+from fmriprep.interfaces.fmap import FieldEnhance
 
 WORKFLOW_NAME = 'FMAP_fmap'
-def fmap_workflow(name=WORKFLOW_NAME):
+def fmap_workflow(name=WORKFLOW_NAME, settings=None):
     """
     Fieldmap workflow - when we have a sequence that directly measures the fieldmap
     we just need to mask it (using the corresponding magnitude image) to remove the
@@ -61,8 +61,6 @@ def fmap_workflow(name=WORKFLOW_NAME):
         # despike_threshold=1.0, mask_erode=1),
         despike=False), name='FieldmapMassage')
 
-    # fmaphist = pe.Node(FieldMatchHistogram(), name='FieldmapHistogram')
-
     workflow.connect([
         (inputnode, sortfmaps, [('input_images', 'input_images')]),
         (sortfmaps, magmrg, [('magnitude', 'in_files')]),
@@ -72,10 +70,6 @@ def fmap_workflow(name=WORKFLOW_NAME):
         (cphdr, bet, [('out_file', 'in_file')]),
         (sortfmaps, fmapmrg, [('fieldmap', 'in_files')]),
         (fmapmrg, fmapenh, [('out_file', 'in_file')]),
-        # (bet, fmaphist, [('mask_file', 'in_mask')]),
-        # (fmapmrg, fmaphist, [('out_file', 'in_reference')]),
-        # (fmapenh, fmaphist, [('out_file', 'in_file')]),
-        # (fmaphist, outputnode, [('out_file', 'fmap')]),
         (fmapenh, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')])

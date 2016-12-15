@@ -40,7 +40,7 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
                          name='outputnode')
 
     # Unwarping
-    unwarp = sdc_unwarp(testing=settings.get('debug', False))
+    unwarp = sdc_unwarp(settings=settings)
 
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='SBRefMean')
     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='SBRefBias')
