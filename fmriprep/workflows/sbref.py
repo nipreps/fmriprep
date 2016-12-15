@@ -67,21 +67,6 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     ])
 
     # Plot result
-    sbref_corr = pe.Node(
-        niu.Function(
-            input_names=["in_file", "overlay_file", "out_file"],
-            output_names=["out_file"],
-            function=stripped_brain_overlay
-        ),
-        name="SBRefCorr"
-    )
-    sbref_corr.inputs.out_file = "corrected_SBRef.svg"
-
-    sbref_corr_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='SBRefCorrDS'
-    )
-
     sbref_stripped_overlay = pe.Node(
         niu.Function(
             input_names=["in_file", "overlay_file", "out_file"],
@@ -106,12 +91,6 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     workflow.connect([
         (inputnode, datasink, [(('sbref', _first), 'source_file')]),
         (inu, datasink, [('output_image', 'in_file')]),
-        (mean, sbref_corr, [('out_file', 'overlay_file')]),
-        (inputnode, sbref_corr, [('fmap_mask', 'in_file')]),
-        (mean, sbref_corr_ds, [('out_file', 'overlay_file')]),
-        (inputnode, sbref_corr_ds, [('fmap_mask', 'base_file'),
-                                    (('sbref', _first), 'origin_file')]),
-        (sbref_corr, sbref_corr_ds, [('out_file', 'in_file')]),
         (mean, sbref_stripped_overlay, [('out_file', 'overlay_file')]),
         (skullstripping, sbref_stripped_overlay, [('mask_file', 'in_file')]),
         (inputnode, sbref_stripped_overlay_ds, [(('sbref', _first), 'origin_file')]),
