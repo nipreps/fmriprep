@@ -12,6 +12,8 @@ def main():
     from glob import glob
     from inspect import getfile, currentframe
     from setuptools import setup, find_packages
+    from setuptools.extension import Extension
+    from numpy import get_include
 
     this_path = op.dirname(op.abspath(getfile(currentframe())))
 
@@ -23,6 +25,13 @@ def main():
     with open(module_file) as infofile:
         pythoncode = [line for line in infofile.readlines() if not line.strip().startswith('#')]
         exec('\n'.join(pythoncode), globals(), ldict)
+
+    extensions = [Extension(
+            "fmriprep.utils.maths",
+            ["fmriprep/utils/maths.pyx"],
+            include_dirs=[get_include(), "/usr/local/include/"],
+            library_dirs=["/usr/lib/"]),
+    ]
 
     setup(
         name=ldict['__packagename__'],
@@ -38,7 +47,7 @@ def main():
         classifiers=ldict['CLASSIFIERS'],
         download_url=ldict['DOWNLOAD_URL'],
         # Dependencies handling
-        setup_requires=[],
+        setup_requires=ldict['SETUP_REQUIRES'],
         install_requires=ldict['REQUIRES'],
         tests_require=ldict['TESTS_REQUIRES'],
         extras_require=ldict['EXTRA_REQUIRES'],
@@ -46,7 +55,8 @@ def main():
         package_data={'fmriprep': ['data/*.json']},
         entry_points={'console_scripts': ['fmriprep=fmriprep.run_workflow:main',]},
         packages=find_packages(),
-        zip_safe=False
+        zip_safe=False,
+        ext_modules=extensions
     )
 
 if __name__ == '__main__':

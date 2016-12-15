@@ -43,6 +43,12 @@ become available.
 DOWNLOAD_URL = ('https://pypi.python.org/packages/source/f/fmriprep/' +
                 'fmriprep-%s.tar.gz').format('__version__')
 
+SETUP_REQUIRES = [
+    'setuptools>=18.0',
+    'numpy',
+    'cython',
+]
+
 REQUIRES = [
     'numpy',
     'lockfile',

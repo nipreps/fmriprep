@@ -3,6 +3,15 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
+
+Phase-difference B0 estimation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The field inhomogeneity inside the scanner (fieldmap) is proportional to the
+phase drift between two subsequent :abbr:`GRE (gradient recall echo)`
+sequence.
+
+
 Fieldmap preprocessing workflow for fieldmap data structure
 8.9.1 in BIDS 1.0.0: one phase diff and at least one magnitude image
 
@@ -25,14 +34,10 @@ from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
 from fmriprep.utils.misc import fieldmap_suffixes
 from fmriprep.viz import stripped_brain_overlay
 
-
-def _sort_fmaps(input_images):
-    ''' just a little data massaging'''
-    return (sorted([fname for fname in input_images if 'magnitude' in fname]),
-            sorted([fname for fname in input_images if 'phasediff' in fname]))
+WORKFLOW_NAME='FMAP_phdiff'
 
 
-def phase_diff_and_magnitudes(settings, name='phase_diff_and_magnitudes'):
+def phdiff_workflow(settings, name=WORKFLOW_NAME):
     """
     Estimates the fieldmap using a phase-difference image and one or more
     magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
@@ -162,6 +167,11 @@ def phase_diff_and_magnitudes(settings, name='phase_diff_and_magnitudes'):
 # ------------------------------------------------------
 # Helper functions
 # ------------------------------------------------------
+
+def _sort_fmaps(input_images):
+    ''' just a little data massaging'''
+    return (sorted([fname for fname in input_images if 'magnitude' in fname]),
+            sorted([fname for fname in input_images if 'phasediff' in fname]))
 
 def phdiff2fmap(in_file, delta_te, out_file=None):
     """

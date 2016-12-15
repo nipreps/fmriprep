@@ -291,7 +291,7 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
 
     ds_report = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='epi_sbref', out_path_base='reports'), 
+                            suffix='epi_sbref', out_path_base='reports'),
         name="DS_Report")
 
     workflow.connect([
@@ -443,8 +443,7 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         name='outputnode'
     )
 
-    unwarp = sdc_unwarp()
-    unwarp.inputs.inputnode.hmc_movpar = ''
+    unwarp = sdc_unwarp(settings=settings)
 
     # Compute outputs
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='EPImean')
@@ -477,32 +476,6 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         (inputnode, ds_report, [('epi', 'source_file')]),
         (bet, ds_report, [('out_report', 'in_file')])
     ])
-
-    # Plot result
-    epi_corr = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='EPICorr'
-    )
-    epi_corr.inputs.out_file = 'corrected_EPI.svg'
-
-    epi_corr_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name="datasink",
-    )
-
-    workflow.connect([
-        (bet, epi_corr, [('out_file', 'overlay_file')]),
-        (inputnode, epi_corr, [('fmap_mask', 'in_file')]),
-        (bet, epi_corr_ds, [('out_file', 'overlay_file')]),
-        (inputnode, epi_corr_ds, [('fmap_mask', 'base_file')]),
-        (epi_corr, epi_corr_ds, [('out_file', 'in_file')]),
-        (inputnode, epi_corr_ds, [('epi', 'origin_file')])
-    ])
-
     return workflow
 
 
