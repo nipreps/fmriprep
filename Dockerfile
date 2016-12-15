@@ -52,7 +52,7 @@ RUN conda config --add channels conda-forge && \
 
 
 RUN pip install -e git+https://github.com/nipy/nipype.git@7e6c3c9a6af0482e147ff5aebab6948a539b0a89#egg=nipype
-RUN pip install -e git+https://github.com/poldracklab/niworkflows.git@d158a569c4f8e80ab94ca6d375e283d0a293c7bd#egg=niworkflows
+RUN pip install -e git+https://github.com/poldracklab/niworkflows.git@4bca0bb2230ee4322d2c61492856d80fb02d2c0c#egg=niworkflows
 
 RUN mkdir /niworkflows_data
 ENV CRN_SHARED_DATA /niworkflows_data
