@@ -22,9 +22,8 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT
 
-from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge,
-                                 ImageDataSink, RASReorient)
-
+from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge)
+from fmriprep.interfaces.images import reorient
 from fmriprep.viz import stripped_brain_overlay
 
 
@@ -144,102 +143,6 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
             (inputnode, ds_t1_skull_strip_report, [('t1w', 'source_file')]),
             (asw, ds_t1_skull_strip_report, [('outputnode.out_report', 'in_file')])
         ])
-
-    # Connect reporting nodes
-    t1_stripped_overlay = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='PNG_T1_SkullStrip'
-    )
-    t1_stripped_overlay.inputs.out_file = 't1_stripped_overlay.svg'
-
-    t1_stripped_overlay_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='T1StrippedOverlayDS'
-    )
-
-    #  t1 segmentation mapped onto t1 before registration into mni space
-    t1_seg_native = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='T1SegNative'
-    )
-    t1_seg_native.inputs.out_file = 't1_seg_native.svg'
-
-    t1_seg_native_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='T1SegNativeDS'
-    )
-
-    #  The T1-to-MNI will be plotted using the segmentation.
-    #  That's why we transform it first
-    seg_2_mni = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0,
-                             interpolation='NearestNeighbor'),
-        name='T1_2_MNI_warp'
-    )
-    seg_2_mni.inputs.reference_image = op.join(get_mni_icbm152_nlin_asym_09c(),
-                                               '1mm_T1.nii.gz')
-
-    t1_2_mni_overlay = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='T1ToMNI'
-    )
-    t1_2_mni_overlay.inputs.out_file = 't1_to_mni_overlay.svg'
-    t1_2_mni_overlay.inputs.overlay_file = op.join(get_mni_icbm152_nlin_asym_09c(),
-                                                   '1mm_T1.nii.gz')
-
-    t1_2_mni_overlay_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name='T12MNIOverlayDS'
-    )
-    t1_2_mni_overlay_ds.inputs.overlay_file = op.join(get_mni_icbm152_nlin_asym_09c(),
-                                                      '1mm_T1.nii.gz')
-
-    datasink = pe.Node(
-        interface=nio.DataSink(
-            base_directory=op.join(settings['output_dir'], 'images')
-        ),
-        name='datasink',
-        parameterization=False
-    )
-
-
-    workflow.connect([
-        (inu_n4, t1_stripped_overlay, [('output_image', 'overlay_file')]),
-        (asw, t1_stripped_overlay, [('outputnode.out_mask', 'in_file')]),
-        (t1_stripped_overlay, t1_stripped_overlay_ds, [('out_file', 'in_file')]),
-        (inu_n4, t1_stripped_overlay_ds, [('output_image', 'base_file')]),
-        (asw, t1_stripped_overlay_ds, [('outputnode.out_mask', 'overlay_file')]),
-        (inputnode, t1_stripped_overlay_ds, [('t1w', 'origin_file')]),
-
-        (t1_seg, seg_2_mni, [('tissue_class_map', 'input_image')]),
-        (t1_2_mni, seg_2_mni, [('forward_transforms', 'transforms'),
-                               ('forward_invert_flags', 'invert_transform_flags')]),
-
-        (seg_2_mni, t1_2_mni_overlay, [('output_image', 'in_file')]),
-        (t1_2_mni_overlay, datasink, [('out_file', '@t1_2_mni_overlay')]),
-        (seg_2_mni, t1_2_mni_overlay_ds, [('output_image', 'base_file')]),
-        (t1_2_mni_overlay, t1_2_mni_overlay_ds, [('out_file', 'in_file')]),
-        (inputnode, t1_2_mni_overlay_ds, [('t1w', 'origin_file')]),
-
-        (t1_seg, t1_seg_native, [('tissue_class_map', 'in_file')]),
-        (inu_n4, t1_seg_native, [('output_image', 'overlay_file')]),
-        (t1_seg, t1_seg_native_ds, [('tissue_class_map', 'base_file')]),
-        (inu_n4, t1_seg_native_ds, [('output_image', 'overlay_file')]),
-        (inputnode, t1_seg_native_ds, [('t1w', 'origin_file')]),
-        (t1_seg_native, t1_seg_native_ds, [('out_file', 'in_file')])
-    ])
 
     # Write corrected file in the designated output dir
     ds_t1_bias = pe.Node(

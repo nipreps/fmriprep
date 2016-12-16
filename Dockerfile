@@ -25,10 +25,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# This Dockerfile is to be built for testing purposes inside CircleCI,
-# not for distribution within Docker hub.
-# For that purpose, the Dockerfile is found in build/Dockerfile.
 
 FROM oesteban/crn_nipype:freesurfer
 
@@ -50,9 +46,14 @@ RUN conda config --add channels conda-forge && \
     conda install -y numpy scipy matplotlib pandas lxml libxslt nose mock && \
     python -c "from matplotlib import font_manager"
 
+<<<<<<< HEAD
 
 RUN pip install -e git+https://github.com/nipy/nipype.git@7e6c3c9a6af0482e147ff5aebab6948a539b0a89#egg=nipype
 RUN pip install -e git+https://github.com/poldracklab/niworkflows.git@4bca0bb2230ee4322d2c61492856d80fb02d2c0c#egg=niworkflows
+=======
+ADD requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+>>>>>>> upstream/master
 
 RUN mkdir /niworkflows_data
 ENV CRN_SHARED_DATA /niworkflows_data

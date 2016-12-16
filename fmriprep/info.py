@@ -9,13 +9,13 @@ from __future__ import unicode_literals
 __version__ = '0.1.2a3'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2016, Center for Reproducible Neuroscience, Stanford University'
-__credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris F. Gorgolewski',
+__credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris F. Gorgolewski', 'Shoshana Berleant',
                'Russell A. Poldrack']
 __license__ = '3-clause BSD'
 __maintainer__ = 'Ross Blair'
 __email__ = 'crn.poldracklab@gmail.com'
 __status__ = 'Prototype'
-__url__ = 'https://github.com/poldracklab/preprocessing-workflow'
+__url__ = 'https://github.com/poldracklab/fmriprep'
 __packagename__ = 'fmriprep'
 __description__ = """fMRIprep is a functional magnetic resonance image pre-processing pipeline that
 is designed to provide an easily accessible, state-of-the-art interface that is robust to differences

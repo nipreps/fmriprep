@@ -1,2 +1,3 @@
 mock
+pydotplus
 -r ../requirements.txt

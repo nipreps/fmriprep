@@ -1,0 +1,130 @@
+.. include:: links.rst
+
+=========
+Workflows
+=========
+
+ds005
+=====
+
+``fmriprep``'s ds005 pipeline is used on datasets for which there are only t1ws and at least one functional (EPI) file.
+Use the `--workflow-type ds005` or allow ``fmriprep`` to automatically determine the approriate workflow.
+
+What It Does
+------------
+High-level view of the ds005 pipeline:
+
+.. image:: ds005.dot.png
+    :scale: 100%
+
+BIDSDatasource
+~~~~~~~~~~~~~~
+
+This node reads the BIDS_-formatted t1 data.
+
+t1w_preprocessing
+~~~~~~~~~~~~~~~~~
+
+.. image:: t1w_preprocessing.dot.png
+    :scale: 100%
+
+The t1w_preprocessing sub-workflow finds the skull stripping mask and the white matter/gray matter/cerebrospinal fluid segments.
+
+.. figure:: _static/brainextraction.svg
+    :scale: 100%
+
+    Brain extraction (by BET).
+
+.. figure:: _static/segmentation.svg
+    :scale: 100%
+
+    Segmentation (FAST).
+
+EPI_HMC
+~~~~~~~
+
+.. image:: EPI_HMC.dot.png
+    :scale: 100%
+
+The EPI_HMC sub-workflow collects BIDS_-formatted EPI files and performs head motion correction.
+
+EPIMeanNormalization
+~~~~~~~~~~~~~~~~~~~~
+
+.. image:: EPIMeanNormalization.dot.png
+    :scale: 100%
+
+The EPIMeanNormalization sub-workflow uses FSL FLIRT with the BBR cost function to find the transform that maps the EPI space into the T1-space.
+
+EPIMNITransformation
+~~~~~~~~~~~~~~~~~~~~
+
+.. image:: EPIMNITransformation.dot.png
+    :scale: 100%
+
+The EPIMNITransformation sub-workflow uses the transform from `EPIMeanNormalization`_ and a t1-to-MNI transform from `t1w_preprocessing`_ to map the EPI image to standardized MNI space.
+It also maps the t1w-based mask to MNI space.
+
+Transforms are concatenated and applied all at once, with one interpolation step, so as little information is lost as possible.
+
+.. figure:: _static/EPIT1Normalization.svg
+    :scale: 100%
+
+    Animation showing EPI to T1 registration. Hover to pause.
+
+.. figure:: _static/T1MNINormalization.svg
+    :scale: 100%
+
+    Animation showing T1 to MNI normalization. Hover to pause.
+
+ConfoundDiscoverer
+~~~~~~~~~~~~~~~~~~
+
+.. image:: ConfoundDiscoverer.dot.png
+    :scale: 100%
+
+Given a motion-corrected fMRI, a brain mask, MCFLIRT movement parameters and a segmentation, the ConfoundDiscoverer sub-workflow calculates potential confounds per volume.
+Calculated confounds include the mean global signal, mean tissue class signal, tCompCor, aCompCor, and DVARS.
+
+
+Reports
+-------
+
+``fmriprep`` outputs summary reports and reportlets (reports of individual steps in the process).
+These reports provide visuals to make visual inspection of the results easy.
+`View a sample report. <_static/sample_report.html>`_
+
+Derivatives
+-----------
+
+There are additional files, called "Derivatives", outputted to ``<output dir>/derivatives``.
+See the BIDS_ spec for more information.
+
+Derivatives related to t1w files are in the ``anat`` subfolder:
+
+- ``*T1w_brainmask.nii.gz`` Brain mask derived using ANTS or AFNI, depending on the command flag ``--skull-strip-ants``
+- ``*T1w_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as above, but in MNI space.
+- ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
+- ``*T1w_preproc.nii.gz`` Bias field corrected t1w file, using ANTS' N4BiasFieldCorrection
+- ``*T1w_space-MNI152NLin2009cAsym_preproc.nii.gz`` Same as above, but in MNI space
+- ``*T1w_target-meanBOLD_affine.txt`` The ITK-formatted affine to transform T1w into the EPI space, created by FSL and converted by C3DAffineTool
+- ``*T1w_target-MNI152NLin2009cAsym_affine.mat`` The affine matrix to transform T1w into MNI space
+- ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
+- ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
+- ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
+- ``*T1w_target-MNI152NLin2009cAsym_warp.nii.gz`` Warp transform to transform t1w into MNI space
+
+Derivatives related to EPI files are in the ``func`` subfolder:
+
+- ``*bold_brainmask.nii.gz`` Brain mask for EPI files, calculated by BET on the average EPI volume, post-motion correction
+- ``*bold_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as above, but in MNI space
+- ``*bold_confounds.tsv`` A tab-separated value file with one column per calculated confound and one row per timepoint/volume
+- ``*bold_preproc.nii.gz`` Motion-corrected (using MCFLIRT) EPI file.
+- ``*bold_space-MNI152NLin2009cAsym_preproc.nii.gz`` Same as above, but in MNI space
+- ``*bold_target-T1w_affine.txt`` The ITK-formatted affine to transform the EPI into T1w space (the inverse of ``anat/*T1w_target-meanBOLD_affine.txt``)
+
+Images
+------
+
+The ``images`` subfolder of the output directory contains images (e.g., ``.svg``, ``.png``) produced by `fmriprep`.
+Each image is accompanied by a ``.json`` file that contains metadata about how the image was produced.

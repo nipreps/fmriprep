@@ -21,8 +21,7 @@ from niworkflows.interfaces.masks import ComputeEPIMask, BETRPT
 from niworkflows.interfaces.registration import FLIRTRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
-from fmriprep.interfaces import (DerivativesDataSink, FormatHMCParam,
-                                 ImageDataSink)
+from fmriprep.interfaces import (DerivativesDataSink, FormatHMCParam)
 from fmriprep.interfaces.utils import nii_concat
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
@@ -90,33 +89,10 @@ def epi_hmc(name='EPI_HMC', settings=None):
         name='DS_Report'
     )
 
-    mean_epi_stripped_overlay = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='MeanEPIStrippedOverlay'
-    )
-    #  name needs to be based on source_file
-    mean_epi_stripped_overlay.inputs.out_file = 'mean_epi_overlay.svg'
-
-    mean_epi_overlay_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name="MeanEPIOverlayDS",
-    )
-
     workflow.connect([
         (inputnode, ds_report, [('epi', 'source_file')]),
         (inputnode, ds_mask, [('epi', 'source_file')]),
-        (inputnode, mean_epi_overlay_ds, [('epi', 'origin_file')]),
         (skullstrip_epi, ds_mask, [('mask_file', 'in_file')]),
-        (hmc, mean_epi_stripped_overlay, [('mean_img', 'overlay_file')]),
-        (skullstrip_epi, mean_epi_stripped_overlay, [('mask_file', 'in_file')]),
-        (hmc, mean_epi_overlay_ds, [('mean_img', 'overlay_file')]),
-        (skullstrip_epi, mean_epi_overlay_ds, [('mask_file', 'base_file')]),
-        (mean_epi_stripped_overlay, mean_epi_overlay_ds,
-         [('out_file', 'in_file')]),
         (skullstrip_epi, ds_report, [('out_report', 'in_file')])
     ])
 
@@ -231,32 +207,6 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
         (inputnode, ds_report, [('epi_name_source', 'source_file')])
     ])
 
-    # Plots for report
-    epi_to_t1 = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='PNG_epi_to_t1'
-    )
-    epi_to_t1.inputs.out_file = 'epi_to_t1.svg'
-
-    # Write corrected file in the designated output dir
-    epi_to_t1_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name="datasink",
-    )
-
-    workflow.connect([
-        (flt_bbr, epi_to_t1, [('out_file', 'overlay_file')]),
-        (inputnode, epi_to_t1, [('t1_seg', 'in_file')]),
-        (flt_bbr, epi_to_t1_ds, [('out_file', 'overlay_file')]),
-        (inputnode, epi_to_t1_ds, [('t1_seg', 'base_file')]),
-        (epi_to_t1, epi_to_t1_ds, [('out_file', 'in_file')]),
-        (inputnode, epi_to_t1_ds, [('epi_name_source', 'origin_file')])
-    ])
-
     return workflow
 
 
@@ -315,33 +265,6 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
         (inputnode, ds_sbref, [('epi_name_source', 'source_file')]),
         (inputnode, ds_report, [('epi_name_source', 'source_file')]),
         (epi_sbref, ds_report, [('out_report', 'in_file')])
-    ])
-
-    #  Plot for report
-    post_merge_mean = pe.Node(fsl.MeanImage(), name='PostEPIMean')
-    mean_epi_to_sbref_overlay = pe.Node(
-        niu.Function(
-            input_names=["in_file", "overlay_file", "out_file"],
-            output_names=["out_file"],
-            function=stripped_brain_overlay
-        ),
-        name="MeanEPIToSbref"
-    )
-    mean_epi_to_sbref_overlay.inputs.out_file = "mean_epi_to_sbref.svg"
-
-    mean_epi_to_sbref_ds = pe.Node(
-        ImageDataSink(base_directory=settings['output_dir']),
-        name="datasink",
-    )
-
-    workflow.connect([
-        (epi_merge, post_merge_mean, [('merged_file', 'in_file')]),
-        (inputnode, mean_epi_to_sbref_overlay, [('sbref_mask', 'in_file')]),
-        (post_merge_mean, mean_epi_to_sbref_overlay, [('out_file', 'overlay_file')]),
-        (inputnode, mean_epi_to_sbref_ds, [('sbref_mask', 'base_file')]),
-        (post_merge_mean, mean_epi_to_sbref_ds, [('out_file', 'overlay_file')]),
-        (mean_epi_to_sbref_overlay, mean_epi_to_sbref_ds, [('out_file', 'in_file')]),
-        (inputnode, mean_epi_to_sbref_ds, [('epi_name_source', 'origin_file')])
     ])
 
     return workflow

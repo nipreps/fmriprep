@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# fMRIprep documentation build configuration file, created by
+# fmriprep documentation build configuration file, created by
 # sphinx-quickstart on Mon May  9 09:04:25 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -14,7 +14,8 @@
 
 import os
 import sys
-from fmriprep import __version__
+from fmriprep.workflows.base import wf_ds005_type
+from nipype.pipeline.engine import Workflow
 
 # Hack for readthedocs
 # http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
@@ -30,6 +31,7 @@ for mod_name in MOCK_MODULES:
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../../fmriprep'))
+sys.path.append(os.path.abspath('sphinxext'))
 
 # -- General configuration ------------------------------------------------
 
@@ -45,7 +47,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
+    'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -63,9 +65,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'fMRIprep'
-copyright = u'2016, Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, Ross Blair.'
-author = u'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, Ross Blair.'
+project = u'fmriprep'
+author = u'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, Ross Blair, Shoshana Berleant'
+copyright = u'2016, ' + author
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -138,7 +140,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-#html_title = u'fMRIprep vversion'
+#html_title = u'fmriprep vversion'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -220,7 +222,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'fMRIprepdoc'
+htmlhelp_basename = 'fmriprepdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -242,8 +244,9 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'fMRIprep.tex', u'fMRIprep Documentation',
-     u'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, Ross Blair.', 'manual'),
+    (master_doc, 'fmriprep.tex', u'fMRIprep Documentation',
+     author,
+     'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -272,7 +275,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'fmriprep', u'fMRIprep Documentation',
+    (master_doc, 'fmriprep', u'fmriprep Documentation',
      [author], 1)
 ]
 
@@ -286,8 +289,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'fMRIprep', u'fMRIprep Documentation',
-     author, 'fMRIprep', 'One line description of project.',
+    (master_doc, 'fmriprep', u'fMRIprep Documentation',
+     author, 'fmriprep', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -306,3 +309,29 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+def fake_set_up():
+    os.environ['FSLDIR'] = '' # dummy FSL dir
+    bbr_filename = 'etc/flirtsch/bbr.sch'
+    basedir = os.path.dirname(bbr_filename)
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+    open(bbr_filename, 'w').close() # dummy existing file
+
+
+# Auto-create DAG pngs
+
+fake_set_up()
+
+ds005_wf = wf_ds005_type({'func': 'fake data'}, {'ants_nthreads': 1,
+                                                 'output_dir': 'x',
+                                                 'biggest_epi_file_size_gb': 1,
+                                                 'skip_native': True})
+
+sub_wfs = {name.split('.')[0] for name in ds005_wf.list_node_names()} # get only first-level nodes/workflows
+ds005_workflows = {name: ds005_wf.get_node(name) for name in sub_wfs}
+ds005_workflows['ds005'] = ds005_wf
+
+for name, workflow in ds005_workflows.items():
+    if isinstance(workflow, Workflow):
+        workflow.write_graph(graph2use="orig", dotfilename=name + '.dot', simple_form=True)
