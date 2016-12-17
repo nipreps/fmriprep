@@ -21,8 +21,9 @@ from niworkflows.interfaces.masks import ComputeEPIMask, BETRPT
 from niworkflows.interfaces.registration import FLIRTRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
-from fmriprep.interfaces import (DerivativesDataSink, FormatHMCParam)
+from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.utils import nii_concat
+from fmriprep.utils.misc import fix_multi_T1w_source_name
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 from fmriprep.workflows.sbref import _extract_wm
@@ -200,7 +201,7 @@ def epi_mean_t1_registration(name='EPIMeanNormalization', settings=None):
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_epi_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_epi')]),
         (inputnode, ds_tfm_fwd, [('epi_name_source', 'source_file')]),
-        (inputnode, ds_tfm_inv, [('t1w', 'source_file')]),
+        (inputnode, ds_tfm_inv, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (fsl2itk_fwd, ds_tfm_fwd, [('itk_transform', 'in_file')]),
         (fsl2itk_inv, ds_tfm_inv, [('itk_transform', 'in_file')]),
         (flt_bbr, ds_report, [('out_report', 'in_file')]),

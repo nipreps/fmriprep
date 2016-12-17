@@ -82,7 +82,7 @@ class DerivativesDataSinkInputSpec(BaseInterfaceInputSpec):
         desc='Path to the base directory for storing data.')
     in_file = InputMultiPath(File(exists=True), mandatory=True,
                              desc='the object to be saved')
-    source_file = File(exists=True, mandatory=True, desc='the input func file')
+    source_file = File(exists=False, mandatory=True, desc='the input func file')
     suffix = traits.Str('', mandatory=True, desc='suffix appended to source_file')
     extra_values = traits.List(traits.Str)
 
