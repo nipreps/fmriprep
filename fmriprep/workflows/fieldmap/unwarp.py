@@ -187,6 +187,7 @@ def _fugue_unwarp(in_file, in_fieldmap, in_mask, metadata):
     if len(metadata) == 1:
         metadata = metadata * len(nii_list)
 
+    out_report = None
     out_files = []
     for i, (tnii, tmeta) in enumerate(zip(nii_list, metadata)):
         tfile = genfname(in_file, 'vol%03d' % i)
@@ -204,19 +205,25 @@ def _fugue_unwarp(in_file, in_fieldmap, in_mask, metadata):
             fmap_in_file=fmap_umask, dwell_time=ec,
             unwarp_direction=ud, shift_out_file=vsm_file).run()
 
+        gen_report = i == 0
+
         fugue = FUGUERPT(
             in_file=tfile, unwarp_direction=ud, icorr=True, shift_in_file=vsm_file,
             unwarped_file=genfname(in_file, 'unwarped%03d' % i),
-            generate_report=True)
+            generate_report=gen_report)
 
         # print('Running FUGUE: %s' % fugue.cmdline)
         fugue_res = fugue.run()
         out_files.append(fugue_res.outputs.unwarped_file)
 
+        if gen_report:
+            out_report = fugue_res.outputs.out_report
+
+
     corr_nii = nb.concat_images([nb.load(f) for f in out_files])
     out_file = genfname(in_file, 'unwarped')
     corr_nii.to_filename(out_file)
-    return out_file, fugue_res.outputs.out_report
+    return out_file, out_report
 
 
 def _warp_reference(fmap_ref, fmap, fmap_mask, metadata):
