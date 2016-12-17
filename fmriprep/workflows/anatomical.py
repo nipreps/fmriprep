@@ -59,7 +59,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
                              no_bias=True, probability_maps=True),
                      name='Segmentation')
-    t1_seg.inputs.estimated_memory_gb = 4
+    # t1_seg.inputs.estimated_memory_gb = 4
 
     # 5. Spatial normalization (T1w to MNI registration)
     t1_2_mni = pe.Node(
@@ -71,7 +71,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         ),
         name='T1_2_MNI_Registration'
     )
-    t1_2_mni.inputs.estimated_memory_gb = 8
+    # t1_2_mni.inputs.estimated_memory_gb = 8
 
     # should not be necesssary byt does not hurt - make sure the multiproc
     # scheduler knows the resource limits
