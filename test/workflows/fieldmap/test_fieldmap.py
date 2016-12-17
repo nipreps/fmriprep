@@ -1,9 +1,9 @@
-import json
-from fmriprep.workflows.fieldmap.utils import create_encoding_file
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
+
 from fmriprep.workflows.fieldmap import phdiff
-from fmriprep.workflows.fieldmap import pepolar
-import re
-import mock
 from test.workflows.utilities import TestWorkflow
 
 class TestFieldMap(TestWorkflow):
@@ -19,7 +19,7 @@ class TestFieldMap(TestWorkflow):
 
         # SET UP EXPECTATIONS
         expected_interfaces = ['Function', 'N4BiasFieldCorrection', 'BETRPT',
-                               'MCFLIRT', 'Merge', 'Split', 'TOPUP',
+                               'PRELUDE', 'Merge', 'Split', 'TOPUP',
                                'ApplyTOPUP', 'Function',
                                'IdentityInterface', 'ReadSidecarJSON',
                                'IdentityInterface']

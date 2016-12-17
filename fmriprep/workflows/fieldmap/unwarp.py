@@ -11,15 +11,11 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
-from nipype.interfaces import fsl
-from nipype.interfaces import ants
 from nipype.interfaces import utility as niu
 from niworkflows.interfaces.registration import ANTSRegistrationRPT, ANTSApplyTransformsRPT
 
 from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink
-from fmriprep.interfaces.fmap import FieldCoefficients, GenerateMovParams
 from fmriprep.interfaces.topup import ConformTopupInputs
-from fmriprep.workflows.fieldmap.utils import create_encoding_file
 SDC_UNWARP_NAME = 'SDC_unwarp'
 
 
