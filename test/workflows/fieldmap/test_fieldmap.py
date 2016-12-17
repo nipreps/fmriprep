@@ -19,12 +19,12 @@ class TestFieldMap(TestWorkflow):
 
         # SET UP EXPECTATIONS
         expected_interfaces = ['Function', 'N4BiasFieldCorrection', 'BETRPT',
-                               'PRELUDE', 'Merge', 'Split', 'TOPUP',
-                               'ApplyTOPUP', 'Function',
-                               'IdentityInterface', 'ReadSidecarJSON',
-                               'IdentityInterface']
-        expected_outputs = ['outputnode.fieldmap', 'outputnode.fmap_mask',
-                            'outputnode.mag_brain']
+                               'PRELUDE', 'IdentityInterface', 'ReadSidecarJSON',
+                               'IdentityInterface', 'DataSink', 'MultiImageMaths',
+                               'ApplyMask', 'FUGUE', 'Merge', 'MathsCommand',
+                               'IntraModalMerge', 'SpatialFilter']
+        expected_outputs = ['outputnode.fmap', 'outputnode.fmap_mask',
+                            'outputnode.fmap_ref']
         expected_inputs = ['inputnode.input_images']
 
         # RUN
