@@ -125,7 +125,7 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
         (maskxfm, unwarp, [('output_image', 'in_mask')]),
         (meta, unwarp, [('out_dict', 'metadata')]),
         (unwarp, outputnode, [('out_file', 'out_file')]),
-        (inputnode, dsunwarp, [('in_file', 'source_file')]),
+        (inputnode, dsunwarp, [(('in_file', _first), 'source_file')]),
         (unwarp, dsunwarp, [('out_report', 'in_file')])
     ])
 
@@ -258,4 +258,9 @@ def _warp_reference(fmap_ref, fmap, fmap_mask, metadata):
 def _last(inlist):
     if isinstance(inlist, list):
         return inlist[-1]
+    return inlist
+
+def _first(inlist):
+    if isinstance(inlist, list):
+        return inlist[0]
     return inlist
