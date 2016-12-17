@@ -1,2 +1,35 @@
-./work*
-./out*
+# python cache
+__pycache__/**/*
+__pycache__
+*.pyc
+
+# python distribution
+# ./build/**/*
+# ./build
+./dist/**/*
+./dist
+fmriprep.egg-info/**/*
+fmriprep.egg-info
+.eggs/**/*
+.eggs
+
+# pip installs
+./src/**/*
+./src/
+
+# releasing
+Makefile
+
+# git
+.gitignore
+.git/**/*
+.git
+
+# other
+./docs/**/*
+./docs/
+
+./work/**/*
+./work
+./out/**/*
+./out/
