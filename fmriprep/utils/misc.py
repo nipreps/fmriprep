@@ -11,6 +11,30 @@ from bids.grabbids import BIDSLayout
 
 INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'sbref': []}
 
+
+def genfname(in_file, suffix=None, path=None, ext=None):
+    from os import getcwd
+    import os.path as op
+
+    fname, fext = op.splitext(op.basename(in_file))
+    if fext == '.gz':
+        fname, fext2 = op.splitext(fname)
+        fext = fext2 + fext
+
+    if path is None:
+        path = getcwd()
+
+    if ext is None:
+        ext = fext
+
+    if ext.startswith('.'):
+        ext = ext[1:]
+
+    if suffix is None:
+        suffix = 'mod'
+
+    return op.join(path, '{}_{}.{}'.format(fname, suffix, ext))
+
 def _first(inlist):
     if not isinstance(inlist, (list, tuple)):
         inlist = [inlist]

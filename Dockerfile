@@ -38,7 +38,7 @@ RUN rm -rf /usr/local/miniconda && curl -sSLO https://repo.continuum.io/minicond
     bash Miniconda3-4.2.12-Linux-x86_64.sh -b -p /usr/local/miniconda && \
     rm Miniconda3-4.2.12-Linux-x86_64.sh
 ENV PATH=/usr/local/miniconda/bin:$PATH \
-	LANG=C.UTF-8 \
+    LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
 # Create conda environment

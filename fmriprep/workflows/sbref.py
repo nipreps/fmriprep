@@ -15,15 +15,14 @@ import os.path as op
 from nipype.pipeline import engine as pe
 from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
-from nipype.interfaces import fsl, c3
+from nipype.interfaces import fsl
 from nipype.interfaces import ants
 from niworkflows.interfaces.masks import ComputeEPIMask
 from niworkflows.interfaces.registration import FLIRTRPT
 
 from fmriprep.utils.misc import _first, gen_list
-from fmriprep.interfaces.utils import reorient
-from fmriprep.interfaces import (ReadSidecarJSON, IntraModalMerge,
-                                 DerivativesDataSink)
+from fmriprep.interfaces.images import reorient
+from fmriprep.interfaces import IntraModalMerge, DerivativesDataSink
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 
@@ -41,8 +40,7 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     outputnode = pe.Node(niu.IdentityInterface(fields=['sbref_unwarped', 'sbref_unwarped_mask']),
                          name='outputnode')
     # Unwarping
-    unwarp = sdc_unwarp()
-    unwarp.inputs.inputnode.hmc_movpar = ''
+    unwarp = sdc_unwarp(settings=settings)
 
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='SBRefMean')
     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='SBRefBias')

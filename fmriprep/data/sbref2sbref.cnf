@@ -1,0 +1,26 @@
+# Resolution (knot-spacing) of warps in mm
+--warpres=24,22,18,16,8
+# Subsampling level (a value of 2 indicates that a 2x2x2 neighbourhood is collapsed to 1 voxel)
+--subsamp=2,1,1,1,1
+# FWHM of gaussian smoothing
+--fwhm=4,2,0,0,0
+# Maximum number of iterations
+--miter=5,5,10,30,40
+# Relative weight of regularisation
+--lambda=0.005,0.001,0.0005,0.00005,0.00001
+# If set to 1 lambda is multiplied by the current average squared difference
+--ssqlambda=1
+# Regularisation model
+--regmod=bending_energy
+# If set to 1 movements are estimated along with the field
+--estmov=1,0,0,0,0
+# 0=Levenberg-Marquardt, 1=Scaled Conjugate Gradient
+--minmet=0,1,1,1,1
+# Quadratic or cubic splines
+--splineorder=3
+# Precision for calculation and storage of Hessian
+--numprec=float
+# Linear or spline interpolation
+--interp=spline
+# If set to 1 the images are individually scaled to a common mean intensity
+--scale=1

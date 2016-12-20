@@ -11,8 +11,6 @@ Originally coded by Craig Moodie. Refactored by the CRN Developers.
 import os.path as op
 
 from nipype.interfaces import ants
-from nipype.interfaces import fsl
-from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
@@ -23,9 +21,7 @@ from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT
 
 from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge)
-from fmriprep.interfaces.utils import reorient
 from fmriprep.utils.misc import fix_multi_T1w_source_name
-from fmriprep.viz import stripped_brain_overlay
 
 #  pylint: disable=R0914
 def t1w_preprocessing(name='t1w_preprocessing', settings=None):
@@ -42,14 +38,9 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                 't1_2_mni', 't1_2_mni_forward_transform',
                 't1_2_mni_reverse_transform']), name='outputnode')
 
-    # 0. Align and merge if several T1w images are provided
-    t1wmrg = pe.Node(IntraModalMerge(), name='MergeT1s')
+    # 0. Align, reorient to RAS and merge if several T1w images are provided
+    t1wmrg = pe.Node(IntraModalMerge(to_ras=True, hmc=True), name='MergeT1s')
 
-    # 1. Reorient T1
-    arw = pe.Node(niu.Function(input_names=['in_file'],
-                               output_names=['out_file'],
-                               function=reorient),
-                  name='Reorient')
 
     # 2. T1 Bias Field Correction
     inu_n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3),
@@ -64,6 +55,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
                              no_bias=True, probability_maps=True),
                      name='Segmentation')
+    t1_seg.interface.estimated_memory_gb = 4
 
     # 5. Spatial normalization (T1w to MNI registration)
     t1_2_mni = pe.Node(
@@ -75,6 +67,8 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         ),
         name='T1_2_MNI_Registration'
     )
+    t1_2_mni.interface.estimated_memory_gb = 8
+
     # should not be necesssary byt does not hurt - make sure the multiproc
     # scheduler knows the resource limits
     t1_2_mni.interface.num_threads = settings['ants_nthreads']
@@ -110,8 +104,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     workflow.connect([
         (inputnode, t1wmrg, [('t1w', 'in_files')]),
-        (t1wmrg, arw, [('out_avg', 'in_file')]),
-        (arw, inu_n4, [('out_file', 'input_image')]),
+        (t1wmrg, inu_n4, [('out_avg', 'input_image')]),
         (inu_n4, asw, [('output_image', 'inputnode.in_file')]),
         (asw, t1_seg, [('outputnode.out_file', 'in_files')]),
         (inu_n4, t1_2_mni, [('output_image', 'moving_image')]),

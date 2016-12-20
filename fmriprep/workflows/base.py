@@ -3,9 +3,8 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Created on Wed Dec  2 17:35:40 2015
-
-@author: craigmoodie
+Base workflow: the workflow enumerator and the two orchestrators
+(ds005 & ds054 -types of workflow)
 """
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
@@ -16,7 +15,7 @@ from fmriprep.workflows import confounds
 
 from fmriprep.workflows.anatomical import t1w_preprocessing
 from fmriprep.workflows.sbref import sbref_preprocess, sbref_t1_registration
-from fmriprep.workflows.fieldmap import phase_diff_and_magnitudes
+from fmriprep.workflows.fieldmap import fmap_estimator
 from fmriprep.workflows.epi import (
     epi_unwarp, epi_hmc, epi_sbref_registration,
     epi_mean_t1_registration, epi_mni_transformation)
@@ -58,9 +57,6 @@ def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
 
       * [x] Has at least one T1w and at least one bold file (minimal reqs.)
       * [x] Has one or more SBRefs
-      * [x] Has one or more GRE-phasediff images, including the corresponding magnitude images.
-      * [ ] No SE-fieldmap images
-      * [ ] No Spiral Echo fieldmap
 
     """
 
@@ -79,7 +75,7 @@ def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
     t1w_pre = t1w_preprocessing(settings=settings)
 
     # Estimate fieldmap
-    fmap_est = phase_diff_and_magnitudes(settings)
+    fmap_est = fmap_estimator(subject_data, settings=settings)
 
     # Correct SBRef
     sbref_pre = sbref_preprocess(settings=settings)
@@ -106,7 +102,6 @@ def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
 
     workflow.connect([
         (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w')]),
-        (bidssrc, fmap_est, [('fmap', 'inputnode.input_images')]),
         (bidssrc, sbref_pre, [('sbref', 'inputnode.sbref')]),
         (bidssrc, sbref_t1, [('sbref', 'inputnode.sbref_name_source')]),
         (fmap_est, sbref_pre, [('outputnode.fmap', 'inputnode.fmap'),
@@ -128,7 +123,6 @@ def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
         (fmap_est, epiunwarp_wf, [('outputnode.fmap', 'inputnode.fmap'),
                                   ('outputnode.fmap_mask', 'inputnode.fmap_mask'),
                                   ('outputnode.fmap_ref', 'inputnode.fmap_ref')]),
-
         (sbref_t1, t1_to_epi_transforms, [(('outputnode.mat_t1_to_sbr'), 'in_file')]),
         (epi2sbref, t1_to_epi_transforms, [('outputnode.out_mat_inv', 'in_file2')]),
 
@@ -152,9 +146,6 @@ def wf_ds005_type(subject_data, settings, name='fMRI_prep'):
 
       * [x] Has at least one T1w and at least one bold file (minimal reqs.)
       * [ ] No SBRefs
-      * [ ] No GRE-phasediff images, including the corresponding magnitude images.
-      * [ ] No SE-fieldmap images
-      * [ ] No Spiral Echo fieldmap
 
     """
 
@@ -169,6 +160,12 @@ def wf_ds005_type(subject_data, settings, name='fMRI_prep'):
 
     bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data),
                       name='BIDSDatasource')
+
+
+    # Estimate fieldmap
+    fmap_est = fmap_estimator(subject_data, settings=settings)
+    if fmap_est is not None:
+        raise NotImplementedError
 
     # Preprocessing of T1w (includes registration to MNI)
     t1w_pre = t1w_preprocessing(settings=settings)

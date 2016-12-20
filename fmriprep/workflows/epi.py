@@ -242,7 +242,7 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
 
     ds_report = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='epi_sbref', out_path_base='reports'), 
+                            suffix='epi_sbref', out_path_base='reports'),
         name="DS_Report")
 
     workflow.connect([
@@ -367,8 +367,7 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         name='outputnode'
     )
 
-    unwarp = sdc_unwarp()
-    unwarp.inputs.inputnode.hmc_movpar = ''
+    unwarp = sdc_unwarp(settings=settings)
 
     # Compute outputs
     mean = pe.Node(fsl.MeanImage(dimension='T'), name='EPImean')
@@ -401,7 +400,6 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
         (inputnode, ds_report, [('epi', 'source_file')]),
         (bet, ds_report, [('out_report', 'in_file')])
     ])
-
     return workflow
 
 
