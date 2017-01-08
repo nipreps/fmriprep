@@ -28,17 +28,24 @@ t1w_preprocessing
 .. image:: t1w_preprocessing.dot.png
     :scale: 100%
 
-The t1w_preprocessing sub-workflow finds the skull stripping mask and the white matter/gray matter/cerebrospinal fluid segments.
+The t1w_preprocessing sub-workflow finds the skull stripping mask and the
+white matter/gray matter/cerebrospinal fluid segments and finds a non-linear
+warp to the MNI space.
 
-.. figure:: _static/brainextraction.svg
+.. figure:: _static/brainextraction_t1.svg
     :scale: 100%
 
-    Brain extraction (by BET).
+    Brain extraction (ANTs).
 
 .. figure:: _static/segmentation.svg
     :scale: 100%
 
     Segmentation (FAST).
+
+.. figure:: _static/T1MNINormalization.svg
+    :scale: 100%
+
+    Animation showing T1 to MNI normalization (ANTs)
 
 EPI_HMC
 ~~~~~~~
@@ -46,15 +53,27 @@ EPI_HMC
 .. image:: EPI_HMC.dot.png
     :scale: 100%
 
-The EPI_HMC sub-workflow collects BIDS_-formatted EPI files and performs head motion correction.
+The EPI_HMC sub-workflow collects BIDS_-formatted EPI files, performs head
+motion correction, and skullstripping.
 
-EPIMeanNormalization
-~~~~~~~~~~~~~~~~~~~~
-
-.. image:: EPIMeanNormalization.dot.png
+.. figure:: _static/brainextraction.svg
     :scale: 100%
 
-The EPIMeanNormalization sub-workflow uses FSL FLIRT with the BBR cost function to find the transform that maps the EPI space into the T1-space.
+    Brain extraction (nilearn).
+
+ref_epi_t1_registration
+~~~~~~~~~~~~~~~~~~~~
+
+.. image:: ref_epi_t1_registration.dot.png
+    :scale: 100%
+
+The ref_epi_t1_registration sub-workflow uses FSL FLIRT with the BBR cost
+function to find the transform that maps the EPI space into the T1-space.
+
+.. figure:: _static/EPIT1Normalization.svg
+    :scale: 100%
+
+    Animation showing EPI to T1 registration (FSL FLIRT with BBR)
 
 EPIMNITransformation
 ~~~~~~~~~~~~~~~~~~~~
@@ -62,20 +81,13 @@ EPIMNITransformation
 .. image:: EPIMNITransformation.dot.png
     :scale: 100%
 
-The EPIMNITransformation sub-workflow uses the transform from `EPIMeanNormalization`_ and a t1-to-MNI transform from `t1w_preprocessing`_ to map the EPI image to standardized MNI space.
+The EPIMNITransformation sub-workflow uses the transform from
+`EPIMeanNormalization`_ and a t1-to-MNI transform from `t1w_preprocessing`_ to
+map the EPI image to standardized MNI space.
 It also maps the t1w-based mask to MNI space.
 
-Transforms are concatenated and applied all at once, with one interpolation step, so as little information is lost as possible.
-
-.. figure:: _static/EPIT1Normalization.svg
-    :scale: 100%
-
-    Animation showing EPI to T1 registration. Hover to pause.
-
-.. figure:: _static/T1MNINormalization.svg
-    :scale: 100%
-
-    Animation showing T1 to MNI normalization. Hover to pause.
+Transforms are concatenated and applied all at once, with one interpolation
+step, so as little information is lost as possible.
 
 ConfoundDiscoverer
 ~~~~~~~~~~~~~~~~~~
@@ -83,8 +95,12 @@ ConfoundDiscoverer
 .. image:: ConfoundDiscoverer.dot.png
     :scale: 100%
 
-Given a motion-corrected fMRI, a brain mask, MCFLIRT movement parameters and a segmentation, the ConfoundDiscoverer sub-workflow calculates potential confounds per volume.
-Calculated confounds include the mean global signal, mean tissue class signal, tCompCor, aCompCor, and DVARS.
+Given a motion-corrected fMRI, a brain mask, MCFLIRT movement parameters and a
+segmentation, the ConfoundDiscoverer sub-workflow calculates potential
+confounds per volume.
+
+Calculated confounds include the mean global signal, mean tissue class signal,
+tCompCor, aCompCor, Frawise Displacement, 6 motion parameters and DVARS.
 
 
 Reports

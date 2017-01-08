@@ -22,17 +22,17 @@ class TestBase(TestWorkflow):
         # assert
 
         # check some key paths
-        # self.assert_circular(wf054, [
-        #     ('SBrefSpatialNormalization', 'BIDSDatasource',
-        #      [('outputnode.mat_sbr_to_t1', 'subject_data')]),
-        #     ('EPIUnwarpWorkflow', 'BIDSDatasource', [('outputnode.epi_mean', 'subject_data')]),
-        #     ('ConfoundDiscoverer', 'BIDSDatasource',
-        #      [('outputnode.confounds_file', 'subject_data')]),
-        #     ('EPI_SBrefRegistration', 'BIDSDatasource', [('outputnode.out_mat', 'subject_data')]),
-        #     ('EPIUnwarpWorkflow', 'EPI_HMC', [('outputnode.epi_mean', 'inputnode.epi')]),
-        #     ('ConfoundDiscoverer', 'EPI_HMC', [('outputnode.confounds_file', 'inputnode.epi')]),
-        #     ('EPI_SBrefRegistration', 'EPI_HMC', [('outputnode.out_mat', 'inputnode.epi')])
-        # ])
+        self.assert_circular(wf054, [
+            ('ref_epi_t1_registration', 'BIDSDatasource',
+             [('outputnode.mat_epi_to_t1', 'subject_data')]),
+            ('EPIUnwarpWorkflow', 'BIDSDatasource', [('outputnode.epi_mean', 'subject_data')]),
+            ('ConfoundDiscoverer', 'BIDSDatasource',
+             [('outputnode.confounds_file', 'subject_data')]),
+            ('EPI_SBrefRegistration', 'BIDSDatasource', [('outputnode.out_mat', 'subject_data')]),
+            ('EPIUnwarpWorkflow', 'EPI_HMC', [('outputnode.epi_mean', 'inputnode.epi')]),
+            ('ConfoundDiscoverer', 'EPI_HMC', [('outputnode.confounds_file', 'inputnode.epi')]),
+            ('EPI_SBrefRegistration', 'EPI_HMC', [('outputnode.out_mat', 'inputnode.epi')])
+        ])
 
         # Make sure mandatory inputs are set/connected
         self._assert_mandatory_inputs_set(wf054)
@@ -53,7 +53,7 @@ class TestBase(TestWorkflow):
             ('EPIMNITransformation', 'BIDSDatasource',
              [('DerivativesHMCMNI.out_file', 'subject_data')]),
             ('EPIMNITransformation', 'EPI_HMC', [('DerivativesHMCMNI.out_file', 'inputnode.epi')]),
-            ('EPIMeanNormalization', 'EPI_HMC', [('outputnode.mat_epi_to_t1', 'inputnode.epi')]),
+            ('ref_epi_t1_registration', 'EPI_HMC', [('outputnode.mat_epi_to_t1', 'inputnode.epi')]),
         ])
 
         self._assert_mandatory_inputs_set(wf005)

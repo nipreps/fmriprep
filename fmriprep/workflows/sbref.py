@@ -80,69 +80,6 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     return workflow
 
 
-def sbref_t1_registration(name='SBrefSpatialNormalization', settings=None):
-    """
-    Uses FSL FLIRT with the BBR cost function to find the transform that
-    maps the SBRef space into the T1-space
-    """
-    workflow = pe.Workflow(name=name)
-
-    inputnode = pe.Node(
-        niu.IdentityInterface(fields=['sbref_name_source', 'sbref',
-                                      'sbref_mask', 't1', 't1_mask',
-                                      't1_seg']),
-        name='inputnode'
-    )
-    outputnode = pe.Node(
-        niu.IdentityInterface(fields=['mat_sbr_to_t1', 'mat_t1_to_sbr']),
-        name='outputnode'
-    )
-
-    # Extract wm mask from segmentation
-    wm_mask = pe.Node(
-        niu.Function(input_names=['in_file'], output_names=['out_file'],
-                     function=_extract_wm),
-        name='WM_mask'
-    )
-
-    # BBR works better with initialization
-    flt_bbr_init = pe.Node(fsl.FLIRT(dof=6, out_matrix_file='init.mat'),
-                           name='Flirt_BBR_init')
-    flt_bbr = pe.Node(FLIRTRPT(generate_report=True, dof=6, cost_func='bbr',
-                               out_file="bbr.nii.gz"), name="Flirt_BBR")
-    flt_bbr.inputs.schedule = op.join(os.getenv('FSLDIR'),
-                                      'etc/flirtsch/bbr.sch')
-
-    # make equivalent warp fields
-    invt_bbr = pe.Node(fsl.ConvertXFM(invert_xfm=True), name="Flirt_BBR_Inv")
-
-
-    ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='sbref_t1_flt_bbr', out_path_base='reports'),
-        name='DS_Report'
-    )
-
-    workflow.connect([
-        (inputnode, wm_mask, [('t1_seg', 'in_file')]),
-        (inputnode, flt_bbr_init, [('t1', 'reference'),
-                                   ('t1_mask', 'ref_weight'),
-                                   ('sbref', 'in_file'),
-                                   ('sbref_mask', 'in_weight')]),
-        (inputnode, flt_bbr, [('t1', 'reference'),
-                              ('sbref', 'in_file')]),
-        (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
-        (wm_mask, flt_bbr, [('out_file', 'wm_seg')]),
-        (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
-        (flt_bbr, outputnode, [('out_matrix_file', 'mat_sbr_to_t1')]),
-        (invt_bbr, outputnode, [('out_file', 'mat_t1_to_sbr')]),
-        (inputnode, ds_report, [(('sbref_name_source', _first), 'source_file')]),
-        (flt_bbr, ds_report, [('out_report', 'in_file')])
-    ])
-
-    return workflow
-
-
 def _extract_wm(in_file):
     import os.path as op
     import nibabel as nb
