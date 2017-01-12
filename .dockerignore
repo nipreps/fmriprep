@@ -1,2 +1,5 @@
 ./work*
 ./out*
+data
+.git
+.gitignore
