@@ -95,10 +95,10 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
             run_list = [None]
 
     queries = {
-        'fmap': {'modality': 'fmap', 'ext': 'nii'},
-        'epi': {'modality': 'func', 'type': 'bold', 'ext': 'nii'},
-        'sbref': {'modality': 'func', 'type': 'sbref', 'ext': 'nii'},
-        't1w': {'type': 'T1w', 'ext': 'nii'}
+        'fmap': {'modality': 'fmap', 'extensions': ['nii', 'nii.gz']},
+        'epi': {'modality': 'func', 'type': 'bold', 'extensions': ['nii', 'nii.gz']},
+        'sbref': {'modality': 'func', 'type': 'sbref', 'extensions': ['nii', 'nii.gz']},
+        't1w': {'type': 'T1w', 'extensions': ['nii', 'nii.gz']}
     }
 
     if task:

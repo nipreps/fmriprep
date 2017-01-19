@@ -6,6 +6,10 @@
 Base workflow: the workflow enumerator and the two orchestrators
 (ds005 & ds054 -types of workflow)
 """
+import os
+from copy import deepcopy
+from time import strftime
+
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
 
@@ -29,6 +33,12 @@ def base_workflow_enumerator(subject_list, task_id, settings):
         generated_workflow = base_workflow_generator(subject, task_id=task_id,
                                                      settings=settings)
         if generated_workflow:
+            cur_time = strftime('%Y%m%d-%H%M%S')
+            generated_workflow.config['execution']['crashdump_dir'] =(
+                os.path.join(settings['output_dir'], 'log', subject, cur_time)
+            )
+            for node in generated_workflow._get_all_nodes():
+                node.config = deepcopy(generated_workflow.config)
             generated_list.append(generated_workflow)
     workflow.add_nodes(generated_list)
 
@@ -43,12 +53,10 @@ def base_workflow_generator(subject_id, task_id, settings):
     if subject_data['t1w'] == []:
         raise Exception("No T1w images found for participant %s. All workflows require T1w images."%subject_id)
 
-    if (subject_data['sbref'] != [] and settings['workflow_type'] == "auto") or settings['workflow_type'] == "ds054":
+    if subject_data['fmap'] != [] and subject_data['sbref'] != [] and "fieldmaps" not in settings['ignore']:
         return wf_ds054_type(subject_data, settings, name=subject_id)
-    elif (subject_data['sbref'] == [] and settings['workflow_type'] == "auto") or settings['workflow_type'] == "ds005":
-        return wf_ds005_type(subject_data, settings, name=subject_id)
     else:
-        raise Exception("Could not figure out what kind of workflow to run for this dataset.")
+        return wf_ds005_type(subject_data, settings, name=subject_id)
 
 
 

@@ -14,6 +14,7 @@
 
 import os
 import sys
+import subprocess
 from fmriprep.workflows.base import wf_ds005_type
 from nipype.pipeline.engine import Workflow
 
@@ -30,7 +31,6 @@ for mod_name in MOCK_MODULES:
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('../../fmriprep'))
 sys.path.append(os.path.abspath('sphinxext'))
 
 # -- General configuration ------------------------------------------------
@@ -335,3 +335,11 @@ ds005_workflows['ds005'] = ds005_wf
 for name, workflow in ds005_workflows.items():
     if isinstance(workflow, Workflow):
         workflow.write_graph(graph2use="orig", dotfilename=name + '.dot', simple_form=True)
+
+# Create command line arguments
+with open('args.txt', 'w') as fp:
+    args = subprocess.Popen([os.path.abspath(os.path.join('../fmriprep',
+                                                          'run_workflow.py')),
+                             '-h'],
+                            stdout=subprocess.PIPE).communicate()[0]
+    fp.write(args)

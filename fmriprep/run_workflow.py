@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import os.path as op
 import glob
+import sys
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
@@ -55,9 +56,12 @@ def main():
                          help='nipype plugin configuration file')
     g_input.add_argument('-w', '--work-dir', action='store',
                          default=op.join(os.getcwd(), 'work'))
-    g_input.add_argument('-t', '--workflow-type', default='auto', required=False,
-                         action='store', choices=['auto', 'ds005', 'ds054'],
-                         help='specify workflow type manually')
+    g_input.add_argument('--ignore', required=False,
+                         action='store', choices=['fieldmaps'],
+                         nargs="+", default=[],
+                         help='In case the dataset includes fieldmaps but you chose not to take advantage of them.')
+    g_input.add_argument('--reports-only', action='store_true', default=False,
+                         help="only generate reports, don't run workflows. This will only rerun report aggregation, not reportlet generation for specific nodes.")
     g_input.add_argument('--skip-native', action='store_true',
                          default=False,
                          help="don't output timeseries in native space")
@@ -85,6 +89,8 @@ def create_workflow(opts):
     from fmriprep.viz.reports import run_reports
     from fmriprep.workflows.base import base_workflow_enumerator
 
+    errno = 0
+
     settings = {
         'bids_root': op.abspath(opts.bids_dir),
         'write_graph': opts.write_graph,
@@ -95,7 +101,7 @@ def create_workflow(opts):
         'skull_strip_ants': opts.skull_strip_ants,
         'output_dir': op.abspath(opts.output_dir),
         'work_dir': op.abspath(opts.work_dir),
-        'workflow_type': opts.workflow_type,
+        'ignore': opts.ignore,
         'skip_native': opts.skip_native
     }
 
@@ -118,11 +124,14 @@ def create_workflow(opts):
 
     logger.addHandler(logging.FileHandler(op.join(log_dir, 'run_workflow')))
 
+    if opts.reports_only:
+        run_reports(settings['output_dir'])
+        sys.exit()
+
     # Set nipype config
     ncfg.update_config({
         'logging': {'log_directory': log_dir, 'log_to_file': True},
-        'execution': {'crashdump_dir': log_dir, 
-                      'remove_unnecessary_outputs': False}
+        'execution': {'crashdump_dir': log_dir}
     })
 
     # nipype plugin configuration
@@ -158,13 +167,18 @@ def create_workflow(opts):
     preproc_wf = base_workflow_enumerator(subject_list, task_id=opts.task_id,
                                           settings=settings)
     preproc_wf.base_dir = settings['work_dir']
-    preproc_wf.run(**plugin_settings)
+    try:
+        preproc_wf.run(**plugin_settings)
+    except RuntimeError:
+        errno = 1
 
     if opts.write_graph:
         preproc_wf.write_graph(graph2use="colored", format='svg',
                                simple_form=True)
 
     run_reports(settings['output_dir'])
+
+    sys.exit(errno)
 
 if __name__ == '__main__':
     main()

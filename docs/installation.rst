@@ -17,12 +17,16 @@ See `External Dependencies`_ for more information (e.g., specific versions) on w
 
 Now, assuming you have data, you can run fmriprep. You will need an active internet connection the first time. ::
 
-    $ docker run --rm -v filepath/to/data/dir:/data:ro -v filepath/to/output/dir:/out -w /scratch poldracklab/fmriprep:latest /data /out/out participant
+    $ docker run --rm -v filepath/to/data/dir:/data:ro \
+        -v filepath/to/output/dir:/out -w /scratch \
+        poldracklab/fmriprep:latest /data /out/out participant
 
 For example: ::
 
-    $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out  -w /scratch poldracklab/fmriprep:latest /data /out/out participant -w /out/work/ -t ds005
-
+    $ docker run --rm -v $HOME/fullds005:/data:ro \
+        -v $HOME/dockerout:/out -w /scratch \
+        poldracklab/fmriprep:latest /data /out/out participant \
+        -w /out/work/ --ignore fieldmaps
 
 Singularity Container
 =====================
@@ -31,19 +35,26 @@ For security reasons, many HPCs (e.g., TACC) do not allow Docker containers, but
 In this case, start with a machine (e.g., your personal computer) with Docker installed.
 Use `docker2singularity <https://github.com/singularityware/docker2singularity>`_ to create a singularity image. You will need an active internet connection and some time. ::
 
-    $ docker run -v /var/run/docker.sock:/var/run/docker.sock -v D:\host\path\where\to\ouptut\singularity\image:/output --privileged -t --rm singularityware/docker2singularity poldracklab/fmriprep:latest
+    $ docker run -v /var/run/docker.sock:/var/run/docker.sock \
+        -v D:\host\path\where\to\ouptut\singularity\image:/output \
+        --privileged -t --rm singularityware/docker2singularity \
+        poldracklab/fmriprep:latest
 
 Transfer the resulting Singularity image to the HPC, for example, using ``scp``. ::
 
-    $ scp poldracklab_fmriprep_latest-*.img  user@hcpserver.edu:/path/to/downloads
+    $ scp poldracklab_fmriprep_latest-*.img user@hcpserver.edu:/path/to/downloads
 
 If the data to be preprocessed is also on the HPC, you are ready to run fmriprep. ::
 
-    $ singularity run path/to/singularity/image.img --participant_label label  path/to/data/dir path/to/output/dir participant
+    $ singularity run path/to/singularity/image.img \
+        --participant_label label path/to/data/dir path/to/output/dir participant
 
 For example: ::
 
-    $ singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img --participant_label sub-387 --nthreads 1 -w $WORK/lonestar/work --ants-nthreads 16 --skull--strip-ants /work/04168/asdf/lonestar/ $WORK/lonestar/output participant
+    $ singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
+        --participant_label sub-387 --nthreads 1 -w $WORK/lonestar/work \
+        --ants-nthreads 16 --skull--strip-ants /work/04168/asdf/lonestar/ \
+        $WORK/lonestar/output participant
 
 
 Manually Prepared Environment
@@ -71,8 +82,7 @@ External Dependencies
 ``fmriprep`` is implemented using nipype_, but it requires some other neuroimaging
 software tools:
 
-- `FSL <http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_ (version 5.0)
+- `FSL <http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_ (version 5.0.9)
 - `ANTs <http://stnava.github.io/ANTs/>`_ (version 2.1.0.Debian-Ubuntu_X64)
 - `AFNI <https://afni.nimh.nih.gov/>`_ (version Debian-16.2.07)
-- `FreeSurfer <https://surfer.nmr.mgh.harvard.edu/>`_ (version Linux-centos4_x86_64-stable-pub-v5.3.0-HCP)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)

@@ -35,7 +35,7 @@ running a variety of group level analyses (task based or resting state fMRI, gra
 
    fmriprep performs minimal preprocessing.
    Here we define 'minimal preprocessing'  as motion correction, field unwarping, normalization, field bias correction, and brain extraction.
-   See the ds005_ workflow for more details.
+   See the workflows_ for more details.
 
 The fmriprep pipeline primarily
 utilizes FSL tools, but also utilizes ANTs tools at several stages such as

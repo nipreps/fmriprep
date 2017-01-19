@@ -4,15 +4,15 @@
 Workflows
 =========
 
-ds005
-=====
+Basic workflow (no fieldmaps)
+=============================
 
-``fmriprep``'s ds005 pipeline is used on datasets for which there are only t1ws and at least one functional (EPI) file.
-Use the `--workflow-type ds005` or allow ``fmriprep`` to automatically determine the approriate workflow.
+``fmriprep``'s basic pipeline is used on datasets for which there are only t1ws and at least one functional (EPI) file, but no SBRefs or fieldmaps.
+To force using this pipeline on datasets that do include fieldmaps and SBRefs use the `--ignore fieldmaps` flag.
 
 What It Does
 ------------
-High-level view of the ds005 pipeline:
+High-level view of the basic pipeline:
 
 .. image:: ds005.dot.png
     :scale: 100%

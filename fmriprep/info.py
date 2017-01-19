@@ -6,10 +6,10 @@ Base module variables
 """
 from __future__ import unicode_literals
 
-__version__ = '0.1.2a3'
+__version__ = '99.99.99'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2016, Center for Reproducible Neuroscience, Stanford University'
-__credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris F. Gorgolewski', 'Shoshana Berleant',
+__credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski', 'Shoshana Berleant',
                'Russell A. Poldrack']
 __license__ = '3-clause BSD'
 __maintainer__ = 'Ross Blair'
@@ -40,8 +40,9 @@ implementation for each state of preprocessing, and will be updated as newer and
 become available.
 """
 
-DOWNLOAD_URL = ('https://pypi.python.org/packages/source/f/fmriprep/' +
-                'fmriprep-%s.tar.gz').format('__version__')
+DOWNLOAD_URL = (
+    'https://pypi.python.org/packages/source/{name[0]}/{name}/{name}-{ver}.tar.gz'.format(
+        name=__packagename__, ver=__version__))
 
 SETUP_REQUIRES = [
     'setuptools>=18.0',
@@ -63,7 +64,7 @@ REQUIRES = [
     'pybids>=0.0.1',
     'nitime',
     'niworkflows',
-    'nipype'
+    'nipype>=0.13.0rc1'
 ]
 
 LINKS_REQUIRES = []
@@ -83,9 +84,9 @@ EXTRA_REQUIRES = {
 EXTRA_REQUIRES['all'] = [val for _, val in list(EXTRA_REQUIRES.items())]
 CLASSIFIERS = [
     'Development Status :: 3 - Alpha',
-    'Intended Audience :: MRI processing',
-    'Topic :: Scientific/Engineering :: Biomedical Imaging',
-    'License :: OSI Approved :: 3-clause BSD License',
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Image Recognition',
+    'License :: OSI Approved :: BSD License',
     'Programming Language :: Python :: 2.7',
-    'Programming Language :: Python :: 3.5'
+    'Programming Language :: Python :: 3.5',
 ]

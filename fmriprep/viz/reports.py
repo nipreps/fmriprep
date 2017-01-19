@@ -5,8 +5,8 @@ import re
 import os
 
 import jinja2
+from nipype.utils.filemanip import loadcrash
 from pkg_resources import resource_filename as pkgrf
-
 
 class Element(object):
 
@@ -47,9 +47,6 @@ class SubReport(object):
                 except KeyError:
                     run_reps[name] = SubReport(name, [new_elem], title=title)
                     run_reps[name].elements[0].files_contents.append((filename, file_contents))
-                #del element.files_contents[index]
-            #if element.files_contents is None:
-            #    del self.elements[elem_index]
         keys = list(run_reps.keys())
         keys.sort()
         for key in keys:
@@ -65,7 +62,7 @@ class SubReport(object):
             outputs = outputs.groupdict()
         else:
             return None, None
-            
+
         name = '{session}{task}{acq}{rec}{run}'.format(
             session="_ses-" + outputs['session_id'] if outputs['session_id'] else '',
             task="_task-" + outputs['task_id'] if outputs['task_id'] else '',
@@ -88,6 +85,7 @@ class Report(object):
     def __init__(self, path, config, out_dir, out_filename='report.html'):
         self.root = path
         self.sub_reports = []
+        self.errors = []
         self._load_config(config)
         self.out_dir = out_dir
         self.out_filename = out_filename
@@ -120,6 +118,52 @@ class Report(object):
         for sub_report in self.sub_reports:
             sub_report.order_by_run()
 
+        subject_dir = self.root.split('/')[-1]
+        subject = re.search('^(?P<subject_id>sub-[a-zA-Z0-9]+)$', subject_dir).group()
+        error_dir = os.path.join(self.root, '../../log', subject[4:])
+        if os.path.isdir(error_dir):
+            self.index_error_dir(error_dir)
+
+    def index_error_dir(self, error_dir):
+        ''' Crawl subjects most recent crash directory and return text for 
+            .pklz crash file found. '''
+        # Crash directories for subject are named by a timestamp. Sort 
+        # listdir output to order it alphabetically, which for our timestamped 
+        # directories is also a chronological listing. Assumes no other
+        # directories will be created in subject crash dir.
+        try:
+            newest_dir = [x for x in os.listdir(error_dir)
+                          if os.path.isdir(os.path.join(error_dir, x))]
+            newest_dir.sort()
+            newest_dir = newest_dir[-1]
+            newest_dir = os.path.join(error_dir, newest_dir)
+        except IndexError:
+            newest_dir = error_dir
+        for root, directories, filenames in os.walk(newest_dir):
+            for f in filenames:
+                # Only deal with files that start with crash and end in pklz
+                if not (f[:5] == 'crash' and f[-4:] == 'pklz'):
+                    continue
+                crash_data = loadcrash(os.path.join(root, f))
+                error = {}
+                node = None
+                if 'node' in crash_data:
+                    node = crash_data['node']
+                error['traceback'] = []
+                for elem in crash_data['traceback']:
+                    error['traceback'].append("<br>".join(elem.split("\n")))
+                error['file'] = f
+
+                if node:
+                    error['node'] = node
+                    if node.base_dir:
+                        error['node_dir'] = node.output_dir()
+                    else:
+                        error['node_dir'] = "Node crashed before execution"
+                    error['inputs'] = sorted(node.inputs.trait_get().items())
+                self.errors.append(error)
+
+
     def generate_report(self):
         searchpath = pkgrf('fmriprep', '/')
         env = jinja2.Environment(
@@ -127,17 +171,17 @@ class Report(object):
             trim_blocks=True, lstrip_blocks=True
         )
         report_tpl = env.get_template('viz/report.tpl')
-        report_render = report_tpl.render(sub_reports=self.sub_reports)
+        report_render = report_tpl.render(sub_reports=self.sub_reports, errors=self.errors)
         with open(os.path.join(self.out_dir, self.out_filename), 'w') as fp:
             fp.write(report_render)
         return report_render
 
 
 def run_reports(out_dir):
-    path = os.path.join(out_dir, 'reports/')
+    reportlet_path = os.path.join(out_dir, 'reports/')
     config = pkgrf('fmriprep', 'viz/config.json')
 
-    for root, _, _ in os.walk(path):
+    for root, _, _ in os.walk(reportlet_path):
         #  relies on the fact that os.walk does not return a trailing /
         dir = root.split('/')[-1]
         try:

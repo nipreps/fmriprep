@@ -2,4 +2,4 @@
 .. _BIDS: http://bids.neuroimaging.io
 .. _Usage: usage.html
 .. _Installation: installation.html
-.. _ds005: ds005.html
+.. _workflows: ds005.html
