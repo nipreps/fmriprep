@@ -3,7 +3,16 @@ FROM ubuntu:xenial-20161213
 
 # Installing ubuntu packages (FSL, AFNI, git)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl bzip2 ca-certificates xvfb && \
+    apt-get install -y --no-install-recommends \
+                    curl \
+                    bzip2 \
+                    ca-certificates \
+                    xvfb \
+                    cython3 \
+                    build-essential \
+                    autoconf \
+                    libtool \
+                    pkg-config && \
     curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
     apt-key adv --recv-keys --keyserver hkp://pgp.mit.edu:80 0xA5D32F012649A5A9 && \
     apt-get update && \
