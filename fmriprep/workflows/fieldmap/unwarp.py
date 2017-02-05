@@ -16,6 +16,7 @@ from nipype.interfaces import utility as niu
 from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.utils.misc import gen_list
+from fmriprep.utils.validation import validate, is_4d_nifti
 from fmriprep.interfaces.bids import ReadSidecarJSON
 from fmriprep.workflows.fieldmap.utils import create_encoding_file
 
@@ -119,7 +120,9 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac'):
         (topup_adapt, unwarp, [('out_fieldcoef', 'in_topup_fieldcoef'),
                                ('out_movpar', 'in_topup_movpar')]),
         (encfile, unwarp, [('parameters_file', 'encoding_file')]),
-        (unwarp, outputnode, [('out_corrected', 'out_file')])
+        (unwarp, outputnode, [(('out_corrected', validate, is_4d_nifti,
+                                'Output of unwarp node must be 4 dimensional'),
+                               'out_file')])
     ])
 
     return workflow
