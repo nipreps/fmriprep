@@ -17,16 +17,22 @@ See `External Dependencies`_ for more information (e.g., specific versions) on w
 
 Now, assuming you have data, you can run fmriprep. You will need an active internet connection the first time. ::
 
-    $ docker run --rm -v filepath/to/data/dir:/data:ro \
-        -v filepath/to/output/dir:/out -w /scratch \
-        poldracklab/fmriprep:latest /data /out/out participant
+    $ docker run -ti --rm \
+        -v filepath/to/data/dir:/data:ro \
+        -v filepath/to/output/dir:/out \
+        poldracklab/fmriprep:latest \
+        /data /out/out \
+        participant
 
 For example: ::
 
-    $ docker run --rm -v $HOME/fullds005:/data:ro \
-        -v $HOME/dockerout:/out -w /scratch \
-        poldracklab/fmriprep:latest /data /out/out participant \
-        -w /out/work/ --ignore fieldmaps
+    $ docker run -ti --rm \
+        -v $HOME/fullds005:/data:ro \
+        -v $HOME/dockerout:/out \
+        poldracklab/fmriprep:latest \
+        /data /out/out \
+        participant \
+        --ignore fieldmaps
 
 Singularity Container
 =====================
@@ -35,9 +41,10 @@ For security reasons, many HPCs (e.g., TACC) do not allow Docker containers, but
 In this case, start with a machine (e.g., your personal computer) with Docker installed.
 Use `docker2singularity <https://github.com/singularityware/docker2singularity>`_ to create a singularity image. You will need an active internet connection and some time. ::
 
-    $ docker run -v /var/run/docker.sock:/var/run/docker.sock \
-        -v D:\host\path\where\to\ouptut\singularity\image:/output \
-        --privileged -t --rm singularityware/docker2singularity \
+    $ docker run --privileged -t --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v D:\host\path\where\to\output\singularity\image:/output \
+        singularityware/docker2singularity \
         poldracklab/fmriprep:latest
 
 Transfer the resulting Singularity image to the HPC, for example, using ``scp``. ::
@@ -47,14 +54,17 @@ Transfer the resulting Singularity image to the HPC, for example, using ``scp``.
 If the data to be preprocessed is also on the HPC, you are ready to run fmriprep. ::
 
     $ singularity run path/to/singularity/image.img \
-        --participant_label label path/to/data/dir path/to/output/dir participant
+        path/to/data/dir path/to/output/dir \
+        participant \
+        --participant_label label
 
 For example: ::
 
     $ singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
-        --participant_label sub-387 --nthreads 1 -w $WORK/lonestar/work \
-        --ants-nthreads 16 --skull--strip-ants /work/04168/asdf/lonestar/ \
-        $WORK/lonestar/output participant
+        /work/04168/asdf/lonestar/ $WORK/lonestar/output \
+        participant \
+        --participant_label sub-387 --nthreads 16 -w $WORK/lonestar/work \
+        --ants-nthreads 16
 
 
 Manually Prepared Environment
@@ -74,7 +84,7 @@ If you have pip installed, install fmriprep ::
 
 If you have your data on hand, you are ready to run fmriprep: ::
 
-    $ fmriprep data/dir output/dir --participant_label sub-num participant
+    $ fmriprep data/dir output/dir participant --participant_label label
 
 External Dependencies
 =====================

@@ -27,6 +27,7 @@ dependencies:
 
   override:
     - if [[ -e $HOME/docker/image.tar ]]; then docker load -i $HOME/docker/image.tar; fi
+    - sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'$CIRCLE_TAG'/" fmriprep/info.py
     - e=1 && for i in {1..5}; do docker build -t poldracklab/fmriprep:latest --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=$CIRCLE_TAG . && e=0 && break || sleep 15; done && [ "$e" -eq "0" ] :
         timeout: 21600
     - mkdir -p $HOME/docker; docker save poldracklab/fmriprep:latest > $HOME/docker/image.tar
@@ -35,7 +36,7 @@ test:
     - docker run -ti --rm --entrypoint="python" poldracklab/fmriprep:latest -m unittest discover test
     - docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds054/scratch:/scratch -v $HOME/ds054/out:/out poldracklab/fmriprep:latest /data/ds054 /out/ participant --debug -w /scratch:
         timeout: 4800
-    - docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --debug --no-skull-strip-ants -w /scratch:
+    - docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --debug -w /scratch:
         timeout: 4800
     - find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
     - find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
@@ -56,5 +57,4 @@ deployment:
       - if [[ -n "$DOCKER_PASS" ]]; then docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS && docker tag poldracklab/fmriprep poldracklab/fmriprep:$CIRCLE_TAG && docker push poldracklab/fmriprep:$CIRCLE_TAG; fi :
           timeout: 21600
       - printf "[distutils]\nindex-servers =\n    pypi\n\n[pypi]\nusername:$PYPI_USER\npassword:$PYPI_PASS\n" > ~/.pypirc
-      - sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'$CIRCLE_TAG'/" fmriprep/info.py
       - python setup.py sdist upload -r pypi
