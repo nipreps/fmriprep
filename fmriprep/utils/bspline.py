@@ -21,7 +21,14 @@ class BSplineFieldmap(object):
     A fieldmap representation object using BSpline basis
     """
 
-    def __init__(self, fmapnii, weights=None, knots_zooms=[20., 20., 12.]):
+    def __init__(self, fmapnii, weights=None, knots_zooms=None, frame_voxels=3,
+                 pe_dir=1):
+
+        self._pedir = pe_dir
+        if knots_zooms is None:
+            knots_zooms = [40., 40., 18.]
+            knots_zooms[pe_dir] = 60.
+
         if not isinstance(knots_zooms, (list, tuple)):
             knots_zooms = [knots_zooms] * 3
 
@@ -31,56 +38,39 @@ class BSplineFieldmap(object):
             fmapnii = nb.as_closest_canonical(nb.load(fmapnii))
 
         self._fmapnii = fmapnii
-        mapshape = self._fmapnii.get_data().shape
+        self._padding = frame_voxels
 
-        # Compose a RAS affine mat, since the affine of the image might not be
-        # RAS
-        self._fmapaff = np.eye(
-            4) * (list(fmapnii.header.get_zooms()[:3]) + [1])
-        self._fmapaff[:3, 3] -= self._fmapaff[:3,
-                                              :3].dot((np.array(mapshape[:3], dtype=float) - 1.0) * 0.5)
-        self._extent = self._fmapaff[:3, :3].dot(mapshape[:3])
+        # Pad data with zeros
+        self._data = np.zeros(tuple(np.array(
+            self._fmapnii.get_data().shape) + 2 * frame_voxels))
 
         # The list of ijk coordinates
-        self._fmapijk = np.mgrid[
-            0:mapshape[0], 0:mapshape[1], 0:mapshape[2]].reshape(3, -1).T
-        ijk_h = np.hstack((self._fmapijk, np.array(
-            [1.0] * len(self._fmapijk))[..., np.newaxis]))  # In homogeneous coords
+        self._fmapijk = get_ijk(self._data)
+
+        # Find padding coordinates
+        self._data[frame_voxels:-frame_voxels,
+                   frame_voxels:-frame_voxels,
+                   frame_voxels:-frame_voxels] = 1
+        self._frameijk = self._data[tuple(self._fmapijk.T)] > 0
+
+        # Set data
+        self._data[frame_voxels:-frame_voxels,
+                   frame_voxels:-frame_voxels,
+                   frame_voxels:-frame_voxels] = fmapnii.get_data()
+
+        # Get ijk in homogeneous coords
+        ijk_h = np.hstack((self._fmapijk, np.array([1.0] * len(self._fmapijk))[..., np.newaxis]))
 
         # The list of xyz coordinates
+        self._fmapaff = compute_affine(self._data, self._fmapnii.header.get_zooms())
         self._fmapxyz = self._fmapaff.dot(ijk_h.T)[:3, :].T
 
-        self._knots_shape = (
-            np.ceil((self._extent - self._knots_zooms) / self._knots_zooms) + 3).astype(int)
-        self._knots_grid = np.zeros(tuple(self._knots_shape), dtype=np.float32)
-        self._knots_aff = np.eye(
-            4) * np.array(self._knots_zooms.tolist() + [1.0])
-        self._knots_aff[:3, 3] -= self._knots_aff[:3,
-                                                  :3].dot((np.array(self._knots_shape) - 1) * 0.5)
+        # Mask coordinates
+        self._weights = self._set_weights(weights)
 
-        self._knots_ijk = np.mgrid[0:self._knots_shape[0], 0:self._knots_shape[
-            1], 0:self._knots_shape[2]].reshape(3, -1).T
-        knots_ijk_h = np.hstack((self._knots_ijk, np.array(
-            [1.0] * len(self._knots_ijk))[..., np.newaxis]))  # In homogeneous coords
+        # Generate control points
+        self._generate_knots()
 
-        # The list of xyz coordinates
-        self._knots_xyz = self._knots_aff.dot(knots_ijk_h.T)[:3, :].T
-
-        self._weights = np.ones((len(self._fmapxyz)))
-        self._boundary = None
-        if weights is not None:
-            boundary = np.zeros_like(weights, dtype=np.uint8)
-            boundary[:3, :, :] = 1
-            boundary[:, :3, :] = 1
-            boundary[:, :, :3] = 1
-            boundary[-3:, :, :] = 1
-            boundary[:, -3:, :] = 1
-            boundary[:, :, -3:] = 1
-            self._boundary = boundary[tuple(self._fmapijk.T)]
-            self._weights = weights[tuple(self._fmapijk.T)]
-            self._weights[self._boundary > 0] = 1
-
-        self._pedir = 1
         self._X = None
         self._coeff = None
         self._smoothed = None
@@ -88,6 +78,30 @@ class BSplineFieldmap(object):
         self._Xinv = None
         self._inverted = None
         self._invcoeff = None
+
+    def _generate_knots(self):
+        extent = self._fmapaff[:3, :3].dot(self._data.shape[:3])
+        self._knots_shape = (np.ceil(
+            (extent - self._knots_zooms) / self._knots_zooms) + 3).astype(int)
+        self._knots_grid = np.zeros(tuple(self._knots_shape), dtype=np.float32)
+        self._knots_aff = compute_affine(self._knots_grid, self._knots_zooms)
+
+        self._knots_ijk = get_ijk(self._knots_grid)
+        knots_ijk_h = np.hstack((self._knots_ijk, np.array(
+            [1.0] * len(self._knots_ijk))[..., np.newaxis]))  # In homogeneous coords
+
+        # The list of xyz coordinates
+        self._knots_xyz = self._knots_aff.dot(knots_ijk_h.T)[:3, :].T
+
+    def _set_weights(self, weights=None):
+        if weights is not None:
+            extweights = np.ones_like(self._data)
+            extweights[self._padding:-self._padding,
+                       self._padding:-self._padding,
+                       self._padding:-self._padding] = weights
+
+            return extweights[tuple(self._fmapijk.T)]
+        return np.ones((len(self._fmapxyz)))
 
     def _evaluate_bspline(self):
         """ Calculates the design matrix """
@@ -97,13 +111,10 @@ class BSplineFieldmap(object):
         print('[%s] Finished BSpline evaluation, %s' %
               (dt.now(), str(self._X.shape)))
 
-    def evaluate(self):
+    def fit(self):
         self._evaluate_bspline()
 
-        fieldata = self._fmapnii.get_data()[tuple(self._fmapijk.T)]
-
-        if self._boundary is not None:
-            fieldata[self._boundary > 0] = 0
+        fieldata = self._data[tuple(self._fmapijk.T)]
 
         print('[%s] Starting least-squares fitting using %d unmasked points' %
               (dt.now(), len(fieldata[self._weights > 0.0])))
@@ -116,9 +127,14 @@ class BSplineFieldmap(object):
         return nb.Nifti1Image(self._knots_grid, self._knots_aff, None)
 
     def get_smoothed(self):
-        self._smoothed = np.zeros_like(self._fmapnii.get_data())
-        self._smoothed[tuple(self._fmapijk.T)] = self._X.dot(self._coeff)
-        return nb.Nifti1Image(self._smoothed, self._fmapnii.affine, self._fmapnii.header)
+        self._smoothed = np.zeros_like(self._data)
+        coords = tuple(self._fmapijk[self._frameijk].T)
+        self._smoothed[coords] = self._X[self._frameijk].dot(self._coeff)
+
+        output_image = self._smoothed[self._padding:-self._padding,
+                                      self._padding:-self._padding,
+                                      self._padding:-self._padding]
+        return nb.Nifti1Image(output_image, self._fmapnii.affine, self._fmapnii.header)
 
     def invert(self):
         targets = self._fmapxyz.copy()
@@ -136,7 +152,7 @@ class BSplineFieldmap(object):
         print('[%s] Finished least-squares fitting' % dt.now())
 
     def get_inverted(self):
-        self._inverted = np.zeros_like(self._fmapnii.get_data())
+        self._inverted = np.zeros_like(self._data)
         self._inverted[tuple(self._fmapijk.T)] = self._X.dot(self._invcoeff)
         return nb.Nifti1Image(self._inverted, self._fmapnii.affine, self._fmapnii.header)
 
@@ -160,7 +176,7 @@ class BSplineFieldmap(object):
         else:
             targets[:, self._pedir] += self._smoothed[tuple(self._fmapijk.T)]
 
-        interpolated = np.zeros_like(self._fmapnii.get_data())
+        interpolated = np.zeros_like(self._data)
         interpolated[tuple(self._fmapijk.T)] = interpn(
             (x, y, z), in_data, [tuple(v) for v in targets],
             bounds_error=False, fill_value=0)
@@ -171,6 +187,27 @@ class BSplineFieldmap(object):
 #         X = fif.tbspl_eval(np.array([in_coord]), self._knots_xyz, self._knots_zooms)
 #         new_coord = in_coord + X.dot(self._coeff if not inverse else self._invcoeff)
 
+def get_ijk(data, offset=0):
+    """
+    Calculates voxel coordinates from data
+    """
+    from numpy import mgrid
+
+    if not isinstance(offset, (list, tuple)):
+        offset = [offset] * 3
+
+    grid = mgrid[offset[0]:(offset[0] + data.shape[0]),
+                 offset[1]:(offset[1] + data.shape[1]),
+                 offset[2]:(offset[2] + data.shape[2])]
+    return grid.reshape(3, -1).T
+
+def compute_affine(data, zooms):
+    """
+    Compose a RAS affine mat, since the affine of the image might not be RAS
+    """
+    aff = np.eye(4) * (list(zooms) + [1])
+    aff[:3, 3] -= aff[:3, :3].dot(np.array(data.shape[:3], dtype=float) - 1.0) * 0.5
+    return aff
 
 def _approx(fmapnii, s=14.):
     """
