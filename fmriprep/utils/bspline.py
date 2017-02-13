@@ -21,7 +21,7 @@ class BSplineFieldmap(object):
     A fieldmap representation object using BSpline basis
     """
 
-    def __init__(self, fmapnii, weights=None, knots_zooms=None, frame_voxels=3,
+    def __init__(self, fmapnii, weights=None, knots_zooms=None, padding=3,
                  pe_dir=1):
 
         self._pedir = pe_dir
@@ -38,25 +38,25 @@ class BSplineFieldmap(object):
             fmapnii = nb.as_closest_canonical(nb.load(fmapnii))
 
         self._fmapnii = fmapnii
-        self._padding = frame_voxels
+        self._padding = padding
 
         # Pad data with zeros
         self._data = np.zeros(tuple(np.array(
-            self._fmapnii.get_data().shape) + 2 * frame_voxels))
+            self._fmapnii.get_data().shape) + 2 * padding))
 
         # The list of ijk coordinates
         self._fmapijk = get_ijk(self._data)
 
         # Find padding coordinates
-        self._data[frame_voxels:-frame_voxels,
-                   frame_voxels:-frame_voxels,
-                   frame_voxels:-frame_voxels] = 1
+        self._data[padding:-padding,
+                   padding:-padding,
+                   padding:-padding] = 1
         self._frameijk = self._data[tuple(self._fmapijk.T)] > 0
 
         # Set data
-        self._data[frame_voxels:-frame_voxels,
-                   frame_voxels:-frame_voxels,
-                   frame_voxels:-frame_voxels] = fmapnii.get_data()
+        self._data[padding:-padding,
+                   padding:-padding,
+                   padding:-padding] = fmapnii.get_data()
 
         # Get ijk in homogeneous coords
         ijk_h = np.hstack((self._fmapijk, np.array([1.0] * len(self._fmapijk))[..., np.newaxis]))
@@ -108,8 +108,7 @@ class BSplineFieldmap(object):
         print('[%s] Evaluating tensor-product cubic BSpline on %d points, %d control points' %
               (dt.now(), len(self._fmapxyz), len(self._knots_xyz)))
         self._X = tbspl_eval(self._fmapxyz, self._knots_xyz, self._knots_zooms)
-        print('[%s] Finished BSpline evaluation, %s' %
-              (dt.now(), str(self._X.shape)))
+        print('[%s] Finished BSpline evaluation' % dt.now())
 
     def fit(self):
         self._evaluate_bspline()
@@ -119,7 +118,8 @@ class BSplineFieldmap(object):
         print('[%s] Starting least-squares fitting using %d unmasked points' %
               (dt.now(), len(fieldata[self._weights > 0.0])))
         self._coeff = np.linalg.lstsq(
-            self._X[self._weights > 0.0, ...], fieldata[self._weights > 0.0])[0]
+            self._X[self._weights > 0.0, ...].toarray(),
+            fieldata[self._weights > 0.0])[0]
         print('[%s] Finished least-squares fitting' % dt.now())
 
     def get_coeffmap(self):
@@ -143,7 +143,7 @@ class BSplineFieldmap(object):
               (dt.now(), len(targets), len(self._knots_xyz)))
         self._Xinv = tbspl_eval(targets, self._knots_xyz, self._knots_zooms)
         print('[%s] Finished BSpline evaluation, %s' %
-              (dt.now(), str(self._X.shape)))
+              (dt.now(), str(self._Xinv.shape)))
 
         print('[%s] Starting least-squares fitting using %d unmasked points' %
               (dt.now(), len(targets)))
@@ -338,6 +338,10 @@ def bspl_smoothing(fmapnii, masknii=None, knot_space=[18., 18., 20.]):
 
 
 def tbspl_eval(points, knots, zooms):
+    """
+    Evaluate tensor product BSpline
+    """
+    from scipy.sparse import csr_matrix, vstack
     from fmriprep.utils.maths import bspl
     points = np.array(points)
     knots = np.array(knots)
@@ -348,6 +352,6 @@ def tbspl_eval(points, knots, zooms):
     for p in points:
         u_vec = (knots - p[np.newaxis, ...]) / zooms[np.newaxis, ...]
         c = vbspl(u_vec.reshape(-1)).reshape(ushape).prod(axis=1)
-        coeffs.append(c)
+        coeffs.append(csr_matrix(c))
 
-    return np.array(coeffs)
+    return vstack(coeffs)
