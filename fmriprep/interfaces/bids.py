@@ -6,7 +6,9 @@
 # @Author: oesteban
 # @Date:   2016-06-03 09:35:13
 # @Last Modified by:   oesteban
-# @Last Modified time: 2016-12-02 17:31:40
+# @Last Modified time: 2017-02-13 11:44:23
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 import os
 import os.path as op
 import pkg_resources as pkgr
@@ -17,8 +19,9 @@ from shutil import copy
 from nipype import logging
 from nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterface, BaseInterfaceInputSpec,
-    File, InputMultiPath, OutputMultiPath
+    File, InputMultiPath, OutputMultiPath, Str
 )
+from builtins import str, bytes
 
 from fmriprep.utils.misc import collect_bids_data, make_folder
 
@@ -29,8 +32,8 @@ class FileNotFoundError(IOError):
 
 
 class BIDSDataGrabberInputSpec(BaseInterfaceInputSpec):
-    subject_data = traits.DictStrAny()
-    subject_id = traits.Str()
+    subject_data = traits.Dict((str, bytes), traits.Any)
+    subject_id = Str()
 
 
 class BIDSDataGrabberOutputSpec(TraitedSpec):

@@ -6,6 +6,8 @@
 Base workflow: the workflow enumerator and the two orchestrators
 (ds005 & ds054 -types of workflow)
 """
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 import os
 from copy import deepcopy
 from time import strftime
