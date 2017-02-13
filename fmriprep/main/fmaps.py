@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-13 14:43:17
+# @Last Modified time: 2017-02-13 14:54:01
 """
 fMRI preprocessing workflow
 =====
@@ -18,6 +18,10 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 
+import logging
+
+# set up logger
+LOGGER = logging.getLogger('interfaces')
 
 def main():
     """Entry point"""
@@ -60,7 +64,6 @@ def main():
 
 
 def create_workflow(opts):
-    from nipype import logging
     from nipype import config as ncfg
     from fmriprep.utils import make_folder
     from fmriprep.viz.reports import run_reports
@@ -73,18 +76,10 @@ def create_workflow(opts):
         'write_graph': opts.write_graph,
         'nthreads': opts.nthreads,
         'mem_mb': opts.mem_mb,
-        'debug': opts.debug,
         'ants_nthreads': opts.ants_nthreads,
         'output_dir': op.abspath(opts.output_dir),
         'work_dir': op.abspath(opts.work_dir),
     }
-
-    # set up logger
-    logger = logging.getLogger('cli')
-
-    if opts.debug:
-        settings['ants_t1-mni_settings'] = 't1-mni_registration_test'
-        logger.setLevel(logging.DEBUG)
 
     log_dir = op.join(settings['output_dir'], 'log')
     derivatives = op.join(settings['output_dir'], 'derivatives')
@@ -95,10 +90,6 @@ def create_workflow(opts):
     make_folder(settings['work_dir'])
     make_folder(derivatives)
     make_folder(log_dir)
-
-    if opts.reports_only:
-        run_reports(settings['output_dir'])
-        sys.exit()
 
     # Set nipype config
     ncfg.update_config({
@@ -133,7 +124,7 @@ def create_workflow(opts):
         subject_list = [op.basename(subdir)[4:] for subdir in glob.glob(
             op.join(settings['bids_root'], 'sub-*'))]
 
-    logger.info('Subject list: %s', ', '.join(subject_list))
+    LOGGER.info('Subject list: %s', ', '.join(subject_list))
 
     # Build main workflow and run
     preproc_wf = fmap_enumerator(subject_list, settings=settings)
@@ -160,24 +151,22 @@ def fmap_enumerator(subject_list, settings):
     from fmriprep.utils.misc import collect_bids_data
     from fmriprep.workflows.fieldmap import fmap_estimator
 
-    logger = logging.getLogger('cli')
-
     workflow = pe.Workflow(name='workflow_enumerator')
     for subject_id in subject_list:
         subject_data = collect_bids_data(settings['bids_root'], subject_id)
         if not subject_data['fmap']:
-            logger.warn('No fieldmaps found for subject %d', subject_id)
+            LOGGER.warn('No fieldmaps found for subject %d', subject_id)
             continue
 
         fmap_wf = fmap_estimator(subject_data, settings=settings)
         if fmap_wf:
             cur_time = strftime('%Y%m%d-%H%M%S')
             fmap_wf.config['execution']['crashdump_dir'] = (
-                os.path.join(settings['output_dir'], 'log', subject, cur_time)
+                os.path.join(settings['output_dir'], 'log', subject_id, cur_time)
             )
             for node in fmap_wf._get_all_nodes():
                 node.config = deepcopy(fmap_wf.config)
-            workflow.add_nodes(fmap_wf)
+            workflow.add_nodes([fmap_wf])
 
     return workflow
 
