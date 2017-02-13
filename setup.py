@@ -53,7 +53,9 @@ def main():
         extras_require=ldict['EXTRA_REQUIRES'],
         dependency_links=ldict['LINKS_REQUIRES'],
         package_data={'fmriprep': ['data/*.json', 'viz/*.tpl', 'viz/*.json']},
-        entry_points={'console_scripts': ['fmriprep=fmriprep.run_workflow:main',]},
+        entry_points={'console_scripts': [
+            'fmriprep=fmriprep.main.fmriprep:main',
+            'fmriprep_fmaps=fmriprep.main.fmaps:main']},
         packages=find_packages(),
         zip_safe=False,
         ext_modules=extensions
