@@ -34,7 +34,7 @@ def base_workflow_enumerator(subject_list, task_id, settings):
                                                      settings=settings)
         if generated_workflow:
             cur_time = strftime('%Y%m%d-%H%M%S')
-            generated_workflow.config['execution']['crashdump_dir'] =(
+            generated_workflow.config['execution']['crashdump_dir'] = (
                 os.path.join(settings['output_dir'], 'log', subject, cur_time)
             )
             for node in generated_workflow._get_all_nodes():
@@ -51,13 +51,15 @@ def base_workflow_generator(subject_id, task_id, settings):
     settings["biggest_epi_file_size_gb"] = get_biggest_epi_file_size_gb(subject_data['func'])
 
     if subject_data['t1w'] == []:
-        raise Exception("No T1w images found for participant %s. All workflows require T1w images."%subject_id)
+        raise Exception("No T1w images found for participant {}. "
+                        "All workflows require T1w images.".format(subject_id))
 
-    if subject_data['fmap'] != [] and subject_data['sbref'] != [] and "fieldmaps" not in settings['ignore']:
+    if all((subject_data['fmap'] != [],
+            subject_data['sbref'] != [],
+            "fieldmaps" not in settings['ignore'])):
         return wf_ds054_type(subject_data, settings, name=subject_id)
     else:
         return wf_ds005_type(subject_data, settings, name=subject_id)
-
 
 
 def wf_ds054_type(subject_data, settings, name='fMRI_prep'):
@@ -211,11 +213,12 @@ def wf_ds005_type(subject_data, settings, name='fMRI_prep'):
                              ('outputnode.t1_seg', 'inputnode.t1_seg')]),
 
         (t1w_pre, confounds_wf, [('outputnode.t1_tpms', 'inputnode.t1_tpms')]),
-        (hmcwf, confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file'),
-                               ('outputnode.epi_hmc', 'inputnode.fmri_file'),
-                               ('outputnode.epi_mean', 'inputnode.reference_image'),
-                               ('outputnode.epi_mask', 'inputnode.epi_mask'),
-                               ('outputnode.motion_confounds_file', 'inputnode.motion_confounds_file')]),
+        (hmcwf, confounds_wf, [
+            ('outputnode.movpar_file', 'inputnode.movpar_file'),
+            ('outputnode.epi_hmc', 'inputnode.fmri_file'),
+            ('outputnode.epi_mean', 'inputnode.reference_image'),
+            ('outputnode.epi_mask', 'inputnode.epi_mask'),
+            ('outputnode.motion_confounds_file', 'inputnode.motion_confounds_file')]),
         (epi_2_t1, confounds_wf, [('outputnode.mat_t1_to_epi', 'inputnode.t1_transform')]),
         (hmcwf, confounds_wf, [('inputnode.epi', 'inputnode.source_file')]),
 

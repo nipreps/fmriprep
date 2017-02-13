@@ -137,7 +137,8 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
             name='DS_Report'
         )
         workflow.connect([
-            (inputnode, ds_t1_skull_strip_report, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (inputnode, ds_t1_skull_strip_report, [
+                (('t1w', fix_multi_T1w_source_name), 'source_file')]),
             (asw, ds_t1_skull_strip_report, [('outputnode.out_report', 'in_file')])
         ])
 
@@ -256,7 +257,6 @@ def skullstrip_ants(name='ANTsBrainExtraction', settings=None):
         get_ants_oasis_template_ras(),
         'T_template0_BrainCerebellumRegistrationMask.nii.gz'
     )
-
 
     workflow.connect([
         (inputnode, t1_skull_strip, [('in_file', 'anatomical_image')]),

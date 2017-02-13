@@ -24,6 +24,7 @@ from nipype import logging
 
 LOGGER = logging.getLogger('workflow')
 
+
 def fmap_estimator(subject_data, settings=None):
     """
     This workflow selects the fieldmap estimation data available for the subject and
