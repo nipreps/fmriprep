@@ -51,7 +51,7 @@ def base_workflow_generator(subject_id, task_id, settings):
     subject_data = collect_bids_data(settings['bids_root'], subject_id, task_id)
 
     settings["biggest_epi_file_size_gb"] = get_biggest_epi_file_size_gb(subject_data['func'])
-
+    
     if subject_data['t1w'] == []:
         raise Exception("No T1w images found for participant {}. "
                         "All workflows require T1w images.".format(subject_id))
