@@ -75,7 +75,7 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
         'epi': {'modality': 'func', 'type': 'bold', 'ext': 'nii'},
         'sbref': {'modality': 'func', 'type': 'sbref', 'ext': 'nii'},
         't1w': {'type': 'T1w', 'ext': 'nii'},
-        'lmask': ('type': 'Mask', 'ext': 'nii'}
+        'lmask': {'type': 'Mask', 'ext': 'nii'}
     }
 
     if task:
