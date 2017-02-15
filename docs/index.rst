@@ -17,4 +17,4 @@ Contents
    installation
    usage
    ds005
-
+   contributors

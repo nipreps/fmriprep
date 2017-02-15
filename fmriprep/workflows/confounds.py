@@ -11,6 +11,7 @@ from fmriprep import interfaces
 from fmriprep.interfaces.bids import DerivativesDataSink
 from fmriprep.interfaces.utils import prepare_roi_from_probtissue
 
+
 def discover_wf(settings, name="ConfoundDiscoverer"):
     ''' All input fields are required.
 
@@ -67,7 +68,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
                                                    'epi_mask_erosion_mm'],
                                       output_names=['roi_file', 'eroded_mask'],
                                       function=prepare_roi_from_probtissue),
-                      name='WM_roi')
+                     name='WM_roi')
     WM_roi.inputs.erosion_mm = 6
     WM_roi.inputs.epi_mask_erosion_mm = 10
 

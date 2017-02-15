@@ -9,7 +9,6 @@ Fieldmap preprocessing workflow for fieldmap data structure
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import logging
 import os.path as op
 
 from nipype.interfaces import ants
@@ -17,12 +16,10 @@ from nipype.interfaces import fsl
 from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
-from nipype.workflows.dmri.fsl.utils import (siemens2rads, demean_image, cleanup_edge_pipeline,
-                                             rads2radsec)
+from nipype.workflows.dmri.fsl.utils import siemens2rads, demean_image, cleanup_edge_pipeline
 from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
-from fmriprep.utils.misc import fieldmap_suffixes
 from fmriprep.viz import stripped_brain_overlay
 
 

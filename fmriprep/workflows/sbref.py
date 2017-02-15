@@ -9,21 +9,17 @@ images.
 Originally coded by Craig Moodie. Refactored by the CRN Developers.
 """
 
-import os
 import os.path as op
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
-from nipype.interfaces import fsl, c3
+from nipype.interfaces import fsl
 from nipype.interfaces import ants
 from niworkflows.interfaces.masks import ComputeEPIMask
-from niworkflows.interfaces.registration import FLIRTRPT
 
-from fmriprep.utils.misc import _first, gen_list
-from fmriprep.interfaces.utils import reorient
-from fmriprep.interfaces import (ReadSidecarJSON, IntraModalMerge,
-                                 DerivativesDataSink)
+from fmriprep.utils.misc import _first
+from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.viz import stripped_brain_overlay
 

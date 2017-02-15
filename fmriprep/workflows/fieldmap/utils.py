@@ -14,7 +14,6 @@ def create_encoding_file(input_images, in_dict):
     """
     Creates a valid encoding file for topup
     """
-    import json
     import nibabel as nb
     import numpy as np
     import os
@@ -67,6 +66,7 @@ def create_encoding_file(input_images, in_dict):
     np.savetxt(os.path.abspath('parameters.txt'), enc_table,
                fmt=['%0.1f', '%0.1f', '%0.1f', '%0.20f'])
     return os.path.abspath('parameters.txt')
+
 
 def mcflirt2topup(in_files, in_mats, out_movpar=None):
     """

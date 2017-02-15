@@ -56,9 +56,10 @@ def main():
                          help='nipype plugin configuration file')
     g_input.add_argument('-w', '--work-dir', action='store',
                          default=op.join(os.getcwd(), 'work'))
-    g_input.add_argument('-t', '--workflow-type', default='auto', required=False,
-                         action='store', choices=['auto', 'ds005', 'ds054'],
-                         help='specify workflow type manually')
+    g_input.add_argument('--ignore', required=False,
+                         action='store', choices=['fieldmaps'],
+                         nargs="+", default=[],
+                         help='In case the dataset includes fieldmaps but you chose not to take advantage of them.')
     g_input.add_argument('--reports-only', action='store_true', default=False,
                          help="only generate reports, don't run workflows. This will only rerun report aggregation, not reportlet generation for specific nodes.")
     g_input.add_argument('--skip-native', action='store_true',
@@ -100,7 +101,7 @@ def create_workflow(opts):
         'skull_strip_ants': opts.skull_strip_ants,
         'output_dir': op.abspath(opts.output_dir),
         'work_dir': op.abspath(opts.work_dir),
-        'workflow_type': opts.workflow_type,
+        'ignore': opts.ignore,
         'skip_native': opts.skip_native
     }
 

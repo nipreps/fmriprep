@@ -21,6 +21,7 @@ from nipype import logging
 
 LOGGER = logging.getLogger('workflow')
 
+
 def is_fmap_type(fmap_type, filename):
     from fmriprep.utils import misc
     import re

@@ -15,7 +15,6 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import ants
 from nipype.interfaces import c3
 from nipype.interfaces import fsl
-from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
 from niworkflows.interfaces.masks import ComputeEPIMask, BETRPT
 from niworkflows.interfaces.registration import FLIRTRPT
@@ -25,7 +24,6 @@ from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.utils import nii_concat
 from fmriprep.utils.misc import fix_multi_T1w_source_name, _first
 from fmriprep.workflows.fieldmap import sdc_unwarp
-from fmriprep.viz import stripped_brain_overlay
 from fmriprep.workflows.sbref import _extract_wm
 
 
@@ -243,13 +241,13 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
 
     ds_report = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='epi_sbref', out_path_base='reports'), 
+                            suffix='epi_sbref', out_path_base='reports'),
         name="DS_Report")
 
     workflow.connect([
         (inputnode, epi_split, [('epi', 'in_file')]),
         (inputnode, epi_sbref, [('sbref', 'reference'),
-                                ('sbref_mask', 'ref_weight'),]),
+                                ('sbref_mask', 'ref_weight')]),
         (inputnode, epi_xfm, [('sbref', 'reference')]),
         (inputnode, epi_sbref, [('epi_mean', 'in_file'),
                                 ('epi_mask', 'in_weight')]),

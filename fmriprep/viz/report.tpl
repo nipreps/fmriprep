@@ -14,6 +14,9 @@
 .elem-title {}
 .elem-desc {}
 .elem-filename {}
+.elem-image svg {
+    width: 100%;   
+}
 body { 
     padding-top: 65px; 
 }
@@ -62,7 +65,7 @@ body {
                         <p class="elem-desc">{{ elem.description }}<p>
                         <br>
                         {% for image in elem.files_contents %}
-                            {{ image.1 }}<br>
+                            <div class="elem-image">{{ image.1 }}</div><br>
                             <div class="elem-filename">
                                 Filename: {{ image.0 }}
                             </div>
@@ -78,7 +81,7 @@ body {
             <p class="elem-desc">{{ elem.description }}<p>
             <br>
             {% for image in elem.files_contents %}
-                {{ image.1 }}<br>
+                <div class="elem-image">{{ image.1 }}</div><br>
                 Filename: {{ image.0 }}
             {% endfor %}
             {% endif %}
