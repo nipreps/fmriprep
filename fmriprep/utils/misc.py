@@ -9,7 +9,7 @@ import re
 
 from bids.grabbids import BIDSLayout
 
-INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'lmask': [], 'sbref': []}
+INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'roi': [], 'sbref': []}
 
 def _first(inlist):
     if not isinstance(inlist, (list, tuple)):
@@ -75,7 +75,7 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
         'epi': {'modality': 'func', 'type': 'bold', 'ext': 'nii'},
         'sbref': {'modality': 'func', 'type': 'sbref', 'ext': 'nii'},
         't1w': {'type': 'T1w', 'ext': 'nii'},
-        'lmask': {'type': 'Mask', 'ext': 'nii'}
+        'roi': {'type': 'roi', 'ext': 'nii'}
     }
 
     if task:
@@ -91,8 +91,8 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
     imaging_data['fmap'] = fieldmap_files
     t1_files = [x.filename for x in layout.get(**queries['t1w'])]
     imaging_data['t1w'] = t1_files
-    lmask_files = [x.filename for x in layout.get(**queries['lmask'])]
-    imaging_data['lmask'] = lmask_files
+    roi_files = [x.filename for x in layout.get(**queries['roi'])]
+    imaging_data['roi'] = roi_files
     sbref_files = [x.filename for x in layout.get(**queries['sbref'])]
     imaging_data['sbref'] = sbref_files
     epi_files = [x.filename for x in layout.get(**queries['epi'])]

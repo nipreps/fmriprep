@@ -205,7 +205,7 @@ def wf_ds005_type(subject_data, settings, name='fMRI_prep'):
 
     workflow.connect([
         (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w')]),
-        (bidssrc, t1w_pre, [('lmask', 'inputnode.lmask')]),
+        (bidssrc, t1w_pre, [('roi', 'inputnode.roi')]),
         (bidssrc, epi_2_t1, [('t1w', 'inputnode.t1w')]),
         (hmcwf, epi_2_t1, [('inputnode.epi', 'inputnode.name_source'),
                            ('outputnode.epi_mean', 'inputnode.ref_epi'),

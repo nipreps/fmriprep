@@ -59,8 +59,8 @@ class BIDSDataGrabber(BaseInterface):
             raise FileNotFoundError('No T1w images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 
-        self._results['lmask'] = bids_dict['lmask']
-        if not bids_dict['lmask']:
+        self._results['roi'] = bids_dict['roi']
+        if not bids_dict['roi']:
             raise FileNotFoundError('No lesion mask images found for subject sub-{}'.format(
                 self.inputs.subject_id))
     
