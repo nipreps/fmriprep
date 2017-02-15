@@ -36,7 +36,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     workflow = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w', 'lesion_mask']), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w', 'lmask']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['t1_seg', 't1_tpms', 'bias_corrected_t1', 't1_brain', 't1_mask',
                 't1_2_mni', 't1_2_mni_forward_transform',
@@ -116,6 +116,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         (asw, t1_seg, [('outputnode.out_file', 'in_files')]),
         (inu_n4, t1_2_mni, [('output_image', 'moving_image')]),
         (asw, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),
+        (inputnode, t1_2_mni, [('lmask', 'lesion_mask')]),
         (t1_seg, outputnode, [('tissue_class_map', 't1_seg')]),
         (inu_n4, outputnode, [('output_image', 'bias_corrected_t1')]),
         (t1_seg, outputnode, [('probability_maps', 't1_tpms')]),
