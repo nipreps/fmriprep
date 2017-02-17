@@ -9,6 +9,7 @@ TopUp helpers
 
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
+import os.path as op
 import numpy as np
 import nibabel as nb
 from nilearn.image import mean_img, concat_imgs
@@ -22,10 +23,12 @@ from nipype.interfaces.base import (
     File, InputMultiPath, traits, OutputMultiPath
 )
 from fmriprep.utils.misc import genfname
+
 from .images import reorient
 from .bids import get_metadata_for_nifti
 
 LOGGER = logging.getLogger('interface')
+PEPOLAR_MODALITIES = ['epi', 'sbref']
 
 class TopupInputsInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True),
@@ -34,15 +37,14 @@ class TopupInputsInputSpec(BaseInterfaceInputSpec):
                          desc='reorient all input images to RAS')
     mask_inputs = traits.Bool(True, usedefault=True,
                               desc='do mask of inputs')
+    nthreads = traits.Int(-1, usedefault=True,
+                          desc='number of threads to use within ANTs registrations')
 
 class TopupInputsOutputSpec(TraitedSpec):
-    enc_file = File(exists=True,
-                    desc='the topup encoding parameters file corresponding to'
-                         '  the inputs')
-    out_file = File(exists=True,
-                    desc='all input files in a single 4D volume')
-    out_files = OutputMultiPath(File(exists=True),
-                                desc='input files as a list')
+    out_blips = traits.List(traits.Tuple(traits.Float, traits.Float),
+                            desc='List of encoding files')
+    out_file = File(exists=True, desc='combined input file to TopUp')
+    out_encfile = File(exists=True, desc='encoding file corresponding to datain')
 
 
 class TopupInputs(BaseInterface):
@@ -68,10 +70,17 @@ class TopupInputs(BaseInterface):
     def _run_interface(self, runtime):
 
         in_files = [fname for fname in self.inputs.in_files
-                    if 'epi' in fname or 'sbref' in fname]
+                    if 'epi' in fname]
+        in_files += [fname for fname in self.inputs.in_files
+                     if 'sbref' in fname]
 
-        self._results['enc_file'] = genfname(in_files[0], suffix='encfile', ext='txt')
-        self._results['out_file'] = genfname(in_files[0], suffix='datain')
+        LOGGER.info('TopUp inputs: %s', ', '.join(in_files))
+
+        nthreads = self.inputs.nthreads
+        if nthreads < 1:
+            from multiprocessing import cpu_count
+            nthreads = cpu_count()
+
 
         # Check input files.
         if not isinstance(in_files, (list, tuple)):
@@ -80,52 +89,78 @@ class TopupInputs(BaseInterface):
             raise RuntimeError('in_files should be a list of 2 or more input files')
 
         # Check metadata of inputs and retrieve the pe dir and ro time.
-        pe_params = []
+        prep_in_files = []
+        out_encodings = []
+
         for fname in in_files:
-            line = [0.0] * 4
-            pe_dir, line[3] = get_pe_params(fname)
-            line[int(abs(pe_dir))] = 1.0 if pe_dir > 0.0 else -1.0
+            # Get metadata (pe dir and echo time)
+            pe_dir, ectime = get_pe_params(fname)
 
             # check number of images in dataset
-            ntsteps = 1
             nii = nb.squeeze_image(nb.load(fname))
-            if len(nii.shape) == 4:
-                ntsteps = nii.shape[-1]
+            ntsteps = nii.shape[-1] if len(nii.shape) == 4 else 1
 
-            pe_params += [line] * ntsteps
-
-        np.savetxt(self._results['enc_file'], pe_params,
-                   fmt=[b'%0.1f', b'%0.1f', b'%0.1f', b'%0.20f'])
-
-        # to RAS
-        if self.inputs.to_ras:
-            in_files = [reorient(fname) for fname in in_files]
-
-        # split 4D volumes
-        self._results['out_files'] = []
-        for i, fname in enumerate(in_files):
-            nii = nb.load(fname)
-            if len(nii.shape) == 3:
-                self._results['out_files'].append(fname)
-                continue
-
-            nii = nb.squeeze_image(nii)
-            if len(nii.shape) == 3:
-                nii_list = [nii]
-            else:
+            seq_names = [fname]
+            if ntsteps > 1:
+                # Expand 4D files
                 nii_list = nb.four_to_three(nii)
+                seq_names = []
+                for i, frame in enumerate(nii_list):
+                    newfname = genfname(fname, suffix='seq%02d' % i)
+                    seq_names.append(newfname)
+                    frame.to_filename(newfname)
 
-            for j, frame in enumerate(nii_list):
-                newfname = genfname(fname, suffix='sq%02d_%03d' % (i, j))
-                self._results['out_files'].append(newfname)
-                frame.to_filename(newfname)
+            # to RAS
+            if self.inputs.to_ras:
+                seq_names = [reorient(sname) for sname in seq_names]
 
-        if self.inputs.mask_inputs:
-            self._results['out_files'] = [apply_epi_mask(fname)
-                                          for fname in self._results['out_files']]
-        # merge
-        nii = concat_imgs(self._results['out_files'], ensure_ndim=4)
-        nii.to_filename(self._results['out_file'])
+            out_encodings += [(pe_dir, ectime)] * ntsteps
+            prep_in_files += seq_names
+
+        if len(out_encodings) != len(prep_in_files):
+            raise RuntimeError('Length of encodings and files should match')
+
+        # Find unique sorted
+        blips = []
+        for el in out_encodings:
+            try:
+                blips.index(el)
+            except ValueError:
+                blips.append(el)
+
+        LOGGER.info('Unique blips found: %s', ', '.join(str(b) for b in blips))
+
+        if len(blips) < 2:
+            raise RuntimeError(
+                '"PEpolar" methods require for files to be encoded at least'
+                ' with two different phase-encoding axes/directions.')
+
+        pe_files = []
+        encoding = np.zeros((len(blips), 4))
+        for i, blip in enumerate(blips):
+            blip_files = [fname for enc, fname in zip(out_encodings, prep_in_files)
+                          if enc == blip]
+            LOGGER.info('Running motion correction on files: %s', ', '.join(blip_files))
+            pe_files.append(motion_correction(blip_files, nthreads=nthreads))
+
+            encoding[i, int(abs(blip[0]))] = 1.0 if blip[0] > 0 else -1.0
+            encoding[i, 3] = blip[1]
+
+        self._results['out_blips'] = blips
+        self._results['out_encfile'] = genfname(in_files[0], suffix='encfile', ext='txt')
+        np.savetxt(self._results['out_encfile'], encoding,
+                   fmt=['%0.1f'] * 3 + ['%0.6f'])
+
+
+        out_files = [pe_files[0]]
+        for i, moving in enumerate(pe_files[1:]):
+            LOGGER.info('Running coregistration of %s to reference %s', moving, pe_files[0])
+            out_files.append(_run_registration(pe_files[0], moving,
+                             prefix=op.basename(genfname(moving, suffix='reg%02d' % i))))
+
+        out_file = genfname(out_files[0], suffix='datain')
+        concat_imgs(out_files).to_filename(out_file)
+        self._results['out_file'] = out_file
 
         return runtime
 
@@ -312,6 +347,86 @@ def get_pe_params(in_file):
         raise RuntimeError('Readout time could not be set')
 
     return pe_dir, ro_time
+
+def motion_correction(in_files, ref_vol=0, nthreads=None):
+    import os.path as op
+
+    nfiles = len(in_files)
+    if nfiles == 1:
+        return in_files[0]
+
+    ref_input = in_files[ref_vol]
+    all_images = genfname(ref_input, suffix='inputmerged')
+    concat_imgs(in_files).to_filename(all_images)
+
+    out_prefix = op.basename(genfname(ref_input, suffix='motcor0', ext=''))
+    out_file = _run_antsMotionCorr(out_prefix, ref_input, all_images,
+                                   nthreads=nthreads)
+
+    if nfiles > 2:
+        out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
+        out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
+                                       nthreads=nthreads)
+
+    return out_file
+
+
+def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
+                        only_rigid=False, nthreads=None):
+    import os
+    import os.path as op
+    import nibabel as nb
+    from nipype.interfaces.base import CommandLine
+
+    env = os.environ.copy()
+    if nthreads is not None and nthreads > 0:
+        env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '%d' % nthreads
+
+
+    npoints = nb.load(all_images).get_data().shape[-1]
+    args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
+            '-m', 'gc[%s, %s, 1, 1, Random, 0.05]' % (ref_image, all_images),
+            '-t', '%s[ 0.005 ]' % ('Rigid' if only_rigid else 'Affine'),
+            '-i', '40x20', '-l', '-u', '-e', '-s', '4x0', '-f', '2x1',
+            '-n', str(min(npoints, 10))]
+    if not only_rigid:
+        args = args[:-2] + ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
+                            '-t', 'GaussianDisplacementField[0.15,3,0.5]',
+                            '-i 20 -u -e -s 0 -f 1'] + args[-2:]
+
+    cmd = CommandLine(command='antsMotionCorr', args=' '.join(args), environ=env)
+    LOGGER.info('Running antsMotionCorr: %s', cmd.cmdline)
+    result = cmd.run()
+    returncode = getattr(result.runtime, 'returncode', 1)
+
+    if returncode not in [0, None]:
+        raise RuntimeError('antsMotionCorr failed to run (exit code %d)\n%s' % (
+            returncode, cmd.cmdline))
+
+    if return_avg:
+        return op.abspath(out_prefix + '_avg.nii.gz')
+    else:
+        return op.abspath(out_prefix + '.nii.gz')
+
+def _run_registration(reference, moving, debug=False, prefix='antsreg', nthreads=None):
+    import pkg_resources as pkgr
+    from niworkflows.interfaces.registration import ANTSRegistrationRPT as Registration
+
+    ants_settings = pkgr.resource_filename('fmriprep', 'data/fmap-any_registration.json')
+    if debug:
+        ants_settings = pkgr.resource_filename(
+            'fmriprep', 'data/fmap-any_registration_testing.json')
+    ants = Registration(from_file=ants_settings,
+                        fixed_image=reference,
+                        moving_image=moving,
+                        output_warped_image=True,
+                        output_transform_prefix=prefix)
+
+    if nthreads is not None and nthreads > 0:
+        ants.inputs.num_threads = nthreads
+
+    return ants.run().outputs.warped_image
+
 
 def apply_epi_mask(in_file, mask=None):
     out_file = genfname(in_file, suffix='brainmask')

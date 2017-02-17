@@ -24,15 +24,10 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.ants.segmentation import N4BiasFieldCorrection
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.masks import BETRPT
+from fmriprep.interfaces.topup import TopupInputs
 
-from fmriprep.utils.misc import _first, gen_list
-from fmriprep.interfaces import ImageDataSink, ReadSidecarJSON
-from fmriprep.interfaces.topup import ConformTopupInputs, TopupInputs
-from fmriprep.viz import stripped_brain_overlay
-from fmriprep.workflows.fieldmap.utils import create_encoding_file
 
 WORKFLOW_NAME = 'FMAP_pepolar'
-
 
 # pylint: disable=R0914
 def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
@@ -78,11 +73,11 @@ def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
     workflow.connect([
         (inputnode, sortfmaps, [('input_images', 'in_files')]),
         (sortfmaps, topup, [('out_file', 'in_file'),
-                            ('enc_file', 'encoding_file')]),
+                            ('out_encfile', 'encoding_file')]),
         (topup, unwarp_mag, [('out_fieldcoef', 'in_topup_fieldcoef'),
                              ('out_movpar', 'in_topup_movpar')]),
-        (sortfmaps, unwarp_mag, [('out_files', 'in_files'),
-                                 ('enc_file', 'encoding_file')]),
+        (sortfmaps, unwarp_mag, [('out_file', 'in_files'),
+                                 ('out_encfile', 'encoding_file')]),
         (unwarp_mag, inu_n4, [('out_corrected', 'input_image')]),
         (inu_n4, mag_bet, [('output_image', 'in_file')]),
         (topup, outputnode, [('out_field', 'fmap')]),
@@ -94,5 +89,9 @@ def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
 
 def _sort_fmaps(input_images):
     ''' just a little data massaging'''
-    return (sorted([fname for fname in input_images if 'epi' in fname] +
-                   sorted([fname for fname in input_images if 'sbref' in fname])))
+    from fmriprep.workflows.fieldmap import PEPOLAR_MODALITIES
+
+    result = []
+    for mod in PEPOLAR_MODALITIES:
+        result += sorted([fname for fname in input_images if mod in fname])
+    return result

@@ -33,13 +33,13 @@ def genfname(in_file, suffix=None, path=None, ext=None):
     if ext is None:
         ext = fext
 
-    if ext.startswith('.'):
-        ext = ext[1:]
+    if ext != '' and not ext.startswith('.'):
+        ext = '.' + ext
 
     if suffix is None:
         suffix = 'mod'
 
-    return op.join(path, '{}_{}.{}'.format(fname, suffix, ext))
+    return op.join(path, '{}_{}{}'.format(fname, suffix, ext))
 
 def _first(inlist):
     if not isinstance(inlist, (list, tuple)):
