@@ -337,21 +337,35 @@ def bspl_smoothing(fmapnii, masknii=None, knot_space=[18., 18., 20.]):
     return newnii, coeffnii
 
 
-def tbspl_eval(points, knots, zooms):
+def tbspl_eval(points, knots, zooms, processes=None):
     """
     Evaluate tensor product BSpline
     """
-    from scipy.sparse import csr_matrix, vstack
+    from scipy.sparse import vstack
     from fmriprep.utils.maths import bspl
+
     points = np.array(points)
     knots = np.array(knots)
     vbspl = np.vectorize(bspl)
 
-    coeffs = []
-    ushape = (knots.shape[0], 3)
-    for p in points:
-        u_vec = (knots - p[np.newaxis, ...]) / zooms[np.newaxis, ...]
-        c = vbspl(u_vec.reshape(-1)).reshape(ushape).prod(axis=1)
-        coeffs.append(csr_matrix(c))
+    if processes is not None and processes < 1:
+        processes = None
+
+    if processes == 1:
+        coeffs = [_evalp((p, knots, vbspl, zooms)) for p in points]
+    else:
+        from multiprocessing import Pool
+        pool = Pool(processes)
+        coeffs = pool.map(
+            _evalp, [(p, knots, vbspl, zooms) for p in points])
 
     return vstack(coeffs)
+
+def _evalp(args):
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    point, knots, vbspl, zooms = args
+    u_vec = (knots - point[np.newaxis, ...]) / zooms[np.newaxis, ...]
+    c = vbspl(u_vec.reshape(-1)).reshape((knots.shape[0], 3)).prod(axis=1)
+    return csr_matrix(c)
