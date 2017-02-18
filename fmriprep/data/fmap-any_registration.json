@@ -1,5 +1,6 @@
 {
     "dimension": 3,
+    "float": true,
     "initial_moving_transform_com": 1,
     "winsorize_lower_quantile": 0.005,
     "winsorize_upper_quantile": 0.998,
@@ -7,7 +8,7 @@
     "write_composite_transform": false,
     "use_histogram_matching": [ true, true ],
     "use_estimate_learning_rate_once": [ true, true ],
-    "transforms": [ "Rigid", "Rigid" ],
+    "transforms": [ "Translation", "Rigid" ],
     "number_of_iterations": [ [ 1000 ], [ 500 ] ],
     "transform_parameters": [ [ 0.05 ], [ 0.01 ] ],
     "convergence_threshold": [ 1e-07, 1e-08 ],

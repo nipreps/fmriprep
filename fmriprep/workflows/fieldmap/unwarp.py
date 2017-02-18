@@ -12,6 +12,7 @@ import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
+from nipype.interfaces.ants import N4BiasFieldCorrection, Registration
 from niworkflows.interfaces.registration import ANTSRegistrationRPT, ANTSApplyTransformsRPT
 
 from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink
@@ -28,14 +29,13 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
     Input fields:
     ~~~~~~~~~~~~~
 
-      inputnode.in_file - the image(s) to which this correction will be applied
+      inputnode.in_file - the 3D image to which this correction will be applied
       inputnode.in_mask - a brain mask corresponding to the in_file image
+      inputnode.in_hmcpar - the head motion parameters as written by antsMotionCorr
+      inputnode.fmap - a fieldmap in Hz
       inputnode.fmap_ref - the fieldmap reference (generally, a *magnitude* image or the
                            resulting SE image)
       inputnode.fmap_mask - a brain mask in fieldmap-space
-      inputnode.fmap - a fieldmap in Hz
-      inputnode.hmc_movpar - the head motion parameters (iff inputnode.in_file is only
-                             one 4D file)
 
     Output fields:
     ~~~~~~~~~~~~~~
@@ -46,27 +46,27 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['in_file', 'fmap_ref', 'fmap_mask', 'fmap',
-                'hmc_movpar']), name='inputnode')
+        fields=['in_file', 'in_hmcpar', 'in_mask', 'in_meta',
+                'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=['out_file', 'out_warped']), name='outputnode')
 
-    # Read metadata
-    meta = pe.MapNode(ReadSidecarJSON(), iterfield=['in_file'], name='metadata')
+    # ref_inu = pe.Node(N4BiasFieldCorrection(dimension=3), name='reference_INU')
+    # ref_bet = pe.Node(fsl.BET(frac=0.6, mask=True), name='reference_BET')
+    ref_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
+                      output_names=['out_file'], function=_mask), name='reference_mask')
+    target_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
+                         output_names=['out_file'], function=_mask), name='target_mask')
 
-    # Compute movpar file iff we have several images with different
-    # PE directions.
-    conform = pe.Node(ConformTopupInputs(), name='ConformInputs')
-    if ref_vol is not None:
-        conform.inputs.in_ref = ref_vol
-
+    # Fieldmap to rads
     torads = pe.Node(niu.Function(input_names=['in_file'], output_names=['out_file'],
-                     function=hz2rads), name='Hz2rads')
+                     function=hz2rads), name='fmap_Hz2rads')
 
-    warpref = pe.Node(niu.Function(
+    # Prepare reference image
+    ref_wrp = pe.Node(niu.Function(
         function=_warp_reference,
         input_names=['fmap_ref', 'fmap', 'fmap_mask', 'metadata'],
         output_names=['fmap_ref', 'fmap_mask']),
-        name='TestWarpReference')
+        name='reference_warped')
 
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
@@ -75,8 +75,9 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
         ants_settings = pkgr.resource_filename(
             'fmriprep', 'data/fmap-any_registration_testing.json')
 
-    fmap2ref = pe.Node(ANTSRegistrationRPT(from_file=ants_settings, output_warped_image=True,
-                       generate_report=True), name='FMap2ImageMagnitude')
+    fmap2ref = pe.Node(Registration(
+        from_file=ants_settings, output_warped_image='image2fmap.nii.gz',
+        output_inverse_warped_image='fmap2image.nii.gz'), name='FMap2ImageMagnitude')
 
     # fugue = pe.Node(fsl.FUGUE(save_unmasked_fmap=True), name='fugue')
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
@@ -97,33 +98,30 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
 
     workflow.connect([
         (inputnode, torads, [(('fmap', _last), 'in_file')]),
-        (inputnode, meta, [('in_file', 'in_file')]),
-        (inputnode, conform, [('in_file', 'in_files'),
-                              ('hmc_movpar', 'in_mats')]),
-        (inputnode, warpref, [(('fmap_ref', _last), 'fmap_ref'),
-                              (('fmap_mask', _last), 'fmap_mask')]),
-        (torads, warpref, [('out_file', 'fmap')]),
-        (meta, warpref, [('out_dict', 'metadata')]),
-        (warpref, fmap2ref, [('fmap_ref', 'moving_image'),
-                             ('fmap_mask', 'moving_image_mask')]),
-        (conform, fmap2ref, [('out_brain', 'fixed_image'),
-                             ('out_mask', 'fixed_image_mask')]),
-        # (fmapenh, fugue, [('out_file', 'fmap_in_file')]),
-        # (fugue, outputnode, [('fmap_out_file', 'fmap')]),
-        (conform, applyxfm, [('out_brain', 'reference_image')]),
+        (inputnode, target_msk, [('in_file', 'in_file'),
+                                 ('in_mask', 'in_mask')]),
+        (target_msk, fmap2ref, [('out_file', 'moving_image')]),
+        (inputnode, ref_wrp, [(('fmap_ref', _last), 'fmap_ref'),
+                              (('fmap_mask', _last), 'fmap_mask'),
+                              ('in_meta', 'metadata')]),
+        (torads, ref_wrp, [('out_file', 'fmap')]),
+        (ref_wrp, ref_msk, [('fmap_ref', 'in_file'),
+                            ('fmap_mask', 'in_mask')]),
+        (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
+        (inputnode, applyxfm, [('in_file', 'reference_image')]),
         (fmap2ref, applyxfm, [
-            ('forward_transforms', 'transforms'),
-            ('forward_invert_flags', 'invert_transform_flags')]),
-        (conform, maskxfm, [('out_brain', 'reference_image')]),
+            ('reverse_transforms', 'transforms'),
+            ('reverse_invert_flags', 'invert_transform_flags')]),
+        (inputnode, maskxfm, [('in_file', 'reference_image')]),
         (fmap2ref, maskxfm, [
-            ('forward_transforms', 'transforms'),
-            ('forward_invert_flags', 'invert_transform_flags')]),
+            ('reverse_transforms', 'transforms'),
+            ('reverse_invert_flags', 'invert_transform_flags')]),
         (torads, applyxfm, [('out_file', 'input_image')]),
-        (warpref, maskxfm, [('fmap_mask', 'input_image')]),
-        (conform, unwarp, [('out_file', 'in_file')]),
+        (ref_wrp, maskxfm, [('fmap_mask', 'input_image')]),
+        (inputnode, unwarp, [('in_file', 'in_file'),
+                             ('in_meta', 'metadata')]),
         (applyxfm, unwarp, [('output_image', 'in_fieldmap')]),
         (maskxfm, unwarp, [('output_image', 'in_mask')]),
-        (meta, unwarp, [('out_dict', 'metadata')]),
         (unwarp, outputnode, [('out_file', 'out_file')]),
         (inputnode, dsunwarp, [(('in_file', _first), 'source_file')]),
         (unwarp, dsunwarp, [('out_report', 'in_file')])
@@ -143,8 +141,8 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
     #     (conform, gen_movpar, [('out_file', 'in_file'),
     #                            ('out_movpar', 'in_mats')]),
     #     (conform, topup_adapt, [('out_brain', 'in_ref')]),
-    #     #                       ('out_movpar', 'in_movpar')]),
-    #     (gen_movpar, topup_adapt, [('out_movpar', 'in_movpar')]),
+    #     #                       ('out_movpar', 'in_hmcpar')]),
+    #     (gen_movpar, topup_adapt, [('out_movpar', 'in_hmcpar')]),
     #     (applyxfm, topup_adapt, [('output_image', 'in_file')]),
     #     (conform, unwarp, [('out_file', 'in_files')]),
     #     (topup_adapt, unwarp, [('out_fieldcoef', 'in_topup_fieldcoef'),
@@ -154,6 +152,18 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
     # ])
 
     return workflow
+
+def _mask(in_file, in_mask, out_file=None):
+    import nibabel as nb
+    from fmriprep.utils.misc import genfname
+    if out_file is None:
+        out_file = genfname(in_file, 'brainmask')
+
+    nii = nb.load(in_file)
+    data = nii.get_data()
+    data[nb.load(in_mask).get_data() <= 0] = 0
+    nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
+    return out_file
 
 
 def hz2rads(in_file, out_file=None):
@@ -271,3 +281,19 @@ def _first(inlist):
     if isinstance(inlist, list):
         return inlist[0]
     return inlist
+
+
+def _fn_ras(in_file):
+    import os.path as op
+    import nibabel as nb
+    from fmriprep.utils.misc import genfname
+
+    if isinstance(in_file, list):
+        in_file = in_file[0]
+
+    out_file = genfname(in_file, suffix='ras')
+    nb.as_closest_canonical(nb.load(in_file)).to_filename(
+        out_file)
+    return out_file
+
+
