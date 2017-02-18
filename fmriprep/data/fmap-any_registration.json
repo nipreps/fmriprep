@@ -19,5 +19,6 @@
     "sigma_units": [ "mm", "mm" ],
     "metric_weight": [ 1.0, 1.0 ],
     "shrink_factors": [ [ 2 ], [ 1 ] ],
-    "radius_or_number_of_bins": [ 64, 64 ]
+    "radius_or_number_of_bins": [ 64, 64 ],
+    "interpolation": "LanczosWindowedSinc"
 }

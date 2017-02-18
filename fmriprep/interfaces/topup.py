@@ -43,7 +43,9 @@ class TopupInputsInputSpec(BaseInterfaceInputSpec):
 class TopupInputsOutputSpec(TraitedSpec):
     out_blips = traits.List(traits.Tuple(traits.Float, traits.Float),
                             desc='List of encoding files')
-    out_file = File(exists=True, desc='combined input file to TopUp')
+    out_file = File(exists=True, desc='combined input file as TopUp wants them')
+    out_filelist = OutputMultiPath(
+        File(exists=True), desc='list of output files as ApplyTOPUP wants them')
     out_encfile = File(exists=True, desc='encoding file corresponding to datain')
 
 
@@ -161,6 +163,7 @@ class TopupInputs(BaseInterface):
         out_file = genfname(out_files[0], suffix='datain')
         concat_imgs(out_files).to_filename(out_file)
         self._results['out_file'] = out_file
+        self._results['out_filelist'] = out_files
 
         return runtime
 
@@ -361,7 +364,7 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
 
     out_prefix = op.basename(genfname(ref_input, suffix='motcor0', ext=''))
     out_file = _run_antsMotionCorr(out_prefix, ref_input, all_images,
-                                   nthreads=nthreads)
+                                   only_rigid=True, nthreads=nthreads)
 
     if nfiles > 2:
         out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
@@ -387,12 +390,17 @@ def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
     args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
             '-m', 'gc[%s, %s, 1, 1, Random, 0.05]' % (ref_image, all_images),
             '-t', '%s[ 0.005 ]' % ('Rigid' if only_rigid else 'Affine'),
-            '-i', '40x20', '-l', '-u', '-e', '-s', '4x0', '-f', '2x1',
-            '-n', str(min(npoints, 10))]
-    if not only_rigid:
-        args = args[:-2] + ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
-                            '-t', 'GaussianDisplacementField[0.15,3,0.5]',
-                            '-i 20 -u -e -s 0 -f 1'] + args[-2:]
+            '-i', '40x20', '-l', '-e', '-s', '4x0', '-f', '2x1']
+
+    if only_rigid:
+        args.insert(-4, '-u')
+    else:
+        args += ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
+                 '-t', 'GaussianDisplacementField[0.15,3,0.5]',
+                 '-i 20 -e -s 0 -f 1']
+
+    # Add number of volumes to average
+    args += ['-n', str(min(npoints, 10))]
 
     cmd = CommandLine(command='antsMotionCorr', args=' '.join(args), environ=env)
     LOGGER.info('Running antsMotionCorr: %s', cmd.cmdline)

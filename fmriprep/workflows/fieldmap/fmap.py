@@ -69,6 +69,7 @@ def fmap_workflow(name=WORKFLOW_NAME, settings=None):
         (magmrg, cphdr, [('out_file', 'hdr_file')]),
         (cphdr, bet, [('out_file', 'in_file')]),
         (sortfmaps, fmapmrg, [('fieldmap', 'in_files')]),
+        (bet, fmapenh, [('out_file', 'in_mask')]),
         (fmapmrg, fmapenh, [('out_file', 'in_file')]),
         (fmapenh, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),

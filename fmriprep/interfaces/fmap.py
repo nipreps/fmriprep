@@ -131,7 +131,7 @@ class FieldEnhance(BaseInterface):
         if self.inputs.despike:
             data = _despike2d(data, self.inputs.despike_threshold)
 
-        masknii = None
+        mask = None
         if isdefined(self.inputs.in_mask):
             masknii = nb.load(self.inputs.in_mask)
             mask = masknii.get_data().astype(np.uint8)
@@ -143,19 +143,45 @@ class FieldEnhance(BaseInterface):
                     mask, struc,
                     iterations=self.inputs.mask_erode).astype(np.uint8)  # pylint: disable=no-member
 
-            # Apply mask
-            data[mask == 0] = 0.0
-
         self._results['out_file'] = genfname(self.inputs.in_file, suffix='enh')
         self._results['out_coeff'] = genfname(self.inputs.in_file, suffix='coeff')
 
         datanii = nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header)
         # data interpolation
-        if self.inputs.bspline_smooth:
-            datanii, coefnii = bspl_smoothing(datanii, masknii)
-            coefnii.to_filename(self._results['out_coeff'])
-
         datanii.to_filename(self._results['out_file'])
+
+        if self.inputs.bspline_smooth:
+            from fmriprep.utils import bspline as fbsp
+            from statsmodels.robust.scale import mad
+
+            # Fit BSplines (coarse)
+            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask)
+            bspobj.fit()
+            smoothed1 = bspobj.get_smoothed()
+
+            # Manipulate the difference map
+            diffmap = data - smoothed1.get_data()
+            sderror = mad(diffmap[mask > 0])
+            errormask = np.zeros_like(diffmap)
+            errormask[np.abs(diffmap) > (10 * sderror)] = 1
+            errormask *= mask
+            errorslice = np.squeeze(np.argwhere(errormask.sum(0).sum(0) > 0))
+
+            diffmapmsk = mask[..., errorslice[0]:errorslice[-1]]
+            diffmapnii = nb.Nifti1Image(
+                diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
+                datanii.affine, datanii.header)
+
+
+            bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.])
+            bspobj2.fit()
+            smoothed2 = bspobj2.get_smoothed().get_data()
+
+            final = smoothed1.get_data().copy()
+            final[..., errorslice[0]:errorslice[-1]] += smoothed2
+            nb.Nifti1Image(final, datanii.affine, datanii.header).to_filename(
+                self._results['out_file'])
+
         return runtime
 
 

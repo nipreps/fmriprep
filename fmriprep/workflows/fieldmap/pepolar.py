@@ -76,7 +76,7 @@ def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
                             ('out_encfile', 'encoding_file')]),
         (topup, unwarp_mag, [('out_fieldcoef', 'in_topup_fieldcoef'),
                              ('out_movpar', 'in_topup_movpar')]),
-        (sortfmaps, unwarp_mag, [('out_file', 'in_files'),
+        (sortfmaps, unwarp_mag, [('out_filelist', 'in_files'),
                                  ('out_encfile', 'encoding_file')]),
         (unwarp_mag, inu_n4, [('out_corrected', 'input_image')]),
         (inu_n4, mag_bet, [('output_image', 'in_file')]),
