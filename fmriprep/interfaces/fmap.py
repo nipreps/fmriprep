@@ -15,12 +15,76 @@ import numpy as np
 import nibabel as nb
 from nipype import logging
 from nipype.interfaces.base import (BaseInterface, BaseInterfaceInputSpec, TraitedSpec,
-                                    File, isdefined, traits, InputMultiPath)
+                                    File, isdefined, traits, InputMultiPath, Str)
 from nipype.interfaces import fsl
 from fmriprep.utils.misc import genfname
 from fmriprep.utils.bspline import bspl_smoothing
 
 LOGGER = logging.getLogger('interfaces')
+
+
+class WarpReferenceInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input fieldmap')
+    in_mask = File(exists=True, mandatory=True, desc='mask of fieldmap')
+    fmap_ref = File(exists=True, mandatory=True, desc='reference file')
+    echospacing = traits.Float(mandatory=True,
+                               desc='effective echo spacing or dwell time')
+    pe_dir = traits.Enum('y', 'x', 'y-', 'x-', mandatory=True,
+                         desc='phase encoding direction')
+
+class WarpReferenceOutputSpec(TraitedSpec):
+    out_warped = File(desc='the "fmap_ref" image after warping')
+    out_mask = File(desc='the corresponding fieldmap mask warped')
+
+class WarpReference(BaseInterface):
+    """
+    The WarpReference interface wraps a workflow to generate
+    a warped version of the reference (generally magnitude) image.
+    This way, the reference image is geometrically closer to the
+    target EPI and thus, easier to register.
+    """
+    input_spec = WarpReferenceInputSpec
+    output_spec = WarpReferenceOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(WarpReference, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        eec = self.inputs.echospacing
+        ped = self.inputs.pe_dir
+
+        vsm_file = genfname(self.inputs.fmap_ref, 'vsm')
+        gen_vsm = fsl.FUGUE(
+            fmap_in_file=self.inputs.in_file, dwell_time=eec,
+            unwarp_direction=ped, shift_out_file=vsm_file)
+        gen_vsm.run()
+
+        fugue = fsl.FUGUE(
+            in_file=self.inputs.fmap_ref, shift_in_file=vsm_file, nokspace=True,
+            forward_warping=True, unwarp_direction=ped, icorr=False,
+            warped_file=genfname(self.inputs.fmap_ref, 'warped%s' % ped)).run()
+
+        fuguemask = fsl.FUGUE(
+            in_file=self.inputs.in_mask, shift_in_file=vsm_file, nokspace=True,
+            forward_warping=True, unwarp_direction=ped, icorr=False,
+            warped_file=genfname(self.inputs.in_mask, 'maskwarped%s' % ped)).run()
+
+        masknii = nb.load(fuguemask.outputs.warped_file)
+        mask = masknii.get_data()
+        mask[mask > 0] = 1
+        mask[mask < 1] = 0
+        out_mask = genfname(self.inputs.in_mask, 'warp_bin')
+        nb.Nifti1Image(mask.astype(np.uint8), masknii.affine,
+                       masknii.header).to_filename(out_mask)
+
+        self._results['out_warped'] = fugue.outputs.warped_file
+        self._results['out_mask'] = out_mask
+
+        return runtime
 
 
 class FieldCoefficientsInputSpec(BaseInterfaceInputSpec):

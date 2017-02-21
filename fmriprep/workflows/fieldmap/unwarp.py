@@ -17,6 +17,7 @@ from niworkflows.interfaces.registration import ANTSRegistrationRPT, ANTSApplyTr
 
 from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink
 from fmriprep.interfaces.topup import ConformTopupInputs
+from fmriprep.interfaces.fmap import WarpReference
 SDC_UNWARP_NAME = 'SDC_unwarp'
 
 
@@ -50,6 +51,16 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=['out_file', 'out_warped']), name='outputnode')
 
+    ref_hdr = pe.Node(niu.Function(
+        input_names=['in_file'], output_names=['out_file', 'out_hdr'],
+        function=_fixhdr), name='reference_hdr')
+    target_hdr = pe.Node(niu.Function(
+        input_names=['in_file'], output_names=['out_file', 'out_hdr'],
+        function=_fixhdr), name='target_hdr')
+    fmap_hdr = pe.Node(niu.Function(
+        input_names=['in_file'], output_names=['out_file', 'out_hdr'],
+        function=_fixhdr), name='fmap_hdr')
+
     # ref_inu = pe.Node(N4BiasFieldCorrection(dimension=3), name='reference_INU')
     # ref_bet = pe.Node(fsl.BET(frac=0.6, mask=True), name='reference_BET')
     ref_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
@@ -62,11 +73,7 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
                      function=hz2rads), name='fmap_Hz2rads')
 
     # Prepare reference image
-    ref_wrp = pe.Node(niu.Function(
-        function=_warp_reference,
-        input_names=['fmap_ref', 'fmap', 'fmap_mask', 'metadata'],
-        output_names=['fmap_ref', 'fmap_mask']),
-        name='reference_warped')
+    ref_wrp = pe.Node(WarpReference(), name='reference_warped')
 
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
@@ -76,55 +83,51 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
             'fmriprep', 'data/fmap-any_registration_testing.json')
 
     fmap2ref = pe.Node(Registration(
-        from_file=ants_settings, output_warped_image='image2fmap.nii.gz',
-        output_inverse_warped_image='fmap2image.nii.gz'), name='FMap2ImageMagnitude')
+        from_file=ants_settings), name='FMap2ImageMagnitude')
 
     # fugue = pe.Node(fsl.FUGUE(save_unmasked_fmap=True), name='fugue')
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=False, dimension=3, interpolation='Linear'), name='FMap2ImageFieldmap')
+        generate_report=False, dimension=3, interpolation='BSpline'), name='FMap2ImageFieldmap')
 
     maskxfm = pe.Node(ANTSApplyTransformsRPT(
         generate_report=False, dimension=3, interpolation='NearestNeighbor'),
                       name='FMap2ImageMask')
 
     unwarp = pe.Node(niu.Function(
-        input_names=['in_file', 'in_fieldmap', 'in_mask', 'metadata'],
+        input_names=['in_file', 'in_fieldmap', 'metadata'],
         output_names=['out_file', 'out_report'], function=_fugue_unwarp),
                      name='Unwarping')
 
-    dsunwarp = pe.Node(DerivativesDataSink(
-        base_directory=settings['output_dir'], suffix='unwarp',
-        out_path_base='reports'), name='DSunwarp')
-
     workflow.connect([
-        (inputnode, torads, [(('fmap', _last), 'in_file')]),
-        (inputnode, target_msk, [('in_file', 'in_file'),
-                                 ('in_mask', 'in_mask')]),
-        (target_msk, fmap2ref, [('out_file', 'moving_image')]),
-        (inputnode, ref_wrp, [(('fmap_ref', _last), 'fmap_ref'),
-                              (('fmap_mask', _last), 'fmap_mask'),
-                              ('in_meta', 'metadata')]),
-        (torads, ref_wrp, [('out_file', 'fmap')]),
-        (ref_wrp, ref_msk, [('fmap_ref', 'in_file'),
-                            ('fmap_mask', 'in_mask')]),
-        (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
+        (inputnode, fmap_hdr, [('fmap', 'in_file')]),
+        (fmap_hdr, torads, [('out_file', 'in_file')]),
+        (inputnode, ref_hdr, [('fmap_ref', 'in_file')]),
+        (inputnode, target_hdr, [('in_file', 'in_file')]),
+        (inputnode, target_msk, [('in_mask', 'in_mask')]),
         (inputnode, applyxfm, [('in_file', 'reference_image')]),
-        (fmap2ref, applyxfm, [
-            ('reverse_transforms', 'transforms'),
-            ('reverse_invert_flags', 'invert_transform_flags')]),
+        (inputnode, ref_wrp, [('fmap_mask', 'in_mask'),
+                              (('in_meta', _get_ec), 'echospacing'),
+                              (('in_meta', _get_pedir), 'pe_dir')]),
+        (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
+        (target_hdr, target_msk, [('out_file', 'in_file')]),
+        (target_msk, fmap2ref, [('out_file', 'moving_image')]),
+        (ref_wrp, maskxfm, [('out_mask', 'input_image')]),
         (inputnode, maskxfm, [('in_file', 'reference_image')]),
         (fmap2ref, maskxfm, [
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
+        (torads, ref_wrp, [('out_file', 'in_file')]),
+        (ref_wrp, ref_msk, [('out_warped', 'in_file'),
+                            ('out_mask', 'in_mask')]),
+        (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
+        (fmap2ref, applyxfm, [
+            ('reverse_transforms', 'transforms'),
+            ('reverse_invert_flags', 'invert_transform_flags')]),
         (torads, applyxfm, [('out_file', 'input_image')]),
-        (ref_wrp, maskxfm, [('fmap_mask', 'input_image')]),
         (inputnode, unwarp, [('in_file', 'in_file'),
                              ('in_meta', 'metadata')]),
         (applyxfm, unwarp, [('output_image', 'in_fieldmap')]),
-        (maskxfm, unwarp, [('output_image', 'in_mask')]),
-        (unwarp, outputnode, [('out_file', 'out_file')]),
-        (inputnode, dsunwarp, [(('in_file', _first), 'source_file')]),
-        (unwarp, dsunwarp, [('out_report', 'in_file')])
+        (unwarp, outputnode, [('out_file', 'out_file')])
     ])
 
     # Disable ApplyTOPUP for now
@@ -153,6 +156,12 @@ def sdc_unwarp(name=SDC_UNWARP_NAME, ref_vol=None, method='jac', settings=None):
 
     return workflow
 
+def _get_ec(in_dict):
+    return float(in_dict['EffectiveEchoSpacing'])
+
+def _get_pedir(in_dict):
+    return in_dict['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
+
 def _mask(in_file, in_mask, out_file=None):
     import nibabel as nb
     from fmriprep.utils.misc import genfname
@@ -165,6 +174,25 @@ def _mask(in_file, in_mask, out_file=None):
     nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
     return out_file
 
+def _fixhdr(in_file):
+    import numpy as np
+    import nibabel as nb
+    from io import open
+    from fmriprep.utils.misc import genfname
+
+    im = nb.as_closest_canonical(nb.load(in_file))
+    newaff = np.eye(4)
+    newaff[:3, :3] = np.eye(3) * im.header.get_zooms()[:3]
+    newaff[:3, 3] -= 0.5 * newaff[:3, :3].dot(im.shape[:3])
+
+    out_file = genfname(in_file, suffix='nosform')
+    nb.Nifti1Image(im.get_data(), newaff, None).to_filename(
+        out_file)
+
+    out_hdr = genfname(in_file, suffix='hdr', ext='pklz')
+    with open(out_hdr, 'wb') as fheader:
+        im.header.write_to(fheader)
+    return out_file, out_hdr
 
 def hz2rads(in_file, out_file=None):
     """Transform a fieldmap in Hz into rad/s"""
@@ -179,7 +207,7 @@ def hz2rads(in_file, out_file=None):
                    nii.get_header()).to_filename(out_file)
     return out_file
 
-def _fugue_unwarp(in_file, in_fieldmap, in_mask, metadata):
+def _fugue_unwarp(in_file, in_fieldmap, metadata):
     import nibabel as nb
     from niworkflows.interfaces.registration import FUGUERPT
     from nipype.interfaces.fsl import FUGUE
@@ -202,23 +230,18 @@ def _fugue_unwarp(in_file, in_fieldmap, in_mask, metadata):
     for i, (tnii, tmeta) in enumerate(zip(nii_list, metadata)):
         tfile = genfname(in_file, 'vol%03d' % i)
         tnii.to_filename(tfile)
-        ec = tmeta['EffectiveEchoSpacing']
-        ud = tmeta['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
-
-        fmap_umask = genfname(in_file, 'fmap_umask%03d' % i)
-        FUGUE(
-            fmap_in_file=in_fieldmap, save_unmasked_fmap=True,
-            mask_file=in_mask, fmap_out_file=fmap_umask).run()
+        eec = tmeta['EffectiveEchoSpacing']
+        ped = tmeta['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
 
         vsm_file = genfname(in_file, 'vsm%03d' % i)
         FUGUE(
-            fmap_in_file=fmap_umask, dwell_time=ec,
-            unwarp_direction=ud, shift_out_file=vsm_file).run()
+            fmap_in_file=in_fieldmap, dwell_time=eec,
+            unwarp_direction=ped, shift_out_file=vsm_file).run()
 
         gen_report = i == 0
 
         fugue = FUGUERPT(
-            in_file=tfile, unwarp_direction=ud, icorr=True, shift_in_file=vsm_file,
+            in_file=tfile, unwarp_direction=ped, icorr=True, shift_in_file=vsm_file,
             unwarped_file=genfname(in_file, 'unwarped%03d' % i),
             generate_report=gen_report)
 
@@ -234,43 +257,6 @@ def _fugue_unwarp(in_file, in_fieldmap, in_mask, metadata):
     out_file = genfname(in_file, 'unwarped')
     corr_nii.to_filename(out_file)
     return out_file, out_report
-
-
-def _warp_reference(fmap_ref, fmap, fmap_mask, metadata):
-    import numpy as np
-    import nibabel as nb
-    from nipype.interfaces.fsl import FUGUE
-    from fmriprep.utils.misc import genfname
-
-    if isinstance(metadata, (list, tuple)):
-        metadata = metadata[0]
-    ec = metadata['EffectiveEchoSpacing']
-    ud = metadata['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
-
-    vsm_file = genfname(fmap_ref, 'vsm')
-    gen_vsm = FUGUE(
-        fmap_in_file=fmap, dwell_time=ec,
-        unwarp_direction=ud, shift_out_file=vsm_file)
-    gen_vsm.run()
-
-    fugue = FUGUE(
-        in_file=fmap_ref, shift_in_file=vsm_file, nokspace=True,
-        forward_warping=True, unwarp_direction=ud, icorr=False,
-        warped_file=genfname(fmap_ref, 'warped%s' % ud)).run()
-
-    fuguemask = FUGUE(
-        in_file=fmap_mask, shift_in_file=vsm_file, nokspace=True,
-        forward_warping=True, unwarp_direction=ud, icorr=False,
-        warped_file=genfname(fmap_mask, 'maskwarped%s' % ud)).run()
-
-    masknii = nb.load(fuguemask.outputs.warped_file)
-    mask = masknii.get_data()
-    mask[mask > 0] = 1
-    mask[mask < 1] = 0
-    out_mask = genfname(fmap_mask, 'warp_bin')
-    nb.Nifti1Image(mask.astype(np.uint8), masknii.affine,
-                   masknii.header).to_filename(out_mask)
-    return fugue.outputs.warped_file, out_mask
 
 def _last(inlist):
     if isinstance(inlist, list):
