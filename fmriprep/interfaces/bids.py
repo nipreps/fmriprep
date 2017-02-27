@@ -11,24 +11,37 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 
 import os
 import os.path as op
-import pkg_resources as pkgr
 import re
 import simplejson as json
-from shutil import copy
+from shutil import copy, copytree, rmtree
 
 from nipype import logging
 from nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterface, BaseInterfaceInputSpec,
-    File, InputMultiPath, OutputMultiPath, Str
+    File, Directory, InputMultiPath, OutputMultiPath, Str
 )
 from builtins import str, bytes
 
-from fmriprep.utils.misc import collect_bids_data, make_folder
+from fmriprep.utils.misc import make_folder
 
 LOGGER = logging.getLogger('interface')
+BIDS_NAME = re.compile(
+    '^(.*\/)?(?P<subject_id>sub-[a-zA-Z0-9]+)(_(?P<ses_id>ses-[a-zA-Z0-9]+))?'
+    '(_(?P<task_id>task-[a-zA-Z0-9]+))?(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
+    '(_(?P<rec_id>rec-[a-zA-Z0-9]+))?(_(?P<run_id>run-[a-zA-Z0-9]+))?')
+
 
 class FileNotFoundError(IOError):
     pass
+
+
+class SimpleInterface(BaseInterface):
+    def __init__(self, **inputs):
+        super(SimpleInterface, self).__init__(**inputs)
+        self._results = {}
+
+    def _list_outputs(self):
+        return self._results
 
 
 class BIDSDataGrabberInputSpec(BaseInterfaceInputSpec):
@@ -44,13 +57,9 @@ class BIDSDataGrabberOutputSpec(TraitedSpec):
     t1w = OutputMultiPath(desc='output T1w images')
 
 
-class BIDSDataGrabber(BaseInterface):
+class BIDSDataGrabber(SimpleInterface):
     input_spec = BIDSDataGrabberInputSpec
     output_spec = BIDSDataGrabberOutputSpec
-
-    def __init__(self, **inputs):
-        self._results = {'out_dict': {}}
-        super(BIDSDataGrabber, self).__init__(**inputs)
 
     def _run_interface(self, runtime):
         bids_dict = self.inputs.subject_data
@@ -73,11 +82,7 @@ class BIDSDataGrabber(BaseInterface):
                 LOGGER.warn('No \'{}\' images found for sub-{}'.format(
                     imtype, self.inputs.subject_id))
 
-
         return runtime
-
-    def _list_outputs(self):
-        return self._results
 
 
 class DerivativesDataSinkInputSpec(BaseInterfaceInputSpec):
@@ -92,28 +97,23 @@ class DerivativesDataSinkInputSpec(BaseInterfaceInputSpec):
 class DerivativesDataSinkOutputSpec(TraitedSpec):
     out_file = OutputMultiPath(File(exists=True, desc='written file path'))
 
-class DerivativesDataSink(BaseInterface):
+class DerivativesDataSink(SimpleInterface):
     input_spec = DerivativesDataSinkInputSpec
     output_spec = DerivativesDataSinkOutputSpec
-    out_path_base = "derivatives"
+    out_path_base = "fmriprep"
     _always_run = True
 
     def __init__(self, out_path_base=None, **inputs):
-        self._results = {'out_file': []}
+        super(DerivativesDataSink, self).__init__(**inputs)
+        self._results['out_file'] = []
         if out_path_base:
             self.out_path_base = out_path_base
-        super(DerivativesDataSink, self).__init__(**inputs)
 
     def _run_interface(self, runtime):
         fname, _ = _splitext(self.inputs.source_file)
         _, ext = _splitext(self.inputs.in_file[0])
 
-        m = re.search(
-            '^(?P<subject_id>sub-[a-zA-Z0-9]+)(_(?P<ses_id>ses-[a-zA-Z0-9]+))?'
-            '(_(?P<task_id>task-[a-zA-Z0-9]+))?(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
-            '(_(?P<rec_id>rec-[a-zA-Z0-9]+))?(_(?P<run_id>run-[a-zA-Z0-9]+))?',
-            fname
-        )
+        m = BIDS_NAME.search(fname)
 
         # TODO this quick and dirty modality detection needs to be implemented
         # correctly
@@ -142,7 +142,6 @@ class DerivativesDataSink(BaseInterface):
         if len(self.inputs.in_file) > 1 and not isdefined(self.inputs.extra_values):
             formatstr = '{bname}_{suffix}{i:04d}{ext}'
 
-
         for i, fname in enumerate(self.inputs.in_file):
             out_file = formatstr.format(
                 bname=base_fname,
@@ -155,9 +154,6 @@ class DerivativesDataSink(BaseInterface):
             copy(self.inputs.in_file[i], out_file)
 
         return runtime
-
-    def _list_outputs(self):
-        return self._results
 
 
 class ReadSidecarJSONInputSpec(BaseInterfaceInputSpec):
@@ -173,7 +169,7 @@ class ReadSidecarJSONOutputSpec(TraitedSpec):
     run_id = traits.Str()
     out_dict = traits.Dict()
 
-class ReadSidecarJSON(BaseInterface):
+class ReadSidecarJSON(SimpleInterface):
     """
     An utility to find and read JSON sidecar files of a BIDS tree
     """
@@ -182,13 +178,6 @@ class ReadSidecarJSON(BaseInterface):
                       '(_rec-(?P<rec_id>[a-zA-Z0-9]+))?(_run-(?P<run_id>[a-zA-Z0-9]+))?')
     input_spec = ReadSidecarJSONInputSpec
     output_spec = ReadSidecarJSONOutputSpec
-
-    def __init__(self, **inputs):
-        self._results = {}
-        super(ReadSidecarJSON, self).__init__(**inputs)
-
-    def _list_outputs(self):
-        return self._results
 
     def _run_interface(self, runtime):
         metadata = get_metadata_for_nifti(self.inputs.in_file)
@@ -205,6 +194,50 @@ class ReadSidecarJSON(BaseInterface):
                 self._results[fname] = metadata[fname]
         else:
             self._results['out_dict'] = metadata
+
+        return runtime
+
+
+class BIDSFreeSurferDirInputSpec(BaseInterfaceInputSpec):
+    derivatives = Directory(exists=True, mandatory=True,
+                            desc='BIDS derivatives directory')
+    freesurfer_home = Directory(exists=True, mandatory=True,
+                                desc='FreeSurfer installation directory')
+    subjects_dir = traits.Str('freesurfer', usedefault=True,
+                              desc='Name of FreeSurfer subjects directory')
+    overwrite_fsaverage = traits.Bool(False, usedefault=True,
+                                      desc='Overwrite fsaverage, if present')
+
+
+class BIDSFreeSurferDirOutputSpec(TraitedSpec):
+    subjects_dir = traits.Directory(exists=True,
+                                    desc='FreeSurfer subjects directory')
+
+
+class BIDSFreeSurferDir(SimpleInterface):
+    """ Create a FreeSurfer subjects directory in a BIDS derivatives directory
+    and copy fsaverage from the local FreeSurfer distribution.
+
+    Output subjects_dir = ``{derivatives}/{subjects_dir}``, and may be passed to
+    ReconAll and other FreeSurfer interfaces.
+    """
+    input_spec = BIDSFreeSurferDirInputSpec
+    output_spec = BIDSFreeSurferDirOutputSpec
+
+    def _run_interface(self, runtime):
+        subjects_dir = os.path.join(self.inputs.derivatives,
+                                    self.inputs.subjects_dir)
+        make_folder(subjects_dir)
+        self._results['subjects_dir'] = subjects_dir
+
+        source = os.path.join(self.inputs.freesurfer_home, 'subjects',
+                              'fsaverage')
+        dest = os.path.join(subjects_dir, 'fsaverage')
+        # Finesse is overrated. Either leave it alone or completely clobber it.
+        if os.path.exists(dest) and self.inputs.overwrite_fsaverage:
+            rmtree(dest)
+        if not os.path.exists(dest):
+            copytree(source, dest)
 
         return runtime
 

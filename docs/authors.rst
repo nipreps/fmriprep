@@ -14,6 +14,7 @@ The :abbr:`CRN (Center for Reproducible Neuroscience)` developers team:
   * Ross Blair
   * Shoshana Berleant
   * Oscar Esteban
+  * Christopher J. Markiewicz
   * Russell A. Poldrack
 
 Poldrack Lab, Psychology Department, Stanford University.

@@ -26,17 +26,13 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     Saves the confounds in a file ('outputnode.confounds_file')'''
 
     inputnode = pe.Node(utility.IdentityInterface(fields=['fmri_file', 'movpar_file', 't1_tpms',
-                                                          'epi_mask', 't1_transform',
-                                                          'reference_image',
+                                                          'epi_mask',
                                                           'motion_confounds_file',
                                                           'source_file']),
                         name='inputnode')
     outputnode = pe.Node(utility.IdentityInterface(fields=['confounds_file']),
                          name='outputnode')
 
-    # registration using ANTs
-    t1_registration = pe.MapNode(fsl.preprocess.ApplyXFM(interp='sinc'),
-                                 name='T1Registration', iterfield='in_file')
     # DVARS
     dvars = pe.Node(confounds.ComputeDVARS(save_all=True, remove_zerovariance=True),
                     name="ComputeDVARS")
@@ -75,6 +71,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     def concat_rois_func(in_WM, in_mask, ref_header):
         import os
         import nibabel as nb
+        from nilearn.image import resample_to_img
 
         WM_nii = nb.load(in_WM)
         mask_nii = nb.load(in_mask)
@@ -82,8 +79,10 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         # we have to do this explicitly because of potential differences in
         # qform_code between the two files that prevent SignalExtraction to do
         # the concatenation
-        concat_nii = nb.funcs.concat_images([WM_nii, mask_nii],
-                                            check_affines=False)
+        concat_nii = nb.funcs.concat_images([resample_to_img(WM_nii,
+                                                             mask_nii,
+                                                             interpolation='nearest'),
+                                             mask_nii])
         concat_nii = nb.Nifti1Image(concat_nii.get_data(),
                                     nb.load(ref_header).affine,
                                     nb.load(ref_header).header)
@@ -139,14 +138,14 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
                                               "biggest_epi_file_size_gb"] * 3
 
     ds_report_a = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='acompcor', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='acompcor'),
         name='ds_report_a'
     )
 
     ds_report_t = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='tcompcor', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='tcompcor'),
         name='ds_report_t'
     )
 
@@ -176,15 +175,11 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         (inputnode, frame_displace, [('movpar_file', 'in_plots')]),
         (inputnode, tcompcor, [('fmri_file', 'realigned_file')]),
 
-        # anatomically-based confound computation requires coregistration
-        (inputnode, t1_registration, [('reference_image', 'reference'),
-                                      ('t1_tpms', 'in_file'),
-                                      ('t1_transform', 'in_matrix_file')]),
-        (t1_registration, CSF_roi, [(('out_file', pick_csf), 'in_file')]),
+        (inputnode, CSF_roi, [(('t1_tpms', pick_csf), 'in_file')]),
         (inputnode, CSF_roi, [('epi_mask',  'epi_mask')]),
         (CSF_roi, tcompcor, [('eroded_mask', 'mask_file')]),
 
-        (t1_registration, WM_roi, [(('out_file', pick_wm), 'in_file')]),
+        (inputnode, WM_roi, [(('t1_tpms', pick_wm), 'in_file')]),
         (inputnode, WM_roi, [('epi_mask', 'epi_mask')]),
 
         (CSF_roi, combine_rois, [('roi_file', 'in_CSF')]),

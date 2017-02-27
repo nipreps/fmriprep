@@ -16,5 +16,5 @@ Contents
 
    installation
    usage
-   ds005
+   workflows
    contributors

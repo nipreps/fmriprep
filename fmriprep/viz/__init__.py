@@ -5,6 +5,3 @@
 """
 The fmriprep reporting engine for visual assessment
 """
-
-from fmriprep.viz.pipeline_reports import (anatomical_overlay, parcel_overlay,
-                                           stripped_brain_overlay)

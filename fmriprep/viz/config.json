@@ -22,6 +22,12 @@
                 "file_pattern": "anat/.*t1_2_mni",
                 "title": "T1 to MNI",
                 "description": "Corrected anatomical T1 image registered into MNI space"
+            },
+            {
+                "name": "t1w_preprocessing/reconall",
+                "file_pattern": "anat/.*reconall",
+                "title": "Surface Reconstruction",
+                "description": "White and pial surfaces overlaid on T1 image"
             }
 
         ]
@@ -57,7 +63,7 @@
             {
                 "name": "epi/tcompcor",
                 "file_pattern": "func/.*_tcompcor",
-                "title": "tCompCor hich variance map",
+                "title": "tCompCor high variance map",
                 "description": "Top 5% most variable voxels within heavily eroded brain mask."
             },
             {

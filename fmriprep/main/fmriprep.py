@@ -14,10 +14,11 @@ import os
 import os.path as op
 import glob
 import sys
+import uuid
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
-
+from time import strftime
 
 def main():
     """Entry point"""
@@ -49,7 +50,7 @@ def main():
     g_input.add_argument('--nthreads', action='store', default=0,
                          type=int, help='number of threads')
     g_input.add_argument('--mem_mb', action='store', default=0,
-                         type=int, help='try to limit requested memory to this number')
+                         type=int, help='try to limit the total amount of requested memory for all workflows to this number')
     g_input.add_argument('--write-graph', action='store_true', default=False,
                          help='Write workflow graph.')
     g_input.add_argument('--use-plugin', action='store', default=None,
@@ -78,6 +79,11 @@ def main():
                         help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
     g_ants.set_defaults(skull_strip_ants=True)
 
+    # FreeSurfer options
+    g_fs = parser.add_argument_group('settings for FreeSurfer preprocessing')
+    g_fs.add_argument('--no-freesurfer', action='store_false', dest='freesurfer',
+                      help='disable FreeSurfer preprocessing')
+
     opts = parser.parse_args()
     create_workflow(opts)
 
@@ -85,6 +91,7 @@ def main():
 def create_workflow(opts):
     import logging
     from nipype import config as ncfg
+    from nipype import logging as nlog
     from fmriprep.utils import make_folder
     from fmriprep.viz.reports import run_reports
     from fmriprep.workflows.base import base_workflow_enumerator
@@ -102,7 +109,9 @@ def create_workflow(opts):
         'output_dir': op.abspath(opts.output_dir),
         'work_dir': op.abspath(opts.work_dir),
         'ignore': opts.ignore,
-        'skip_native': opts.skip_native
+        'skip_native': opts.skip_native,
+        'freesurfer': opts.freesurfer,
+        'reportlets_dir': op.join(op.abspath(opts.work_dir), 'reportlets'),
     }
 
     # set up logger
@@ -112,14 +121,14 @@ def create_workflow(opts):
         settings['ants_t1-mni_settings'] = 't1-mni_registration_test'
         logger.setLevel(logging.DEBUG)
 
-    log_dir = op.join(settings['output_dir'], 'log')
-    derivatives = op.join(settings['output_dir'], 'derivatives')
+    run_uuid = strftime('%Y%m%d-%H%M%S_') + str(uuid.uuid4())
+
+    log_dir = op.join(settings['output_dir'], 'fmriprep', 'log', run_uuid)
 
     # Check and create output and working directories
     # Using make_folder to prevent https://github.com/poldracklab/mriqc/issues/111
     make_folder(settings['output_dir'])
     make_folder(settings['work_dir'])
-    make_folder(derivatives)
     make_folder(log_dir)
 
     logger.addHandler(logging.FileHandler(op.join(log_dir, 'run_workflow')))
@@ -133,6 +142,7 @@ def create_workflow(opts):
         'logging': {'log_directory': log_dir, 'log_to_file': True},
         'execution': {'crashdump_dir': log_dir}
     })
+    nlog.update_logging(ncfg)
 
     # nipype plugin configuration
     plugin_settings = {'plugin': 'Linear'}
@@ -165,18 +175,28 @@ def create_workflow(opts):
 
     # Build main workflow and run
     preproc_wf = base_workflow_enumerator(subject_list, task_id=opts.task_id,
-                                          settings=settings)
+                                          settings=settings, run_uuid=run_uuid)
     preproc_wf.base_dir = settings['work_dir']
+
     try:
         preproc_wf.run(**plugin_settings)
-    except RuntimeError:
-        errno = 1
+    except RuntimeError as e:
+        if "Workflow did not execute cleanly" in str(e):
+            errno = 1
+        else:
+            raise(e)
 
     if opts.write_graph:
         preproc_wf.write_graph(graph2use="colored", format='svg',
                                simple_form=True)
 
-    run_reports(settings['output_dir'])
+    report_errors = 0
+    for subject_label in subject_list:
+        report_errors += run_reports(settings['reportlets_dir'],
+                                     settings['output_dir'],
+                                     subject_label, run_uuid=run_uuid)
+    if errno == 1:
+        assert(report_errors > 0)
 
     sys.exit(errno)
 

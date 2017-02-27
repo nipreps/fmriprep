@@ -30,7 +30,7 @@ body {
         {% for sub_report in sub_reports %}
             {% if sub_report.run_reports %}
                 <li class="dropdown">
-                    <a class="nav-item  nav-link dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                    <a class="nav-item  nav-link dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" href="">
                         {{ sub_report.name }}
                         <span class="caret"></span>
                     </a>
@@ -96,7 +96,7 @@ body {
     {% for error in errors %}
         <li>
         <div class="nipype_error">
-            Node Name: <a href="#" onclick="toggle('{{error.file|replace('.', '')}}_details_id');">{{ error.node }}</a><br>
+            Node Name: <a target="_self" onclick="toggle('{{error.file|replace('.', '')}}_details_id');">{{ error.node }}</a><br>
             <div id="{{error.file|replace('.', '')}}_details_id" style="display:none">
             File: {{ error.file }}<br>
             Working Directory: {{ error.node_dir }}<br>
@@ -106,12 +106,9 @@ body {
                 <li>{{ name }}: {{ spec }}</li>
             {% endfor %}
             </ul>
-            Traceback: <br>
-            <ul>
-            {% for elem in error.traceback %}
-                <li>{{ elem }}</li>
-            {% endfor %}
-            </ul>
+            <pre>
+            {{ error.traceback }}
+            </pre>
             </div>
         </div>
         </li>

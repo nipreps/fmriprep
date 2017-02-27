@@ -36,7 +36,7 @@ def epi_hmc(name='EPI_HMC', settings=None):
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=['epi']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['xforms', 'epi_hmc', 'epi_mask', 'epi_mean', 'movpar_file',
+        fields=['xforms', 'epi_hmc', 'epi_split', 'epi_mask', 'epi_mean', 'movpar_file',
                 'motion_confounds_file']), name='outputnode')
 
     # Head motion correction (hmc)
@@ -57,14 +57,16 @@ def epi_hmc(name='EPI_HMC', settings=None):
     skullstrip_epi = pe.Node(ComputeEPIMask(generate_report=True, dilation=1),
                              name='skullstrip_epi')
 
+    split = pe.Node(fsl.Split(dimension='t'), name='SplitEPI')
+    split.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
+
     workflow.connect([
         (inputnode, hmc, [('epi', 'in_file')]),
         (hmc, hcm2itk, [('mat_file', 'transform_file'),
                         ('mean_img', 'source_file'),
                         ('mean_img', 'reference_file')]),
         (hcm2itk, outputnode, [('itk_transform', 'xforms')]),
-        (hmc, outputnode, [('out_file', 'epi_hmc'),
-                           ('par_file', 'movpar_file'),
+        (hmc, outputnode, [('par_file', 'movpar_file'),
                            ('mean_img', 'epi_mean')]),
         (hmc, avscale, [('mat_file', 'mat_file')]),
         (avscale, avs_format, [('translations', 'translations'),
@@ -74,38 +76,9 @@ def epi_hmc(name='EPI_HMC', settings=None):
         (hmc, avscale, [('mean_img', 'ref_file')]),
         (avs_format, outputnode, [('out_file', 'motion_confounds_file')]),
         (skullstrip_epi, outputnode, [('mask_file', 'epi_mask')]),
+        (inputnode, split, [('epi', 'in_file')]),
+        (split, outputnode, [('out_files', 'epi_split')]),
     ])
-
-    ds_mask = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='brainmask'),
-        name='DerivativesEPImask'
-    )
-
-    ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='bet_hmc', out_path_base='reports'),
-        name='DS_Report'
-    )
-
-    workflow.connect([
-        (inputnode, ds_report, [('epi', 'source_file')]),
-        (inputnode, ds_mask, [('epi', 'source_file')]),
-        (skullstrip_epi, ds_mask, [('mask_file', 'in_file')]),
-        (skullstrip_epi, ds_report, [('out_report', 'in_file')])
-    ])
-
-    if not settings["skip_native"]:
-        # Write corrected file in the designated output dir
-        ds_hmc = pe.Node(
-            DerivativesDataSink(base_directory=settings['output_dir'],
-                                suffix='preproc'),
-            name='DerivativesHMC'
-        )
-        workflow.connect([
-            (inputnode, ds_hmc, [('epi', 'source_file')]),
-            (hmc, ds_hmc, [('out_file', 'in_file')])
-        ])
 
     return workflow
 
@@ -120,12 +93,13 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['name_source', 'ref_epi', 'ref_epi_mask',
                                       'bias_corrected_t1', 't1_brain', 't1_mask',
-                                      't1_seg', 't1w']),
+                                      't1_seg', 't1w', 'epi_split', 'hmc_xforms']),
         name='inputnode'
     )
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['mat_epi_to_t1', 'mat_t1_to_epi',
-                                      'itk_epi_to_t1', 'itk_t1_to_epi']),
+                                      'itk_epi_to_t1', 'itk_t1_to_epi',
+                                      'epi_t1', 'epi_mask_t1']),
         name='outputnode'
     )
 
@@ -159,21 +133,9 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
     fsl2itk_inv = pe.Node(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
                           name='fsl2itk_inv')
 
-    # Write registrated file in the designated output dir
-    ds_tfm_fwd = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='target-T1w_affine'),
-        name='DerivEPI_to_T1w_fwd'
-    )
-    ds_tfm_inv = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix=inv_ds_suffix),
-        name='DerivEPI_to_T1w_inv'
-    )
-
     ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix=reportlet_suffix, out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix=reportlet_suffix),
         name='ds_report'
     )
 
@@ -199,13 +161,72 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_epi_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_epi')]),
-        (inputnode, ds_tfm_fwd, [(('name_source', _first), 'source_file')]),
-        (inputnode, ds_tfm_inv, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (fsl2itk_fwd, ds_tfm_fwd, [('itk_transform', 'in_file')]),
-        (fsl2itk_inv, ds_tfm_inv, [('itk_transform', 'in_file')]),
         (flt_bbr, ds_report, [('out_report', 'in_file')]),
         (inputnode, ds_report, [(('name_source', _first), 'source_file')])
     ])
+
+    gen_ref = pe.Node(niu.Function(
+        input_names=['fixed_image', 'moving_image'], output_names=['out_file'],
+        function=_gen_reference), name='GenNewT1wReference')
+    gen_ref.inputs.fixed_image = op.join(get_mni_icbm152_nlin_asym_09c(),
+                                         '1mm_T1.nii.gz')
+
+    merge_transforms = pe.MapNode(niu.Merge(2),
+                                  iterfield=['in2'], name='MergeTransforms')
+    epi_to_t1w_transform = pe.MapNode(
+        ants.ApplyTransforms(interpolation="LanczosWindowedSinc",
+                             float=True),
+        iterfield=['input_image', 'transforms'],
+        name='EPIToT1wTransform')
+    epi_to_t1w_transform.terminal_output = 'file'
+    merge = pe.Node(niu.Function(input_names=["in_files"],
+                                 output_names=["merged_file"],
+                                 function=nii_concat), name='MergeEPI')
+    merge.interface.estimated_memory_gb = settings[
+                                              "biggest_epi_file_size_gb"] * 3
+
+    mask_t1w_tfm = pe.Node(
+        ants.ApplyTransforms(interpolation='NearestNeighbor',
+                             float=True),
+        name='MaskToT1w'
+    )
+
+    workflow.connect([
+        (inputnode, gen_ref, [('ref_epi_mask', 'moving_image'),
+                              ('t1_brain', 'fixed_image')]),
+        (fsl2itk_fwd, merge_transforms, [('itk_transform', 'in1')]),
+        (inputnode, merge_transforms, [('hmc_xforms', 'in2')]),
+        (inputnode, epi_to_t1w_transform, [('epi_split', 'input_image')]),
+        (merge_transforms, epi_to_t1w_transform, [('out', 'transforms')]),
+        (gen_ref, epi_to_t1w_transform, [('out_file', 'reference_image')]),
+        (epi_to_t1w_transform, merge, [('output_image', 'in_files')]),
+        (fsl2itk_fwd, mask_t1w_tfm, [('itk_transform', 'transforms')]),
+        (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
+        (inputnode, mask_t1w_tfm, [('ref_epi_mask', 'input_image')]),
+        (merge, outputnode, [('merged_file', 'epi_t1')]),
+        (mask_t1w_tfm, outputnode, [('output_image', 'epi_mask_t1')]),
+    ])
+
+    if not settings["skip_native"]:
+        # Write corrected file in the designated output dir
+        ds_t1w = pe.Node(
+            DerivativesDataSink(base_directory=settings['output_dir'],
+                                suffix='space-T1w_preproc'),
+            name='DerivativesHMCT1w'
+        )
+        ds_t1w_mask = pe.Node(
+            DerivativesDataSink(base_directory=settings['output_dir'],
+                                suffix='space-T1w_brainmask'),
+            name='DerivativesHMCT1wmask'
+        )
+
+        workflow.connect([
+            (inputnode, ds_t1w, [(('name_source', _first), 'source_file')]),
+            (inputnode, ds_t1w_mask,
+             [(('name_source', _first), 'source_file')]),
+            (merge, ds_t1w, [('merged_file', 'in_file')]),
+            (mask_t1w_tfm, ds_t1w_mask, [('output_image', 'in_file')]),
+        ])
 
     return workflow
 
@@ -240,8 +261,8 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
                             suffix='preproc'), name='DerivHMC_SBRef')
 
     ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='epi_sbref', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='epi_sbref'),
         name="DS_Report")
 
     workflow.connect([
@@ -276,7 +297,8 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
         niu.IdentityInterface(fields=[
             'itk_epi_to_t1',
             't1_2_mni_forward_transform',
-            'epi',
+            'name_source',
+            'epi_split',
             'epi_mask',
             't1',
             'hmc_xforms'
@@ -295,13 +317,12 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
     gen_ref.inputs.fixed_image = op.join(get_mni_icbm152_nlin_asym_09c(),
                                          '1mm_T1.nii.gz')
 
-    split = pe.Node(fsl.Split(dimension='t'), name='SplitEPI')
-    split.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
-
     merge_transforms = pe.MapNode(niu.Merge(3),
                                   iterfield=['in3'], name='MergeTransforms')
     epi_to_mni_transform = pe.MapNode(
-        ants.ApplyTransforms(), iterfield=['input_image', 'transforms'],
+        ants.ApplyTransforms(interpolation="LanczosWindowedSinc",
+                             float=True),
+        iterfield=['input_image', 'transforms'],
         name='EPIToMNITransform')
     epi_to_mni_transform.terminal_output = 'file'
     merge = pe.Node(niu.Function(input_names=["in_files"],
@@ -312,7 +333,8 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
 
     mask_merge_tfms = pe.Node(niu.Merge(2), name='MaskMergeTfms')
     mask_mni_tfm = pe.Node(
-        ants.ApplyTransforms(interpolation='NearestNeighbor'),
+        ants.ApplyTransforms(interpolation='NearestNeighbor',
+                             float=True),
         name='MaskToMNI'
     )
 
@@ -329,16 +351,15 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
     )
 
     workflow.connect([
-        (inputnode, ds_mni, [('epi', 'source_file')]),
-        (inputnode, ds_mni_mask, [('epi', 'source_file')]),
+        (inputnode, ds_mni, [('name_source', 'source_file')]),
+        (inputnode, ds_mni_mask, [('name_source', 'source_file')]),
         (inputnode, gen_ref, [('epi_mask', 'moving_image')]),
         (inputnode, merge_transforms, [('t1_2_mni_forward_transform', 'in1'),
                                        (('itk_epi_to_t1', _aslist), 'in2'),
                                        ('hmc_xforms', 'in3')]),
         (inputnode, mask_merge_tfms, [('t1_2_mni_forward_transform', 'in1'),
                                       (('itk_epi_to_t1', _aslist), 'in2')]),
-        (inputnode, split, [('epi', 'in_file')]),
-        (split, epi_to_mni_transform, [('out_files', 'input_image')]),
+        (inputnode, epi_to_mni_transform, [('epi_split', 'input_image')]),
         (merge_transforms, epi_to_mni_transform, [('out', 'transforms')]),
         (gen_ref, epi_to_mni_transform, [('out_file', 'reference_image')]),
         (epi_to_mni_transform, merge, [('output_image', 'in_files')]),
@@ -380,8 +401,8 @@ def epi_unwarp(name='EPIUnwarpWorkflow', settings=None):
     )
 
     ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='epi_unwarp_bet', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='epi_unwarp_bet'),
         name="DS_Report")
 
     workflow.connect([

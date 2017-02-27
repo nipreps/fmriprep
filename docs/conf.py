@@ -324,9 +324,12 @@ def fake_set_up():
 fake_set_up()
 
 ds005_wf = wf_ds005_type({'func': 'fake data'}, {'ants_nthreads': 1,
+                                                 'nthreads': 1,
                                                  'output_dir': 'x',
+                                                 'reportlets_dir': 'x',
                                                  'biggest_epi_file_size_gb': 1,
-                                                 'skip_native': True})
+                                                 'skip_native': True,
+                                                 'freesurfer': True})
 
 sub_wfs = {name.split('.')[0] for name in ds005_wf.list_node_names()} # get only first-level nodes/workflows
 ds005_workflows = {name: ds005_wf.get_node(name) for name in sub_wfs}
@@ -341,5 +344,5 @@ with open('args.txt', 'w') as fp:
     args = subprocess.Popen([os.path.abspath(os.path.join('../fmriprep',
                                                           'run_workflow.py')),
                              '-h'],
-                            stdout=subprocess.PIPE).communicate()[0]
+                            stdout=subprocess.PIPE).communicate()[0].decode()
     fp.write(args)

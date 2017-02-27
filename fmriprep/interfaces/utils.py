@@ -74,8 +74,9 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     import os
     import nibabel as nb
     import scipy.ndimage as nd
+    from nilearn.image import resample_to_img
 
-    probability_map_nii = nb.load(in_file)
+    probability_map_nii = resample_to_img(in_file, epi_mask)
     probability_map_data = probability_map_nii.get_data()
 
     # thresholding

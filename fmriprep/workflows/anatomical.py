@@ -11,6 +11,7 @@ Originally coded by Craig Moodie. Refactored by the CRN Developers.
 import os.path as op
 
 from nipype.interfaces import ants
+from nipype.interfaces import freesurfer
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
@@ -18,7 +19,7 @@ from niworkflows.interfaces.registration import RobustMNINormalizationRPT
 from niworkflows.anat.skullstrip import afni_wf as skullstrip_wf
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 from niworkflows.interfaces.masks import BrainExtractionRPT
-from niworkflows.interfaces.segmentation import FASTRPT
+from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
 
 from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge)
 from fmriprep.utils.misc import fix_multi_T1w_source_name
@@ -32,7 +33,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     workflow = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w']), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w', 'subjects_dir']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['t1_seg', 't1_tpms', 'bias_corrected_t1', 't1_brain', 't1_mask',
                 't1_2_mni', 't1_2_mni_forward_transform',
@@ -66,11 +67,113 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         ),
         name='T1_2_MNI_Registration'
     )
-    t1_2_mni.interface.estimated_memory_gb = 8
 
-    # should not be necesssary byt does not hurt - make sure the multiproc
+    # should not be necesssary but does not hurt - make sure the multiproc
     # scheduler knows the resource limits
     t1_2_mni.interface.num_threads = settings['ants_nthreads']
+    t1_2_mni.interface.estimated_memory_gb = 8
+
+    # 6. FreeSurfer reconstruction
+    if settings['freesurfer']:
+        nthreads = settings['nthreads']
+
+        def detect_inputs(t1w_list, default_flags=''):
+            from nipype.utils.filemanip import filename_to_list
+            import nibabel as nib
+            t1w_list = filename_to_list(t1w_list)
+            t1w_ref = nib.load(t1w_list[0])
+            hires = max(t1w_ref.header.get_zooms()) < 1
+            t1w_outs = [t1w_list.pop(0)]
+            for t1w in t1w_list:
+                img = nib.load(t1w)
+                if all((img.shape == t1w_ref.shape,
+                        img.header.get_zooms() == t1w_ref.header.get_zooms())):
+                    t1w_outs.append(t1w_outs)
+
+            autorecon1_flags = [default_flags]
+            reconall_flags = [default_flags]
+            if hires:
+                autorecon1_flags.append('-hires')
+                reconall_flags.append('-hires')
+            return (t1w_outs, ' '.join(autorecon1_flags),
+                    ' '.join(reconall_flags))
+
+        recon_config = pe.Node(
+            niu.Function(
+                function=detect_inputs,
+                input_names=['t1w_list', 'default_flags'],
+                output_names=['t1w', 'autorecon1_flags', 'reconall_flags']),
+            name='ReconConfig',
+            run_without_submitting=True)
+        recon_config.inputs.default_flags = '-noskullstrip'
+
+        def bidsinfo(in_file):
+            from fmriprep.interfaces.bids import BIDS_NAME
+            match = BIDS_NAME.search(in_file)
+            params = match.groupdict() if match is not None else {}
+            return tuple(map(params.get, ['subject_id', 'ses_id', 'task_id',
+                                          'acq_id', 'rec_id', 'run_id']))
+
+        bids_info = pe.Node(
+            niu.Function(function=bidsinfo, input_names=['in_file'],
+                         output_names=['subject_id', 'ses_id', 'task_id',
+                                       'acq_id', 'rec_id', 'run_id']),
+            name='BIDSInfo',
+            run_without_submitting=True)
+
+        autorecon1 = pe.Node(
+            freesurfer.ReconAll(
+                directive='autorecon1',
+                openmp=nthreads,
+                parallel=True),
+            name='Reconstruction')
+        autorecon1.interface._can_resume = False
+        autorecon1.interface.num_threads = nthreads
+
+        def inject_skullstripped(subjects_dir, subject_id, skullstripped):
+            import os
+            import nibabel as nib
+            from nilearn.image import resample_to_img, new_img_like
+            from nipype.utils.filemanip import copyfile
+            mridir = os.path.join(subjects_dir, subject_id, 'mri')
+            t1 = os.path.join(mridir, 'T1.mgz')
+            bm_auto = os.path.join(mridir, 'brainmask.auto.mgz')
+            bm = os.path.join(mridir, 'brainmask.mgz')
+
+            if not os.path.exists(bm_auto):
+                img = nib.load(t1)
+                mask = nib.load(skullstripped)
+                bmask = new_img_like(mask, mask.get_data() > 0)
+                resampled_mask = resample_to_img(bmask, img, 'nearest')
+                masked_image = new_img_like(img, img.get_data() * resampled_mask.get_data())
+                masked_image.to_filename(bm_auto)
+
+            if not os.path.exists(bm):
+                copyfile(bm_auto, bm, copy=True, use_hardlink=True)
+
+            return subjects_dir, subject_id
+
+        injector = pe.Node(
+            niu.Function(
+                function=inject_skullstripped,
+                input_names=['subjects_dir', 'subject_id', 'skullstripped'],
+                output_names=['subjects_dir', 'subject_id']),
+            name='InjectSkullstrip')
+
+        reconall = pe.Node(
+            ReconAllRPT(
+                openmp=nthreads,
+                parallel=True,
+                out_report='reconall.svg',
+                generate_report=True),
+            name='Reconstruction2')
+        reconall.interface.num_threads = nthreads
+
+        recon_report = pe.Node(
+            DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                                suffix='reconall'),
+            name='ReconAll_Report'
+        )
 
     # Resample the brain mask and the tissue probability maps into mni space
     bmask_mni = pe.Node(
@@ -90,14 +193,14 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                                               '1mm_T1.nii.gz')
 
     ds_t1_seg_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='t1_seg', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='t1_seg'),
         name='DS_T1_Seg_Report'
     )
 
     ds_t1_2_mni_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='t1_2_mni', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='t1_2_mni'),
         name='DS_T1_2_MNI_Report'
     )
 
@@ -132,8 +235,8 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     if settings.get('skull_strip_ants', False):
         ds_t1_skull_strip_report = pe.Node(
-            DerivativesDataSink(base_directory=settings['output_dir'],
-                                suffix='t1_skull_strip', out_path_base='reports'),
+            DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                                suffix='t1_skull_strip'),
             name='DS_Report'
         )
         workflow.connect([
@@ -141,6 +244,25 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                 (('t1w', fix_multi_T1w_source_name), 'source_file')]),
             (asw, ds_t1_skull_strip_report, [('outputnode.out_report', 'in_file')])
         ])
+
+    if settings['freesurfer']:
+        workflow.connect([
+            (inputnode, recon_config, [('t1w', 't1w_list')]),
+            (inputnode, bids_info, [('t1w', 'in_file')]),
+            (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
+            (recon_config, autorecon1, [('t1w', 'T1_files'),
+                                        ('autorecon1_flags', 'flags')]),
+            (bids_info, autorecon1, [('subject_id', 'subject_id')]),
+            (autorecon1, injector, [('subjects_dir', 'subjects_dir'),
+                                    ('subject_id', 'subject_id')]),
+            (asw, injector, [('outputnode.out_file', 'skullstripped')]),
+            (injector, reconall, [('subjects_dir', 'subjects_dir'),
+                                  ('subject_id', 'subject_id')]),
+            (recon_config, reconall, [('reconall_flags', 'flags')]),
+            (inputnode, recon_report, [
+                (('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (reconall, recon_report, [('out_report', 'in_file')]),
+            ])
 
     # Write corrected file in the designated output dir
     ds_t1_bias = pe.Node(
