@@ -17,6 +17,7 @@ from nipype import logging
 from nipype.interfaces.base import (BaseInterface, BaseInterfaceInputSpec, TraitedSpec,
                                     File, isdefined, traits, InputMultiPath, Str)
 from nipype.interfaces import fsl
+from niworkflows.interfaces.registration import FUGUERPT
 from fmriprep.utils.misc import genfname
 from fmriprep.utils.bspline import bspl_smoothing
 
@@ -84,6 +85,48 @@ class WarpReference(BaseInterface):
         self._results['out_warped'] = fugue.outputs.warped_file
         self._results['out_mask'] = out_mask
 
+        return runtime
+
+class ApplyFieldmapInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='unwarping target file')
+    in_vsm = File(exists=True, mandatory=True, desc='input voxel shift map')
+    in_movpar = File(exists=True, desc='input motion parameters')
+    pe_dir = traits.Enum('y', 'x', 'y-', 'x-', mandatory=True,
+                         desc='phase encoding direction')
+    generate_report = traits.Bool(False, usedefault=True, desc='generate report')
+
+class ApplyFieldmapOutputSpec(TraitedSpec):
+    out_corrected = File(desc='the "fmap_ref" image after warping')
+
+class ApplyFieldmap(BaseInterface):
+    """
+    The ApplyFieldmap interface simplifies the FUGUE interface
+    for unwarping, including the (optional) application of head
+    motion parameters to the input vsm (voxel shift map)
+    """
+    input_spec = ApplyFieldmapInputSpec
+    output_spec = ApplyFieldmapOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(ApplyFieldmap, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        ped = self.inputs.pe_dir
+
+        if isdefined(self.inputs.in_movpar):
+            raise NotImplementedError('Motion parameters are not implemented')
+
+        fugue = FUGUERPT(
+            in_file=self.inputs.in_file, shift_in_file=self.inputs.in_vsm,
+            icorr=True, unwarp_direction=ped,
+            generate_report=self.input.generate_report,
+            unwarped_file=genfname(self.inputs.in_file, 'unwarped')).run()
+
+        self._results['out_warped'] = fugue.outputs.unwarped_file
         return runtime
 
 

@@ -7,3 +7,4 @@ from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink, \
 from fmriprep.interfaces.images import ImageDataSink, CopyHeader, \
     RASReorient, IntraModalMerge
 from fmriprep.interfaces.utils import FormatHMCParam
+from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
