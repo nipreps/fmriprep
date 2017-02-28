@@ -369,7 +369,7 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
     if nfiles > 2:
         out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
         out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
-                                       nthreads=nthreads)
+                                       nthreads=nthreads, only_rigid=True)
 
     return out_file
 

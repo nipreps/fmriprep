@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-13 14:54:01
+# @Last Modified time: 2017-02-27 18:05:21
 """
 fMRI preprocessing workflow
 =====
@@ -138,7 +138,7 @@ def create_workflow(opts):
         preproc_wf.write_graph(graph2use="colored", format='svg',
                                simple_form=True)
 
-    run_reports(settings['output_dir'])
+    # run_reports(settings['output_dir'])
 
     sys.exit(errno)
 
@@ -149,26 +149,59 @@ def fmap_enumerator(subject_list, settings):
     from time import strftime
     from nipype.pipeline import engine as pe
     from fmriprep.utils.misc import collect_bids_data
-    from fmriprep.workflows.fieldmap import fmap_estimator
 
     workflow = pe.Workflow(name='workflow_enumerator')
     for subject_id in subject_list:
         subject_data = collect_bids_data(settings['bids_root'], subject_id)
-        if not subject_data['fmap']:
-            LOGGER.warn('No fieldmaps found for subject %d', subject_id)
-            continue
-
-        fmap_wf = fmap_estimator(subject_data, settings=settings)
-        if fmap_wf:
-            cur_time = strftime('%Y%m%d-%H%M%S')
-            fmap_wf.config['execution']['crashdump_dir'] = (
-                os.path.join(settings['output_dir'], 'log', subject_id, cur_time)
-            )
-            for node in fmap_wf._get_all_nodes():
-                node.config = deepcopy(fmap_wf.config)
-            workflow.add_nodes([fmap_wf])
+        fmap_wf = sbref_correct(subject_data, settings=settings)
+        cur_time = strftime('%Y%m%d-%H%M%S')
+        fmap_wf.config['execution']['crashdump_dir'] = (
+            os.path.join(settings['output_dir'], 'log', subject_id, cur_time)
+        )
+        for node in fmap_wf._get_all_nodes():
+            node.config = deepcopy(fmap_wf.config)
+        workflow.add_nodes([fmap_wf])
 
     return workflow
+
+def sbref_correct(subject_data, settings):
+    from nipype.pipeline import engine as pe
+    from nipype.interfaces import fsl
+    from fmriprep.interfaces.bids import BIDSDataGrabber, ReadSidecarJSON
+    from fmriprep.workflows.fieldmap import fmap_estimator, sdc_unwarp
+    from fmriprep.interfaces import IntraModalMerge
+
+
+    def _first(inlist):
+        if isinstance(inlist, (list, tuple)):
+            return inlist[0]
+        return inlist
+
+    bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data), name='BIDSDatasource')
+    meta = pe.Node(ReadSidecarJSON(), name='metadata')
+
+    conform = pe.Node(IntraModalMerge(), name='MergeSBRefs')
+    bet = pe.Node(fsl.BET(frac=0.4, mask=True), name='Mask')
+
+    wf = pe.Workflow(name='sbref_correct')
+    estimator = fmap_estimator(subject_data, settings=settings)
+    sdc = sdc_unwarp(settings=settings)
+
+    wf.connect([
+        (bidssrc, meta, [(('sbref', _first), 'in_file')]),
+        (bidssrc, conform, [('sbref', 'in_files')]),
+        (estimator, sdc, [(('outputnode.fmap', _first), 'inputnode.fmap'),
+                          (('outputnode.fmap_ref', _first), 'inputnode.fmap_ref'),
+                          (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')]),
+        (meta, sdc, [('out_dict', 'inputnode.in_meta')]),
+        (bidssrc, sdc, [('sbref', 'inputnode.in_files')]),
+        (conform, sdc, [('out_file', 'inputnode.in_reference')]),
+        (conform, bet, [('out_file', 'in_file')]),
+        (bet, sdc, [('mask_file', 'inputnode.in_mask')])
+    ])
+
+    return wf
+
 
 if __name__ == '__main__':
     main()

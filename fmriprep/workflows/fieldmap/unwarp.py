@@ -33,6 +33,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                                for this image to have undergone a bias correction
                                processing.
       inputnode.in_mask - a brain mask corresponding to the in_reference image
+      inputnode.in_meta - metadata associated to in_files
       inputnode.in_hmcpar - the head motion parameters as written by antsMotionCorr
       inputnode.fmap - a fieldmap in Hz
       inputnode.fmap_ref - the fieldmap reference (generally, a *magnitude* image or the
@@ -107,7 +108,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (fmap_hdr, torads, [('out_file', 'in_file')]),
         (inputnode, ref_hdr, [('fmap_ref', 'in_file')]),
         (inputnode, target_msk, [('in_mask', 'in_mask')]),
-        (inputnode, applyxfm, [('in_file', 'reference_image')]),
+        (inputnode, applyxfm, [('in_reference', 'reference_image')]),
         (inputnode, ref_wrp, [('fmap_mask', 'in_mask'),
                               (('in_meta', _get_ec), 'echospacing'),
                               (('in_meta', _get_pedir), 'pe_dir')]),
@@ -118,7 +119,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (target_hdr, target_msk, [('out_file', 'in_file')]),
         (target_msk, fmap2ref, [('out_file', 'moving_image')]),
         (ref_wrp, maskxfm, [('out_mask', 'input_image')]),
-        (inputnode, maskxfm, [('in_file', 'reference_image')]),
+        (inputnode, maskxfm, [('in_reference', 'reference_image')]),
         (fmap2ref, maskxfm, [
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
