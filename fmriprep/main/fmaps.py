@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-27 18:05:21
+# @Last Modified time: 2017-02-28 17:26:48
 """
 fMRI preprocessing workflow
 =====
@@ -169,7 +169,7 @@ def sbref_correct(subject_data, settings):
     from nipype.interfaces import fsl
     from fmriprep.interfaces.bids import BIDSDataGrabber, ReadSidecarJSON
     from fmriprep.workflows.fieldmap import fmap_estimator, sdc_unwarp
-    from fmriprep.interfaces import IntraModalMerge
+    from fmriprep.interfaces.hmc import MotionCorrection
 
 
     def _first(inlist):
@@ -180,7 +180,7 @@ def sbref_correct(subject_data, settings):
     bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data), name='BIDSDatasource')
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
 
-    conform = pe.Node(IntraModalMerge(), name='MergeSBRefs')
+    conform = pe.Node(MotionCorrection(), name='MergeSBRefs')
     bet = pe.Node(fsl.BET(frac=0.4, mask=True), name='Mask')
 
     wf = pe.Workflow(name='sbref_correct')
@@ -195,8 +195,8 @@ def sbref_correct(subject_data, settings):
                           (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')]),
         (meta, sdc, [('out_dict', 'inputnode.in_meta')]),
         (bidssrc, sdc, [('sbref', 'inputnode.in_files')]),
-        (conform, sdc, [('out_file', 'inputnode.in_reference')]),
-        (conform, bet, [('out_file', 'in_file')]),
+        (conform, sdc, [('out_avg', 'inputnode.in_reference')]),
+        (conform, bet, [('out_avg', 'in_file')]),
         (bet, sdc, [('mask_file', 'inputnode.in_mask')])
     ])
 

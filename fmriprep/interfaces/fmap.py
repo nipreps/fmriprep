@@ -120,13 +120,30 @@ class ApplyFieldmap(BaseInterface):
         if isdefined(self.inputs.in_movpar):
             raise NotImplementedError('Motion parameters are not implemented')
 
-        fugue = FUGUERPT(
-            in_file=self.inputs.in_file, shift_in_file=self.inputs.in_vsm,
-            icorr=True, unwarp_direction=ped,
-            generate_report=self.input.generate_report,
-            unwarped_file=genfname(self.inputs.in_file, 'unwarped')).run()
+        in_file = self.inputs.in_file
 
-        self._results['out_warped'] = fugue.outputs.unwarped_file
+        im = nb.as_closest_canonical(nb.load(in_file))
+        oldaff = im.affine
+        newaff = np.eye(4)
+        newaff[:3, :3] = np.eye(3) * im.header.get_zooms()[:3]
+        newaff[:3, 3] -= 0.5 * newaff[:3, :3].dot(im.shape[:3])
+
+        in_file = genfname(in_file, suffix='nosform')
+        nb.Nifti1Image(im.get_data(), newaff, None).to_filename(
+            in_file)
+
+        fugue = FUGUERPT(
+            in_file=in_file, shift_in_file=self.inputs.in_vsm,
+            icorr=True, unwarp_direction=ped,
+            generate_report=self.inputs.generate_report,
+            unwarped_file=genfname(in_file, 'unwarped')).run()
+
+        # Restore headers
+        out_file = genfname(self.inputs.in_file, 'unwarped')
+        nb.Nifti1Image(nb.load(fugue.outputs.unwarped_file).get_data(),
+                       oldaff, im.header).to_filename(out_file)
+
+        self._results['out_corrected'] = out_file
         return runtime
 
 

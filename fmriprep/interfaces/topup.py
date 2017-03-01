@@ -24,6 +24,7 @@ from nipype.interfaces.base import (
 )
 from fmriprep.utils.misc import genfname
 
+from .hmc import motion_correction
 from .images import reorient
 from .bids import get_metadata_for_nifti
 
@@ -143,7 +144,7 @@ class TopupInputs(BaseInterface):
             blip_files = [fname for enc, fname in zip(out_encodings, prep_in_files)
                           if enc == blip]
             LOGGER.info('Running motion correction on files: %s', ', '.join(blip_files))
-            pe_files.append(motion_correction(blip_files, nthreads=nthreads))
+            pe_files.append(motion_correction(blip_files, nthreads=nthreads)[0])
 
             encoding[i, int(abs(blip[0]))] = 1.0 if blip[0] > 0 else -1.0
             encoding[i, 3] = blip[1]
@@ -351,70 +352,6 @@ def get_pe_params(in_file):
 
     return pe_dir, ro_time
 
-def motion_correction(in_files, ref_vol=0, nthreads=None):
-    import os.path as op
-
-    nfiles = len(in_files)
-    if nfiles == 1:
-        return in_files[0]
-
-    ref_input = in_files[ref_vol]
-    all_images = genfname(ref_input, suffix='inputmerged')
-    concat_imgs(in_files).to_filename(all_images)
-
-    out_prefix = op.basename(genfname(ref_input, suffix='motcor0', ext=''))
-    out_file = _run_antsMotionCorr(out_prefix, ref_input, all_images,
-                                   only_rigid=True, nthreads=nthreads)
-
-    if nfiles > 2:
-        out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
-        out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
-                                       nthreads=nthreads, only_rigid=True)
-
-    return out_file
-
-
-def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
-                        only_rigid=False, nthreads=None):
-    import os
-    import os.path as op
-    import nibabel as nb
-    from nipype.interfaces.base import CommandLine
-
-    env = os.environ.copy()
-    if nthreads is not None and nthreads > 0:
-        env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '%d' % nthreads
-
-
-    npoints = nb.load(all_images).get_data().shape[-1]
-    args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
-            '-m', 'gc[%s, %s, 1, 1, Random, 0.05]' % (ref_image, all_images),
-            '-t', '%s[ 0.005 ]' % ('Rigid' if only_rigid else 'Affine'),
-            '-i', '40x20', '-l', '-e', '-s', '4x0', '-f', '2x1']
-
-    if only_rigid:
-        args.insert(-4, '-u')
-    else:
-        args += ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
-                 '-t', 'GaussianDisplacementField[0.15,3,0.5]',
-                 '-i 20 -e -s 0 -f 1']
-
-    # Add number of volumes to average
-    args += ['-n', str(min(npoints, 10))]
-
-    cmd = CommandLine(command='antsMotionCorr', args=' '.join(args), environ=env)
-    LOGGER.info('Running antsMotionCorr: %s', cmd.cmdline)
-    result = cmd.run()
-    returncode = getattr(result.runtime, 'returncode', 1)
-
-    if returncode not in [0, None]:
-        raise RuntimeError('antsMotionCorr failed to run (exit code %d)\n%s' % (
-            returncode, cmd.cmdline))
-
-    if return_avg:
-        return op.abspath(out_prefix + '_avg.nii.gz')
-    else:
-        return op.abspath(out_prefix + '.nii.gz')
 
 def _run_registration(reference, moving, debug=False, prefix='antsreg', nthreads=None):
     import pkg_resources as pkgr

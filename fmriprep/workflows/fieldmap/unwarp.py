@@ -51,7 +51,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['in_files', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['out_file', 'out_warped']), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=['out_files', 'out_ref']),
+                         name='outputnode')
 
     target_sel = pe.Node(niu.Function(
         input_names=['in_files', 'in_reference'], output_names=['out_file'],
@@ -69,8 +70,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 
     ref_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
                       output_names=['out_file'], function=_mask), name='reference_mask')
-    target_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
-                         output_names=['out_file'], function=_mask), name='target_mask')
 
     # Fieldmap to rads
     torads = pe.Node(niu.Function(input_names=['in_file'], output_names=['out_file'],
@@ -87,7 +86,9 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             'fmriprep', 'data/fmap-any_registration_testing.json')
 
     fmap2ref = pe.Node(Registration(
-        from_file=ants_settings), name='FMap2ImageMagnitude')
+        from_file=ants_settings, output_warped_image=True,
+        output_inverse_warped_image=True),
+                       name='FMap2ImageMagnitude')
 
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
         generate_report=False, dimension=3, interpolation='BSpline'), name='FMap2ImageFieldmap')
@@ -96,9 +97,12 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         generate_report=False, dimension=3, interpolation='NearestNeighbor'),
                       name='FMap2ImageMask')
 
-    gen_vsm = pe.Node(FUGUE(), name='VSM')
+    gen_vsm = pe.Node(FUGUE(save_unmasked_shift=True), name='VSM')
     unwarp = pe.Node(ApplyFieldmap(generate_report=True),
                      name='target_ref_unwarped')
+
+    unwarp_all = pe.MapNode(ApplyFieldmap(generate_report=False),
+                            iterfield=['in_file'], name='inputs_unwarped')
 
     workflow.connect([
         (inputnode, target_sel, [('in_files', 'in_files'),
@@ -107,19 +111,18 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (inputnode, fmap_hdr, [('fmap', 'in_file')]),
         (fmap_hdr, torads, [('out_file', 'in_file')]),
         (inputnode, ref_hdr, [('fmap_ref', 'in_file')]),
-        (inputnode, target_msk, [('in_mask', 'in_mask')]),
-        (inputnode, applyxfm, [('in_reference', 'reference_image')]),
+        (target_hdr, applyxfm, [('out_file', 'reference_image')]),
         (inputnode, ref_wrp, [('fmap_mask', 'in_mask'),
                               (('in_meta', _get_ec), 'echospacing'),
                               (('in_meta', _get_pedir), 'pe_dir')]),
         (inputnode, gen_vsm, [(('in_meta', _get_ec), 'dwell_time'),
                              (('in_meta', _get_pedir), 'unwarp_direction')]),
         (inputnode, unwarp, [(('in_meta', _get_pedir), 'pe_dir')]),
+        (inputnode, unwarp_all, [(('in_meta', _get_pedir), 'pe_dir')]),
         (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
-        (target_hdr, target_msk, [('out_file', 'in_file')]),
-        (target_msk, fmap2ref, [('out_file', 'moving_image')]),
+        (target_hdr, fmap2ref, [('out_file', 'moving_image')]),
         (ref_wrp, maskxfm, [('out_mask', 'input_image')]),
-        (inputnode, maskxfm, [('in_reference', 'reference_image')]),
+        (target_hdr, maskxfm, [('out_file', 'reference_image')]),
         (fmap2ref, maskxfm, [
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
@@ -132,9 +135,12 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             ('reverse_invert_flags', 'invert_transform_flags')]),
         (torads, applyxfm, [('out_file', 'input_image')]),
         (target_sel, unwarp, [('out_file', 'in_file')]),
+        (inputnode, unwarp_all, [('in_files', 'in_file')]),
         (applyxfm, gen_vsm, [('output_image', 'fmap_in_file')]),
         (gen_vsm, unwarp, [('shift_out_file', 'in_vsm')]),
-        (unwarp, outputnode, [('out_corrected', 'out_file')])
+        (gen_vsm, unwarp_all, [('shift_out_file', 'in_vsm')]),
+        (unwarp_all, outputnode, [('out_corrected', 'out_files')]),
+        (unwarp, outputnode, [('out_corrected', 'out_ref')])
     ])
     return workflow
 
