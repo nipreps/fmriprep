@@ -16,6 +16,8 @@ from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
+from fmriprep.interfaces.itk import SplitITKTranform
+
 
 def sdc_unwarp(name='SDC_unwarp', settings=None):
     """
@@ -78,6 +80,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     # Prepare fieldmap reference image
     ref_wrp = pe.Node(WarpReference(), name='reference_warped')
 
+    split_hmc = pe.Node(SplitITKTranform(), name='split_tfms')
+
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
     ants_settings = pkgr.resource_filename('fmriprep', 'data/fmap-any_registration.json')
@@ -105,6 +109,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                             iterfield=['in_file'], name='inputs_unwarped')
 
     workflow.connect([
+        (inputnode, split_hmc, [('in_hmcpar', 'in_file')]),
         (inputnode, target_sel, [('in_files', 'in_files'),
                                  ('in_reference', 'in_reference')]),
         (target_sel, target_hdr, [('out_file', 'in_file')]),

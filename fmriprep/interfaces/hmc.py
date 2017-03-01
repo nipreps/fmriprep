@@ -23,20 +23,15 @@ from nipype.interfaces.base import (
 from nilearn.image import concat_imgs, mean_img
 
 from io import open
-from fmriprep.utils.misc import genfname
+from ..utils.misc import genfname
+from .itk import ITK_TFM_HEADER, ITK_TFM_TPL
 
 LOGGER = logging.getLogger('interface')
 
-ITK_TFM_HEADER = "#Insight Transform File V1.0"
-ITK_TFM_TPL = """\
-#Transform {tf_id}
-Transform: {tf_type}
-Parameters: {tf_params}
-FixedParameters: {fixed_params}""".format
 
 class MotionCorrectionInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True), desc='input file')
-    nthreads = traits.Int(-1, usedefault=True,
+    nthreads = traits.Int(-1, usedefault=True, nohash=True,
                           desc='number of threads to use within ANTs registrations')
 
 class MotionCorrectionOutputSpec(TraitedSpec):
@@ -44,8 +39,7 @@ class MotionCorrectionOutputSpec(TraitedSpec):
         File(exists=True), desc='list of output files')
     out_avg = File(exists=True, desc='average across time')
     out_movpar = File(exists=True, desc='output motion parameters')
-    out_xfms = OutputMultiPath(
-        File(exists=True), desc='list of output transform matrices')
+    out_tfm = File(exists=True, desc='list of transform matrices')
 
 
 class MotionCorrection(BaseInterface):
@@ -85,14 +79,13 @@ class MotionCorrection(BaseInterface):
 
         # Save average image
         out_avg = genfname(in_files[0], suffix='average')
-        mean_img(out_files, njobs=nthreads).to_filename(out_avg)
+        mean_img(out_files, n_jobs=nthreads).to_filename(out_avg)
 
         # Set outputs
         self._results['out_avg'] = out_avg
         self._results['out_files'] = out_files
-        self._results['out_movpar'] = movpar
-        self._results['out_xfms'] = moco2itk(movpar, out_avg)
-
+        self._results['out_movpar'] = op.abspath(movpar)
+        self._results['out_tfm'] = moco2itk(op.abspath(movpar), out_avg)
         return runtime
 
 
@@ -124,7 +117,7 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
     if nfiles > 2:
         out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
         out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
-                                       nthreads=nthreads, only_rigid=True)
+                                       nthreads=nthreads)
 
     out_movpar = out_prefix + 'MOCOparams.csv'
     return out_file, out_movpar
@@ -142,13 +135,13 @@ def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
             '-m', 'gc[%s, %s, 1, 1, Random, 0.05]' % (ref_image, all_images),
             '-t', '%s[ 0.005 ]' % ('Rigid' if only_rigid else 'Affine'),
             '-i', '40x20', '-l', '-e', '-s', '4x0', '-f', '2x1']
+    args.insert(-4, '-u')
 
-    if only_rigid:
-        args.insert(-4, '-u')
-    else:
-        args += ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
-                 '-t', 'GaussianDisplacementField[0.15,3,0.5]',
-                 '-i 20 -e -s 0 -f 1']
+    # if not only_rigid:
+    #     args.remove(args[-4])
+    #     args += ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
+    #              '-t', 'GaussianDisplacementField[0.15,3,0.5]',
+    #              '-i 20 -e -s 0 -f 1']
 
     # Add number of volumes to average
     args += ['-n', str(min(npoints, 10))]

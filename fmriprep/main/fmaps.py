@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-28 17:26:48
+# @Last Modified time: 2017-03-01 10:48:17
 """
 fMRI preprocessing workflow
 =====
@@ -148,12 +148,10 @@ def fmap_enumerator(subject_list, settings):
     from copy import deepcopy
     from time import strftime
     from nipype.pipeline import engine as pe
-    from fmriprep.utils.misc import collect_bids_data
 
     workflow = pe.Workflow(name='workflow_enumerator')
     for subject_id in subject_list:
-        subject_data = collect_bids_data(settings['bids_root'], subject_id)
-        fmap_wf = sbref_correct(subject_data, settings=settings)
+        fmap_wf = sbref_correct(subject_id, settings=settings)
         cur_time = strftime('%Y%m%d-%H%M%S')
         fmap_wf.config['execution']['crashdump_dir'] = (
             os.path.join(settings['output_dir'], 'log', subject_id, cur_time)
@@ -164,18 +162,23 @@ def fmap_enumerator(subject_list, settings):
 
     return workflow
 
-def sbref_correct(subject_data, settings):
+def sbref_correct(subject_id, settings):
     from nipype.pipeline import engine as pe
     from nipype.interfaces import fsl
+    from fmriprep.utils.misc import collect_bids_data
     from fmriprep.interfaces.bids import BIDSDataGrabber, ReadSidecarJSON
     from fmriprep.workflows.fieldmap import fmap_estimator, sdc_unwarp
     from fmriprep.interfaces.hmc import MotionCorrection
-
 
     def _first(inlist):
         if isinstance(inlist, (list, tuple)):
             return inlist[0]
         return inlist
+
+    subject_data = collect_bids_data(settings['bids_root'], subject_id)
+    wfname = 'sbref_correct_%s' % subject_id.replace('sub-', '')
+    wf = pe.Workflow(name=wfname)
+    print(wfname)
 
     bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data), name='BIDSDatasource')
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
@@ -183,7 +186,6 @@ def sbref_correct(subject_data, settings):
     conform = pe.Node(MotionCorrection(), name='MergeSBRefs')
     bet = pe.Node(fsl.BET(frac=0.4, mask=True), name='Mask')
 
-    wf = pe.Workflow(name='sbref_correct')
     estimator = fmap_estimator(subject_data, settings=settings)
     sdc = sdc_unwarp(settings=settings)
 
@@ -195,9 +197,10 @@ def sbref_correct(subject_data, settings):
                           (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')]),
         (meta, sdc, [('out_dict', 'inputnode.in_meta')]),
         (bidssrc, sdc, [('sbref', 'inputnode.in_files')]),
-        (conform, sdc, [('out_avg', 'inputnode.in_reference')]),
+        (conform, sdc, [('out_avg', 'inputnode.in_reference'),
+                        ('out_tfm', 'inputnode.in_hmcpar')]),
         (conform, bet, [('out_avg', 'in_file')]),
-        (bet, sdc, [('mask_file', 'inputnode.in_mask')])
+        #(bet, sdc, [('mask_file', 'inputnode.in_mask')])
     ])
 
     return wf
