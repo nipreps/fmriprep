@@ -90,7 +90,6 @@ class WarpReference(BaseInterface):
 class ApplyFieldmapInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='unwarping target file')
     in_vsm = File(exists=True, mandatory=True, desc='input voxel shift map')
-    in_movpar = File(exists=True, desc='input motion parameters')
     pe_dir = traits.Enum('y', 'x', 'y-', 'x-', mandatory=True,
                          desc='phase encoding direction')
     generate_report = traits.Bool(False, usedefault=True, desc='generate report')
@@ -117,11 +116,7 @@ class ApplyFieldmap(BaseInterface):
     def _run_interface(self, runtime):
         ped = self.inputs.pe_dir
 
-        if isdefined(self.inputs.in_movpar):
-            raise NotImplementedError('Motion parameters are not implemented')
-
         in_file = self.inputs.in_file
-
         im = nb.as_closest_canonical(nb.load(in_file))
         oldaff = im.affine
         newaff = np.eye(4)

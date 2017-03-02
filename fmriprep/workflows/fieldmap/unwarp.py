@@ -16,7 +16,7 @@ from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
-from fmriprep.interfaces.itk import SplitITKTranform
+from fmriprep.interfaces import itk
 
 
 def sdc_unwarp(name='SDC_unwarp', settings=None):
@@ -76,11 +76,12 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     # Fieldmap to rads
     torads = pe.Node(niu.Function(input_names=['in_file'], output_names=['out_file'],
                      function=hz2rads), name='fmap_Hz2rads')
+    gen_vsm = pe.Node(FUGUE(save_unmasked_shift=True), name='VSM')
 
     # Prepare fieldmap reference image
     ref_wrp = pe.Node(WarpReference(), name='reference_warped')
 
-    split_hmc = pe.Node(SplitITKTranform(), name='split_tfms')
+    split_hmc = pe.Node(itk.SplitITKTransform(), name='split_tfms')
 
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
@@ -101,12 +102,20 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         generate_report=False, dimension=3, interpolation='NearestNeighbor'),
                       name='FMap2ImageMask')
 
-    gen_vsm = pe.Node(FUGUE(save_unmasked_shift=True), name='VSM')
     unwarp = pe.Node(ApplyFieldmap(generate_report=True),
                      name='target_ref_unwarped')
 
-    unwarp_all = pe.MapNode(ApplyFieldmap(generate_report=False),
-                            iterfield=['in_file'], name='inputs_unwarped')
+
+    tfm_concat = pe.MapNode(itk.ConcatANTsTransform(),
+                            iterfield=['in_file'], name='AddTFM')
+
+    # xfmmap = pe.MapNode(ANTSApplyTransformsRPT(
+    #     generate_report=False, dimension=3, interpolation='BSpline'),
+    #     iterfield=['transforms','invert_transform_flags'], name='FMap2ImageFieldmap')
+
+    # unwarp_all = pe.MapNode(ApplyFieldmap(generate_report=False),
+    #                         iterfield=['in_file', 'in_vsm'],
+    #                         name='inputs_unwarped')
 
     workflow.connect([
         (inputnode, split_hmc, [('in_hmcpar', 'in_file')]),
@@ -123,7 +132,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (inputnode, gen_vsm, [(('in_meta', _get_ec), 'dwell_time'),
                              (('in_meta', _get_pedir), 'unwarp_direction')]),
         (inputnode, unwarp, [(('in_meta', _get_pedir), 'pe_dir')]),
-        (inputnode, unwarp_all, [(('in_meta', _get_pedir), 'pe_dir')]),
         (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
         (target_hdr, fmap2ref, [('out_file', 'moving_image')]),
         (ref_wrp, maskxfm, [('out_mask', 'input_image')]),
@@ -131,21 +139,33 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (fmap2ref, maskxfm, [
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
-        (torads, ref_wrp, [('out_file', 'in_file')]),
+        (torads, gen_vsm, [('out_file', 'fmap_in_file')]),
+        (gen_vsm, ref_wrp, [('shift_out_file', 'in_file')]),
         (ref_wrp, ref_msk, [('out_warped', 'in_file'),
                             ('out_mask', 'in_mask')]),
         (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
+
+        (split_hmc, tfm_concat, [('out_files', 'in_file')]),
+        (gen_vsm, applyxfm, [('shift_out_file', 'input_image')]),
         (fmap2ref, applyxfm, [
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
-        (torads, applyxfm, [('out_file', 'input_image')]),
+        (fmap2ref, tfm_concat, [
+            ('reverse_transforms', 'transforms'),
+            ('reverse_invert_flags', 'invert_transform_flags')]),
         (target_sel, unwarp, [('out_file', 'in_file')]),
-        (inputnode, unwarp_all, [('in_files', 'in_file')]),
-        (applyxfm, gen_vsm, [('output_image', 'fmap_in_file')]),
-        (gen_vsm, unwarp, [('shift_out_file', 'in_vsm')]),
-        (gen_vsm, unwarp_all, [('shift_out_file', 'in_vsm')]),
-        (unwarp_all, outputnode, [('out_corrected', 'out_files')]),
-        (unwarp, outputnode, [('out_corrected', 'out_ref')])
+        (applyxfm, unwarp, [('output_image', 'in_vsm')]),
+        (unwarp, outputnode, [('out_corrected', 'out_ref')]),
+        # (gen_vsm, xfmmap, [('shift_out_file', 'input_image')]),
+        # (target_hdr, xfmmap, [('out_file', 'reference_image')]),
+        # (tfm_concat, xfmmap, [
+        #     ('transforms', 'transforms'),
+        #     ('invert_transform_flags', 'invert_transform_flags')]),
+        # (inputnode, unwarp_all, [(('in_meta', _get_pedir), 'pe_dir')]),
+        # (inputnode, unwarp_all, [('in_files', 'in_file')]),
+        # (split_hmc, unwarp_all, [('out_files', 'in_movpar')]),
+        # (xfmmap, unwarp_all, [('output_image', 'in_vsm')]),
+        # (unwarp_all, outputnode, [('out_corrected', 'out_files')]),
     ])
     return workflow
 

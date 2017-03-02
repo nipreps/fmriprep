@@ -9,10 +9,11 @@ ITK files handling
 
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
-
+from os import path as op
+import numpy as np
 from nipype.interfaces.base import (
-    TraitedSpec, BaseInterface, BaseInterfaceInputSpec, File,
-    OutputMultiPath
+    traits, TraitedSpec, BaseInterface, BaseInterfaceInputSpec, File,
+    InputMultiPath, OutputMultiPath, isdefined
 )
 
 from io import open
@@ -26,26 +27,26 @@ Parameters: {tf_params}
 FixedParameters: {fixed_params}""".format
 
 
-class SplitITKTranformInputSpec(BaseInterfaceInputSpec):
+class SplitITKTransformInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='input file')
 
-class SplitITKTranformOutputSpec(TraitedSpec):
+class SplitITKTransformOutputSpec(TraitedSpec):
     out_files = OutputMultiPath(
         File(exists=True), desc='list of output files')
 
-class SplitITKTranform(BaseInterface):
+class SplitITKTransform(BaseInterface):
 
     """
     This interface splits an ITK Transform file, generating open
     individual text file per transform in it.
 
     """
-    input_spec = SplitITKTranformInputSpec
-    output_spec = SplitITKTranformOutputSpec
+    input_spec = SplitITKTransformInputSpec
+    output_spec = SplitITKTransformOutputSpec
 
     def __init__(self, **inputs):
         self._results = {}
-        super(SplitITKTranform, self).__init__(**inputs)
+        super(SplitITKTransform, self).__init__(**inputs)
 
     def _list_outputs(self):
         return self._results
@@ -76,5 +77,99 @@ class SplitITKTranform(BaseInterface):
                 ofh.write(tfm)
 
         self._results['out_files'] = out_files
+
+        return runtime
+
+class IdentityITKTransformInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, desc='input file')
+
+class IdentityITKTransformOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='list of output files')
+
+class IdentityITKTransform(BaseInterface):
+
+    """
+    This interface generates an identity transform if the input
+    is not set.
+
+    """
+    input_spec = IdentityITKTransformInputSpec
+    output_spec = IdentityITKTransformOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(IdentityITKTransform, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        if isdefined(self.inputs.in_file):
+            self._results['out_file'] = self.inputs.in_file
+        else:
+            out_file = op.abspath('identity.tfm')
+
+            ident = np.eye(3).reshape(-1).tolist() + [0.0] * 3
+
+            tfmstr = '%s\n' % ITK_TFM_HEADER
+            tfmstr += ITK_TFM_TPL(
+                tf_id=0, tf_type='AffineTransform_double_3_3',
+                tf_params=' '.join(['%.1f' % i for i in ident]),
+                fixed_params=' '.join(['0.0'] * 3))
+            tfmstr += '\n'
+
+            with open(out_file, 'w') as ofh:
+                ofh.write(tfmstr)
+
+            self._results['out_file'] = out_file
+
+        return runtime
+
+class ConcatANTsTransformInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, desc='input file')
+    in_file_invert = traits.Bool(False, usedefault=True)
+    position = traits.Int(-1, usedefault=True)
+    transforms = InputMultiPath(File(exists=True),
+                                mandatory=True, desc='input file')
+    invert_transform_flags = traits.List(
+        traits.Bool(), mandatory=True, desc='invert transforms')
+
+class ConcatANTsTransformOutputSpec(TraitedSpec):
+    transforms = OutputMultiPath(File(exists=True),
+                                 desc='list of output files')
+    invert_transform_flags = traits.List(
+        traits.Bool(), desc='invert transforms')
+
+class ConcatANTsTransform(BaseInterface):
+
+    """
+    This interface generates an identity transform if the input
+    is not set.
+
+    """
+    input_spec = ConcatANTsTransformInputSpec
+    output_spec = ConcatANTsTransformOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(ConcatANTsTransform, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        self._results['transforms'] = self.inputs.transforms
+        self._results['invert_transform_flags'] = self.inputs.invert_transform_flags
+
+        if isdefined(self.inputs.in_file) and self.inputs.in_file is not None:
+            flag = self.inputs.in_file_invert
+            in_file = self.inputs.in_file
+            pos = self.inputs.position
+            if pos == -1:
+                self._results['transforms'] += [in_file]
+                self._results['invert_transform_flags'] += [flag]
+            else:
+                self._results['transforms'].insert(pos, in_file)
+                self._results['invert_transform_flags'].insert(pos, flag)
 
         return runtime

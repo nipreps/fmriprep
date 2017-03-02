@@ -8,4 +8,4 @@ from fmriprep.interfaces.images import ImageDataSink, CopyHeader, \
     RASReorient, IntraModalMerge
 from fmriprep.interfaces.utils import FormatHMCParam
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
-from fmriprep.interfaces.itk import SplitITKTranform
+from fmriprep.interfaces.itk import IdentityITKTransform, SplitITKTransform
