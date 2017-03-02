@@ -11,6 +11,7 @@ ITK files handling
 from __future__ import print_function, division, absolute_import, unicode_literals
 from os import path as op
 import numpy as np
+import nibabel as nb
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, BaseInterfaceInputSpec, File,
     InputMultiPath, OutputMultiPath, isdefined
@@ -72,7 +73,6 @@ class SplitITKTransform(BaseInterface):
         for i, tfm in enumerate(tfm_list):
             out_files.append(genfname(
                 self.inputs.in_file, suffix=('%04d' % i), ext='tfm'))
-            print(out_files[-1])
             with open(out_files[-1], 'w') as ofh:
                 ofh.write(tfm)
 
@@ -171,5 +171,73 @@ class ConcatANTsTransform(BaseInterface):
             else:
                 self._results['transforms'].insert(pos, in_file)
                 self._results['invert_transform_flags'].insert(pos, flag)
+
+        return runtime
+
+
+class FUGUEvsm2ANTSwarpInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True,
+                   desc='input displacements field map')
+    pe_dir = traits.Enum(1, 0, 2, usedefault=True,
+                         desc='phase-encoding axis')
+    units = traits.Enum('vox', 'mm', usedefault=True,
+                        desc='units of the input field')
+
+class FUGUEvsm2ANTSwarpOutputSpec(TraitedSpec):
+    out_file = File(desc='the output warp field')
+
+
+class FUGUEvsm2ANTSwarp(BaseInterface):
+
+    """
+    Convert a voxel-shift-map to ants warp
+
+    """
+    input_spec = FUGUEvsm2ANTSwarpInputSpec
+    output_spec = FUGUEvsm2ANTSwarpOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(FUGUEvsm2ANTSwarp, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+
+        nii = nb.load(self.inputs.in_file)
+
+        # Fix header
+        hdr = nii.header.copy()
+        hdr.set_data_dtype(np.dtype('<f4'))
+        hdr.set_intent('vector', (), '')
+
+        aff = nii.affine
+
+        if np.linalg.det(aff) < 0:
+            aff = np.diag([-1, -1, 1, 1]).dot(aff)
+
+        # Get data, convert to mm
+        # Reverse direction since ITK is LPS
+        data = nii.get_data()
+
+        if self.inputs.units == 'vox':
+            spacing = hdr.get_zooms()[self.inputs.pe_dir]
+            data *= spacing
+
+        # Add missing dimensions
+        zeros = np.zeros_like(data)
+        field = [zeros, zeros]
+        field.insert(self.inputs.pe_dir, data)
+        field = np.stack(field, -1)
+        # Add empty axis
+        field = field[:, :, :, np.newaxis, :]
+
+        # Write out
+        self._results['out_file'] = genfname(
+            self.inputs.in_file, suffix='antswarp')
+        nb.Nifti1Image(
+            field.astype(np.dtype('<f4')), aff, hdr).to_filename(
+                self._results['out_file'])
 
         return runtime

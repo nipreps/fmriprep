@@ -162,7 +162,7 @@ def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
 
 def moco2itk(in_csv, in_reference, out_file=None):
     movpar = np.loadtxt(in_csv, dtype=float, skiprows=1,
-                        delimiter=',')[2:]
+                        delimiter=',')[:, 2:]
 
     nii = nb.load(in_reference)
 
