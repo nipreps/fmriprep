@@ -125,7 +125,7 @@ class IdentityITKTransform(BaseInterface):
 
         return runtime
 
-class ConcatANTsTransformInputSpec(BaseInterfaceInputSpec):
+class MergeANTsTransformsInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, desc='input file')
     in_file_invert = traits.Bool(False, usedefault=True)
     position = traits.Int(-1, usedefault=True)
@@ -134,25 +134,25 @@ class ConcatANTsTransformInputSpec(BaseInterfaceInputSpec):
     invert_transform_flags = traits.List(
         traits.Bool(), mandatory=True, desc='invert transforms')
 
-class ConcatANTsTransformOutputSpec(TraitedSpec):
+class MergeANTsTransformsOutputSpec(TraitedSpec):
     transforms = OutputMultiPath(File(exists=True),
                                  desc='list of output files')
     invert_transform_flags = traits.List(
         traits.Bool(), desc='invert transforms')
 
-class ConcatANTsTransform(BaseInterface):
+class MergeANTsTransforms(BaseInterface):
 
     """
     This interface generates an identity transform if the input
     is not set.
 
     """
-    input_spec = ConcatANTsTransformInputSpec
-    output_spec = ConcatANTsTransformOutputSpec
+    input_spec = MergeANTsTransformsInputSpec
+    output_spec = MergeANTsTransformsOutputSpec
 
     def __init__(self, **inputs):
         self._results = {}
-        super(ConcatANTsTransform, self).__init__(**inputs)
+        super(MergeANTsTransforms, self).__init__(**inputs)
 
     def _list_outputs(self):
         return self._results
@@ -178,7 +178,7 @@ class ConcatANTsTransform(BaseInterface):
 class FUGUEvsm2ANTSwarpInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True,
                    desc='input displacements field map')
-    pe_dir = traits.Enum(1, 0, 2, usedefault=True,
+    pe_dir = traits.Enum('y', 'y-', 'x', 'x-', usedefault=True,
                          desc='phase-encoding axis')
     units = traits.Enum('vox', 'mm', usedefault=True,
                         desc='units of the input field')
@@ -207,28 +207,30 @@ class FUGUEvsm2ANTSwarp(BaseInterface):
 
         nii = nb.load(self.inputs.in_file)
 
+        pe_dir = 1 if 'y' in self.inputs.pe_dir else 0
+
         # Fix header
         hdr = nii.header.copy()
         hdr.set_data_dtype(np.dtype('<f4'))
         hdr.set_intent('vector', (), '')
 
-        aff = nii.affine
-
-        if np.linalg.det(aff) < 0:
-            aff = np.diag([-1, -1, 1, 1]).dot(aff)
-
         # Get data, convert to mm
-        # Reverse direction since ITK is LPS
         data = nii.get_data()
 
+        aff = nii.affine
+        if np.linalg.det(aff) < 0:
+            # Reverse direction since ITK is LPS
+            aff = np.diag([-1, -1, 1, 1]).dot(aff)
+            data *= -1.0
+
         if self.inputs.units == 'vox':
-            spacing = hdr.get_zooms()[self.inputs.pe_dir]
+            spacing = hdr.get_zooms()[pe_dir]
             data *= spacing
 
         # Add missing dimensions
         zeros = np.zeros_like(data)
         field = [zeros, zeros]
-        field.insert(self.inputs.pe_dir, data)
+        field.insert(pe_dir, data)
         field = np.stack(field, -1)
         # Add empty axis
         field = field[:, :, :, np.newaxis, :]

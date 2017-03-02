@@ -117,31 +117,32 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
     if nfiles > 2:
         out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
         out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
-                                       nthreads=nthreads)
+                                       nthreads=nthreads, iteration=1)
 
     out_movpar = out_prefix + 'MOCOparams.csv'
     return out_file, out_movpar
 
 
 def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
-                        only_rigid=False, nthreads=None):
+                        only_rigid=False, nthreads=None, iteration=0):
     env = os.environ.copy()
     if nthreads is not None and nthreads > 0:
         env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '%d' % nthreads
 
 
     npoints = nb.load(all_images).get_data().shape[-1]
-    args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
-            '-m', 'gc[%s, %s, 1, 1, Random, 0.05]' % (ref_image, all_images),
-            '-t', '%s[ 0.005 ]' % ('Rigid' if only_rigid else 'Affine'),
-            '-i', '40x20', '-l', '-e', '-s', '4x0', '-f', '2x1']
-    args.insert(-4, '-u')
-
-    # if not only_rigid:
-    #     args.remove(args[-4])
-    #     args += ['-m', 'CC[%s, %s, 1, 2]' % (ref_image, all_images),
-    #              '-t', 'GaussianDisplacementField[0.15,3,0.5]',
-    #              '-i 20 -e -s 0 -f 1']
+    if iteration == 0:
+        args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
+                '-m', 'MI[%s, %s, 1, 32, Regular, 0.2]' % (ref_image, all_images),
+                '-t', '%s[ 0.05 ]' % ('Rigid' if only_rigid else 'Affine'),
+                '-u', '1', '-e', '1', '-l', '1',
+                '-i', '40x20', '-s', '4x1', '-f', '2x1']
+    else:
+        args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
+                '-m', 'gc[%s, %s, 1, 5, Random, 0.2]' % (ref_image, all_images),
+                '-t', '%s[ 0.01 ]' % ('Rigid' if only_rigid else 'Affine'),
+                '-u', '1', '-e', '1', '-l', '1',
+                '-i', '15x3', '-s', '2x0', '-f', '2x1']
 
     # Add number of volumes to average
     args += ['-n', str(min(npoints, 10))]
@@ -159,6 +160,7 @@ def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
         return op.abspath(out_prefix + '_avg.nii.gz')
     else:
         return op.abspath(out_prefix + '.nii.gz')
+
 
 def moco2itk(in_csv, in_reference, out_file=None):
     movpar = np.loadtxt(in_csv, dtype=float, skiprows=1,

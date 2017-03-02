@@ -5,7 +5,8 @@
 from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink, \
     BIDSDataGrabber, BIDSFreeSurferDir
 from fmriprep.interfaces.images import ImageDataSink, CopyHeader, \
-    RASReorient, IntraModalMerge
+    RASReorient, IntraModalMerge, FixAffine
 from fmriprep.interfaces.utils import FormatHMCParam
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
-from fmriprep.interfaces.itk import IdentityITKTransform, SplitITKTransform
+from fmriprep.interfaces.itk import (
+    IdentityITKTransform, SplitITKTransform, MergeANTsTransforms)

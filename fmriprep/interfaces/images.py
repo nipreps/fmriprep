@@ -15,9 +15,11 @@ import re
 import os
 import os.path as op
 from shutil import copy
-
 import numpy as np
 import nibabel as nb
+
+from io import open
+
 from nipype import logging
 from nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterface, BaseInterfaceInputSpec,
@@ -240,6 +242,43 @@ class RASReorient(BaseInterface):
 
     def _run_interface(self, runtime):
         self._results['out_file'] = reorient(self.inputs.in_file)
+        return runtime
+
+class FixAffineInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='the file we get the data from')
+
+class FixAffineOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='written file path')
+    out_hdr = File(exists=True, desc='the file we get the header from')
+
+class FixAffine(BaseInterface):
+    input_spec = FixAffineInputSpec
+    output_spec = FixAffineOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(FixAffine, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        in_file = self.inputs.in_file
+        img = nb.as_closest_canonical(nb.load(in_file))
+        newaff = np.eye(4)
+        newaff[:3, :3] = np.eye(3) * img.header.get_zooms()[:3]
+        newaff[:3, 3] -= 0.5 * newaff[:3, :3].dot(img.shape[:3])
+
+        out_file = genfname(in_file, suffix='nosform')
+        nb.Nifti1Image(img.get_data(), newaff, None).to_filename(
+            out_file)
+
+        out_hdr = genfname(in_file, suffix='hdr', ext='pklz')
+        with open(out_hdr, 'wb') as fheader:
+            img.header.write_to(fheader)
+
+        self._results['out_file'] = out_file
+        self._results['out_hdr'] = out_hdr
         return runtime
 
 
