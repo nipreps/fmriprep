@@ -98,10 +98,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     applyxfm = pe.Node(ANTSApplyTransformsRPT(
         generate_report=False, dimension=3, interpolation='BSpline'), name='FMap2ImageFieldmap')
 
-    maskxfm = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=False, dimension=3, interpolation='NearestNeighbor'),
-                      name='FMap2ImageMask')
-
     unwarp = pe.Node(ApplyFieldmap(generate_report=True),
                      name='target_ref_unwarped')
 
@@ -135,11 +131,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (inputnode, unwarp, [(('in_meta', _get_pedir), 'pe_dir')]),
         (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
         (target_hdr, fmap2ref, [('out_file', 'moving_image')]),
-        (ref_wrp, maskxfm, [('out_mask', 'input_image')]),
-        (target_hdr, maskxfm, [('out_file', 'reference_image')]),
-        (fmap2ref, maskxfm, [
-            ('reverse_transforms', 'transforms'),
-            ('reverse_invert_flags', 'invert_transform_flags')]),
         (torads, gen_vsm, [('out_file', 'fmap_in_file')]),
         (gen_vsm, ref_wrp, [('shift_out_file', 'in_file')]),
         (ref_wrp, ref_msk, [('out_warped', 'in_file'),
