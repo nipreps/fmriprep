@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-03-03 17:57:53
+# @Last Modified time: 2017-03-03 18:03:48
 """
 fMRI preprocessing workflow
 =====
@@ -26,7 +26,7 @@ LOGGER = logging.getLogger('interfaces')
 def main():
     """Entry point"""
     from fmriprep import __version__
-    parser = ArgumentParser(description='fMRI Preprocessing workflow',
+    parser = ArgumentParser(description='SBRef Test Preprocessing workflow',
                             formatter_class=RawTextHelpFormatter)
 
     # Arguments as specified by BIDS-Apps
@@ -83,10 +83,12 @@ def create_workflow(opts):
 
     log_dir = op.join(settings['output_dir'], 'log')
     derivatives = op.join(settings['output_dir'], 'derivatives')
+    settings['reportlets_dir'] = op.join(settings['output_dir'], 'reportlets')
 
     # Check and create output and working directories
     # Using make_folder to prevent https://github.com/poldracklab/mriqc/issues/111
     make_folder(settings['output_dir'])
+    make_folder(settings['reportlets_dir'])
     make_folder(settings['work_dir'])
     make_folder(derivatives)
     make_folder(log_dir)
@@ -179,18 +181,16 @@ def sbref_correct(subject_id, settings):
     subject_data = collect_bids_data(settings['bids_root'], subject_id)
     wfname = 'sbref_correct_%s' % subject_id.replace('sub-', '')
     wf = pe.Workflow(name=wfname)
-    print(wfname)
-
     bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data, sort=True),
                       name='BIDSDatasource')
     estimator = fmap_estimator(subject_data, settings=settings)
     sbrefprep = sbref_preprocess(settings=settings)
 
     wf.connect([
-        (bidssrc, sbrefprep, [('sbref', 'sbref')]),
-        (estimator, sbrefprep, [(('outputnode.fmap', _first), 'inputnode.fmap'),
-                                (('outputnode.fmap_ref', _first), 'inputnode.fmap_ref'),
-                                (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')])
+        (bidssrc, sbrefprep, [('sbref', 'inputnode.sbref')]),
+        (estimator, sbrefprep, [('outputnode.fmap', 'inputnode.fmap'),
+                                ('outputnode.fmap_ref', 'inputnode.fmap_ref'),
+                                ('outputnode.fmap_mask', 'inputnode.fmap_mask')])
     ])
 
     return wf
