@@ -341,8 +341,7 @@ for name, workflow in ds005_workflows.items():
 
 # Create command line arguments
 with open('args.txt', 'w') as fp:
-    args = subprocess.Popen([os.path.abspath(os.path.join('../fmriprep',
-                                                          'run_workflow.py')),
-                             '-h'],
+    args = subprocess.Popen([os.path.abspath(os.path.join(
+        '../fmriprep', 'main', 'fmriprep.py')), '-h'],
                             stdout=subprocess.PIPE).communicate()[0].decode()
     fp.write(args)
