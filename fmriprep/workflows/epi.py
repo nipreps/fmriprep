@@ -22,10 +22,8 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.utils import nii_concat
-from fmriprep.utils.misc import fix_multi_T1w_source_name, _first
+from fmriprep.utils.misc import _first, _extract_wm
 from fmriprep.workflows.fieldmap import sdc_unwarp
-from fmriprep.workflows.sbref import _extract_wm
-
 
 # pylint: disable=R0914
 def epi_hmc(name='EPI_HMC', settings=None):

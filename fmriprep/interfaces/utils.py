@@ -4,14 +4,69 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import os
-import numpy as np
 import os.path as op
+import numpy as np
 import nibabel as nb
-from nipype.interfaces.base import (traits, isdefined, TraitedSpec, BaseInterface,
-                                    BaseInterfaceInputSpec, File, InputMultiPath,
-                                    OutputMultiPath, Undefined)
-from nipype.interfaces import fsl
+from nilearn.image import mean_img
+from nipype.interfaces.base import (traits, TraitedSpec, BaseInterface,
+                                    BaseInterfaceInputSpec, File, InputMultiPath)
+from fmriprep.utils.misc import genfname
+
+
+class MeanTimeseriesInputSpec(BaseInterfaceInputSpec):
+    in_files = InputMultiPath(File(exists=True), mandatory=True,
+                              desc='input file or list of files')
+
+
+class MeanTimeseriesOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output average file')
+
+class MeanTimeseries(BaseInterface):
+    input_spec = MeanTimeseriesInputSpec
+    output_spec = MeanTimeseriesOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(MeanTimeseries, self).__init__(**inputs)
+
+    def _run_interface(self, runtime):
+        nii = mean_img([nb.load(fname) for fname in self.inputs.in_files])
+
+        self._results['out_file'] = genfname(
+            self.inputs.in_files[0], suffix='avg')
+        nii.to_filename(self._results['out_file'])
+        return runtime
+
+    def _list_outputs(self):
+        return self._results
+
+class ApplyMaskInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input file')
+    in_mask = File(exists=True, mandatory=True, desc='input mask')
+
+
+class ApplyMaskOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output average file')
+
+class ApplyMask(BaseInterface):
+    input_spec = ApplyMaskInputSpec
+    output_spec = ApplyMaskOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(ApplyMask, self).__init__(**inputs)
+
+    def _run_interface(self, runtime):
+        out_file = genfname(self.inputs.in_file, 'brainmask')
+        nii = nb.load(self.inputs.in_file)
+        data = nii.get_data()
+        data[nb.load(self.inputs.in_mask).get_data() <= 0] = 0
+        nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
+        self._results['out_file'] = out_file
+        return runtime
+
+    def _list_outputs(self):
+        return self._results
 
 
 class FormatHMCParamInputSpec(BaseInterfaceInputSpec):

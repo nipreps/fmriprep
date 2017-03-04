@@ -13,12 +13,13 @@ import pkg_resources as pkgr
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces.fsl import FUGUE
-from nipype.interfaces.ants import Registration
+from nipype.interfaces.ants import Registration, N4BiasFieldCorrection
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.images import FixAffine
-from fmriprep.interfaces.fmap import WarpReference
+from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
 from fmriprep.interfaces import itk
-
+from fmriprep.interfaces.hmc import MotionCorrection
+from fmriprep.interfaces.utils import MeanTimeseries, ApplyMask
 
 def sdc_unwarp(name='SDC_unwarp', settings=None):
     """
@@ -54,32 +55,32 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['in_files', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['out_files', 'out_ref']),
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['out_files', 'out_mean']),
                          name='outputnode')
 
+    # Be robust if no reference image is passed
     target_sel = pe.Node(niu.Function(
         input_names=['in_files', 'in_reference'], output_names=['out_file'],
         function=_get_reference), name='target_select')
 
+    # Remove the scanner affine transform from all images
+    # (messes up with ANTs and are useless unless we feed them back
+    # in a neuronavigator)
     ref_hdr = pe.Node(FixAffine(), name='reference_hdr')
     target_hdr = pe.Node(FixAffine(), name='target_hdr')
     fmap_hdr = pe.Node(FixAffine(), name='fmap_hdr')
     inputs_hdr = pe.MapNode(
         FixAffine(), iterfield=['in_file'], name='inputs_hdr')
 
-
-    ref_msk = pe.Node(niu.Function(input_names=['in_file', 'in_mask'],
-                      output_names=['out_file'], function=_mask), name='reference_mask')
-
-    # Fieldmap to rads
-    torads = pe.Node(niu.Function(input_names=['in_file'], output_names=['out_file'],
-                     function=hz2rads), name='fmap_Hz2rads')
-    gen_vsm = pe.Node(FUGUE(save_unmasked_shift=True), name='VSM')
-
-    # Prepare fieldmap reference image
+    # Prepare fieldmap reference image, creating a fake warping
+    # to make the magnitude look like a distorted EPI
     ref_wrp = pe.Node(WarpReference(), name='reference_warped')
+    # Mask reference image (the warped magnitude image)
+    ref_msk = pe.Node(ApplyMask(), name='reference_mask')
 
-    split_hmc = pe.Node(itk.SplitITKTransform(), name='split_tfms')
+    # Prepare target image for registration
+    inu = pe.Node(N4BiasFieldCorrection(dimension=3), name='target_inu')
 
     # Register the reference of the fieldmap to the reference
     # of the target image (the one that shall be corrected)
@@ -87,28 +88,58 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     if settings.get('debug', False):
         ants_settings = pkgr.resource_filename(
             'fmriprep', 'data/fmap-any_registration_testing.json')
-
     fmap2ref = pe.Node(Registration(
         from_file=ants_settings, output_warped_image=True,
         output_inverse_warped_image=True),
                        name='fmap_ref2target_avg')
 
-    applyxfm = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=False, dimension=3, interpolation='BSpline'), name='fmap2target_avg')
 
+    # Fieldmap to rads and then to voxels (VSM - voxel shift map)
+    torads = pe.Node(niu.Function(input_names=['in_file'], output_names=['out_file'],
+                                  function=_hz2rads), name='fmap_Hz2rads')
+    gen_vsm = pe.Node(FUGUE(save_unmasked_shift=True), name='VSM')
+
+    # Map the VSM into the EPI space
+    applyxfm = pe.Node(ANTSApplyTransformsRPT(
+        generate_report=False, dimension=3, interpolation='BSpline', float=True),
+                       name='fmap2target_avg')
+
+    # Convert the VSM into a DFM (displacements field map)
+    # or: FUGUE shift to ANTS warping.
     vsm2dfm = pe.Node(itk.FUGUEvsm2ANTSwarp(), name='fmap2dfm')
 
+    # Calculate refined motion parameters after unwarping:
+    # 1. Split initial HMC parameters from inputs
+    split_hmc = pe.Node(itk.SplitITKTransform(), name='split_tfms')
+    # 2. Append the HMC parameters to the fieldmap
+    pre_tfms = pe.MapNode(itk.MergeANTsTransforms(in_file_invert=True),
+                          iterfield=['in_file'], name='fmap2inputs_tfms')
+    # 3. Map the DFM to the target EPI space
+    xfmmap = pe.MapNode(ANTSApplyTransformsRPT(
+        generate_report=False, dimension=3, interpolation='BSpline', float=True),
+                        iterfield=['transforms', 'invert_transform_flags'],
+                        name='fmap2inputs_apply')
+    # 4. Unwarp the mean EPI target to use it as reference in the next HMC
     unwarp = pe.Node(ANTSApplyTransformsRPT(
-        dimension=3, invert_transform_flags=False), name='target_ref_unwarped')
+        dimension=3, interpolation='BSpline', invert_transform_flags=False, float=True,
+        generate_report=True), name='target_ref_unwarped')
+    # 5. Unwarp all volumes
+    fugue_all = pe.MapNode(ApplyFieldmap(generate_report=False),
+                           iterfield=['in_file', 'in_vsm'],
+                           name='fmap2inputs_unwarp')
+    # 6. Run HMC again on the corrected images, aiming at higher accuracy
+    hmc2 = pe.Node(MotionCorrection(), name='fmap2inputs_hmc')
+    hmc2_split = pe.Node(itk.SplitITKTransform(), name='fmap2inputs_hmc_split_tfms')
 
+    # Final correction with refined HMC parameters
     tfm_concat = pe.MapNode(itk.MergeANTsTransforms(
         in_file_invert=False, invert_transform_flags=[False]),
-        iterfield=['in_file'], name='AddTFM')
-
+                            iterfield=['in_file'], name='inputs_xfms')
     unwarpall = pe.MapNode(ANTSApplyTransformsRPT(
-        generate_report=False, dimension=3, interpolation='LanczosWindowedSinc'),
-        iterfield=['input_image', 'transforms', 'invert_transform_flags'],
-                        name='inputs_unwarped')
+        dimension=3, generate_report=False, float=True, interpolation='LanczosWindowedSinc'),
+                           iterfield=['input_image', 'transforms', 'invert_transform_flags'],
+                           name='inputs_unwarped')
+    mean = pe.Node(MeanTimeseries(), name='inputs_unwarped_mean')
 
     workflow.connect([
         (inputnode, split_hmc, [('in_hmcpar', 'in_file')]),
@@ -124,12 +155,13 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                               (('in_meta', _get_ec), 'echospacing'),
                               (('in_meta', _get_pedir), 'pe_dir')]),
         (inputnode, gen_vsm, [(('in_meta', _get_ec), 'dwell_time'),
-                             (('in_meta', _get_pedir), 'unwarp_direction')]),
+                              (('in_meta', _get_pedir), 'unwarp_direction')]),
         (inputnode, vsm2dfm, [(('in_meta', _get_pedir), 'pe_dir')]),
         (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
-        (target_hdr, fmap2ref, [('out_file', 'moving_image')]),
+        (torads, ref_wrp, [('out_file', 'in_file')]),
+        (target_hdr, inu, [('out_file', 'input_image')]),
+        (inu, fmap2ref, [('output_image', 'moving_image')]),
         (torads, gen_vsm, [('out_file', 'fmap_in_file')]),
-        (gen_vsm, ref_wrp, [('shift_out_file', 'in_file')]),
         (ref_wrp, ref_msk, [('out_warped', 'in_file'),
                             ('out_mask', 'in_mask')]),
         (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
@@ -140,20 +172,67 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (applyxfm, vsm2dfm, [('output_image', 'in_file')]),
         (vsm2dfm, unwarp, [('out_file', 'transforms')]),
         (target_hdr, unwarp, [('out_file', 'reference_image'),
-                               ('out_file', 'input_image')]),
+                              ('out_file', 'input_image')]),
+        # Run HMC again, aiming at higher accuracy
+        (split_hmc, pre_tfms, [('out_files', 'in_file')]),
+        (fmap2ref, pre_tfms, [
+            ('reverse_transforms', 'transforms'),
+            ('reverse_invert_flags', 'invert_transform_flags')]),
+        (gen_vsm, xfmmap, [('shift_out_file', 'input_image')]),
+        (target_hdr, xfmmap, [('out_file', 'reference_image')]),
+        (pre_tfms, xfmmap, [
+            ('transforms', 'transforms'),
+            ('invert_transform_flags', 'invert_transform_flags')]),
+        (inputnode, fugue_all, [(('in_meta', _get_pedir), 'pe_dir')]),
+        (inputs_hdr, fugue_all, [('out_file', 'in_file')]),
+        (xfmmap, fugue_all, [('output_image', 'in_vsm')]),
+        (fugue_all, hmc2, [('out_corrected', 'in_files')]),
+        (unwarp, hmc2, [('output_image', 'reference_image')]),
 
-
-        (split_hmc, tfm_concat, [('out_files', 'in_file')]),
+        (hmc2, hmc2_split, [('out_tfm', 'in_file')]),
+        (hmc2_split, tfm_concat, [('out_files', 'in_file')]),
         (vsm2dfm, tfm_concat, [('out_file', 'transforms')]),
         (tfm_concat, unwarpall, [
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
         (inputs_hdr, unwarpall, [('out_file', 'input_image')]),
         (target_hdr, unwarpall, [('out_file', 'reference_image')]),
+        (unwarpall, mean, [('output_image', 'in_files')]),
+        (mean, outputnode, [('out_file', 'out_mean')]),
+        (unwarpall, outputnode, [('output_image', 'out_files')])
     ])
     return workflow
 
-# Disable ApplyTOPUP for now
+# Helper functions
+# ------------------------------------------------------------
+
+def _get_reference(in_files, in_reference):
+    if len(in_files) == 1:
+        return in_files[0]
+    return in_reference
+
+def _get_ec(in_dict):
+    return float(in_dict['EffectiveEchoSpacing'])
+
+def _get_pedir(in_dict):
+    return in_dict['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
+
+def _hz2rads(in_file, out_file=None):
+    """Transform a fieldmap in Hz into rad/s"""
+    from math import pi
+    import nibabel as nb
+    from fmriprep.utils.misc import genfname
+    if out_file is None:
+        out_file = genfname(in_file, 'rads')
+    nii = nb.load(in_file)
+    data = nii.get_data() * 2.0 * pi
+    nb.Nifti1Image(data, nii.get_affine(),
+                   nii.get_header()).to_filename(out_file)
+    return out_file
+
+
+# Disable ApplyTOPUP workflow
+# ------------------------------------------------------------
 # from fmriprep.interfaces.topup import ConformTopupInputs
 # encfile = pe.Node(interface=niu.Function(
 #     input_names=['input_images', 'in_dict'], output_names=['unwarp_param', 'warp_param'],
@@ -177,85 +256,3 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 #     (encfile, unwarp, [('unwarp_param', 'encoding_file')]),
 #     (unwarp, outputnode, [('out_corrected', 'out_file')])
 # ])
-
-def _get_reference(in_files, in_reference):
-    if len(in_files) == 1:
-        return in_files[0]
-    return in_reference
-
-def _get_ec(in_dict):
-    return float(in_dict['EffectiveEchoSpacing'])
-
-def _get_pedir(in_dict):
-    return in_dict['PhaseEncodingDirection'].replace('j', 'y').replace('i', 'x')
-
-def _mask(in_file, in_mask, out_file=None):
-    import nibabel as nb
-    from fmriprep.utils.misc import genfname
-    if out_file is None:
-        out_file = genfname(in_file, 'brainmask')
-
-    nii = nb.load(in_file)
-    data = nii.get_data()
-    data[nb.load(in_mask).get_data() <= 0] = 0
-    nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
-    return out_file
-
-def _fixhdr(in_file):
-    import numpy as np
-    import nibabel as nb
-    from io import open
-    from fmriprep.utils.misc import genfname
-
-    im = nb.as_closest_canonical(nb.load(in_file))
-    newaff = np.eye(4)
-    newaff[:3, :3] = np.eye(3) * im.header.get_zooms()[:3]
-    newaff[:3, 3] -= 0.5 * newaff[:3, :3].dot(im.shape[:3])
-
-    out_file = genfname(in_file, suffix='nosform')
-    nb.Nifti1Image(im.get_data(), newaff, None).to_filename(
-        out_file)
-
-    out_hdr = genfname(in_file, suffix='hdr', ext='pklz')
-    with open(out_hdr, 'wb') as fheader:
-        im.header.write_to(fheader)
-    return out_file, out_hdr
-
-def hz2rads(in_file, out_file=None):
-    """Transform a fieldmap in Hz into rad/s"""
-    from math import pi
-    import nibabel as nb
-    from fmriprep.utils.misc import genfname
-    if out_file is None:
-        out_file = genfname(in_file, 'rads')
-    nii = nb.load(in_file)
-    data = nii.get_data() * 2.0 * pi
-    nb.Nifti1Image(data, nii.get_affine(),
-                   nii.get_header()).to_filename(out_file)
-    return out_file
-
-def _last(inlist):
-    if isinstance(inlist, list):
-        return inlist[-1]
-    return inlist
-
-def _first(inlist):
-    if isinstance(inlist, list):
-        return inlist[0]
-    return inlist
-
-
-def _fn_ras(in_file):
-    import os.path as op
-    import nibabel as nb
-    from fmriprep.utils.misc import genfname
-
-    if isinstance(in_file, list):
-        in_file = in_file[0]
-
-    out_file = genfname(in_file, suffix='ras')
-    nb.as_closest_canonical(nb.load(in_file)).to_filename(
-        out_file)
-    return out_file
-
-

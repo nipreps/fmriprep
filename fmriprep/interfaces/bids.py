@@ -6,7 +6,7 @@
 # @Author: oesteban
 # @Date:   2016-06-03 09:35:13
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-13 11:44:23
+# @Last Modified time: 2017-03-03 15:23:38
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import os
@@ -47,6 +47,7 @@ class SimpleInterface(BaseInterface):
 class BIDSDataGrabberInputSpec(BaseInterfaceInputSpec):
     subject_data = traits.Dict((str, bytes), traits.Any)
     subject_id = Str()
+    sort = traits.Bool(False, usedefault=True, desc='sort output results')
 
 
 class BIDSDataGrabberOutputSpec(TraitedSpec):
@@ -81,6 +82,11 @@ class BIDSDataGrabber(SimpleInterface):
             if not bids_dict[imtype]:
                 LOGGER.warn('No \'{}\' images found for sub-{}'.format(
                     imtype, self.inputs.subject_id))
+
+        if self.inputs.sort:
+            for key, val in list(self._results.items()):
+                if isinstance(val, list):
+                    self._results[key] = sorted(val)
 
         return runtime
 

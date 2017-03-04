@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-03-01 10:48:17
+# @Last Modified time: 2017-03-03 17:57:53
 """
 fMRI preprocessing workflow
 =====
@@ -167,8 +167,9 @@ def sbref_correct(subject_id, settings):
     from nipype.interfaces import fsl
     from fmriprep.utils.misc import collect_bids_data
     from fmriprep.interfaces.bids import BIDSDataGrabber, ReadSidecarJSON
-    from fmriprep.workflows.fieldmap import fmap_estimator, sdc_unwarp
     from fmriprep.interfaces.hmc import MotionCorrection
+    from fmriprep.workflows.fieldmap import fmap_estimator
+    from fmriprep.workflows.sbref import sbref_preprocess
 
     def _first(inlist):
         if isinstance(inlist, (list, tuple)):
@@ -180,27 +181,16 @@ def sbref_correct(subject_id, settings):
     wf = pe.Workflow(name=wfname)
     print(wfname)
 
-    bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data), name='BIDSDatasource')
-    meta = pe.Node(ReadSidecarJSON(), name='metadata')
-
-    conform = pe.Node(MotionCorrection(), name='MergeSBRefs')
-    bet = pe.Node(fsl.BET(frac=0.4, mask=True), name='Mask')
-
+    bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data, sort=True),
+                      name='BIDSDatasource')
     estimator = fmap_estimator(subject_data, settings=settings)
-    sdc = sdc_unwarp(settings=settings)
+    sbrefprep = sbref_preprocess(settings=settings)
 
     wf.connect([
-        (bidssrc, meta, [(('sbref', _first), 'in_file')]),
-        (bidssrc, conform, [('sbref', 'in_files')]),
-        (estimator, sdc, [(('outputnode.fmap', _first), 'inputnode.fmap'),
-                          (('outputnode.fmap_ref', _first), 'inputnode.fmap_ref'),
-                          (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')]),
-        (meta, sdc, [('out_dict', 'inputnode.in_meta')]),
-        (bidssrc, sdc, [('sbref', 'inputnode.in_files')]),
-        (conform, sdc, [('out_avg', 'inputnode.in_reference'),
-                        ('out_tfm', 'inputnode.in_hmcpar')]),
-        (conform, bet, [('out_avg', 'in_file')]),
-        #(bet, sdc, [('mask_file', 'inputnode.in_mask')])
+        (bidssrc, sbrefprep, [('sbref', 'sbref')]),
+        (estimator, sbrefprep, [(('outputnode.fmap', _first), 'inputnode.fmap'),
+                                (('outputnode.fmap_ref', _first), 'inputnode.fmap_ref'),
+                                (('outputnode.fmap_mask', _first), 'inputnode.fmap_mask')])
     ])
 
     return wf

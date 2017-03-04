@@ -6,22 +6,28 @@
 Preprocessing workflows for :abbr:`SB (single-band)`-reference (SBRef)
 images.
 
-Originally coded by Craig Moodie. Refactored by the CRN Developers.
+This workflow runs a preliminary :abbr:`HMC (head motion correction)` on
+the input SBRefs (it can be a list of them).
+
+After :abbr:`HMC (head motion correction)`, the ``sdc_unwarp`` workflow
+will run :abbr:`SDC (susceptibility distortion correction)` followed by
+a second iteration of :abbr:`HMC (head motion correction)`.
+
+The output image is then removed the bias and skull-stripped.
+
+
 """
 
-import os.path as op
-
 from nipype.pipeline import engine as pe
-from nipype.interfaces import io as nio
 from nipype.interfaces import utility as niu
-from nipype.interfaces import fsl
 from nipype.interfaces import ants
 from niworkflows.interfaces.masks import ComputeEPIMask
 
 from fmriprep.utils.misc import _first
 from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.workflows.fieldmap import sdc_unwarp
-
+from fmriprep.interfaces.bids import ReadSidecarJSON
+from fmriprep.interfaces.hmc import MotionCorrection
 
 def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     """SBref processing workflow"""
@@ -35,34 +41,46 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['sbref_unwarped', 'sbref_unwarped_mask']),
                          name='outputnode')
+
+    # Read metadata
+    meta = pe.Node(ReadSidecarJSON(), name='metadata')
+
+    # Preliminary head motion correction
+    pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
+
     # Unwarping
     unwarp = sdc_unwarp(settings=settings)
 
-    mean = pe.Node(fsl.MeanImage(dimension='T'), name='SBRefMean')
+    # Remove bias field from SBRef for the sake of registrations
     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='SBRefBias')
+
+    # Get rid of skull
     skullstripping = pe.Node(ComputeEPIMask(generate_report=True,
                                             dilation=1), name='SBRefSkullstripping')
 
-    ds_report = pe.Node(
-        DerivativesDataSink(base_directory=settings['reportlets_dir'],
-                            suffix='sbref_bet'),
-        name='DS_Report'
-    )
 
     workflow.connect([
-        (inputnode, unwarp, [('fmap', 'inputnode.fmap'),
-                             ('fmap_ref', 'inputnode.fmap_ref'),
-                             ('fmap_mask', 'inputnode.fmap_mask')]),
-        (inputnode, unwarp, [('sbref', 'inputnode.in_file')]),
-        (unwarp, mean, [('outputnode.out_file', 'in_file')]),
-        (mean, inu, [('out_file', 'input_image')]),
+        (inputnode, meta, [(('sbref', _first), 'in_file')]),
+        (inputnode, pre_hmc, [('sbref', 'in_files')]),
+        (inputnode, unwarp, [('sbref', 'inputnode.in_files'),
+                             (('fmap', _first), 'inputnode.fmap'),
+                             (('fmap_ref', _first), 'inputnode.fmap_ref'),
+                             (('fmap_mask', _first), 'inputnode.fmap_mask')]),
+        (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
+        (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
+                           ('out_tfm', 'inputnode.in_hmcpar')]),
+        (unwarp, inu, [('outputnode.out_mean', 'input_image')]),
         (inu, skullstripping, [('output_image', 'in_file')]),
-        (skullstripping, ds_report, [('out_report', 'in_file')]),
-        (inputnode, ds_report, [(('sbref', _first), 'source_file')]),
         (skullstripping, outputnode, [('mask_file', 'sbref_unwarped_mask')]),
         (inu, outputnode, [('output_image', 'sbref_unwarped')])
     ])
 
+    # Hook up reporting and push derivatives
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='brainmask'),
+        name='DS_Report'
+    )
     datasink = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
                             suffix='sdc'),
@@ -70,22 +88,9 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     )
 
     workflow.connect([
+        (inputnode, ds_report, [(('sbref', _first), 'source_file')]),
         (inputnode, datasink, [(('sbref', _first), 'source_file')]),
+        (skullstripping, ds_report, [('out_report', 'in_file')]),
         (inu, datasink, [('output_image', 'in_file')])
     ])
     return workflow
-
-
-def _extract_wm(in_file):
-    import os.path as op
-    import nibabel as nb
-    import numpy as np
-
-    image = nb.load(in_file)
-    data = image.get_data().astype(np.uint8)
-    data[data != 3] = 0
-    data[data > 0] = 1
-
-    out_file = op.abspath('wm_mask.nii.gz')
-    nb.Nifti1Image(data, image.get_affine(), image.get_header()).to_filename(out_file)
-    return out_file

@@ -30,7 +30,10 @@ LOGGER = logging.getLogger('interface')
 
 
 class MotionCorrectionInputSpec(BaseInterfaceInputSpec):
-    in_files = InputMultiPath(File(exists=True), desc='input file')
+    in_files = InputMultiPath(File(exists=True), mandatory=True, desc='input file')
+    ref_vol = traits.Float(0.5, usedefault=True,
+                           desc='location of the reference volume (0.0 is first, 1.0 is last)')
+    reference_image = File(exists=True, desc='use reference image')
     nthreads = traits.Int(-1, usedefault=True, nohash=True,
                           desc='number of threads to use within ANTs registrations')
 
@@ -75,7 +78,14 @@ class MotionCorrection(BaseInterface):
         if not isinstance(in_files, (list, tuple)):
             in_files = [in_files]
 
-        out_files, movpar = motion_correction(in_files, nthreads=nthreads)
+        ref_image = None
+        if isdefined(self.inputs.reference_image):
+            ref_image = self.inputs.reference_image
+
+        out_files, movpar = motion_correction(in_files,
+                                              reference_image=ref_image,
+                                              ref_vol=self.inputs.ref_vol,
+                                              nthreads=nthreads)
 
         # Save average image
         out_avg = genfname(in_files[0], suffix='average')
@@ -89,7 +99,8 @@ class MotionCorrection(BaseInterface):
         return runtime
 
 
-def motion_correction(in_files, ref_vol=0, nthreads=None):
+def motion_correction(in_files, reference_image=None,
+                      ref_vol=0.0, nthreads=None):
     """
     A very simple motion correction workflow including two
     passes of antsMotionCorr
@@ -97,8 +108,9 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
 
     nfiles = len(in_files)
     if nfiles > 1:
-        ref_input = in_files[ref_vol]
-        all_images = genfname(ref_input, suffix='merged')
+        if reference_image is None:
+            reference_image = in_files[int(ref_vol * (nfiles - 0.5))]
+        all_images = genfname(reference_image, suffix='merged')
         concat_imgs(in_files).to_filename(all_images)
     else:
         ndim = nb.load(in_files[0]).get_data().ndim
@@ -106,16 +118,22 @@ def motion_correction(in_files, ref_vol=0, nthreads=None):
             return in_files[0]
         else:
             all_images = in_files[0]
-            ref_input = genfname(all_images, suffix='ref')
-            nb.four_to_three(nb.load(all_images))[0].to_filename(
-                ref_input)
+            nii = nb.load(all_images)
+            nimages = nii.shape[3]
 
-    out_prefix = op.basename(genfname(ref_input, suffix='motcor0', ext=''))
-    out_file = _run_antsMotionCorr(out_prefix, ref_input, all_images,
-                                   only_rigid=True, nthreads=nthreads)
+            if reference_image is None:
+                reference_image = genfname(all_images, suffix='ref')
+                nb.four_to_three(
+                    nii)[int(ref_vol * (nimages - 0.5))].to_filename(
+                        reference_image)
+
+    out_prefix = op.basename(genfname(reference_image,
+                             suffix='motcor0', ext=''))
+    out_file = _run_antsMotionCorr(out_prefix, reference_image, all_images,
+                                   only_rigid=(nfiles == 2), nthreads=nthreads)
 
     if nfiles > 2:
-        out_prefix = op.basename(genfname(ref_input, suffix='motcor1', ext=''))
+        out_prefix = op.basename(genfname(reference_image, suffix='motcor1', ext=''))
         out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
                                        nthreads=nthreads, iteration=1)
 
@@ -134,13 +152,13 @@ def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
     if iteration == 0:
         args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
                 '-m', 'MI[%s, %s, 1, 32, Regular, 0.2]' % (ref_image, all_images),
-                '-t', '%s[ 0.05 ]' % ('Rigid' if only_rigid else 'Affine'),
+                '-t', '%s[ 0.5 ]' % ('Rigid' if only_rigid else 'Affine'),
                 '-u', '1', '-e', '1', '-l', '1',
                 '-i', '40x20', '-s', '4x1', '-f', '2x1']
     else:
         args = ['-d', '3', '-o', '[{0},{0}.nii.gz,{0}_avg.nii.gz]'.format(out_prefix),
                 '-m', 'gc[%s, %s, 1, 5, Random, 0.2]' % (ref_image, all_images),
-                '-t', '%s[ 0.01 ]' % ('Rigid' if only_rigid else 'Affine'),
+                '-t', '%s[ 0.1 ]' % ('Rigid' if only_rigid else 'Affine'),
                 '-u', '1', '-e', '1', '-l', '1',
                 '-i', '15x3', '-s', '2x0', '-f', '2x1']
 

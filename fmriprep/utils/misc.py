@@ -169,5 +169,21 @@ def fix_multi_T1w_source_name(in_files):
     else:
         return in_files
 
+
+def _extract_wm(in_file):
+    import os.path as op
+    import nibabel as nb
+    import numpy as np
+
+    image = nb.load(in_file)
+    data = image.get_data().astype(np.uint8)
+    data[data != 3] = 0
+    data[data > 0] = 1
+
+    out_file = op.abspath('wm_mask.nii.gz')
+    nb.Nifti1Image(data, image.get_affine(), image.get_header()).to_filename(out_file)
+    return out_file
+
+
 if __name__ == '__main__':
     pass
