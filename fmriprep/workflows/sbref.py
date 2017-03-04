@@ -6,16 +6,6 @@
 Preprocessing workflows for :abbr:`SB (single-band)`-reference (SBRef)
 images.
 
-This workflow runs a preliminary :abbr:`HMC (head motion correction)` on
-the input SBRefs (it can be a list of them).
-
-After :abbr:`HMC (head motion correction)`, the ``sdc_unwarp`` workflow
-will run :abbr:`SDC (susceptibility distortion correction)` followed by
-a second iteration of :abbr:`HMC (head motion correction)`.
-
-The output image is then removed the bias and skull-stripped.
-
-
 """
 
 from nipype.pipeline import engine as pe
@@ -30,7 +20,35 @@ from fmriprep.interfaces.bids import ReadSidecarJSON
 from fmriprep.interfaces.hmc import MotionCorrection
 
 def sbref_preprocess(name='SBrefPreprocessing', settings=None):
-    """SBref processing workflow"""
+    """
+    SBref processing workflow
+
+    This workflow runs a preliminary :abbr:`HMC (head motion correction)` on
+    the input SBRefs (it can be a list of them).
+
+    After :abbr:`HMC (head motion correction)`, the ``sdc_unwarp`` workflow
+    will run :abbr:`SDC (susceptibility distortion correction)` followed by
+    a second iteration of :abbr:`HMC (head motion correction)`.
+
+    The output image is then removed the bias and skull-stripped.
+
+    Input fields:
+    ~~~~~~~~~~~~~
+
+      inputnode.sbref - a list of target SBRefs to be processed
+      inputnode.fmap - a fieldmap in Hz
+      inputnode.fmap_ref - the fieldmap reference (generally, a *magnitude* image or the
+                           resulting SE image)
+      inputnode.fmap_mask - a brain mask in fieldmap-space
+
+    Output fields:
+    ~~~~~~~~~~~~~~
+
+      outputnode.sbref_unwarped - the in_file after HMC and SDC corrections.
+      outputnode.sbref_unwarped_mask - brain mask corresponding to the ``sbref_unwarped``
+
+
+    """
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
