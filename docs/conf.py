@@ -15,7 +15,7 @@
 import os
 import sys
 import subprocess
-from fmriprep.workflows.base import wf_ds005_type
+from fmriprep.workflows.base import basic_wf
 from nipype.pipeline.engine import Workflow
 
 # Hack for readthedocs
@@ -323,7 +323,7 @@ def fake_set_up():
 
 fake_set_up()
 
-ds005_wf = wf_ds005_type({'func': 'fake data'}, {'ants_nthreads': 1,
+ds005_wf = basic_wf({'func': 'fake data'}, {'ants_nthreads': 1,
                                                  'nthreads': 1,
                                                  'output_dir': 'x',
                                                  'reportlets_dir': 'x',

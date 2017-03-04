@@ -39,7 +39,8 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     dvars.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
     # Frame displacement
-    frame_displace = pe.Node(confounds.FramewiseDisplacement(), name="FramewiseDisplacement")
+    frame_displace = pe.Node(confounds.FramewiseDisplacement(parameter_source="FSL"),
+                             name="FramewiseDisplacement")
     frame_displace.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
     # CompCor
@@ -172,7 +173,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         # connect inputnode to each non-anatomical confound node
         (inputnode, dvars, [('fmri_file', 'in_file'),
                             ('epi_mask', 'in_mask')]),
-        (inputnode, frame_displace, [('movpar_file', 'in_plots')]),
+        (inputnode, frame_displace, [('movpar_file', 'in_file')]),
         (inputnode, tcompcor, [('fmri_file', 'realigned_file')]),
 
         (inputnode, CSF_roi, [(('t1_tpms', pick_csf), 'in_file')]),

@@ -34,11 +34,13 @@ dependencies:
 test:
   override:
     - docker run -ti --rm --entrypoint="python" poldracklab/fmriprep:latest -m unittest discover test
+    - docker run -ti --rm -v $HOME/_build_html/:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest -T -E -b html -d _build/doctrees-readthedocs -D language=en docs/ /_build_html:
+        timeout: 4800
     # Disabling until fieldmaps refactor is ready
     #- docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds054/scratch:/scratch -v $HOME/ds054/out:/out poldracklab/fmriprep:latest /data/ds054 /out/ participant --no-freesurfer --debug -w /scratch:
     #    timeout: 4800
     - docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --no-freesurfer --debug -w /scratch:
-        timeout: 4800
+       timeout: 4800
     - find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
     - find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
 
@@ -48,6 +50,7 @@ general:
     - "~/ds054/scratch"
     - "~/ds005/out"
     - "~/ds005/scratch"
+    - "~/_build_html"
 
 deployment:
   production:

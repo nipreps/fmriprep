@@ -88,7 +88,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                 img = nib.load(t1w)
                 if all((img.shape == t1w_ref.shape,
                         img.header.get_zooms() == t1w_ref.header.get_zooms())):
-                    t1w_outs.append(t1w_outs)
+                    t1w_outs.append(t1w)
 
             autorecon1_flags = [default_flags]
             reconall_flags = [default_flags]
@@ -248,7 +248,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     if settings['freesurfer']:
         workflow.connect([
             (inputnode, recon_config, [('t1w', 't1w_list')]),
-            (inputnode, bids_info, [('t1w', 'in_file')]),
+            (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
             (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
             (recon_config, autorecon1, [('t1w', 'T1_files'),
                                         ('autorecon1_flags', 'flags')]),

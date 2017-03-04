@@ -1,6 +1,9 @@
 # Use Ubuntu 16.04 LTS
 FROM ubuntu:xenial-20161213
 
+# Pre-cache neurodebian key
+COPY docker/files/neurodebian.gpg /root/.neurodebian.gpg
+
 # Prepare environment
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -14,7 +17,8 @@ RUN apt-get update && \
                     libtool \
                     pkg-config && \
     curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-    apt-key adv --recv-keys --keyserver hkp://pgp.mit.edu:80 0xA5D32F012649A5A9 && \
+    apt-key add /root/.neurodebian.gpg && \
+    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
     apt-get update
 
 # Installing freesurfer
@@ -98,25 +102,23 @@ RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.2.12-Linux-x86_64.sh && \
-    bash Miniconda3-4.2.12-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-4.2.12-Linux-x86_64.sh
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
+    bash Miniconda3-4.3.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-4.3.11-Linux-x86_64.sh
 
 ENV PATH=/usr/local/miniconda/bin:$PATH \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
-RUN conda config --add channels intel
-ENV ACCEPT_INTEL_PYTHON_EULA=yes
-RUN conda install -y mkl=2017.0.1 \
-                     numpy=1.11.2 \
+RUN conda install -y mkl=2017.0.1 mkl-service &&  \
+    conda install -y numpy=1.12.0 \
                      scipy=0.18.1 \
-                     scikit-learn=0.17.1 \
-                     matplotlib=1.5.3 \
-                     pandas=0.19.0 \
+                     scikit-learn=0.18.1 \
+                     matplotlib=2.0.0 \
+                     pandas=0.19.2 \
                      libxml2=2.9.4 \
-                     libxslt=1.1.29 \
+                     libxslt=1.1.29\
                      traits=4.6.0 &&  \
     chmod +x /usr/local/miniconda/bin/* && \
     conda clean --all -y
@@ -144,7 +146,7 @@ RUN pip install -r requirements.txt && \
 # Installing FMRIPREP
 COPY . /root/src/fmriprep
 RUN cd /root/src/fmriprep && \
-    pip install -e .[all] && \
+    pip install .[all] && \
     rm -rf ~/.cache/pip
 
 # Precaching atlases
