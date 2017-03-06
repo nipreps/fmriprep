@@ -25,7 +25,7 @@ from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
 
 from fmriprep.workflows.epi import (
-    epi_unwarp, epi_hmc, epi_sbref_registration,
+    epi_preprocess, epi_hmc, epi_sbref_registration,
     ref_epi_t1_registration, epi_mni_transformation)
 
 
@@ -109,15 +109,9 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
                                        inv_ds_suffix='target-sbref_affine',
                                        settings=settings)
 
-    # HMC on the EPI
-    hmcwf = epi_hmc(settings=settings)
-    hmcwf.get_node('inputnode').iterables = ('epi', subject_data['func'])
-
-    # EPI to SBRef
-    epi2sbref = epi_sbref_registration(settings)
-
-    # EPI unwarp
-    epiunwarp_wf = epi_unwarp(settings=settings)
+    # HMC and SDC of EPI using SBRef as reference
+    epi_pre = epi_preprocess(settings=settings)
+    epi_pre.get_node('inputnode').iterables = ('epi', subject_data['func'])
 
     # get confounds
     confounds_wf = confounds.discover_wf(settings)
@@ -141,29 +135,30 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
             ('outputnode.t1_mask', 'inputnode.t1_mask'),
             ('outputnode.t1_brain', 'inputnode.t1_brain'),
             ('outputnode.t1_seg', 'inputnode.t1_seg')]),
-        (sbref_pre, epi2sbref, [('outputnode.sbref_unwarped', 'inputnode.sbref'),
-                                ('outputnode.sbref_unwarped_mask', 'inputnode.sbref_mask')]),
-        (hmcwf, epi2sbref, [('outputnode.epi_mask', 'inputnode.epi_mask'),
-                            ('outputnode.epi_mean', 'inputnode.epi_mean'),
-                            ('outputnode.epi_hmc', 'inputnode.epi'),
-                            ('inputnode.epi', 'inputnode.epi_name_source')]),
-        (hmcwf, epiunwarp_wf, [('inputnode.epi', 'inputnode.epi')]),
-        (fmap_est, epiunwarp_wf, [('outputnode.fmap', 'inputnode.fmap'),
-                                  ('outputnode.fmap_mask', 'inputnode.fmap_mask'),
-                                  ('outputnode.fmap_ref', 'inputnode.fmap_ref')]),
-        (sbref_t1, t1_to_epi_transforms, [(('outputnode.mat_t1_to_epi'), 'in_file')]),
-        (epi2sbref, t1_to_epi_transforms, [('outputnode.out_mat_inv', 'in_file2')]),
-
         (t1_to_epi_transforms, confounds_wf, [('out_file', 'inputnode.t1_transform')]),
-
-        (hmcwf, confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file'),
-                               ('outputnode.epi_mean', 'inputnode.reference_image'),
-                               ('outputnode.motion_confounds_file',
-                                'inputnode.motion_confounds_file'),
-                               ('inputnode.epi', 'inputnode.source_file')]),
-        (epiunwarp_wf, confounds_wf, [('outputnode.epi_mask', 'inputnode.epi_mask'),
-                                      ('outputnode.epi_unwarp', 'inputnode.fmri_file')]),
         (t1w_pre, confounds_wf, [('outputnode.t1_tpms', 'inputnode.t1_tpms')]),
+
+        # (sbref_pre, epi2sbref, [('outputnode.sbref_unwarped', 'inputnode.sbref'),
+        #                         ('outputnode.sbref_unwarped_mask', 'inputnode.sbref_mask')]),
+        # (hmcwf, epi2sbref, [('outputnode.epi_mask', 'inputnode.epi_mask'),
+        #                     ('outputnode.epi_mean', 'inputnode.epi_mean'),
+        #                     ('outputnode.epi_hmc', 'inputnode.epi'),
+        #                     ('inputnode.epi', 'inputnode.epi_name_source')]),
+        # (hmcwf, epiunwarp_wf, [('inputnode.epi', 'inputnode.epi')]),
+        # (fmap_est, epiunwarp_wf, [('outputnode.fmap', 'inputnode.fmap'),
+        #                           ('outputnode.fmap_mask', 'inputnode.fmap_mask'),
+        #                           ('outputnode.fmap_ref', 'inputnode.fmap_ref')]),
+        # (sbref_t1, t1_to_epi_transforms, [(('outputnode.mat_t1_to_epi'), 'in_file')]),
+        # (epi2sbref, t1_to_epi_transforms, [('outputnode.out_mat_inv', 'in_file2')]),
+
+
+        # (hmcwf, confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file'),
+        #                        ('outputnode.epi_mean', 'inputnode.reference_image'),
+        #                        ('outputnode.motion_confounds_file',
+        #                         'inputnode.motion_confounds_file'),
+        #                        ('inputnode.epi', 'inputnode.source_file')]),
+        # (epiunwarp_wf, confounds_wf, [('outputnode.epi_mask', 'inputnode.epi_mask'),
+        #                               ('outputnode.epi_unwarp', 'inputnode.fmri_file')]),
     ])
 
     if settings['freesurfer']:
