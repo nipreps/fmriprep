@@ -25,10 +25,6 @@ from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
 from fmriprep.workflows.epi import epi_preprocess, ref_epi_t1_registration
 
-# from fmriprep.workflows.epi import (
-#     epi_preprocess, epi_hmc, epi_sbref_registration,
-#     ref_epi_t1_registration, epi_mni_transformation)
-
 
 def base_workflow_enumerator(subject_list, task_id, settings, run_uuid):
     workflow = pe.Workflow(name='workflow_enumerator')
@@ -184,6 +180,9 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
       * [ ] No SBRefs
 
     """
+
+    from fmriprep.workflows.epi import (
+        epi_hmc, epi_sbref_registration, epi_mni_transformation)
 
     if settings is None:
         settings = {}

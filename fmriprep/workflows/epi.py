@@ -300,122 +300,122 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
 
     return workflow
 
-# pylint: disable=R0914
 # THIS WORKFLOW IS TO BE DEPRECATED
-# def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
-#     workflow = pe.Workflow(name=name)
-#     inputnode = pe.Node(
-#         niu.IdentityInterface(fields=['epi', 'epi_name_source', 'sbref',
-#                                       'epi_mean', 'epi_mask',
-#                                       'sbref_mask']),
-#         name='inputnode'
-#     )
-#     outputnode = pe.Node(niu.IdentityInterface(
-#         fields=['epi_registered', 'out_mat', 'out_mat_inv']), name='outputnode')
+# pylint: disable=R0914
+def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['epi', 'epi_name_source', 'sbref',
+                                      'epi_mean', 'epi_mask',
+                                      'sbref_mask']),
+        name='inputnode'
+    )
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['epi_registered', 'out_mat', 'out_mat_inv']), name='outputnode')
 
-#     epi_sbref = pe.Node(FLIRTRPT(generate_report=True, dof=6,
-#                                  out_matrix_file='init.mat',
-#                                  out_file='init.nii.gz'),
-#                         name='EPI2SBRefRegistration')
-#     # make equivalent inv
-#     sbref_epi = pe.Node(fsl.ConvertXFM(invert_xfm=True), name="SBRefEPI")
+    epi_sbref = pe.Node(FLIRTRPT(generate_report=True, dof=6,
+                                 out_matrix_file='init.mat',
+                                 out_file='init.nii.gz'),
+                        name='EPI2SBRefRegistration')
+    # make equivalent inv
+    sbref_epi = pe.Node(fsl.ConvertXFM(invert_xfm=True), name="SBRefEPI")
 
-#     epi_split = pe.Node(fsl.Split(dimension='t'), name='EPIsplit')
-#     epi_xfm = pe.MapNode(fsl.preprocess.ApplyXFM(), name='EPIapplyXFM',
-#                          iterfield=['in_file'])
-#     epi_merge = pe.Node(niu.Function(input_names=["in_files"],
-#                                      output_names=["merged_file"],
-#                                      function=nii_concat), name='EPImergeback')
+    epi_split = pe.Node(fsl.Split(dimension='t'), name='EPIsplit')
+    epi_xfm = pe.MapNode(fsl.preprocess.ApplyXFM(), name='EPIapplyXFM',
+                         iterfield=['in_file'])
+    epi_merge = pe.Node(niu.Function(input_names=["in_files"],
+                                     output_names=["merged_file"],
+                                     function=nii_concat), name='EPImergeback')
 
-#     ds_sbref = pe.Node(
-#         DerivativesDataSink(base_directory=settings['output_dir'],
-#                             suffix='preproc'), name='DerivHMC_SBRef')
+    ds_sbref = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='preproc'), name='DerivHMC_SBRef')
 
-#     ds_report = pe.Node(
-#         DerivativesDataSink(base_directory=settings['reportlets_dir'],
-#                             suffix='epi_sbref'),
-#         name="DS_Report")
+    ds_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='epi_sbref'),
+        name="DS_Report")
 
-#     workflow.connect([
-#         (inputnode, epi_split, [('epi', 'in_file')]),
-#         (inputnode, epi_sbref, [('sbref', 'reference'),
-#                                 ('sbref_mask', 'ref_weight')]),
-#         (inputnode, epi_xfm, [('sbref', 'reference')]),
-#         (inputnode, epi_sbref, [('epi_mean', 'in_file'),
-#                                 ('epi_mask', 'in_weight')]),
+    workflow.connect([
+        (inputnode, epi_split, [('epi', 'in_file')]),
+        (inputnode, epi_sbref, [('sbref', 'reference'),
+                                ('sbref_mask', 'ref_weight')]),
+        (inputnode, epi_xfm, [('sbref', 'reference')]),
+        (inputnode, epi_sbref, [('epi_mean', 'in_file'),
+                                ('epi_mask', 'in_weight')]),
 
-#         (epi_split, epi_xfm, [('out_files', 'in_file')]),
-#         (epi_sbref, epi_xfm, [('out_matrix_file', 'in_matrix_file')]),
-#         (epi_xfm, epi_merge, [('out_file', 'in_files')]),
-#         (epi_sbref, outputnode, [('out_matrix_file', 'out_mat')]),
-#         (epi_merge, outputnode, [('merged_file', 'epi_registered')]),
+        (epi_split, epi_xfm, [('out_files', 'in_file')]),
+        (epi_sbref, epi_xfm, [('out_matrix_file', 'in_matrix_file')]),
+        (epi_xfm, epi_merge, [('out_file', 'in_files')]),
+        (epi_sbref, outputnode, [('out_matrix_file', 'out_mat')]),
+        (epi_merge, outputnode, [('merged_file', 'epi_registered')]),
 
-#         (epi_sbref, sbref_epi, [('out_matrix_file', 'in_file')]),
-#         (sbref_epi, outputnode, [('out_file', 'out_mat_inv')]),
+        (epi_sbref, sbref_epi, [('out_matrix_file', 'in_file')]),
+        (sbref_epi, outputnode, [('out_file', 'out_mat_inv')]),
 
-#         (epi_merge, ds_sbref, [('merged_file', 'in_file')]),
-#         (inputnode, ds_sbref, [('epi_name_source', 'source_file')]),
-#         (inputnode, ds_report, [('epi_name_source', 'source_file')]),
-#         (epi_sbref, ds_report, [('out_report', 'in_file')])
-#     ])
+        (epi_merge, ds_sbref, [('merged_file', 'in_file')]),
+        (inputnode, ds_sbref, [('epi_name_source', 'source_file')]),
+        (inputnode, ds_report, [('epi_name_source', 'source_file')]),
+        (epi_sbref, ds_report, [('out_report', 'in_file')])
+    ])
 
 #     return workflow
 
-# pylint: disable=R0914
 # THIS WORKFLOW IS TO BE DEPRECATED
-# def epi_hmc(name='EPI_HMC', settings=None):
-#     """
-#     Performs :abbr:`HMC (head motion correction)` over the input
-#     :abbr:`EPI (echo-planar imaging)` image.
-#     """
-#     workflow = pe.Workflow(name=name)
-#     inputnode = pe.Node(niu.IdentityInterface(fields=['epi']), name='inputnode')
-#     outputnode = pe.Node(niu.IdentityInterface(
-#         fields=['xforms', 'epi_hmc', 'epi_split', 'epi_mask', 'epi_mean', 'movpar_file',
-#                 'motion_confounds_file']), name='outputnode')
+# pylint: disable=R0914
+def epi_hmc(name='EPI_HMC', settings=None):
+    """
+    Performs :abbr:`HMC (head motion correction)` over the input
+    :abbr:`EPI (echo-planar imaging)` image.
+    """
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(niu.IdentityInterface(fields=['epi']), name='inputnode')
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['xforms', 'epi_hmc', 'epi_split', 'epi_mask', 'epi_mean', 'movpar_file',
+                'motion_confounds_file']), name='outputnode')
 
-#     # Head motion correction (hmc)
-#     hmc = pe.Node(fsl.MCFLIRT(
-#         save_mats=True, save_plots=True, mean_vol=True), name='EPI_hmc')
-#     hmc.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
+    # Head motion correction (hmc)
+    hmc = pe.Node(fsl.MCFLIRT(
+        save_mats=True, save_plots=True, mean_vol=True), name='EPI_hmc')
+    hmc.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
 
-#     hcm2itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
-#                          iterfield=['transform_file'], name='hcm2itk')
+    hcm2itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
+                         iterfield=['transform_file'], name='hcm2itk')
 
-#     avscale = pe.MapNode(fsl.utils.AvScale(all_param=True), name='AvScale',
-#                          iterfield=['mat_file'])
-#     avs_format = pe.Node(FormatHMCParam(), name='AVScale_Format')
+    avscale = pe.MapNode(fsl.utils.AvScale(all_param=True), name='AvScale',
+                         iterfield=['mat_file'])
+    avs_format = pe.Node(FormatHMCParam(), name='AVScale_Format')
 
-#     inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='EPImeanBias')
+    inu = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='EPImeanBias')
 
-#     # Calculate EPI mask on the average after HMC
-#     skullstrip_epi = pe.Node(ComputeEPIMask(generate_report=True, dilation=1),
-#                              name='skullstrip_epi')
+    # Calculate EPI mask on the average after HMC
+    skullstrip_epi = pe.Node(ComputeEPIMask(generate_report=True, dilation=1),
+                             name='skullstrip_epi')
 
-#     split = pe.Node(fsl.Split(dimension='t'), name='SplitEPI')
-#     split.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
+    split = pe.Node(fsl.Split(dimension='t'), name='SplitEPI')
+    split.interface.estimated_memory_gb = settings["biggest_epi_file_size_gb"] * 3
 
-#     workflow.connect([
-#         (inputnode, hmc, [('epi', 'in_file')]),
-#         (hmc, hcm2itk, [('mat_file', 'transform_file'),
-#                         ('mean_img', 'source_file'),
-#                         ('mean_img', 'reference_file')]),
-#         (hcm2itk, outputnode, [('itk_transform', 'xforms')]),
-#         (hmc, outputnode, [('par_file', 'movpar_file'),
-#                            ('mean_img', 'epi_mean')]),
-#         (hmc, avscale, [('mat_file', 'mat_file')]),
-#         (avscale, avs_format, [('translations', 'translations'),
-#                                ('rot_angles', 'rot_angles')]),
-#         (hmc, inu, [('mean_img', 'input_image')]),
-#         (inu, skullstrip_epi, [('output_image', 'in_file')]),
-#         (hmc, avscale, [('mean_img', 'ref_file')]),
-#         (avs_format, outputnode, [('out_file', 'motion_confounds_file')]),
-#         (skullstrip_epi, outputnode, [('mask_file', 'epi_mask')]),
-#         (inputnode, split, [('epi', 'in_file')]),
-#         (split, outputnode, [('out_files', 'epi_split')]),
-#     ])
+    workflow.connect([
+        (inputnode, hmc, [('epi', 'in_file')]),
+        (hmc, hcm2itk, [('mat_file', 'transform_file'),
+                        ('mean_img', 'source_file'),
+                        ('mean_img', 'reference_file')]),
+        (hcm2itk, outputnode, [('itk_transform', 'xforms')]),
+        (hmc, outputnode, [('par_file', 'movpar_file'),
+                           ('mean_img', 'epi_mean')]),
+        (hmc, avscale, [('mat_file', 'mat_file')]),
+        (avscale, avs_format, [('translations', 'translations'),
+                               ('rot_angles', 'rot_angles')]),
+        (hmc, inu, [('mean_img', 'input_image')]),
+        (inu, skullstrip_epi, [('output_image', 'in_file')]),
+        (hmc, avscale, [('mean_img', 'ref_file')]),
+        (avs_format, outputnode, [('out_file', 'motion_confounds_file')]),
+        (skullstrip_epi, outputnode, [('mask_file', 'epi_mask')]),
+        (inputnode, split, [('epi', 'in_file')]),
+        (split, outputnode, [('out_files', 'epi_split')]),
+    ])
 
-#     return workflow
+    return workflow
 
 # pylint: disable=R0914
 # THIS WORKFLOW IS TO BE DEPRECATED
