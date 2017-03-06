@@ -33,7 +33,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     workflow = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w', 'subjects_dir']), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w', 't2w', 'subjects_dir']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['t1_seg', 't1_tpms', 'bias_corrected_t1', 't1_brain', 't1_mask',
                 't1_2_mni', 't1_2_mni_forward_transform',
@@ -77,12 +77,18 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     if settings['freesurfer']:
         nthreads = settings['nthreads']
 
-        def detect_inputs(t1w_list, default_flags=''):
+        def detect_inputs(t1w_list, t2w_list=[]):
+            import os
+            from nipype.interfaces.base import isdefined
             from nipype.utils.filemanip import filename_to_list
+            from nipype.interfaces.traits_extension import Undefined
             import nibabel as nib
             t1w_list = filename_to_list(t1w_list)
+            t2w_list = filename_to_list(t2w_list) if isdefined(t2w_list) else []
             t1w_ref = nib.load(t1w_list[0])
-            hires = max(t1w_ref.header.get_zooms()) < 1
+            # Use high resolution preprocessing if voxel size < 1.0mm
+            # Tolerance of 0.05mm requires that rounds down to 0.9mm or lower
+            hires = max(t1w_ref.header.get_zooms()) < 1 - 0.05
             t1w_outs = [t1w_list.pop(0)]
             for t1w in t1w_list:
                 img = nib.load(t1w)
@@ -90,22 +96,21 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                         img.header.get_zooms() == t1w_ref.header.get_zooms())):
                     t1w_outs.append(t1w)
 
-            autorecon1_flags = [default_flags]
-            reconall_flags = [default_flags]
-            if hires:
-                autorecon1_flags.append('-hires')
-                reconall_flags.append('-hires')
-            return (t1w_outs, ' '.join(autorecon1_flags),
-                    ' '.join(reconall_flags))
+            t2w = Undefined
+            if t2w_list and max(nib.load(t2w_list[0]).header.get_zooms()) < 1.2:
+                t2w = t2w_list[0]
+
+            # https://surfer.nmr.mgh.harvard.edu/fswiki/SubmillimeterRecon
+            mris_inflate = '-n 50' if hires else Undefined
+            return (t1w_outs, t2w, isdefined(t2w), hires, mris_inflate)
 
         recon_config = pe.Node(
             niu.Function(
                 function=detect_inputs,
-                input_names=['t1w_list', 'default_flags'],
-                output_names=['t1w', 'autorecon1_flags', 'reconall_flags']),
+                input_names=['t1w_list', 't2w_list'],
+                output_names=['t1w', 't2w', 'use_T2', 'hires', 'mris_inflate']),
             name='ReconConfig',
             run_without_submitting=True)
-        recon_config.inputs.default_flags = '-noskullstrip'
 
         def bidsinfo(in_file):
             from fmriprep.interfaces.bids import BIDS_NAME
@@ -124,6 +129,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         autorecon1 = pe.Node(
             freesurfer.ReconAll(
                 directive='autorecon1',
+                flags='-noskullstrip',
                 openmp=nthreads,
                 parallel=True),
             name='Reconstruction')
@@ -162,6 +168,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
         reconall = pe.Node(
             ReconAllRPT(
+                flags='-noskullstrip',
                 openmp=nthreads,
                 parallel=True,
                 out_report='reconall.svg',
@@ -247,18 +254,22 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     if settings['freesurfer']:
         workflow.connect([
-            (inputnode, recon_config, [('t1w', 't1w_list')]),
+            (inputnode, recon_config, [('t1w', 't1w_list'),
+                                       ('t2w', 't2w_list')]),
             (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
             (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
             (recon_config, autorecon1, [('t1w', 'T1_files'),
-                                        ('autorecon1_flags', 'flags')]),
+                                        ('t2w', 'T2_file'),
+                                        ('hires', 'hires'),
+                                        # First run only (recon-all saves expert options)
+                                        ('mris_inflate', 'mris_inflate')]),
             (bids_info, autorecon1, [('subject_id', 'subject_id')]),
             (autorecon1, injector, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id')]),
             (asw, injector, [('outputnode.out_file', 'skullstripped')]),
             (injector, reconall, [('subjects_dir', 'subjects_dir'),
                                   ('subject_id', 'subject_id')]),
-            (recon_config, reconall, [('reconall_flags', 'flags')]),
+            (recon_config, reconall, [('use_T2', 'use_T2')]),
             (inputnode, recon_report, [
                 (('t1w', fix_multi_T1w_source_name), 'source_file')]),
             (reconall, recon_report, [('out_report', 'in_file')]),

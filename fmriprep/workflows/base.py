@@ -121,7 +121,9 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     t1_to_epi_transforms = pe.Node(fsl.ConvertXFM(concat_xfm=True), name='T1ToEPITransforms')
 
     workflow.connect([
-        (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w')]),
+        (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w'),
+                            ('t2w', 'inputnode.t2w')]),
+        (bidssrc, fmap_est, [('fmap', 'inputnode.input_images')]),
         (bidssrc, sbref_pre, [('sbref', 'inputnode.sbref')]),
         (bidssrc, sbref_t1, [('sbref', 'inputnode.name_source'),
                              ('t1w', 'inputnode.t1w')]),
@@ -218,7 +220,8 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
     epi_mni_trans_wf = epi_mni_transformation(settings=settings)
 
     workflow.connect([
-        (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w')]),
+        (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w'),
+                            ('t2w', 'inputnode.t2w')]),
         (bidssrc, epi_2_t1, [('t1w', 'inputnode.t1w')]),
         (hmcwf, epi_2_t1, [('inputnode.epi', 'inputnode.name_source'),
                            ('outputnode.epi_mean', 'inputnode.ref_epi'),

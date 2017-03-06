@@ -54,9 +54,6 @@ def epi_preprocess(name='EPIprep', settings=None):
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)
 
-    # EPI to SBRef
-    epi2sbref = epi_sbref_registration(settings)
-
     workflow = pe.Workflow(name=name)
     workflow.connect([
         (inputnode, meta, [('epi', 'in_file')]),
@@ -69,7 +66,6 @@ def epi_preprocess(name='EPIprep', settings=None):
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
-        (unwarp, epi2sbref, [('outputnode.out_mean', 'input_image')]),
 
     ])
     return workflow
