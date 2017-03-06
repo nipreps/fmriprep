@@ -47,7 +47,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     Output fields:
     ~~~~~~~~~~~~~~
 
-      outputnode.out_file - the in_file after susceptibility-distortion correction.
+      outputnode.out_files - the in_file after susceptibility-distortion correction.
 
     """
 

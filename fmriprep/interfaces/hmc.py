@@ -42,6 +42,7 @@ class MotionCorrectionOutputSpec(TraitedSpec):
         File(exists=True), desc='list of output files')
     out_avg = File(exists=True, desc='average across time')
     out_movpar = File(exists=True, desc='output motion parameters')
+    out_confounds = File(exists=True, desc='output confounds file')
     out_tfm = File(exists=True, desc='list of transform matrices')
 
 

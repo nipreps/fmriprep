@@ -43,7 +43,7 @@ def epi_preprocess(name='EPIprep', settings=None):
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask', 'sbref']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi_unwarped', 'epi_unwarped_mask']), name='outputnode')
+        fields=['epi_corrected', 'epi_mean', 'epi_mask', 'hmc_movpar']), name='outputnode')
 
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
@@ -66,6 +66,8 @@ def epi_preprocess(name='EPIprep', settings=None):
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
+        (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
+                              ('outputnode.out_files', 'epi_corrected')])
 
     ])
     return workflow

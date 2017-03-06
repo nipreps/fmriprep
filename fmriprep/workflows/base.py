@@ -23,10 +23,11 @@ from fmriprep.workflows import confounds
 from fmriprep.workflows.anatomical import t1w_preprocessing
 from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
+from fmriprep.workflows.epi import epi_preprocess, ref_epi_t1_registration
 
-from fmriprep.workflows.epi import (
-    epi_preprocess, epi_hmc, epi_sbref_registration,
-    ref_epi_t1_registration, epi_mni_transformation)
+# from fmriprep.workflows.epi import (
+#     epi_preprocess, epi_hmc, epi_sbref_registration,
+#     ref_epi_t1_registration, epi_mni_transformation)
 
 
 def base_workflow_enumerator(subject_list, task_id, settings, run_uuid):
@@ -123,22 +124,34 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     workflow.connect([
         (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w'),
                             ('t2w', 'inputnode.t2w')]),
-        (bidssrc, fmap_est, [('fmap', 'inputnode.input_images')]),
         (bidssrc, sbref_pre, [('sbref', 'inputnode.sbref')]),
         (bidssrc, sbref_t1, [('sbref', 'inputnode.name_source'),
                              ('t1w', 'inputnode.t1w')]),
         (fmap_est, sbref_pre, [('outputnode.fmap', 'inputnode.fmap'),
                                ('outputnode.fmap_ref', 'inputnode.fmap_ref'),
                                ('outputnode.fmap_mask', 'inputnode.fmap_mask')]),
+        (fmap_est, epi_pre, [('outputnode.fmap', 'inputnode.fmap'),
+                               ('outputnode.fmap_ref', 'inputnode.fmap_ref'),
+                               ('outputnode.fmap_mask', 'inputnode.fmap_mask')]),
         (sbref_pre, sbref_t1, [('outputnode.sbref_unwarped', 'inputnode.ref_epi'),
                                ('outputnode.sbref_unwarped_mask', 'inputnode.ref_epi_mask')]),
+        (sbref_pre, epi_pre, [('outputnode.sbref_unwarped', 'inputnode.sbref')]),
         (t1w_pre, sbref_t1, [
             ('outputnode.bias_corrected_t1', 'inputnode.bias_corrected_t1'),
             ('outputnode.t1_mask', 'inputnode.t1_mask'),
             ('outputnode.t1_brain', 'inputnode.t1_brain'),
             ('outputnode.t1_seg', 'inputnode.t1_seg')]),
-        (t1_to_epi_transforms, confounds_wf, [('out_file', 'inputnode.t1_transform')]),
+        # (t1_to_epi_transforms, confounds_wf, [('out_file', 'inputnode.t1_transform')]),
         (t1w_pre, confounds_wf, [('outputnode.t1_tpms', 'inputnode.t1_tpms')]),
+
+        (epi_pre, confounds_wf, [
+            ('inputnode.epi', 'inputnode.source_file'),
+            ('outputnode.epi_corrected', 'inputnode.fmri_file'),
+            # ('outputnode.epi_mean', 'inputnode.reference_image'),
+            ('outputnode.epi_mask', 'inputnode.epi_mask'),
+            ('outputnode.hmc_movpar', 'inputnode.movpar_file'),
+
+        ]),
 
         # (sbref_pre, epi2sbref, [('outputnode.sbref_unwarped', 'inputnode.sbref'),
         #                         ('outputnode.sbref_unwarped_mask', 'inputnode.sbref_mask')]),
@@ -153,14 +166,6 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
         # (sbref_t1, t1_to_epi_transforms, [(('outputnode.mat_t1_to_epi'), 'in_file')]),
         # (epi2sbref, t1_to_epi_transforms, [('outputnode.out_mat_inv', 'in_file2')]),
 
-
-        # (hmcwf, confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file'),
-        #                        ('outputnode.epi_mean', 'inputnode.reference_image'),
-        #                        ('outputnode.motion_confounds_file',
-        #                         'inputnode.motion_confounds_file'),
-        #                        ('inputnode.epi', 'inputnode.source_file')]),
-        # (epiunwarp_wf, confounds_wf, [('outputnode.epi_mask', 'inputnode.epi_mask'),
-        #                               ('outputnode.epi_unwarp', 'inputnode.fmri_file')]),
     ])
 
     if settings['freesurfer']:
