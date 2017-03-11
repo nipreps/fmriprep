@@ -27,6 +27,7 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.utils import nii_concat
+from fmriprep.interfaces.nilearn import MaskEPI
 from fmriprep.utils.misc import _first, _extract_wm
 from fmriprep.workflows.fieldmap import sdc_unwarp
 
@@ -54,6 +55,9 @@ def epi_preprocess(name='EPIprep', settings=None):
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)
 
+    # EPI mask
+    mask = pe.Node(MaskEPI(), name='epi_final_mask')
+
     workflow = pe.Workflow(name=name)
     workflow.connect([
         (inputnode, meta, [('epi', 'in_file')]),
@@ -66,6 +70,8 @@ def epi_preprocess(name='EPIprep', settings=None):
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
+        (unwarp, mask, [('outputnode.out_mean', 'in_files')]),
+        (mask, outputnode, [('out_mask', 'epi_mask')]),
         (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
                               ('outputnode.out_files', 'epi_corrected'),
                               ('outputnode.out_hmcpar', 'hmc_movpar')])
