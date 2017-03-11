@@ -115,10 +115,17 @@ def _tsv_format(translations, rot_angles, fmt='confounds'):
 
     return out_file
 
-def nii_concat(in_files):
+def nii_concat(in_files, header_source=None):
+    from nibabel.funcs import concat_images
+    import nibabel as nb
     import os
     from nibabel.funcs import concat_images
     new_nii = concat_images(in_files, check_affines=False)
+
+    if header_source:
+        header_nii = nb.load(header_source)
+        new_nii.header.set_xyzt_units(t=header_nii.header.get_xyzt_units()[-1])
+        new_nii.header.set_zooms(list(new_nii.header.get_zooms()[:3]) + [header_nii.header.get_zooms()[3]])
 
     new_nii.to_filename("merged.nii.gz")
 
