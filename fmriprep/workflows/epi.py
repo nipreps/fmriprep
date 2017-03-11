@@ -67,7 +67,8 @@ def epi_preprocess(name='EPIprep', settings=None):
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
         (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
-                              ('outputnode.out_files', 'epi_corrected')])
+                              ('outputnode.out_files', 'epi_corrected'),
+                              ('outputnode.out_hmcpar', 'hmc_movpar')])
 
     ])
     return workflow

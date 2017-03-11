@@ -14,6 +14,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration, N4BiasFieldCorrection
+from nipype.interfaces.ants.preprocess import Matrix2FSLParams
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.images import FixAffine
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
@@ -56,7 +57,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         fields=['in_files', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['out_files', 'out_mean']),
+        fields=['out_files', 'out_mean', 'out_hmcpar']),
                          name='outputnode')
 
     # Be robust if no reference image is passed
@@ -130,6 +131,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
     hmc2 = pe.Node(MotionCorrection(), name='fmap2inputs_hmc')
     hmc2_split = pe.Node(itk.SplitITKTransform(), name='fmap2inputs_hmc_split_tfms')
+    hmc2_plots = pe.Node(Matrix2FSLParams(), name='hmc_motion_parameters')
 
     # Final correction with refined HMC parameters
     tfm_concat = pe.MapNode(itk.MergeANTsTransforms(
@@ -190,6 +192,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (unwarp, hmc2, [('output_image', 'reference_image')]),
 
         (hmc2, hmc2_split, [('out_tfm', 'in_file')]),
+        (hmc2, hmc2_plots, [('out_movpar', 'matrix')]),
         (hmc2_split, tfm_concat, [('out_files', 'in_file')]),
         (vsm2dfm, tfm_concat, [('out_file', 'transforms')]),
         (tfm_concat, unwarpall, [
