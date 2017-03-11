@@ -202,7 +202,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (target_hdr, unwarpall, [('out_file', 'reference_image')]),
         (unwarpall, mean, [('output_image', 'in_files')]),
         (mean, outputnode, [('out_file', 'out_mean')]),
-        (unwarpall, outputnode, [('output_image', 'out_files')])
+        (unwarpall, outputnode, [('output_image', 'out_files')]),
+        (hmc2_plots, outputnode, [('parameters', 'out_hmcpar')])
     ])
     return workflow
 
