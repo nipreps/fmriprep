@@ -13,7 +13,7 @@ import pkg_resources as pkgr
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces.fsl import FUGUE
-from nipype.interfaces.ants import Registration, N4BiasFieldCorrection
+from nipype.interfaces.ants import Registration, N4BiasFieldCorrection, ApplyTransforms
 from nipype.interfaces.ants.preprocess import Matrix2FSLParams
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.images import FixAffine
@@ -57,8 +57,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         fields=['in_files', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['out_files', 'out_mean', 'out_hmcpar']),
-                         name='outputnode')
+        fields=['out_files', 'out_mean', 'out_hmcpar', 'out_warps']), name='outputnode')
 
     # Be robust if no reference image is passed
     target_sel = pe.Node(niu.Function(
@@ -141,6 +140,12 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         dimension=3, generate_report=False, float=True, interpolation='LanczosWindowedSinc'),
                            iterfield=['input_image', 'transforms', 'invert_transform_flags'],
                            name='inputs_unwarped')
+
+    tfm_comb = pe.MapNode(ApplyTransforms(dimension=3, float=True,
+                          print_out_composite_warp_file=True, output_image='epiwarp.nii.gz'),
+                          iterfield=['input_image', 'transforms', 'invert_transform_flags'],
+                          name='generate_warpings')
+
     mean = pe.Node(MeanTimeseries(), name='inputs_unwarped_mean')
 
     workflow.connect([
@@ -201,8 +206,14 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (inputs_hdr, unwarpall, [('out_file', 'input_image')]),
         (target_hdr, unwarpall, [('out_file', 'reference_image')]),
         (unwarpall, mean, [('output_image', 'in_files')]),
+        (tfm_concat, tfm_comb, [
+            ('transforms', 'transforms'),
+            ('invert_transform_flags', 'invert_transform_flags')]),
+        (inputs_hdr, tfm_comb, [('out_file', 'input_image')]),
+        (target_hdr, tfm_comb, [('out_file', 'reference_image')]),
         (mean, outputnode, [('out_file', 'out_mean')]),
         (unwarpall, outputnode, [('output_image', 'out_files')]),
+        (tfm_comb, outputnode, [('output_image', 'out_warps')]),
         (hmc2_plots, outputnode, [('parameters', 'out_hmcpar')])
     ])
     return workflow

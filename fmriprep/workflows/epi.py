@@ -44,13 +44,17 @@ def epi_preprocess(name='EPIprep', settings=None):
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask', 'sbref']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi_corrected', 'epi_mean', 'epi_mask', 'hmc_movpar']), name='outputnode')
+        fields=['epi_corrected', 'epi_mean', 'epi_mask', 'epi_split', 'hmc_movpar',
+                'out_warps']), name='outputnode')
 
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
 
     # Preliminary head motion correction
     pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
+
+    # Split EPI
+    epi_split = pe.Node(fsl.Split(dimension='t'), name='split')
 
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)
@@ -61,6 +65,7 @@ def epi_preprocess(name='EPIprep', settings=None):
     workflow = pe.Workflow(name=name)
     workflow.connect([
         (inputnode, meta, [('epi', 'in_file')]),
+        (inputnode, epi_split, [('epi', 'in_file')]),
         (inputnode, pre_hmc, [('epi', 'in_files'),
                               ('sbref', 'reference_image')]),
         (inputnode, unwarp, [('epi', 'inputnode.in_files'),
@@ -71,10 +76,12 @@ def epi_preprocess(name='EPIprep', settings=None):
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
         (unwarp, mask, [('outputnode.out_mean', 'in_files')]),
+        (epi_split, outputnode, [('out_files', 'epi_split')]),
         (mask, outputnode, [('out_mask', 'epi_mask')]),
         (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
                               ('outputnode.out_files', 'epi_corrected'),
-                              ('outputnode.out_hmcpar', 'hmc_movpar')])
+                              ('outputnode.out_hmcpar', 'hmc_movpar'),
+                              ('outputnode.out_warps', 'out_warps')])
 
     ])
     return workflow
@@ -89,7 +96,7 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['name_source', 'ref_epi', 'ref_epi_mask',
                                       'bias_corrected_t1', 't1_brain', 't1_mask',
-                                      't1_seg', 't1w', 'epi_split', 'hmc_xforms']),
+                                      't1_seg', 't1w', 'epi_split', 'hmc_scd_warps']),
         name='inputnode'
     )
     outputnode = pe.Node(
@@ -191,7 +198,7 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         (inputnode, gen_ref, [('ref_epi_mask', 'moving_image'),
                               ('t1_brain', 'fixed_image')]),
         (fsl2itk_fwd, merge_transforms, [('itk_transform', 'in1')]),
-        (inputnode, merge_transforms, [('hmc_xforms', 'in2')]),
+        (inputnode, merge_transforms, [('hmc_scd_warps', 'in2')]),
         (inputnode, epi_to_t1w_transform, [('epi_split', 'input_image')]),
         (merge_transforms, epi_to_t1w_transform, [('out', 'transforms')]),
         (gen_ref, epi_to_t1w_transform, [('out_file', 'reference_image')]),
@@ -238,7 +245,7 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
             'epi_split',
             'epi_mask',
             't1',
-            'hmc_xforms'
+            'hmc_scd_warps'
         ]),
         name='inputnode'
     )
@@ -293,7 +300,7 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
         (inputnode, gen_ref, [('epi_mask', 'moving_image')]),
         (inputnode, merge_transforms, [('t1_2_mni_forward_transform', 'in1'),
                                        (('itk_epi_to_t1', _aslist), 'in2'),
-                                       ('hmc_xforms', 'in3')]),
+                                       ('hmc_scd_warps', 'in3')]),
         (inputnode, mask_merge_tfms, [('t1_2_mni_forward_transform', 'in1'),
                                       (('itk_epi_to_t1', _aslist), 'in2')]),
         (inputnode, epi_to_mni_transform, [('epi_split', 'input_image')]),

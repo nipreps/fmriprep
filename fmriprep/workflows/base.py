@@ -23,8 +23,8 @@ from fmriprep.workflows import confounds
 from fmriprep.workflows.anatomical import t1w_preprocessing
 from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
-from fmriprep.workflows.epi import epi_preprocess, ref_epi_t1_registration
-
+from fmriprep.workflows.epi import (epi_preprocess, ref_epi_t1_registration,
+                                    epi_hmc, epi_sbref_registration, epi_mni_transformation)
 
 def base_workflow_enumerator(subject_list, task_id, settings, run_uuid):
     workflow = pe.Workflow(name='workflow_enumerator')
@@ -115,7 +115,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False, True]
 
     # create list of transforms to resample t1 -> sbref -> epi
-    t1_to_epi_transforms = pe.Node(fsl.ConvertXFM(concat_xfm=True), name='T1ToEPITransforms')
+    epi_mni_trans_wf = epi_mni_transformation(settings=settings)
 
     workflow.connect([
         (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w'),
@@ -148,19 +148,14 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
             ('outputnode.hmc_movpar', 'inputnode.movpar_file'),
 
         ]),
-
-        # (sbref_pre, epi2sbref, [('outputnode.sbref_unwarped', 'inputnode.sbref'),
-        #                         ('outputnode.sbref_unwarped_mask', 'inputnode.sbref_mask')]),
-        # (hmcwf, epi2sbref, [('outputnode.epi_mask', 'inputnode.epi_mask'),
-        #                     ('outputnode.epi_mean', 'inputnode.epi_mean'),
-        #                     ('outputnode.epi_hmc', 'inputnode.epi'),
-        #                     ('inputnode.epi', 'inputnode.epi_name_source')]),
-        # (hmcwf, epiunwarp_wf, [('inputnode.epi', 'inputnode.epi')]),
-        # (fmap_est, epiunwarp_wf, [('outputnode.fmap', 'inputnode.fmap'),
-        #                           ('outputnode.fmap_mask', 'inputnode.fmap_mask'),
-        #                           ('outputnode.fmap_ref', 'inputnode.fmap_ref')]),
-        # (sbref_t1, t1_to_epi_transforms, [(('outputnode.mat_t1_to_epi'), 'in_file')]),
-        # (epi2sbref, t1_to_epi_transforms, [('outputnode.out_mat_inv', 'in_file2')]),
+        (sbref_t1, epi_mni_trans_wf, [('outputnode.itk_epi_to_t1', 'inputnode.itk_epi_to_t1')]),
+        (epi_pre, epi_mni_trans_wf, [('inputnode.epi', 'inputnode.name_source'),
+                                     ('outputnode.out_warps', 'inputnode.hmc_scd_warps'),
+                                     ('outputnode.epi_mask', 'inputnode.epi_mask'),
+                                     ('outputnode.epi_split', 'inputnode.epi_split')]),
+        (t1w_pre, epi_mni_trans_wf, [('outputnode.bias_corrected_t1', 'inputnode.t1'),
+                                     ('outputnode.t1_2_mni_forward_transform',
+                                      'inputnode.t1_2_mni_forward_transform')])
 
     ])
 
@@ -180,10 +175,6 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
       * [ ] No SBRefs
 
     """
-
-    from fmriprep.workflows.epi import (
-        epi_hmc, epi_sbref_registration, epi_mni_transformation)
-
     if settings is None:
         settings = {}
 
@@ -229,7 +220,7 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
         (bidssrc, epi_2_t1, [('t1w', 'inputnode.t1w')]),
         (hmcwf, epi_2_t1, [('inputnode.epi', 'inputnode.name_source'),
                            ('outputnode.epi_mean', 'inputnode.ref_epi'),
-                           ('outputnode.xforms', 'inputnode.hmc_xforms'),
+                           ('outputnode.xforms', 'inputnode.hmc_scd_warps'),
                            ('outputnode.epi_mask', 'inputnode.ref_epi_mask'),
                            ('outputnode.epi_split', 'inputnode.epi_split')]),
         (t1w_pre, epi_2_t1, [('outputnode.bias_corrected_t1', 'inputnode.bias_corrected_t1'),
@@ -247,7 +238,7 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
 
         (epi_2_t1, epi_mni_trans_wf, [('outputnode.itk_epi_to_t1', 'inputnode.itk_epi_to_t1')]),
         (hmcwf, epi_mni_trans_wf, [('inputnode.epi', 'inputnode.name_source'),
-                                   ('outputnode.xforms', 'inputnode.hmc_xforms'),
+                                   ('outputnode.xforms', 'inputnode.hmc_scd_warps'),
                                    ('outputnode.epi_mask', 'inputnode.epi_mask'),
                                    ('outputnode.epi_split', 'inputnode.epi_split')]),
         (t1w_pre, epi_mni_trans_wf, [('outputnode.bias_corrected_t1', 'inputnode.t1'),
