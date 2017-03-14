@@ -285,19 +285,23 @@ class FieldEnhance(BaseInterface):
             errormask *= mask
             errorslice = np.squeeze(np.argwhere(errormask.sum(0).sum(0) > 0))
 
-            diffmapmsk = mask[..., errorslice[0]:errorslice[-1]]
-            diffmapnii = nb.Nifti1Image(
-                diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
-                datanii.affine, datanii.header)
+            if (errorslice[-1] - errorslice[0]) > 1:
+                diffmapmsk = mask[..., errorslice[0]:errorslice[-1]]
+                diffmapnii = nb.Nifti1Image(
+                    diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
+                    datanii.affine, datanii.header)
 
 
-            bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
-                                           njobs=self.inputs.njobs)
-            bspobj2.fit()
-            smoothed2 = bspobj2.get_smoothed().get_data()
+                bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
+                                               njobs=self.inputs.njobs)
+                bspobj2.fit()
+                smoothed2 = bspobj2.get_smoothed().get_data()
 
-            final = smoothed1.get_data().copy()
-            final[..., errorslice[0]:errorslice[-1]] += smoothed2
+                final = smoothed1.get_data().copy()
+                final[..., errorslice[0]:errorslice[-1]] += smoothed2
+            else:
+                final = smoothed1
+
             nb.Nifti1Image(final, datanii.affine, datanii.header).to_filename(
                 self._results['out_file'])
 
