@@ -74,6 +74,12 @@ def fmap_estimator(subject_data, settings=None):
     #     pewf.inputs.inputnode.input_images = subject_data['fmap'] + subject_data['sbref']
     #     estimator_wfs.append(pewf)
 
+    if not estimator_wfs:
+        LOGGER.warn(
+            'Fielmap data found, but no estimation workflow could be built for it. '
+            'Fieldmap data available = [%s]', ', '.join(subject_data['fmap']))
+        return None
+
     if len(estimator_wfs) > 1:
         # Average estimated workflows (requires registration)
         mrgfmaps = pe.Node(niu.Merge(len(estimator_wfs)), name='MergeFMaps')
