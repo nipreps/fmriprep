@@ -35,8 +35,8 @@ class MotionCorrectionInputSpec(BaseInterfaceInputSpec):
     ref_vol = traits.Float(0.5, usedefault=True,
                            desc='location of the reference volume (0.0 is first, 1.0 is last)')
     reference_image = File(exists=True, desc='use reference image')
-    nthreads = traits.Int(-1, usedefault=True, nohash=True,
-                          desc='number of threads to use within ANTs registrations')
+    njobs = traits.Int(-1, usedefault=True, nohash=True,
+                       desc='number of threads to use within ANTs registrations')
 
 class MotionCorrectionOutputSpec(TraitedSpec):
     out_files = OutputMultiPath(
@@ -74,10 +74,10 @@ class MotionCorrection(BaseInterface):
     def _run_interface(self, runtime):
 
         # Set number of threads
-        nthreads = self.inputs.nthreads
-        if nthreads < 1:
+        njobs = self.inputs.njobs
+        if njobs < 1:
             from multiprocessing import cpu_count
-            nthreads = cpu_count()
+            njobs = cpu_count()
 
         # Check input files.
         if len(self.inputs.in_split) < 2:
@@ -89,11 +89,11 @@ class MotionCorrection(BaseInterface):
 
         out_files, movpar = motion_correction(
             self.inputs.in_split, self.inputs.in_merged,
-            reference_image=ref_image, ref_vol=self.inputs.ref_vol, nthreads=nthreads)
+            reference_image=ref_image, ref_vol=self.inputs.ref_vol, njobs=njobs)
 
         # Save average image
         out_avg = genfname(self.inputs.in_split[0], suffix='average')
-        mean_img(out_files, n_jobs=nthreads).to_filename(out_avg)
+        mean_img(out_files, n_jobs=njobs).to_filename(out_avg)
 
         # Set outputs
         self._results['out_avg'] = out_avg
@@ -103,7 +103,7 @@ class MotionCorrection(BaseInterface):
         return runtime
 
 def motion_correction(in_files, merged_files, reference_image=None,
-                      ref_vol=0.5, nthreads=None):
+                      ref_vol=0.5, njobs=None):
     """
     A very simple motion correction workflow including two
     passes of antsMotionCorr
@@ -116,22 +116,22 @@ def motion_correction(in_files, merged_files, reference_image=None,
     out_prefix = op.basename(genfname(reference_image,
                              suffix='motcor0', ext=''))
     out_file = _run_antsMotionCorr(out_prefix, reference_image, merged_files,
-                                   only_rigid=(nfiles == 2), nthreads=nthreads)
+                                   only_rigid=(nfiles == 2), njobs=njobs)
 
     if nfiles > 2:
         out_prefix = op.basename(genfname(reference_image, suffix='motcor1', ext=''))
         out_file = _run_antsMotionCorr(out_prefix, out_file, merged_files,
-                                       nthreads=nthreads, iteration=1)
+                                       njobs=njobs, iteration=1)
 
     out_movpar = out_prefix + 'MOCOparams.csv'
     return out_file, out_movpar
 
 
 def _run_antsMotionCorr(out_prefix, ref_image, all_images, return_avg=True,
-                        only_rigid=False, nthreads=None, iteration=0):
+                        only_rigid=False, njobs=None, iteration=0):
     env = os.environ.copy()
-    if nthreads is not None and nthreads > 0:
-        env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '%d' % nthreads
+    if njobs is not None and njobs > 0:
+        env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = '%d' % njobs
 
 
     npoints = nb.load(all_images).get_data().shape[-1]

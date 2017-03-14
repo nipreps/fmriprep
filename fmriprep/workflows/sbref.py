@@ -72,7 +72,8 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     split = pe.Node(SplitMerge(), name='split_merge')
 
     # Preliminary head motion correction
-    pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
+    pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
+                      name='pre_hmc')
 
     # Unwarping
     unwarp = sdc_unwarp(settings=settings)

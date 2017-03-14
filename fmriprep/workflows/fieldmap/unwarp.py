@@ -83,8 +83,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         ants_settings = pkgr.resource_filename(
             'fmriprep', 'data/fmap-any_registration_testing.json')
     fmap2ref = pe.Node(Registration(
-        from_file=ants_settings, output_warped_image=True,
-        output_inverse_warped_image=True),
+        from_file=ants_settings, output_inverse_warped_image=True,
+        output_warped_image=True, num_threads=settings.get('ants_nthreads', 1)),
                        name='fmap_ref2target_avg')
 
 
@@ -123,7 +123,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                            name='fmap2inputs_unwarp')
     merge = pe.Node(Merge(dimension='t'), name='corrected_merge')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
-    hmc2 = pe.Node(MotionCorrection(), name='fmap2inputs_hmc')
+    hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
+                   name='fmap2inputs_hmc')
     hmc2_split = pe.Node(itk.SplitITKTransform(), name='fmap2inputs_hmc_split_tfms')
     hmc2_plots = pe.Node(Matrix2FSLParams(), name='hmc_motion_parameters')
 
