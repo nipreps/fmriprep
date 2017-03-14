@@ -59,7 +59,7 @@ def fmap_workflow(name=WORKFLOW_NAME, settings=None):
                   name='MagnitudeBET')
     fmapenh = pe.Node(FieldEnhance(
         # despike_threshold=1.0, mask_erode=1),
-        despike=False), name='FieldmapMassage')
+        despike=False, njobs=settings.get('ants_nthreads', 4)), name='FieldmapMassage')
 
     workflow.connect([
         (inputnode, sortfmaps, [('input_images', 'input_images')]),

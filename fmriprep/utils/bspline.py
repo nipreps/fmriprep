@@ -22,7 +22,7 @@ class BSplineFieldmap(object):
     """
 
     def __init__(self, fmapnii, weights=None, knots_zooms=None, padding=3,
-                 pe_dir=1):
+                 pe_dir=1, njobs=-1):
 
         self._pedir = pe_dir
         if knots_zooms is None:
@@ -79,6 +79,8 @@ class BSplineFieldmap(object):
         self._inverted = None
         self._invcoeff = None
 
+        self._njobs = njobs
+
     def _generate_knots(self):
         extent = self._fmapaff[:3, :3].dot(self._data.shape[:3])
         self._knots_shape = (np.ceil(
@@ -107,7 +109,7 @@ class BSplineFieldmap(object):
         """ Calculates the design matrix """
         print('[%s] Evaluating tensor-product cubic BSpline on %d points, %d control points' %
               (dt.now(), len(self._fmapxyz), len(self._knots_xyz)))
-        self._X = tbspl_eval(self._fmapxyz, self._knots_xyz, self._knots_zooms)
+        self._X = tbspl_eval(self._fmapxyz, self._knots_xyz, self._knots_zooms, njobs=self._njobs)
         print('[%s] Finished BSpline evaluation' % dt.now())
 
     def fit(self):
@@ -141,7 +143,7 @@ class BSplineFieldmap(object):
         targets[:, self._pedir] += self._smoothed[tuple(self._fmapijk.T)]
         print('[%s] Inverting transform :: evaluating tensor-product cubic BSpline on %d points, %d control points' %
               (dt.now(), len(targets), len(self._knots_xyz)))
-        self._Xinv = tbspl_eval(targets, self._knots_xyz, self._knots_zooms)
+        self._Xinv = tbspl_eval(targets, self._knots_xyz, self._knots_zooms, self._njobs)
         print('[%s] Finished BSpline evaluation, %s' %
               (dt.now(), str(self._Xinv.shape)))
 
@@ -337,27 +339,29 @@ def bspl_smoothing(fmapnii, masknii=None, knot_space=[18., 18., 20.]):
     return newnii, coeffnii
 
 
-def tbspl_eval(points, knots, zooms, processes=None):
+def tbspl_eval(points, knots, zooms, njobs=None):
     """
     Evaluate tensor product BSpline
     """
     from scipy.sparse import vstack
     from fmriprep.utils.maths import bspl
 
-    points = np.array(points)
-    knots = np.array(knots)
+    points = np.array(points, dtype=float)
+    knots = np.array(knots, dtype=float)
     vbspl = np.vectorize(bspl)
 
-    if processes is not None and processes < 1:
-        processes = None
+    if njobs is not None and njobs < 1:
+        njobs = None
 
-    if processes == 1:
+    if njobs == 1:
         coeffs = [_evalp((p, knots, vbspl, zooms)) for p in points]
     else:
         from multiprocessing import Pool
-        pool = Pool(processes)
+        pool = Pool(processes=njobs, maxtasksperchild=100)
         coeffs = pool.map(
             _evalp, [(p, knots, vbspl, zooms) for p in points])
+        pool.close()
+        pool.join()
 
     return vstack(coeffs)
 

@@ -19,7 +19,6 @@ from nipype.interfaces.base import (BaseInterface, BaseInterfaceInputSpec, Trait
 from nipype.interfaces import fsl
 from niworkflows.interfaces.registration import FUGUERPT
 from fmriprep.utils.misc import genfname
-from fmriprep.utils.bspline import bspl_smoothing
 
 LOGGER = logging.getLogger('interfaces')
 
@@ -219,7 +218,7 @@ class FieldEnhanceInputSpec(BaseInterfaceInputSpec):
     bspline_smooth = traits.Bool(True, usedefault=True, desc='run 3D bspline smoother')
     mask_erode = traits.Int(1, usedefault=True, desc='mask erosion iterations')
     despike_threshold = traits.Float(0.2, usedefault=True, desc='mask erosion iterations')
-
+    njobs = traits.Int(1, usedefault=True, nohash=True, desc='number of jobs')
 
 class FieldEnhanceOutputSpec(TraitedSpec):
     out_file = File(desc='the output fieldmap')
@@ -274,7 +273,7 @@ class FieldEnhance(BaseInterface):
             from statsmodels.robust.scale import mad
 
             # Fit BSplines (coarse)
-            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask)
+            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask, njobs=self.inputs.njobs)
             bspobj.fit()
             smoothed1 = bspobj.get_smoothed()
 
@@ -292,7 +291,8 @@ class FieldEnhance(BaseInterface):
                 datanii.affine, datanii.header)
 
 
-            bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.])
+            bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
+                                           njobs=self.inputs.njobs)
             bspobj2.fit()
             smoothed2 = bspobj2.get_smoothed().get_data()
 
