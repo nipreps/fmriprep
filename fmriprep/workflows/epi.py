@@ -26,6 +26,7 @@ from niworkflows.interfaces.registration import FLIRTRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
+from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces.utils import nii_concat
 from fmriprep.interfaces.nilearn import MaskEPI
 from fmriprep.utils.misc import _first, _extract_wm
@@ -50,11 +51,15 @@ def epi_preprocess(name='EPIprep', settings=None):
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
 
-    # Preliminary head motion correction
-    pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
+    # Remove the scanner affines
+    epi_hdr = pe.Node(FixAffine(), name='epi_hdr')
+    ref_hdr = pe.Node(FixAffine(), name='ref_hdr')
 
     # Split EPI
-    epi_split = pe.Node(fsl.Split(dimension='t'), name='split')
+    epi_split = pe.Node(SplitMerge(), name='split_merge')
+
+    # Preliminary head motion correction
+    pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
 
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)
@@ -65,18 +70,22 @@ def epi_preprocess(name='EPIprep', settings=None):
     workflow = pe.Workflow(name=name)
     workflow.connect([
         (inputnode, meta, [('epi', 'in_file')]),
-        (inputnode, epi_split, [('epi', 'in_file')]),
-        (inputnode, pre_hmc, [('epi', 'in_files'),
-                              ('sbref', 'reference_image')]),
-        (inputnode, unwarp, [('epi', 'inputnode.in_files'),
-                             (('fmap', _first), 'inputnode.fmap'),
+        (inputnode, epi_hdr, [('epi', 'in_file')]),
+        (inputnode, ref_hdr, [('sbref', 'in_file')]),
+        (ref_hdr, pre_hmc, [('out_file', 'reference_image')]),
+        (inputnode, unwarp, [(('fmap', _first), 'inputnode.fmap'),
                              (('fmap_ref', _first), 'inputnode.fmap_ref'),
                              (('fmap_mask', _first), 'inputnode.fmap_mask')]),
+        (epi_hdr, epi_split, [('out_file', 'in_files')]),
+        (epi_split, pre_hmc, [('out_split', 'in_split'),
+                              ('out_merged', 'in_merged')]),
+        (epi_split, unwarp, [('out_split', 'inputnode.in_split'),
+                             ('out_merged', 'inputnode.in_merged')]),
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
         (unwarp, mask, [('outputnode.out_mean', 'in_files')]),
-        (epi_split, outputnode, [('out_files', 'epi_split')]),
+        (epi_split, outputnode, [('out_split', 'epi_split')]),
         (mask, outputnode, [('out_mask', 'epi_mask')]),
         (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
                               ('outputnode.out_files', 'epi_corrected'),

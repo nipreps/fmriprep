@@ -30,7 +30,8 @@ LOGGER = logging.getLogger('interface')
 
 
 class MotionCorrectionInputSpec(BaseInterfaceInputSpec):
-    in_files = InputMultiPath(File(exists=True), mandatory=True, desc='input file')
+    in_split = InputMultiPath(File(exists=True), mandatory=True, desc='input file')
+    in_merged = File(exists=True, mandatory=True, desc='input file')
     ref_vol = traits.Float(0.5, usedefault=True,
                            desc='location of the reference volume (0.0 is first, 1.0 is last)')
     reference_image = File(exists=True, desc='use reference image')
@@ -44,6 +45,10 @@ class MotionCorrectionOutputSpec(TraitedSpec):
     out_movpar = File(exists=True, desc='output motion parameters')
     out_confounds = File(exists=True, desc='output confounds file')
     out_tfm = File(exists=True, desc='list of transform matrices')
+
+    inputs_merged = File(exists=True, desc='input file(s) flattened and merged')
+    inputs_split = OutputMultiPath(File(exists=True),
+                                   desc='input file(s) flattened and split')
 
 
 class MotionCorrection(BaseInterface):
@@ -75,21 +80,19 @@ class MotionCorrection(BaseInterface):
             nthreads = cpu_count()
 
         # Check input files.
-        in_files = self.inputs.in_files
-        if not isinstance(in_files, (list, tuple)):
-            in_files = [in_files]
+        if len(self.inputs.in_split) < 2:
+            raise RuntimeError('in_split should be a list of 2 or more files')
 
         ref_image = None
         if isdefined(self.inputs.reference_image):
             ref_image = self.inputs.reference_image
 
-        out_files, movpar = motion_correction(in_files,
-                                              reference_image=ref_image,
-                                              ref_vol=self.inputs.ref_vol,
-                                              nthreads=nthreads)
+        out_files, movpar = motion_correction(
+            self.inputs.in_split, self.inputs.in_merged,
+            reference_image=ref_image, ref_vol=self.inputs.ref_vol, nthreads=nthreads)
 
         # Save average image
-        out_avg = genfname(in_files[0], suffix='average')
+        out_avg = genfname(self.inputs.in_split[0], suffix='average')
         mean_img(out_files, n_jobs=nthreads).to_filename(out_avg)
 
         # Set outputs
@@ -99,43 +102,25 @@ class MotionCorrection(BaseInterface):
         self._results['out_tfm'] = moco2itk(op.abspath(movpar), out_avg)
         return runtime
 
-
-def motion_correction(in_files, reference_image=None,
-                      ref_vol=0.0, nthreads=None):
+def motion_correction(in_files, merged_files, reference_image=None,
+                      ref_vol=0.5, nthreads=None):
     """
     A very simple motion correction workflow including two
     passes of antsMotionCorr
     """
 
     nfiles = len(in_files)
-    if nfiles > 1:
-        if reference_image is None:
-            reference_image = in_files[int(ref_vol * (nfiles - 0.5))]
-        all_images = genfname(reference_image, suffix='merged')
-        concat_imgs(in_files).to_filename(all_images)
-    else:
-        ndim = nb.load(in_files[0]).get_data().ndim
-        if ndim == 3:
-            return in_files[0]
-        else:
-            all_images = in_files[0]
-            nii = nb.load(all_images)
-            nimages = nii.shape[3]
-
-            if reference_image is None:
-                reference_image = genfname(all_images, suffix='ref')
-                nb.four_to_three(
-                    nii)[int(ref_vol * (nimages - 0.5))].to_filename(
-                        reference_image)
+    if reference_image is None:
+        reference_image = in_files[int(ref_vol * (nfiles - 0.5))]
 
     out_prefix = op.basename(genfname(reference_image,
                              suffix='motcor0', ext=''))
-    out_file = _run_antsMotionCorr(out_prefix, reference_image, all_images,
+    out_file = _run_antsMotionCorr(out_prefix, reference_image, merged_files,
                                    only_rigid=(nfiles == 2), nthreads=nthreads)
 
     if nfiles > 2:
         out_prefix = op.basename(genfname(reference_image, suffix='motcor1', ext=''))
-        out_file = _run_antsMotionCorr(out_prefix, out_file, all_images,
+        out_file = _run_antsMotionCorr(out_prefix, out_file, merged_files,
                                        nthreads=nthreads, iteration=1)
 
     out_movpar = out_prefix + 'MOCOparams.csv'

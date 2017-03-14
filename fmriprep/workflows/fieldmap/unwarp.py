@@ -12,12 +12,12 @@ import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
-from nipype.interfaces.fsl import FUGUE
+from nipype.interfaces.fsl import FUGUE, Merge
 from nipype.interfaces.ants import Registration, N4BiasFieldCorrection, ApplyTransforms
 from nipype.interfaces.ants.preprocess import Matrix2FSLParams
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
-from fmriprep.interfaces.images import FixAffine
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
+from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces import itk
 from fmriprep.interfaces.hmc import MotionCorrection
 from fmriprep.interfaces.utils import MeanTimeseries, ApplyMask
@@ -54,24 +54,18 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['in_files', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
+        fields=['in_split', 'in_merged', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['out_files', 'out_mean', 'out_hmcpar', 'out_warps']), name='outputnode')
+
+    ref_hdr = pe.Node(FixAffine(), name='fmap_ref_hdr')
+    fmap_hdr = pe.Node(FixAffine(), name='fmap_hdr')
 
     # Be robust if no reference image is passed
     target_sel = pe.Node(niu.Function(
         input_names=['in_files', 'in_reference'], output_names=['out_file'],
         function=_get_reference), name='target_select')
-
-    # Remove the scanner affine transform from all images
-    # (messes up with ANTs and are useless unless we feed them back
-    # in a neuronavigator)
-    ref_hdr = pe.Node(FixAffine(), name='reference_hdr')
-    target_hdr = pe.Node(FixAffine(), name='target_hdr')
-    fmap_hdr = pe.Node(FixAffine(), name='fmap_hdr')
-    inputs_hdr = pe.MapNode(
-        FixAffine(), iterfield=['in_file'], name='inputs_hdr')
 
     # Prepare fieldmap reference image, creating a fake warping
     # to make the magnitude look like a distorted EPI
@@ -127,6 +121,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     fugue_all = pe.MapNode(ApplyFieldmap(generate_report=False),
                            iterfield=['in_file', 'in_vsm'],
                            name='fmap2inputs_unwarp')
+    merge = pe.Node(Merge(dimension='t'), name='corrected_merge')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
     hmc2 = pe.Node(MotionCorrection(), name='fmap2inputs_hmc')
     hmc2_split = pe.Node(itk.SplitITKTransform(), name='fmap2inputs_hmc_split_tfms')
@@ -150,23 +145,23 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 
     workflow.connect([
         (inputnode, split_hmc, [('in_hmcpar', 'in_file')]),
-        (inputnode, target_sel, [('in_files', 'in_files'),
+        (inputnode, target_sel, [('in_split', 'in_files'),
                                  ('in_reference', 'in_reference')]),
-        (inputnode, inputs_hdr, [('in_files', 'in_file')]),
-        (target_sel, target_hdr, [('out_file', 'in_file')]),
         (inputnode, fmap_hdr, [('fmap', 'in_file')]),
-        (fmap_hdr, torads, [('out_file', 'in_file')]),
         (inputnode, ref_hdr, [('fmap_ref', 'in_file')]),
-        (target_hdr, applyxfm, [('out_file', 'reference_image')]),
+        (fmap_hdr, torads, [('out_file', 'in_file')]),
+        (target_sel, applyxfm, [('out_file', 'reference_image')]),
         (inputnode, ref_wrp, [('fmap_mask', 'in_mask'),
                               (('in_meta', _get_ec), 'echospacing'),
                               (('in_meta', _get_pedir), 'pe_dir')]),
         (inputnode, gen_vsm, [(('in_meta', _get_ec), 'dwell_time'),
                               (('in_meta', _get_pedir), 'unwarp_direction')]),
         (inputnode, vsm2dfm, [(('in_meta', _get_pedir), 'pe_dir')]),
+        (inputnode, fugue_all, [(('in_meta', _get_pedir), 'pe_dir')]),
+        (inputnode, fugue_all, [('in_split', 'in_file')]),
         (ref_hdr, ref_wrp, [('out_file', 'fmap_ref')]),
         (torads, ref_wrp, [('out_file', 'in_file')]),
-        (target_hdr, inu, [('out_file', 'input_image')]),
+        (target_sel, inu, [('out_file', 'input_image')]),
         (inu, fmap2ref, [('output_image', 'moving_image')]),
         (torads, gen_vsm, [('out_file', 'fmap_in_file')]),
         (ref_wrp, ref_msk, [('out_warped', 'in_file'),
@@ -178,7 +173,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             ('reverse_invert_flags', 'invert_transform_flags')]),
         (applyxfm, vsm2dfm, [('output_image', 'in_file')]),
         (vsm2dfm, unwarp, [('out_file', 'transforms')]),
-        (target_hdr, unwarp, [('out_file', 'reference_image'),
+        (target_sel, unwarp, [('out_file', 'reference_image'),
                               ('out_file', 'input_image')]),
         # Run HMC again, aiming at higher accuracy
         (split_hmc, pre_tfms, [('out_files', 'in_file')]),
@@ -186,14 +181,14 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             ('reverse_transforms', 'transforms'),
             ('reverse_invert_flags', 'invert_transform_flags')]),
         (gen_vsm, xfmmap, [('shift_out_file', 'input_image')]),
-        (target_hdr, xfmmap, [('out_file', 'reference_image')]),
+        (target_sel, xfmmap, [('out_file', 'reference_image')]),
         (pre_tfms, xfmmap, [
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
-        (inputnode, fugue_all, [(('in_meta', _get_pedir), 'pe_dir')]),
-        (inputs_hdr, fugue_all, [('out_file', 'in_file')]),
         (xfmmap, fugue_all, [('output_image', 'in_vsm')]),
-        (fugue_all, hmc2, [('out_corrected', 'in_files')]),
+        (fugue_all, merge, [('out_corrected', 'in_files')]),
+        (fugue_all, hmc2, [('out_corrected', 'in_split')]),
+        (merge, hmc2, [('merged_file', 'in_merged')]),
         (unwarp, hmc2, [('output_image', 'reference_image')]),
 
         (hmc2, hmc2_split, [('out_tfm', 'in_file')]),
@@ -203,14 +198,14 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (tfm_concat, unwarpall, [
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
-        (inputs_hdr, unwarpall, [('out_file', 'input_image')]),
-        (target_hdr, unwarpall, [('out_file', 'reference_image')]),
+        (inputnode, unwarpall, [('in_split', 'input_image')]),
+        (target_sel, unwarpall, [('out_file', 'reference_image')]),
         (unwarpall, mean, [('output_image', 'in_files')]),
         (tfm_concat, tfm_comb, [
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
-        (inputs_hdr, tfm_comb, [('out_file', 'input_image')]),
-        (target_hdr, tfm_comb, [('out_file', 'reference_image')]),
+        (target_sel, tfm_comb, [('out_file', 'input_image')]),
+        (target_sel, tfm_comb, [('out_file', 'reference_image')]),
         (mean, outputnode, [('out_file', 'out_mean')]),
         (unwarpall, outputnode, [('output_image', 'out_files')]),
         (tfm_comb, outputnode, [('output_image', 'out_warps')]),
@@ -221,9 +216,11 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 # Helper functions
 # ------------------------------------------------------------
 
-def _get_reference(in_files, in_reference):
-    if len(in_files) == 1:
-        return in_files[0]
+def _get_reference(in_files, in_reference, ref_vol=0.5):
+    from nipype.interfaces.base import isdefined
+    if not isdefined(in_reference) or in_reference is None:
+        nfiles = len(in_files)
+        return in_files[int(ref_vol * (nfiles - 0.5))]
     return in_reference
 
 def _get_ec(in_dict):

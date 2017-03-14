@@ -14,6 +14,7 @@ from nipype.interfaces import ants
 from niworkflows.interfaces.masks import ComputeEPIMask
 
 from fmriprep.utils.misc import _first
+from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.workflows.fieldmap import sdc_unwarp
 from fmriprep.interfaces.bids import ReadSidecarJSON
@@ -63,6 +64,13 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
 
+    # Remove the scanner affines
+    hdr = pe.MapNode(FixAffine(), name='epi_hdr',
+                     iterfield=['in_file'])
+
+    # Split EPI
+    split = pe.Node(SplitMerge(), name='split_merge')
+
     # Preliminary head motion correction
     pre_hmc = pe.Node(MotionCorrection(), name='pre_hmc')
 
@@ -79,11 +87,16 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
 
     workflow.connect([
         (inputnode, meta, [(('sbref', _first), 'in_file')]),
-        (inputnode, pre_hmc, [('sbref', 'in_files')]),
-        (inputnode, unwarp, [('sbref', 'inputnode.in_files'),
-                             (('fmap', _first), 'inputnode.fmap'),
+        (inputnode, hdr, [('sbref', 'in_file')]),
+        (hdr, split, [('out_file', 'in_files')]),
+        (split, pre_hmc, [('out_merged', 'in_merged'),
+                          ('out_split', 'in_split')]),
+        (inputnode, unwarp, [(('fmap', _first), 'inputnode.fmap'),
                              (('fmap_ref', _first), 'inputnode.fmap_ref'),
                              (('fmap_mask', _first), 'inputnode.fmap_mask')]),
+        (split, unwarp, [('out_merged', 'inputnode.in_merged'),
+                          ('out_split', 'inputnode.in_split')]),
+
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),

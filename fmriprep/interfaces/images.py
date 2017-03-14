@@ -32,6 +32,38 @@ from fmriprep.utils.misc import make_folder, genfname
 LOGGER = logging.getLogger('interface')
 
 
+class SplitMergeInputSpec(BaseInterfaceInputSpec):
+    in_files = InputMultiPath(File(exists=True), mandatory=True, desc='the input file')
+
+class SplitMergeOutputSpec(TraitedSpec):
+    out_merged = File(exists=True, desc='one file with all inputs flattened')
+    out_split = OutputMultiPath(File(exists=True, desc='one list with all volumes split'))
+
+class SplitMerge(BaseInterface):
+    """
+    This interface takes the input in_files and generates two outputs, one
+    merged and another split, regardless the inputs were split.
+
+    For example, this interface would generate a flattened list of 5 filenames
+    and a 4D nifti with 5 volumes inside if we pass a list with two filenames,
+    where the first is a 3D nifti and the second a 4D nifti with 4 volumes.
+    """
+
+    input_spec = SplitMergeInputSpec
+    output_spec = SplitMergeOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(SplitMerge, self).__init__(**inputs)
+
+    def _list_outputs(self):
+        return self._results
+
+    def _run_interface(self, runtime):
+        results = _flatten_split_merge(self.inputs.in_files)
+        self._results.update({'out_merged': results[0], 'out_split': results[1]})
+        return runtime
+
 class IntraModalMergeInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True), mandatory=True,
                               desc='input files')
@@ -295,3 +327,44 @@ def reorient(in_file, out_file=None):
     nii = nb.as_closest_canonical(nii)
     nii.to_filename(out_file)
     return out_file
+
+
+def _flatten_split_merge(in_files):
+    from builtins import bytes, str
+
+    if isinstance(in_files, (bytes, str)):
+        in_files = [in_files]
+
+    nfiles = len(in_files)
+
+    all_nii = []
+    for fname in in_files:
+        nii = nb.squeeze_image(nb.load(fname))
+
+        if nii.get_data().ndim > 3:
+            all_nii += nb.four_to_three(nii)
+        else:
+            all_nii.append(nii)
+
+
+    if len(all_nii) == 1:
+        raise RuntimeError('A 3D volume cannot be split')
+
+    if len(all_nii) == nfiles:
+        flat_split = in_files
+    else:
+        splitname = genfname(in_files[0], suffix='split%04d')
+        flat_split = []
+        for i, nii in enumerate(all_nii):
+            flat_split.append(splitname % i)
+            nii.to_filename(flat_split[-1])
+
+    # Only one 4D file was supplied
+    if nfiles == 1:
+        merged = in_files[0]
+    else:
+        # More that one in_files - need merge
+        merged = genfname(in_files[0], suffix='merged')
+        nb.concat_images(all_nii).to_filename(merged)
+
+    return merged, flat_split
