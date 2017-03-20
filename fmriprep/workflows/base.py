@@ -132,7 +132,8 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
         (sbref_pre, sbref_t1, [('outputnode.sbref_unwarped', 'inputnode.ref_epi'),
                                ('outputnode.sbref_unwarped_mask', 'inputnode.ref_epi_mask')]),
         (sbref_pre, epi_pre, [('outputnode.sbref_unwarped', 'inputnode.sbref')]),
-        (epi_pre, sbref_t1, [('outputnode.out_warps', 'inputnode.hmc_scd_warps')]),
+        (epi_pre, sbref_t1, [('outputnode.epi_corr_split', 'inputnode.epi_split'),
+                             ('outputnode.out_warps', 'inputnode.hmc_scd_warps')]),
         (t1w_pre, sbref_t1, [
             ('outputnode.bias_corrected_t1', 'inputnode.bias_corrected_t1'),
             ('outputnode.t1_mask', 'inputnode.t1_mask'),
