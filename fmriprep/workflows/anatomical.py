@@ -37,7 +37,8 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['t1_seg', 't1_tpms', 'bias_corrected_t1', 't1_brain', 't1_mask',
                 't1_2_mni', 't1_2_mni_forward_transform',
-                't1_2_mni_reverse_transform']), name='outputnode')
+                't1_2_mni_reverse_transform', 'subject_id',
+                'fs_2_t1_transform']), name='outputnode')
 
     # 0. Align, reorient to RAS and merge if several T1w images are provided
     t1wmrg = pe.Node(IntraModalMerge(to_ras=True, hmc=True), name='MergeT1s')
@@ -176,6 +177,11 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
             name='Reconstruction2')
         reconall.interface.num_threads = nthreads
 
+        fs_transform = pe.Node(
+            freesurfer.utils.Tkregister2(fsl_out='freesurfer2subT1.mat',
+                                         reg_header=True),
+            name='FreeSurferTransform')
+
         recon_report = pe.Node(
             DerivativesDataSink(base_directory=settings['reportlets_dir'],
                                 suffix='reconall'),
@@ -270,9 +276,13 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
             (injector, reconall, [('subjects_dir', 'subjects_dir'),
                                   ('subject_id', 'subject_id')]),
             (recon_config, reconall, [('use_T2', 'use_T2')]),
-            (inputnode, recon_report, [
+            (t1wmrg, fs_transform, [('out_avg', 'target_image')]),
+            (autorecon1, fs_transform, [('T1', 'moving_image')]),
+            (recon_config, recon_report, [
                 (('t1w', fix_multi_T1w_source_name), 'source_file')]),
             (reconall, recon_report, [('out_report', 'in_file')]),
+            (reconall, outputnode, [('subject_id', 'subject_id')]),
+            (fs_transform, outputnode, [('fsl_file', 'fs_2_t1_transform')]),
             ])
 
     # Write corrected file in the designated output dir

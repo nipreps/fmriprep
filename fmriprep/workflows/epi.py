@@ -15,6 +15,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import ants
 from nipype.interfaces import c3
 from nipype.interfaces import fsl
+from nipype.interfaces import freesurfer as fs
 from nipype.interfaces import utility as niu
 
 from fmriprep.interfaces.bids import ReadSidecarJSON
@@ -22,7 +23,7 @@ from fmriprep.interfaces.hmc import MotionCorrection
 
 
 from niworkflows.interfaces.masks import ComputeEPIMask, BETRPT
-from niworkflows.interfaces.registration import FLIRTRPT
+from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
@@ -106,7 +107,8 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['name_source', 'ref_epi', 'ref_epi_mask',
                                       'bias_corrected_t1', 't1_brain', 't1_mask',
-                                      't1_seg', 't1w', 'epi_split', 'hmc_scd_warps']),
+                                      't1_seg', 't1w', 'epi_split', 'hmc_scd_warps',
+                                      'subjects_dir', 'subject_id', 'fs_2_t1_transform']),
         name='inputnode'
     )
     outputnode = pe.Node(
@@ -125,16 +127,47 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
 
     explicit_mask_epi = pe.Node(fsl.ApplyMask(), name="explicit_mask_epi")
 
-    flt_bbr_init = pe.Node(
-        FLIRTRPT(generate_report=True, dof=6),
-        name='flt_bbr_init'
-    )
-    flt_bbr = pe.Node(
-        FLIRTRPT(generate_report=True, dof=6, cost_func='bbr'),
-        name='flt_bbr'
-    )
-    flt_bbr.inputs.schedule = op.join(os.getenv('FSLDIR'),
-                                      'etc/flirtsch/bbr.sch')
+    if settings['freesurfer']:
+        bbregister = pe.Node(
+            BBRegisterRPT(
+                contrast_type='t2',
+                init='fsl',
+                registered_file=True,
+                out_fsl_file=True,
+                generate_report=True),
+            name='bbregister'
+            )
+
+        def apply_fs_transform(fs_2_t1_transform, bbreg_transform):
+            import os
+            import numpy as np
+            out_file = os.path.abspath('transform.mat')
+            fs_xfm = np.loadtxt(fs_2_t1_transform)
+            bbrxfm = np.loadtxt(bbreg_transform)
+            out_xfm = fs_xfm.dot(bbrxfm)
+            assert np.allclose(out_xfm[3], [0, 0, 0, 1])
+            out_xfm[3] = [0, 0, 0, 1]
+            np.savetxt(out_file, out_xfm, fmt='%.12g')
+            return out_file
+
+        transformer = pe.Node(
+            niu.Function(
+                function=apply_fs_transform,
+                input_names=['fs_2_t1_transform', 'bbreg_transform'],
+                output_names=['out_file']),
+            name='BBRegTransform')
+    else:
+        flt_bbr_init = pe.Node(
+            FLIRTRPT(generate_report=True, dof=6),
+            name='flt_bbr_init'
+        )
+        flt_bbr = pe.Node(
+            FLIRTRPT(generate_report=True, dof=6, cost_func='bbr'),
+            name='flt_bbr'
+        )
+        flt_bbr.inputs.schedule = op.join(os.getenv('FSLDIR'),
+                                          'etc/flirtsch/bbr.sch')
+        reportlet_suffix = reportlet_suffix.replace('bbr', 'flt_bbr')
 
     # make equivalent warp fields
     invt_bbr = pe.Node(fsl.ConvertXFM(invert_xfm=True), name='Flirt_BBR_Inv')
@@ -157,24 +190,14 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         (inputnode, explicit_mask_epi, [('ref_epi', 'in_file'),
                                         ('ref_epi_mask', 'mask_file')
                                         ]),
-        (explicit_mask_epi, flt_bbr_init, [('out_file', 'in_file')]),
-        (inputnode, flt_bbr_init, [('t1_brain', 'reference')]),
         (inputnode, fsl2itk_fwd, [('bias_corrected_t1', 'reference_file'),
                                   ('ref_epi', 'source_file')]),
         (inputnode, fsl2itk_inv, [('ref_epi', 'reference_file'),
                                   ('bias_corrected_t1', 'source_file')]),
-        (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
-        (inputnode, flt_bbr, [('t1_brain', 'reference')]),
-        (explicit_mask_epi, flt_bbr, [('out_file', 'in_file')]),
-        (wm_mask, flt_bbr, [('out_file', 'wm_seg')]),
-        (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
         (invt_bbr, outputnode, [('out_file', 'mat_t1_to_epi')]),
-        (flt_bbr, outputnode, [('out_matrix_file', 'mat_epi_to_t1')]),
-        (flt_bbr, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_epi_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_epi')]),
-        (flt_bbr, ds_report, [('out_report', 'in_file')]),
         (inputnode, ds_report, [(('name_source', _first), 'source_file')])
     ])
 
@@ -240,6 +263,32 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
              [(('name_source', _first), 'source_file')]),
             (merge, ds_t1w, [('merged_file', 'in_file')]),
             (mask_t1w_tfm, ds_t1w_mask, [('output_image', 'in_file')]),
+            ])
+
+    if settings['freesurfer']:
+        workflow.connect([
+            (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
+                                     ('subject_id', 'subject_id')]),
+            (explicit_mask_epi, bbregister, [('out_file', 'source_file')]),
+            (inputnode, transformer, [('fs_2_t1_transform', 'fs_2_t1_transform')]),
+            (bbregister, transformer, [('out_fsl_file', 'bbreg_transform')]),
+            (transformer, invt_bbr, [('out_file', 'in_file')]),
+            (transformer, outputnode, [('out_file', 'mat_epi_to_t1')]),
+            (transformer, fsl2itk_fwd, [('out_file', 'transform_file')]),
+            (bbregister, ds_report, [('out_report', 'in_file')]),
+        ])
+    else:
+        workflow.connect([
+            (explicit_mask_epi, flt_bbr_init, [('out_file', 'in_file')]),
+            (inputnode, flt_bbr_init, [('t1_brain', 'reference')]),
+            (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
+            (inputnode, flt_bbr, [('t1_brain', 'reference')]),
+            (explicit_mask_epi, flt_bbr, [('out_file', 'in_file')]),
+            (wm_mask, flt_bbr, [('out_file', 'wm_seg')]),
+            (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
+            (flt_bbr, outputnode, [('out_matrix_file', 'mat_epi_to_t1')]),
+            (flt_bbr, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
+            (flt_bbr, ds_report, [('out_report', 'in_file')]),
         ])
 
     return workflow

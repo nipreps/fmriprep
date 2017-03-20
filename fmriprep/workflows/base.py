@@ -102,7 +102,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     sbref_pre = sbref_preprocess(settings=settings)
 
     # Register SBRef to T1
-    sbref_t1 = ref_epi_t1_registration(reportlet_suffix='sbref_t1_flt_bbr',
+    sbref_t1 = ref_epi_t1_registration(reportlet_suffix='sbref_t1_bbr',
                                        inv_ds_suffix='target-sbref_affine',
                                        settings=settings)
 
@@ -162,6 +162,9 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     if settings['freesurfer']:
         workflow.connect([
             (inputnode, t1w_pre, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (inputnode, sbref_t1, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (t1w_pre, sbref_t1, [('outputnode.subject_id', 'inputnode.subject_id'),
+                                 ('outputnode.fs_2_t1_transform', 'inputnode.fs_2_t1_transform')]),
             ])
 
     return workflow
@@ -203,7 +206,7 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
     hmcwf.get_node('inputnode').iterables = ('epi', subject_data['func'])
 
     # mean EPI registration to T1w
-    epi_2_t1 = ref_epi_t1_registration(reportlet_suffix='flt_bbr',
+    epi_2_t1 = ref_epi_t1_registration(reportlet_suffix='bbr',
                                        inv_ds_suffix='target-meanBOLD_affine',
                                        settings=settings)
 
@@ -249,6 +252,9 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
     if settings['freesurfer']:
         workflow.connect([
             (inputnode, t1w_pre, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (inputnode, epi_2_t1, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (t1w_pre, epi_2_t1, [('outputnode.subject_id', 'inputnode.subject_id'),
+                                 ('outputnode.fs_2_t1_transform', 'inputnode.fs_2_t1_transform')]),
             ])
 
     return workflow

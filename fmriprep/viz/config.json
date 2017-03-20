@@ -52,7 +52,13 @@
                 "name": "epi_mean_t1_registration/flt_bbr",
                 "file_pattern": "func/.*_bold_flt_bbr",
                 "title": "EPI",
-                "description": "No SBRef was found so the mean epi was used to generate transformations from EPI space to T1 Space"
+                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space - FAST segmentation used for BBR"
+            },
+            {
+                "name": "epi_mean_t1_registration/bbr",
+                "file_pattern": "func/.*_bold_bbr",
+                "title": "EPI",
+                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space"
             },
             {
                 "name": "epi/acompcor",
@@ -75,6 +81,12 @@
             {
                 "name": "sbref_t1_registration/flt_bbr",
                 "file_pattern": "func/.*sbref.*flt_bbr",
+                "title": "SBRef to T1 registration",
+                "description": "FreeSurfer surfaces not found - FAST segmentation used for BBR"
+            },
+            {
+                "name": "sbref_t1_registration/bbr",
+                "file_pattern": "func/.*sbref.*bbr",
                 "title": "SBRef to T1 registration",
                 "description": " "
             },

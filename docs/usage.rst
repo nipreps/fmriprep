@@ -44,7 +44,7 @@ please submit a question to `NeuroStars.org <http://neurostars.org>`_ with an ``
 NeuroStars.org is a platform similar to StackOverflow but dedicated to neuroinformatics.
 
 All previous ``fmriprep`` questions are available here:
-http://neurostars.org/t/fmriprep/
+http://neurostars.org/tags/fmriprep/
 
 To participate in the ``fmriprep`` development-related discussions please use the
 following mailing list: http://mail.python.org/mailman/listinfo/neuroimaging
