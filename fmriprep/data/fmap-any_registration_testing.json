@@ -4,7 +4,7 @@
     "winsorize_lower_quantile": 0.005,
     "winsorize_upper_quantile": 0.998,
     "collapse_output_transforms": true,
-    "write_composite_transform": false,
+    "write_composite_transform": true,
     "use_histogram_matching": [ true, true ],
     "use_estimate_learning_rate_once": [ true, true ],
     "transforms": [ "Rigid", "Rigid" ],

@@ -220,9 +220,8 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         iterfield=['input_image', 'transforms'],
         name='EPIToT1wTransform')
     epi_to_t1w_transform.terminal_output = 'file'
-    merge = pe.Node(niu.Function(input_names=["in_files", "header_source"],
-                                 output_names=["merged_file"],
-                                 function=nii_concat), name='MergeEPI')
+
+    merge = pe.Node(Merge(), name='MergeEPI')
     merge.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
 
@@ -245,7 +244,7 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         (fsl2itk_fwd, mask_t1w_tfm, [('itk_transform', 'transforms')]),
         (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
         (inputnode, mask_t1w_tfm, [('ref_epi_mask', 'input_image')]),
-        (merge, outputnode, [('merged_file', 'epi_t1')]),
+        (merge, outputnode, [('out_file', 'epi_t1')]),
         (mask_t1w_tfm, outputnode, [('output_image', 'epi_mask_t1')]),
     ])
 
@@ -266,7 +265,7 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
             (inputnode, ds_t1w, [(('name_source', _first), 'source_file')]),
             (inputnode, ds_t1w_mask,
              [(('name_source', _first), 'source_file')]),
-            (merge, ds_t1w, [('merged_file', 'in_file')]),
+            (merge, ds_t1w, [('out_file', 'in_file')]),
             (mask_t1w_tfm, ds_t1w_mask, [('output_image', 'in_file')]),
             ])
 
@@ -333,9 +332,8 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
         iterfield=['input_image', 'transforms'],
         name='EPIToMNITransform')
     epi_to_mni_transform.terminal_output = 'file'
-    merge = pe.Node(niu.Function(input_names=["in_files", "header_source"],
-                                 output_names=["merged_file"],
-                                 function=nii_concat), name='MergeEPI')
+
+    merge = pe.Node(Merge(), name='MergeEPI')
     merge.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
 
@@ -372,7 +370,7 @@ def epi_mni_transformation(name='EPIMNITransformation', settings=None):
         (gen_ref, epi_to_mni_transform, [('out_file', 'reference_image')]),
         (epi_to_mni_transform, merge, [('output_image', 'in_files')]),
         (inputnode, merge, [('name_source', 'header_source')]),
-        (merge, ds_mni, [('merged_file', 'in_file')]),
+        (merge, ds_mni, [('out_file', 'in_file')]),
         (mask_merge_tfms, mask_mni_tfm, [('out', 'transforms')]),
         (gen_ref, mask_mni_tfm, [('out_file', 'reference_image')]),
         (inputnode, mask_mni_tfm, [('epi_mask', 'input_image')]),
@@ -404,9 +402,8 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
     epi_split = pe.Node(fsl.Split(dimension='t'), name='EPIsplit')
     epi_xfm = pe.MapNode(fsl.preprocess.ApplyXFM(), name='EPIapplyXFM',
                          iterfield=['in_file'])
-    epi_merge = pe.Node(niu.Function(input_names=["in_files", "header_source"],
-                                     output_names=["merged_file"],
-                                     function=nii_concat), name='EPImergeback')
+
+    epi_merge = pe.Node(Merge(), name='EPImergeback')
 
     ds_sbref = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
@@ -430,12 +427,12 @@ def epi_sbref_registration(settings, name='EPI_SBrefRegistration'):
         (epi_xfm, epi_merge, [('out_file', 'in_files')]),
         (inputnode, epi_merge, [('epi_name_source', 'header_source')]),
         (epi_sbref, outputnode, [('out_matrix_file', 'out_mat')]),
-        (epi_merge, outputnode, [('merged_file', 'epi_registered')]),
+        (epi_merge, outputnode, [('out_file', 'epi_registered')]),
 
         (epi_sbref, sbref_epi, [('out_matrix_file', 'in_file')]),
         (sbref_epi, outputnode, [('out_file', 'out_mat_inv')]),
 
-        (epi_merge, ds_sbref, [('merged_file', 'in_file')]),
+        (epi_merge, ds_sbref, [('out_file', 'in_file')]),
         (inputnode, ds_sbref, [('epi_name_source', 'source_file')]),
         (inputnode, ds_report, [('epi_name_source', 'source_file')]),
         (epi_sbref, ds_report, [('out_report', 'in_file')])

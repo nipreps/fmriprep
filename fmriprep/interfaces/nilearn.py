@@ -85,6 +85,7 @@ class MergeInputSpec(BaseInterfaceInputSpec):
                               desc='input list of files to merge')
     dtype = traits.Enum('f4', 'f8', 'u1', 'u2', 'u4', 'i2', 'i4',
                         usedefault=True, desc='numpy dtype of output image')
+    header_source = File(exists=True, desc='a Nifti file from which the header should be copied')
 
 
 class MergeOutputSpec(TraitedSpec):
@@ -101,8 +102,16 @@ class Merge(BaseInterface):
     def _run_interface(self, runtime):
         self._results['out_file'] = genfname(
             self.inputs.in_files[0], suffix='merged')
-        concat_imgs(self.inputs.in_files, dtype=self.inputs.dtype).to_filename(
-            self._results['out_file'])
+        new_nii = concat_imgs(self.inputs.in_files, dtype=self.inputs.dtype)
+
+        if isdefined(self.inputs.header_source):
+            src_hdr = nb.load(self.inputs.header_source).header
+            new_nii.header.set_xyzt_units(t=src_hdr.get_xyzt_units()[-1])
+            new_nii.header.set_zooms(list(new_nii.header.get_zooms()[:3]) +
+                                     [src_hdr.get_zooms()[3]])
+
+        new_nii.to_filename(self._results['out_file'])
+
         return runtime
 
     def _list_outputs(self):
