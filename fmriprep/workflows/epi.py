@@ -29,7 +29,7 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces.utils import nii_concat
-from fmriprep.interfaces.nilearn import MaskEPI
+from fmriprep.interfaces.nilearn import MaskEPI, Merge
 from fmriprep.utils.misc import _first, _extract_wm
 from fmriprep.workflows.fieldmap import sdc_unwarp
 
@@ -46,7 +46,7 @@ def epi_preprocess(name='EPIprep', settings=None):
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask', 'sbref']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['epi_corrected', 'epi_mean', 'epi_mask', 'epi_split', 'hmc_movpar',
+        fields=['epi_corr', 'epi_corr_split', 'epi_mean', 'epi_mask', 'hmc_movpar',
                 'out_warps']), name='outputnode')
 
     # Read metadata
@@ -69,6 +69,9 @@ def epi_preprocess(name='EPIprep', settings=None):
     # EPI mask
     mask = pe.Node(MaskEPI(), name='epi_final_mask')
 
+    # Merge corrected EPI
+    merge = pe.Node(Merge(), name='epi_merge_corrected')
+
     workflow = pe.Workflow(name=name)
     workflow.connect([
         (inputnode, meta, [('epi', 'in_file')]),
@@ -89,10 +92,12 @@ def epi_preprocess(name='EPIprep', settings=None):
         (unwarp, mask, [('outputnode.out_mean', 'in_files')]),
         (epi_split, outputnode, [('out_split', 'epi_split')]),
         (mask, outputnode, [('out_mask', 'epi_mask')]),
+        (unwarp, merge, [('outputnode.out_files', 'in_files')]),
         (unwarp, outputnode, [('outputnode.out_mean', 'epi_mean'),
-                              ('outputnode.out_files', 'epi_corrected'),
+                              ('outputnode.out_files', 'epi_corr_split'),
                               ('outputnode.out_hmcpar', 'hmc_movpar'),
-                              ('outputnode.out_warps', 'out_warps')])
+                              ('outputnode.out_warps', 'out_warps')]),
+        (merge, outputnode, [('out_file', 'epi_corr')])
 
     ])
     return workflow

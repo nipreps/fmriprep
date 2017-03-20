@@ -132,6 +132,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
         (sbref_pre, sbref_t1, [('outputnode.sbref_unwarped', 'inputnode.ref_epi'),
                                ('outputnode.sbref_unwarped_mask', 'inputnode.ref_epi_mask')]),
         (sbref_pre, epi_pre, [('outputnode.sbref_unwarped', 'inputnode.sbref')]),
+        (epi_pre, sbref_t1, [('outputnode.out_warps', 'inputnode.hmc_scd_warps')]),
         (t1w_pre, sbref_t1, [
             ('outputnode.bias_corrected_t1', 'inputnode.bias_corrected_t1'),
             ('outputnode.t1_mask', 'inputnode.t1_mask'),
@@ -142,7 +143,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
 
         (epi_pre, confounds_wf, [
             ('inputnode.epi', 'inputnode.source_file'),
-            ('outputnode.epi_corrected', 'inputnode.fmri_file'),
+            ('outputnode.epi_corr', 'inputnode.fmri_file'),
             # ('outputnode.epi_mean', 'inputnode.reference_image'),
             ('outputnode.epi_mask', 'inputnode.epi_mask'),
             ('outputnode.hmc_movpar', 'inputnode.movpar_file'),
@@ -152,7 +153,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
         (epi_pre, epi_mni_trans_wf, [('inputnode.epi', 'inputnode.name_source'),
                                      ('outputnode.out_warps', 'inputnode.hmc_scd_warps'),
                                      ('outputnode.epi_mask', 'inputnode.epi_mask'),
-                                     ('outputnode.epi_split', 'inputnode.epi_split')]),
+                                     ('outputnode.epi_corr_split', 'inputnode.epi_split')]),
         (t1w_pre, epi_mni_trans_wf, [('outputnode.bias_corrected_t1', 'inputnode.t1'),
                                      ('outputnode.t1_2_mni_forward_transform',
                                       'inputnode.t1_2_mni_forward_transform')])

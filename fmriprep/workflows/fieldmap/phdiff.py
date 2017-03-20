@@ -52,7 +52,7 @@ def phdiff_workflow(settings, name=WORKFLOW_NAME):
                         name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['fmap_ref', 'fmap_mask', 'fmap']), name='outputnode')
+        fields=['fmap', 'fmap_ref', 'fmap_mask']), name='outputnode')
 
     sortfmaps = pe.Node(niu.Function(function=_sort_fmaps,
                                      input_names=['input_images'],
