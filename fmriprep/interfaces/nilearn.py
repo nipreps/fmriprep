@@ -15,6 +15,7 @@ import os.path as op
 import numpy as np
 import nibabel as nb
 from nilearn.masking import compute_epi_mask
+from nilearn.image import concat_imgs
 
 from nipype import logging
 from nipype.interfaces.base import (
@@ -77,3 +78,33 @@ class MaskEPI(BaseInterface):
 
     def _list_outputs(self):
         return self._results
+
+
+class MergeInputSpec(BaseInterfaceInputSpec):
+    in_files = InputMultiPath(File(exists=True), mandatory=True,
+                              desc='input list of files to merge')
+    dtype = traits.Enum('f4', 'f8', 'u1', 'u2', 'u4', 'i2', 'i4',
+                        usedefault=True, desc='numpy dtype of output image')
+
+
+class MergeOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output merged file')
+
+class Merge(BaseInterface):
+    input_spec = MergeInputSpec
+    output_spec = MergeOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(Merge, self).__init__(**inputs)
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = genfname(
+            self.inputs.in_files[0], suffix='merged')
+        concat_imgs(self.inputs.in_files, dtype=self.inputs.dtype).to_filename(
+            self._results['out_file'])
+        return runtime
+
+    def _list_outputs(self):
+        return self._results
+

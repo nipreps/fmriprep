@@ -12,12 +12,13 @@ import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
-from nipype.interfaces.fsl import FUGUE, Merge
+from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration, N4BiasFieldCorrection, ApplyTransforms
 from nipype.interfaces.ants.preprocess import Matrix2FSLParams
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
 from fmriprep.interfaces.images import FixAffine, SplitMerge
+from fmriprep.interfaces.nilearn import Merge
 from fmriprep.interfaces import itk
 from fmriprep.interfaces.hmc import MotionCorrection
 from fmriprep.interfaces.utils import MeanTimeseries, ApplyMask
@@ -121,7 +122,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     fugue_all = pe.MapNode(ApplyFieldmap(generate_report=False),
                            iterfield=['in_file', 'in_vsm'],
                            name='fmap2inputs_unwarp')
-    merge = pe.Node(Merge(dimension='t'), name='corrected_merge')
+    merge = pe.Node(Merge(), name='corrected_merge')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
     hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
                    name='fmap2inputs_hmc')
@@ -139,7 +140,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 
     tfm_comb = pe.MapNode(ApplyTransforms(dimension=3, float=True,
                           print_out_composite_warp_file=True, output_image='epiwarp.nii.gz'),
-                          iterfield=['input_image', 'transforms', 'invert_transform_flags'],
+                          iterfield=['transforms', 'invert_transform_flags'],
                           name='generate_warpings')
 
     mean = pe.Node(MeanTimeseries(), name='inputs_unwarped_mean')
@@ -189,7 +190,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (xfmmap, fugue_all, [('output_image', 'in_vsm')]),
         (fugue_all, merge, [('out_corrected', 'in_files')]),
         (fugue_all, hmc2, [('out_corrected', 'in_split')]),
-        (merge, hmc2, [('merged_file', 'in_merged')]),
+        (merge, hmc2, [('out_file', 'in_merged')]),
         (unwarp, hmc2, [('output_image', 'reference_image')]),
 
         (hmc2, hmc2_split, [('out_tfm', 'in_file')]),
@@ -205,8 +206,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (tfm_concat, tfm_comb, [
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
-        (target_sel, tfm_comb, [('out_file', 'input_image')]),
-        (target_sel, tfm_comb, [('out_file', 'reference_image')]),
+        (target_sel, tfm_comb, [('out_file', 'input_image'),
+                                ('out_file', 'reference_image')]),
         (mean, outputnode, [('out_file', 'out_mean')]),
         (unwarpall, outputnode, [('output_image', 'out_files')]),
         (tfm_comb, outputnode, [('output_image', 'out_warps')]),
