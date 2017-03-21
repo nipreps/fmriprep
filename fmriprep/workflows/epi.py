@@ -28,7 +28,6 @@ from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.images import FixAffine, SplitMerge
-from fmriprep.interfaces.utils import nii_concat
 from fmriprep.interfaces.nilearn import MaskEPI, Merge
 from fmriprep.utils.misc import _first, _extract_wm
 from fmriprep.workflows.fieldmap import sdc_unwarp

@@ -131,8 +131,7 @@ class MergeANTsTransformsInputSpec(BaseInterfaceInputSpec):
     position = traits.Int(-1, usedefault=True)
     transforms = InputMultiPath(File(exists=True),
                                 mandatory=True, desc='input file')
-    invert_transform_flags = traits.List(
-        traits.Bool(), mandatory=True, desc='invert transforms')
+    invert_transform_flags = traits.List(traits.Bool(), desc='invert transforms')
 
 class MergeANTsTransformsOutputSpec(TraitedSpec):
     transforms = OutputMultiPath(File(exists=True),
@@ -159,7 +158,10 @@ class MergeANTsTransforms(BaseInterface):
 
     def _run_interface(self, runtime):
         self._results['transforms'] = self.inputs.transforms
-        self._results['invert_transform_flags'] = self.inputs.invert_transform_flags
+
+        self._results['invert_transform_flags'] = [False] * len(self.inputs.transforms)
+        if isdefined(self.inputs.invert_transform_flags):
+            self._results['invert_transform_flags'] = self.inputs.invert_transform_flags
 
         if isdefined(self.inputs.in_file) and self.inputs.in_file is not None:
             flag = self.inputs.in_file_invert

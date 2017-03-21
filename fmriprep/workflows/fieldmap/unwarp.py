@@ -171,8 +171,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (ref_msk, fmap2ref, [('out_file', 'fixed_image')]),
         (gen_vsm, applyxfm, [('shift_out_file', 'input_image')]),
         (fmap2ref, applyxfm, [
-            ('reverse_transforms', 'transforms'),
-            ('reverse_invert_flags', 'invert_transform_flags')]),
+            ('inverse_composite_transform', 'transforms')]),
         (applyxfm, vsm2dfm, [('output_image', 'in_file')]),
         (vsm2dfm, unwarp, [('out_file', 'transforms')]),
         (target_sel, unwarp, [('out_file', 'reference_image'),
@@ -180,8 +179,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         # Run HMC again, aiming at higher accuracy
         (split_hmc, pre_tfms, [('out_files', 'in_file')]),
         (fmap2ref, pre_tfms, [
-            ('reverse_transforms', 'transforms'),
-            ('reverse_invert_flags', 'invert_transform_flags')]),
+            ('inverse_composite_transform', 'transforms')]),
         (gen_vsm, xfmmap, [('shift_out_file', 'input_image')]),
         (target_sel, xfmmap, [('out_file', 'reference_image')]),
         (pre_tfms, xfmmap, [
