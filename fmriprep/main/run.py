@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2016-10-05 15:03:18
+# @Last Modified time: 2017-03-21 11:31:16
 """
 fMRI preprocessing workflow
 =====
@@ -20,9 +20,9 @@ from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
 
-def main():
+def get_parser():
+    from fmriprep.info import __version__
     """Entry point"""
-    from fmriprep import __version__
     parser = ArgumentParser(description='fMRI Preprocessing workflow',
                             formatter_class=RawTextHelpFormatter)
 
@@ -84,7 +84,10 @@ def main():
     g_fs.add_argument('--no-freesurfer', action='store_false', dest='freesurfer',
                       help='disable FreeSurfer preprocessing')
 
-    opts = parser.parse_args()
+    return parser
+
+def main():
+    opts = get_parser().parse_args()
     create_workflow(opts)
 
 

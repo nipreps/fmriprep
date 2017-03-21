@@ -4,6 +4,7 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
 Apply susceptibility distortion correction (SDC)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
@@ -29,8 +30,13 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     an :abbr:`SDC (susceptibility-derived distortion correction)` method in FSL to
     unwarp the target image.
 
-    Input fields:
-    ~~~~~~~~~~~~~
+    .. workflow ::
+
+        from fmriprep.workflows.fieldmap.unwarp import sdc_unwarp
+        wf = sdc_unwarp()
+
+
+    Input fields::
 
       inputnode.in_files - a list of target 3D images to which this correction
                            will be applied
@@ -46,12 +52,15 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                            resulting SE image)
       inputnode.fmap_mask - a brain mask in fieldmap-space
 
-    Output fields:
-    ~~~~~~~~~~~~~~
+    Output fields::
 
       outputnode.out_files - the in_file after susceptibility-distortion correction.
 
+
     """
+
+    if settings is None:
+        settings = {}
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(

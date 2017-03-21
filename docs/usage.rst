@@ -23,10 +23,10 @@ Example: ::
 Command-Line Arguments
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. highlight:: none
+.. argparse::
+   :ref: fmriprep.main.run.get_parser
+   :prog: fmriprep
 
-.. include:: args.txt
-   :literal:
 
 Debugging
 =========

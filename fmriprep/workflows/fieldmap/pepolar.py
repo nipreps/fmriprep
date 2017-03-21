@@ -3,14 +3,14 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-PEpolar B0 estimation
-~~~~~~~~~~~~~~~~~~~~~
+Phase-Encoding POLARity B0 estimation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PE-polar (Phase-Encoding POLARity) is the name coined by GE to the family of
+:abbr:`PE-polar (Phase-Encoding POLARity)` is the name coined by GE to the family of
 methods to estimate the inhomogeneity of field B0 inside the scanner by using two
 acquisitions with different (generally opposed) phase-encoding (PE) directions.
-
-https://cni.stanford.edu/wiki/Data_Processing#Gradient-reversal_Unwarping_.28.27pepolar.27.29
+For more information, please see `this description <https://cni.stanford.edu/wiki/Data_Processing\
+#Gradient-reversal_Unwarping_.28.27pepolar.27.29>`_
 
 This corresponds to the section 8.9.4 --multiple phase encoded directions (topup)--
 of the BIDS specification.
@@ -26,17 +26,20 @@ from nipype.pipeline import engine as pe
 from niworkflows.interfaces.masks import BETRPT
 from fmriprep.interfaces.topup import TopupInputs
 
-
-WORKFLOW_NAME = 'FMAP_pepolar'
-
 # pylint: disable=R0914
-def pepolar_workflow(name=WORKFLOW_NAME, settings=None):
+def pepolar_workflow(name='FMAP_pepolar', settings=None):
     """
     Estimates the fieldmap using TOPUP on series of at least two images
     acquired with varying :abbr:`PE (phase encoding)` direction.
     Generally, the images are :abbr:`SE (Spin-Echo)` and the
     :abbr:`PE (phase encoding)` directions are opposed (they can also
     be orthogonal).
+
+    .. workflow ::
+
+        from fmriprep.workflows.fieldmap.pepolar import pepolar_workflow
+        wf = pepolar_workflow()
+
 
     Outputs::
 

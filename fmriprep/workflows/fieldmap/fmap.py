@@ -3,14 +3,14 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Fieldmap B0 estimation
-~~~~~~~~~~~~~~~~~~~~~~
+Direct B0 mapping sequences
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When the fieldmap is directly measured with a prescribed sequence (such as
 :abbr:`SE (spiral echo)`), we only need to calculate the corresponding B-Spline
 coefficients to adapt the fieldmap to the TOPUP tool.
-
-https://cni.stanford.edu/wiki/GE_Processing#Fieldmaps
+This procedure is described with more detail `here <https://cni.stanford.edu/\
+wiki/GE_Processing#Fieldmaps>`_.
 
 This corresponds to the section 8.9.3 --fieldmap image (and one magnitude image)--
 of the BIDS specification.
@@ -27,14 +27,21 @@ from niworkflows.interfaces.masks import BETRPT
 from fmriprep.interfaces import IntraModalMerge, CopyHeader
 from fmriprep.interfaces.fmap import FieldEnhance
 
-WORKFLOW_NAME = 'FMAP_fmap'
-def fmap_workflow(name=WORKFLOW_NAME, settings=None):
+def fmap_workflow(name='FMAP_fmap', settings=None):
     """
     Fieldmap workflow - when we have a sequence that directly measures the fieldmap
     we just need to mask it (using the corresponding magnitude image) to remove the
     noise in the surrounding air region, and ensure that units are Hz.
 
+    .. workflow ::
+
+        from fmriprep.workflows.fieldmap.fmap import fmap_workflow
+        wf = fmap_workflow()
+
     """
+
+    if settings is None:
+        settings = {}
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=['input_images']), name='inputnode')
