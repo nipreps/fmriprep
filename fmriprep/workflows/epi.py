@@ -102,7 +102,7 @@ def epi_preprocess(name='EPIprep', settings=None):
     return workflow
 
 def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_registration',
-                            settings=None):
+                            copy_hdr=True, settings=None):
     """
     Uses FSL FLIRT with the BBR cost function to find the transform that
     maps the EPI space into the T1-space
@@ -239,13 +239,18 @@ def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_re
         (merge_transforms, epi_to_t1w_transform, [('out', 'transforms')]),
         (gen_ref, epi_to_t1w_transform, [('out_file', 'reference_image')]),
         (epi_to_t1w_transform, merge, [('output_image', 'in_files')]),
-        (inputnode, merge, [('name_source', 'header_source')]),
         (fsl2itk_fwd, mask_t1w_tfm, [('itk_transform', 'transforms')]),
         (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
         (inputnode, mask_t1w_tfm, [('ref_epi_mask', 'input_image')]),
         (merge, outputnode, [('out_file', 'epi_t1')]),
         (mask_t1w_tfm, outputnode, [('output_image', 'epi_mask_t1')]),
     ])
+
+    if copy_hdr:
+        workflow.connect([
+            (inputnode, merge, [('name_source', 'header_source')])
+        ])
+
 
     if not settings["skip_native"]:
         # Write corrected file in the designated output dir

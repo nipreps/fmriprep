@@ -104,6 +104,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     # Register SBRef to T1
     sbref_t1 = ref_epi_t1_registration(reportlet_suffix='sbref_t1_bbr',
                                        inv_ds_suffix='target-sbref_affine',
+                                       copy_hdr=False,
                                        settings=settings)
 
     # HMC and SDC of EPI using SBRef as reference
