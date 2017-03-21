@@ -1,5 +1,6 @@
 {
     "dimension": 3,
+    "float": true,
     "initial_moving_transform_com": 1,
     "winsorize_lower_quantile": 0.005,
     "winsorize_upper_quantile": 0.998,
