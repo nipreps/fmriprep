@@ -23,55 +23,36 @@ Patching working repositories
 In order to test new code without rebuilding the Docker image, it is
 possible to mount working repositories as source directories within the
 container.
-In the docker container, the following Python sources are kept in
-``/root/src``: ::
+In the docker container, the all Python packages are installed in
+``/usr/local/miniconda/lib/python3.6/site-packages``.
 
-    /root/src
-    ├── fmriprep/
-    ├── nipype/
-    └── niworkflows/
+To patch in working repositories of FMRIPREP or its dependencies, for instance
+contained in ``$HOME/projects/``, add the following arguments to your docker
+command: ::
 
-To patch in working repositories, for instance contained in
-``$HOME/projects/``, add the following arguments to your docker command: ::
-
-    -v $HOME/projects/fmriprep:/root/src/fmriprep:ro
-    -v $HOME/projects/niworkflows:/root/src/niworkflows:ro
-    -v $HOME/projects/nipype:/root/src/nipype:ro
+    -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro
+    -v $HOME/projects/niworkflows/niworkflows:/usr/local/miniconda/lib/python3.6/site-packages/niworkflows:ro
+    -v $HOME/projects/nipype/nipype:/usr/local/miniconda/lib/python3.6/site-packages/nipype:ro
 
 For example, ::
 
     $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out \
-        -v $HOME/projects/fmriprep:/root/src/fmriprep:ro \
+        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro \
         poldracklab/fmriprep:latest /data /out/out participant \
-        -w /out/work/ -t ds005
+        -w /out/work/
 
 In order to work directly in the container, use ``--entrypoint=bash``, and
 omit the fmriprep arguments: ::
 
     $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out \
-        -v $HOME/projects/fmriprep:/root/src/fmriprep:ro --entrypoint=bash \
+        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro --entrypoint=bash \
         poldracklab/fmriprep:latest
 
-Preparing repository for patching
----------------------------------
-In order to patch a working repository into the docker image, its egg-info
-must be built.
-The first time this is done, the repository should be mounted read/write,
-and be installed in editable mode.
-For instance, to prepare to patch in fmriprep, niworkflows and nipype,
-all located under ``$HOME/projects``, ::
+Patching containers can be achieved in Singularity by using the PYTHONPATH variable: ::
 
-    $ docker run --rm -it --entrypoint=bash \
-        -v $HOME/projects/fmriprep:/root/src/fmriprep \
-        -v $HOME/projects/niworkflows:/root/src/niworkflows \
-        -v $HOME/projects/nipype:/root/src/nipype \
-        poldracklab/fmriprep:latest
-    root@03e5df018c5e:~# cd ~/src/fmriprep/
-    root@03e5df018c5e:~/src/fmriprep# pip install -e .
-    root@03e5df018c5e:~# cd ~/src/niworkflows/
-    root@03e5df018c5e:~/src/niworkflows# pip install -e .
-    root@03e5df018c5e:~# cd ~/src/nipype/
-    root@03e5df018c5e:~/src/nipype# pip install -e .
+   $ PYTHONPATH="$HOME/projects/fmriprep" singularity run fmriprep.img \
+        /scratch/dataset /scratch/out participant -w /out/work/
+
 
 Adding dependencies
 ===================

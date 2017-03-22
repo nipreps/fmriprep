@@ -137,11 +137,10 @@ Derivatives related to t1w files are in the ``anat`` subfolder:
 - ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
 - ``*T1w_preproc.nii.gz`` Bias field corrected t1w file, using ANTS' N4BiasFieldCorrection
 - ``*T1w_space-MNI152NLin2009cAsym_preproc.nii.gz`` Same as above, but in MNI space
-- ``*T1w_target-MNI152NLin2009cAsym_affine.mat`` The affine matrix to transform T1w into MNI space
 - ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
-- ``*T1w_target-MNI152NLin2009cAsym_warp.nii.gz`` Warp transform to transform t1w into MNI space
+- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform t1w into MNI space
 
 Derivatives related to EPI files are in the ``func`` subfolder:
 

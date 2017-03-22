@@ -35,7 +35,6 @@ def base_workflow_enumerator(subject_list, task_id, settings, run_uuid):
         fsdir.inputs.freesurfer_home = os.getenv('FREESURFER_HOME')
         fsdir.inputs.derivatives = os.path.join(settings['output_dir'])
 
-    generated_list = []
     for subject in subject_list:
         generated_workflow = base_workflow_generator(subject, task_id=task_id,
                                                      settings=settings)
@@ -59,9 +58,15 @@ def base_workflow_generator(subject_id, task_id, settings):
 
     settings["biggest_epi_file_size_gb"] = get_biggest_epi_file_size_gb(subject_data['func'])
 
+    if subject_data['func'] == []:
+        raise Exception("No BOLD images found for participant {} and task {}. "
+                        "All workflows require BOLD images.".format(
+                            subject_id, task_id if task_id else '<all>'))
+
     if subject_data['t1w'] == []:
         raise Exception("No T1w images found for participant {}. "
                         "All workflows require T1w images.".format(subject_id))
+
 
     if all((subject_data['fmap'] != [],
             subject_data['sbref'] != [],

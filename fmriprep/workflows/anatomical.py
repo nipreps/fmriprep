@@ -190,14 +190,14 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     # Resample the brain mask and the tissue probability maps into mni space
     bmask_mni = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0,
+        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
                              interpolation='NearestNeighbor'),
         name='brain_mni_warp'
     )
     bmask_mni.inputs.reference_image = op.join(get_mni_icbm152_nlin_asym_09c(),
                                                '1mm_T1.nii.gz')
     tpms_mni = pe.MapNode(
-        ants.ApplyTransforms(dimension=3, default_value=0,
+        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
                              interpolation='Linear'),
         iterfield=['input_image'],
         name='tpms_mni_warp'
@@ -228,16 +228,13 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         (t1_seg, outputnode, [('probability_maps', 't1_tpms')]),
         (t1_2_mni, outputnode, [
             ('warped_image', 't1_2_mni'),
-            ('forward_transforms', 't1_2_mni_forward_transform'),
-            ('reverse_transforms', 't1_2_mni_reverse_transform')
+            ('composite_transform', 't1_2_mni_forward_transform'),
+            ('inverse_composite_transform', 't1_2_mni_reverse_transform')
         ]),
         (asw, bmask_mni, [('outputnode.out_mask', 'input_image')]),
-        (t1_2_mni, bmask_mni, [('forward_transforms', 'transforms'),
-                               ('forward_invert_flags',
-                                'invert_transform_flags')]),
+        (t1_2_mni, bmask_mni, [('composite_transform', 'transforms')]),
         (t1_seg, tpms_mni, [('probability_maps', 'input_image')]),
-        (t1_2_mni, tpms_mni, [('forward_transforms', 'transforms'),
-                              ('forward_invert_flags', 'invert_transform_flags')]),
+        (t1_2_mni, tpms_mni, [('composite_transform', 'transforms')]),
         (asw, outputnode, [('outputnode.out_file', 't1_brain'),
                            ('outputnode.out_mask', 't1_mask')]),
         (inputnode, ds_t1_seg_report, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
@@ -306,11 +303,6 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                             suffix='space-MNI152NLin2009cAsym_preproc'),
         name='DerivT1w_MNI'
     )
-    ds_t1_mni_aff = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='target-MNI152NLin2009cAsym_affine'),
-        name='DerivT1w_MNI_affine'
-    )
     ds_bmask_mni = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
                             suffix='space-MNI152NLin2009cAsym_brainmask'),
@@ -323,35 +315,21 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     )
     ds_tpms_mni.inputs.extra_values = ['CSF', 'GM', 'WM']
 
-    if settings.get('debug', False):
-        workflow.connect([
-            (t1_2_mni, ds_t1_mni_aff, [('forward_transforms', 'in_file')])
-        ])
-    else:
-        ds_t1_mni_warp = pe.Node(
-            DerivativesDataSink(base_directory=settings['output_dir'],
-                                suffix='target-MNI152NLin2009cAsym_warp'), name='mni_warp')
+    ds_t1_mni_warp = pe.Node(
+        DerivativesDataSink(base_directory=settings['output_dir'],
+                            suffix='target-MNI152NLin2009cAsym_warp'), name='mni_warp')
 
-        def _get_aff(inlist):
-            return inlist[:-1]
-
-        def _get_warp(inlist):
-            return inlist[-1]
-
-        workflow.connect([
-            (inputnode, ds_t1_mni_warp, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-            (t1_2_mni, ds_t1_mni_aff, [
-                (('forward_transforms', _get_aff), 'in_file')]),
-            (t1_2_mni, ds_t1_mni_warp, [
-                (('forward_transforms', _get_warp), 'in_file')])
-        ])
+    workflow.connect([
+        (inputnode, ds_t1_mni_warp, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        (t1_2_mni, ds_t1_mni_warp, [
+            ('composite_transform', 'in_file')])
+    ])
 
     workflow.connect([
         (inputnode, ds_t1_bias, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (inputnode, ds_t1_seg, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (inputnode, ds_mask, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (inputnode, ds_t1_mni, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (inputnode, ds_t1_mni_aff, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (inputnode, ds_bmask_mni, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (inputnode, ds_tpms_mni, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (asw, ds_t1_bias, [('outputnode.bias_corrected', 'in_file')]),
