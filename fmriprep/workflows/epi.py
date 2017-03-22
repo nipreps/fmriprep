@@ -32,7 +32,7 @@ from fmriprep.interfaces.nilearn import MaskEPI, Merge
 from fmriprep.utils.misc import _first, _extract_wm
 from fmriprep.workflows.fieldmap import sdc_unwarp
 
-def epi_preprocess(name='EPIprep', settings=None):
+def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
     """
     This workflow orchestrates the :abbr:`HMC (head motion correction)`
     using the corrected :abbr:`SBRef (single-band reference)` image,
@@ -98,6 +98,15 @@ def epi_preprocess(name='EPIprep', settings=None):
                               ('outputnode.out_warps', 'out_warps')]),
         (merge, outputnode, [('out_file', 'epi_corr')])
 
+    ])
+
+    ds_epi_corrected = pe.Node(DerivativesDataSink(
+        base_directory=settings['output_dir'], suffix='space-sbref_preproc'
+        if has_sbref else 'space-meanBOLD_preproc'), name='DS_epi_corrected')
+
+    workflow.connect([
+        (inputnode, ds_epi_corrected, [('epi', 'source_file')]),
+        (merge, ds_epi_corrected, [('out_file', 'in_file')])
     ])
     return workflow
 
