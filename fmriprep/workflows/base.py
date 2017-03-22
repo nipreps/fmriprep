@@ -16,6 +16,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 
+
 from fmriprep.interfaces import BIDSDataGrabber, BIDSFreeSurferDir
 from fmriprep.utils.misc import collect_bids_data, get_biggest_epi_file_size_gb
 from fmriprep.workflows import confounds
@@ -108,7 +109,7 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
                                        settings=settings)
 
     # HMC and SDC of EPI using SBRef as reference
-    epi_pre = epi_preprocess(settings=settings)
+    epi_pre = epi_preprocess(settings=settings, has_sbref=True)
     epi_pre.get_node('inputnode').iterables = ('epi', subject_data['func'])
 
     # get confounds

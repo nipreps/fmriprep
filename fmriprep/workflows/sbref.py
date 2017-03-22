@@ -12,6 +12,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces import ants
 from niworkflows.interfaces.masks import ComputeEPIMask
+from niworkflows.interfaces import SimpleBeforeAfter
 
 from fmriprep.utils.misc import _first
 from fmriprep.interfaces.images import FixAffine, SplitMerge
@@ -58,8 +59,8 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         ),
         name='inputnode'
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=['sbref_unwarped', 'sbref_unwarped_mask']),
-                         name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=[
+        'sbref_unwarped', 'sbref_unwarped_mask', 'sbref_hmc_only']), name='outputnode')
 
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
@@ -104,8 +105,10 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         (unwarp, inu, [('outputnode.out_mean', 'input_image')]),
         (inu, skullstripping, [('output_image', 'in_file')]),
         (skullstripping, outputnode, [('mask_file', 'sbref_unwarped_mask')]),
-        (inu, outputnode, [('output_image', 'sbref_unwarped')])
+        (inu, outputnode, [('output_image', 'sbref_unwarped')]),
+        (pre_hmc, outputnode, [('out_avg', 'sbref_hmc_only')]),
     ])
+
 
     # Hook up reporting and push derivatives
     ds_report = pe.Node(
@@ -115,7 +118,7 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     )
     datasink = pe.Node(
         DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='sdc'),
+                            suffix='space-sbref_preproc'),
         name='datasink'
     )
 
@@ -125,4 +128,18 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         (skullstripping, ds_report, [('out_report', 'in_file')]),
         (inu, datasink, [('output_image', 'in_file')])
     ])
+
+    # Generate a before/after report with sbref
+    sbref_rpt = pe.Node(SimpleBeforeAfter(), name='SBRefUnwarpReport')
+    sbref_rpt_ds = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='preproc-sdc'), name='SBRefUnwarpReport_ds'
+    )
+    workflow.connect([
+        (inu, sbref_rpt, [('output_image', 'after')]),
+        (pre_hmc, sbref_rpt, [('out_avg', 'before')]),
+        (inputnode, sbref_rpt_ds, [(('sbref', _first), 'source_file')]),
+        (sbref_rpt, sbref_rpt_ds, [('out_report', 'in_file')])
+    ])
+
     return workflow
