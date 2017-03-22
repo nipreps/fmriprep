@@ -4,6 +4,7 @@ Next release
 * [ENH] A first stab at fieldmaps (#247)
 
 
+
 0.3.0 (20th of March 2017)
 ==========================
 
