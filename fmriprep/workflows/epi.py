@@ -46,7 +46,7 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
         fields=['epi', 'fmap', 'fmap_ref', 'fmap_mask', 'sbref']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['epi_corr', 'epi_corr_split', 'epi_mean', 'epi_mask', 'hmc_movpar',
-                'out_warps']), name='outputnode')
+                'out_warps', 'epi_hmconly_mean']), name='outputnode')
 
     # Read metadata
     meta = pe.Node(ReadSidecarJSON(), name='metadata')
@@ -96,7 +96,8 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
                               ('outputnode.out_files', 'epi_corr_split'),
                               ('outputnode.out_hmcpar', 'hmc_movpar'),
                               ('outputnode.out_warps', 'out_warps')]),
-        (merge, outputnode, [('out_file', 'epi_corr')])
+        (merge, outputnode, [('out_file', 'epi_corr')]),
+        (pre_hmc, outputnode, [('out_avg', 'epi_hmconly_mean')])
 
     ])
 

@@ -10,22 +10,24 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 
 import os
 from copy import deepcopy
-from time import strftime
 
 from nipype.pipeline import engine as pe
-from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 
+from niworkflows.interfaces import SimpleBeforeAfter
 
-from fmriprep.interfaces import BIDSDataGrabber, BIDSFreeSurferDir
 from fmriprep.utils.misc import collect_bids_data, get_biggest_epi_file_size_gb
-from fmriprep.workflows import confounds
+from fmriprep.interfaces import DerivativesDataSink
+from fmriprep.interfaces import BIDSDataGrabber, BIDSFreeSurferDir
 
+from fmriprep.workflows import confounds
 from fmriprep.workflows.anatomical import t1w_preprocessing
 from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
 from fmriprep.workflows.epi import (epi_preprocess, ref_epi_t1_registration,
-                                    epi_hmc, epi_sbref_registration, epi_mni_transformation)
+                                    epi_hmc, epi_mni_transformation)
+
+
 
 def base_workflow_enumerator(subject_list, task_id, settings, run_uuid):
     workflow = pe.Workflow(name='workflow_enumerator')
@@ -152,7 +154,6 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
         (epi_pre, confounds_wf, [
             ('inputnode.epi', 'inputnode.source_file'),
             ('outputnode.epi_corr', 'inputnode.fmri_file'),
-            # ('outputnode.epi_mean', 'inputnode.reference_image'),
             ('outputnode.epi_mask', 'inputnode.epi_mask'),
             ('outputnode.hmc_movpar', 'inputnode.movpar_file'),
 
@@ -175,6 +176,20 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
             (t1w_pre, sbref_t1, [('outputnode.subject_id', 'inputnode.subject_id'),
                                  ('outputnode.fs_2_t1_transform', 'inputnode.fs_2_t1_transform')]),
             ])
+
+    # Generate a before/after report with epi
+    # TODO: map wm_seg to EPI and connect it to wm_seg
+    epi_rpt = pe.Node(SimpleBeforeAfter(), name='EPIUnwarpReport')
+    epi_rpt_ds = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='variant-hmcsdc_preproc'), name='EPIUnwarpReport_ds'
+    )
+    workflow.connect([
+        (epi_pre, epi_rpt, [('outputnode.epi_mean', 'after'),
+                            ('outputnode.epi_hmconly_mean', 'before')]),
+        (epi_pre, epi_rpt_ds, [('inputnode.epi', 'source_file'),
+                               ('out_report', 'in_file')])
+    ])
 
     return workflow
 
