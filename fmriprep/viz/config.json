@@ -98,14 +98,14 @@
             },
             {
                 "name": "sbref/unwarp",
-                "file_pattern": "func/.*sbref_unwarp\\.",
-                "title": "SBRef - correction for susceptibility distortions",
+                "file_pattern": "func/.*sbref_variant-hmcsdc_preproc\\.",
+                "title": "SBRef - susceptibility distortion correction",
                 "description": "results of performing susceptibility distortion correction (SDC) on the SBRef"
             },
             {
                 "name": "epi/unwarp",
-                "file_pattern": "func/.*epi_unwarp\\.",
-                "title": "EPI - correction for susceptibility distortions",
+                "file_pattern": "func/.*bold_variant-hmcsdc_preproc\\.",
+                "title": "BOLD - susceptibility distortion correction",
                 "description": "results of performing susceptibility distortion correction (SDC) on the EPI"
             }
         ]
