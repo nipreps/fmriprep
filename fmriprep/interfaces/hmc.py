@@ -278,6 +278,11 @@ def itk2moco(in_files, out_par=None, out_confounds=None):
         cmd = CommandLine(command='antsTransformInfo', args=in_file,
                           terminal_output='file')
         stdout = cmd.run().runtime.stdout
+
+        if 'IdentityTransform' in stdout:
+            moco.append(np.eye(3).reshape(-1).tolist() + [0.0] * 3)
+            continue
+
         mat = [float(v) for v in re.split(
             ' |\n', expr_mat.search(stdout).group('matrix'))]
         trans = [float(v) for v in expr_tra.search(
