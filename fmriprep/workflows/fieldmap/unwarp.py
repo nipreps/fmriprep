@@ -13,6 +13,7 @@ import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
+from nipype.interfaces.base import Undefined
 from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration, N4BiasFieldCorrection, ApplyTransforms
 # from nipype.interfaces.ants.preprocess import Matrix2FSLParams
@@ -64,7 +65,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['in_split', 'in_merged', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
+        fields=['in_split', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['out_files', 'out_mean', 'out_hmcpar', 'out_confounds', 'out_warps']), name='outputnode')
@@ -131,7 +132,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                            name='fmap2inputs_unwarp')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
     hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
-                   cache_dir=settings.get('cache_dir')), name='fmap2inputs_hmc')
+                   cache_dir=settings.get('cache_dir', Undefined)), name='fmap2inputs_hmc')
 
     hmc2moco = pe.Node(niu.Function(input_names=['in_files'],
         output_names=['out_par', 'out_confounds'], function=itk2moco), name='tfm2moco')

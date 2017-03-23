@@ -15,7 +15,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import ants
 from nipype.interfaces import c3
 from nipype.interfaces import fsl
-from nipype.interfaces import freesurfer as fs
+from nipype.interfaces.base import Undefined
 from nipype.interfaces import utility as niu
 
 from fmriprep.interfaces.bids import ReadSidecarJSON
@@ -62,7 +62,7 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
 
     # Preliminary head motion correction
     pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
-                      cache_dir=settings.get('cache_dir')), name='pre_hmc')
+                      cache_dir=settings.get('cache_dir', Undefined)), name='pre_hmc')
 
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)
@@ -84,8 +84,7 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
                              (('fmap_mask', _first), 'inputnode.fmap_mask')]),
         (epi_hdr, epi_split, [('out_file', 'in_files')]),
         (epi_split, pre_hmc, [('out_split', 'in_files')]),
-        (epi_split, unwarp, [('out_split', 'inputnode.in_split'),
-                             ('out_merged', 'inputnode.in_merged')]),
+        (epi_split, unwarp, [('out_split', 'inputnode.in_split')]),
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),

@@ -348,7 +348,8 @@ def _flatten_split_merge(in_files):
 
 
     if len(all_nii) == 1:
-        raise RuntimeError('A 3D volume cannot be split')
+        LOGGER.warn('File %s cannot be split', all_nii[0])
+        return in_files[0], in_files
 
     if len(all_nii) == nfiles:
         flat_split = in_files

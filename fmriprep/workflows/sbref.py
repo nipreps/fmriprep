@@ -11,6 +11,7 @@ images.
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces import ants
+from nipype.interfaces.base import Undefined
 from niworkflows.interfaces.masks import ComputeEPIMask
 from niworkflows.interfaces import SimpleBeforeAfter
 
@@ -74,7 +75,7 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
 
     # Preliminary head motion correction
     pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
-                      cache_dir=settings.get('cache_dir')), name='pre_hmc')
+                      cache_dir=settings.get('cache_dir', Undefined)), name='pre_hmc')
 
     # Unwarping
     unwarp = sdc_unwarp(settings=settings)
@@ -95,9 +96,7 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         (inputnode, unwarp, [(('fmap', _first), 'inputnode.fmap'),
                              (('fmap_ref', _first), 'inputnode.fmap_ref'),
                              (('fmap_mask', _first), 'inputnode.fmap_mask')]),
-        (split, unwarp, [('out_merged', 'inputnode.in_merged'),
-                          ('out_split', 'inputnode.in_split')]),
-
+        (split, unwarp, [('out_split', 'inputnode.in_split')]),
         (meta, unwarp, [('out_dict', 'inputnode.in_meta')]),
         (pre_hmc, unwarp, [('out_avg', 'inputnode.in_reference'),
                            ('out_tfm', 'inputnode.in_hmcpar')]),
