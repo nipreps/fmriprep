@@ -258,9 +258,12 @@ def moco2itk(in_csv, in_reference, out_file=None):
 
 def itk2moco(in_files, out_par=None, out_confounds=None):
     import re
+    import numpy as np
     from nibabel.eulerangles import mat2euler
     from nipype.interfaces.base import CommandLine
     from builtins import str, bytes
+    from fmriprep.utils.misc import genfname
+
 
     if isinstance(in_files, (str, bytes)):
         in_files = [in_files]
