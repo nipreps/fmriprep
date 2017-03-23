@@ -59,8 +59,8 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
     epi_split = pe.Node(SplitMerge(), name='split_merge')
 
     # Preliminary head motion correction
-    pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
-                      name='pre_hmc')
+    pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
+                      cache_dir=settings.get('cache_dir')), name='pre_hmc')
 
     # EPI unwarp
     unwarp = sdc_unwarp(settings=settings)

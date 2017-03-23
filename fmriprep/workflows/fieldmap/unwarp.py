@@ -130,8 +130,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                            iterfield=['in_file', 'in_vsm'],
                            name='fmap2inputs_unwarp')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
-    hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
-                   name='fmap2inputs_hmc')
+    hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
+                   cache_dir=settings.get('cache_dir')), name='fmap2inputs_hmc')
 
     hmc2moco = pe.Node(niu.Function(input_names=['in_files'],
         output_names=['out_par', 'out_confounds'], function=itk2moco), name='tfm2moco')

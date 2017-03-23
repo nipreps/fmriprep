@@ -21,7 +21,7 @@ from nipype import logging
 from nipype.utils.filemanip import load_json
 from nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterface, BaseInterfaceInputSpec,
-    File, InputMultiPath, traits, OutputMultiPath, CommandLine
+    File, InputMultiPath, traits, OutputMultiPath, CommandLine, Directory
 )
 
 from nipype.interfaces.ants import Registration
@@ -45,6 +45,7 @@ class MotionCorrectionInputSpec(BaseInterfaceInputSpec):
                            desc='location of the reference volume (0.0 is first, 1.0 is last)')
     njobs = traits.Int(-1, usedefault=True, nohash=True,
                        desc='number of threads to use within ANTs registrations')
+    cache_dir = Directory(desc='use cache directory', nohash=True)
 
 class MotionCorrectionOutputSpec(TraitedSpec):
     out_files = OutputMultiPath(
@@ -89,12 +90,17 @@ class MotionCorrection(BaseInterface):
         if isdefined(self.inputs.reference_image):
             ref_image = self.inputs.reference_image
 
+        cache_dir = None
+        if isdefined(self.inputs.cache_dir):
+            cache_dir = self.inputs.cache_dir
+
         out_files, out_avg, out_tfm = motion_correction(
             self.inputs.in_files,
             interp=self.inputs.interp,
             reference_image=ref_image,
             ref_vol=self.inputs.ref_vol,
-            njobs=njobs)
+            njobs=njobs,
+            cache_dir=cache_dir)
 
         # Set outputs
         self._results['out_avg'] = out_avg
@@ -103,14 +109,17 @@ class MotionCorrection(BaseInterface):
         return runtime
 
 def motion_correction(in_files, interp=None, reference_image=None,
-                      ref_vol=0.5, njobs=None):
+                      ref_vol=0.5, njobs=None, cache_dir=None):
     """
     A very simple motion correction workflow including two
     passes of antsMotionCorr
     """
     from nipype.caching import Memory
 
-    mem = Memory(os.getcwd())
+    if cache_dir is None:
+        cache_dir = os.getcwd()
+
+    mem = Memory(cache_dir)
 
     nfiles = len(in_files)
     if reference_image is None:

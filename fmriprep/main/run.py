@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-03-21 11:31:16
+# @Last Modified time: 2017-03-22 18:03:49
 """
 fMRI preprocessing workflow
 =====
@@ -113,6 +113,7 @@ def create_workflow(opts):
         'skip_native': opts.skip_native,
         'freesurfer': opts.freesurfer,
         'reportlets_dir': op.join(op.abspath(opts.work_dir), 'reportlets'),
+        'cache_dir': op.join(op.abspath(opts.work_dir), 'cache')
     }
 
     # set up logger
