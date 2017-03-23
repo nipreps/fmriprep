@@ -133,6 +133,7 @@ def motion_correction(in_files, interp=None, reference_image=None,
     if nfiles > 2:
         argsdict = load_json(pkgrf('fmriprep', 'data/moco_level0.json'))
         argsdict['fixed_image'] = reference_image
+        argsdict['terminal_output'] = 'file'
 
         if njobs is not None:
             argsdict['num_threads'] = njobs
@@ -163,6 +164,7 @@ def motion_correction(in_files, interp=None, reference_image=None,
         out_tfms = [pkgrf('fmriprep', 'data/itk_identity.tfm')]
 
     argsdict = load_json(pkgrf('fmriprep', 'data/moco_level1.json'))
+    argsdict['terminal_output'] = 'file'
     argsdict['fixed_image'] = reference_image
     if njobs is not None:
         argsdict['num_threads'] = njobs

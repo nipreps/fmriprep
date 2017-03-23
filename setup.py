@@ -52,7 +52,8 @@ def main():
         tests_require=ldict['TESTS_REQUIRES'],
         extras_require=ldict['EXTRA_REQUIRES'],
         dependency_links=ldict['LINKS_REQUIRES'],
-        package_data={'fmriprep': ['data/*.json', 'viz/*.tpl', 'viz/*.json']},
+        package_data={'fmriprep': ['data/*.json', 'viz/*.tpl', 'viz/*.json',
+                                   'data/itk_identity.tfm']},
         entry_points={'console_scripts': [
             'fmriprep=fmriprep.main.run:main',
             'fmriprep_fmaps=fmriprep.main.fmaps:main']},
