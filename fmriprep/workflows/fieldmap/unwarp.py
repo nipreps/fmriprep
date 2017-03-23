@@ -61,7 +61,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     """
 
     if settings is None:
-        settings = {}
+        settings = {'ants_nthreads': 6}
 
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
@@ -95,8 +95,9 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             'fmriprep', 'data/fmap-any_registration_testing.json')
     fmap2ref = pe.Node(Registration(
         from_file=ants_settings, output_inverse_warped_image=True,
-        output_warped_image=True, num_threads=settings.get('ants_nthreads', 1)),
+        output_warped_image=True, num_threads=settings['ants_nthreads']),
                        name='fmap_ref2target_avg')
+    fmap2ref.interface.num_threads = settings['ants_nthreads']
 
 
     # Fieldmap to rads and then to voxels (VSM - voxel shift map)
@@ -131,8 +132,10 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
                            iterfield=['in_file', 'in_vsm'],
                            name='fmap2inputs_unwarp')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
-    hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
+    hmc2 = pe.Node(MotionCorrection(njobs=settings['ants_nthreads'],
                    cache_dir=settings.get('cache_dir', Undefined)), name='fmap2inputs_hmc')
+    hmc2.interface.num_threads = settings['ants_nthreads']
+
 
     hmc2moco = pe.Node(niu.Function(input_names=['in_files'],
         output_names=['out_par', 'out_confounds'], function=itk2moco), name='tfm2moco')

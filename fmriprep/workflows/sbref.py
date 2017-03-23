@@ -53,6 +53,9 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
 
     """
 
+    if settings is None:
+        settings = {'ants_nthreads': 6}
+
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -74,8 +77,10 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
     split = pe.Node(SplitMerge(), name='split_merge')
 
     # Preliminary head motion correction
-    pre_hmc = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1),
+    pre_hmc = pe.Node(MotionCorrection(njobs=settings['ants_nthreads'],
                       cache_dir=settings.get('cache_dir', Undefined)), name='pre_hmc')
+    pre_hmc.interface.num_threads = settings['ants_nthreads']
+
 
     # Unwarping
     unwarp = sdc_unwarp(settings=settings)
