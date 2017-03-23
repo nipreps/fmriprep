@@ -23,12 +23,12 @@ dependencies:
     # Download test data
     - if [[ ! -d $HOME/data/ds005 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds005_downsampled.tar.gz "${DS005_URL}" && tar xzf ds005_downsampled.tar.gz -C $HOME/data/; fi
     - if [[ ! -d $HOME/data/ds054 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds054_downsampled.tar.gz "${DS054_URL}" && tar xzf ds054_downsampled.tar.gz -C $HOME/data/; fi
+    - if [[ "$CIRCLE_TAG" != "" ]]; then sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'$CIRCLE_TAG'/" fmriprep/info.py; fi
     - printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > $HOME/nipype.cfg
 
   override:
     - if [[ -e $HOME/docker/image.tar ]]; then docker load -i $HOME/docker/image.tar; fi
     - docker images
-    - sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'$CIRCLE_TAG'/" fmriprep/info.py
     - e=1 && for i in {1..5}; do docker build --rm=false -t poldracklab/fmriprep:latest --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=$CIRCLE_TAG . && e=0 && break || sleep 15; done && [ "$e" -eq "0" ] :
         timeout: 21600
     - mkdir -p $HOME/docker; docker save poldracklab/fmriprep:latest > $HOME/docker/image.tar
@@ -38,7 +38,7 @@ test:
     - docker run -ti --rm=false -v $HOME/_build_html/:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest -T -E -b html -d _build/doctrees-readthedocs -D language=en docs/ /_build_html:
         timeout: 4800
     - docker run -ti --rm=false -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds054/scratch:/scratch -v $HOME/ds054/out:/out poldracklab/fmriprep:latest /data/ds054 /out/ participant --no-freesurfer --debug -w /scratch:
-       timeout: 4800
+       timeout: 36000
     - docker run -ti --rm=false -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --no-freesurfer --debug -w /scratch:
        timeout: 4800
     - find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
