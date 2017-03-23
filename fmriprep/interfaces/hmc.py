@@ -129,9 +129,6 @@ def motion_correction(in_files, interp=None, reference_image=None,
     if reference_image is None:
         reference_image = in_files[int(ref_vol * (nfiles - 0.5))]
 
-    if nfiles == 2:
-        reference_image = in_files[0]
-
     out_files_0 = []
     if nfiles > 2:
         argsdict = load_json(pkgrf('fmriprep', 'data/moco_level0.json'))
@@ -160,6 +157,10 @@ def motion_correction(in_files, interp=None, reference_image=None,
 
     out_files = []
     out_tfms = []
+
+    if nfiles == 2:
+        reference_image = in_files[0]
+        out_tfms = [pkgrf('fmriprep', 'data/itk_identity.tfm')]
 
     argsdict = load_json(pkgrf('fmriprep', 'data/moco_level1.json'))
     argsdict['fixed_image'] = reference_image
