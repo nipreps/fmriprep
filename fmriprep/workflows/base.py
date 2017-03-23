@@ -190,18 +190,18 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
 
     ])
 
-    # # Report on SBref correction
-    # epireport = epi_preproc_report(settings=settings)
-    # workflow.connect([
-    #     (epi_pre, epireport, [
-    #         ('outputnode.epi_mean', 'inputnode.in_post'),
-    #         ('outputnode.epi_hmconly_mean', 'inputnode.in_pre'),
-    #         ('inputnode.epi', 'inputnode.name_source')]),
-    #     (t1w_pre, epireport, [
-    #         ('outputnode.t1_tpms', 'inputnode.in_tpms'),]),
-    #     (sbref_t1, epireport, [
-    #         ('outputnode.itk_t1_to_epi', 'inputnode.in_xfm')]),
-    # ])
+    # Report on SBref correction
+    sbrreport = epi_preproc_report(name="ReportSBR", settings=settings)
+    workflow.connect([
+        (sbref_pre, sbrreport, [
+            ('outputnode.sbref_unwarped', 'inputnode.in_post'),
+            ('outputnode.sbref_hmc_only', 'inputnode.in_pre')]),
+        (bidssrc, sbrreport, [(('sbref', _first), 'inputnode.name_source')]),
+        (t1w_pre, sbrreport, [
+            ('outputnode.t1_tpms', 'inputnode.in_tpms'),]),
+        (sbref_t1, sbrreport, [
+            ('outputnode.itk_t1_to_epi', 'inputnode.in_xfm')]),
+    ])
     return workflow
 
 

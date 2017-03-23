@@ -132,17 +132,4 @@ def sbref_preprocess(name='SBrefPreprocessing', settings=None):
         (inu, datasink, [('output_image', 'in_file')])
     ])
 
-    # Generate a before/after report with sbref
-    sbref_rpt = pe.Node(SimpleBeforeAfter(), name='SBRefUnwarpReport')
-    sbref_rpt_ds = pe.Node(
-        DerivativesDataSink(base_directory=settings['reportlets_dir'],
-                            suffix='preproc-sdc'), name='SBRefUnwarpReport_ds'
-    )
-    workflow.connect([
-        (inu, sbref_rpt, [('output_image', 'after')]),
-        (pre_hmc, sbref_rpt, [('out_avg', 'before')]),
-        (inputnode, sbref_rpt_ds, [(('sbref', _first), 'source_file')]),
-        (sbref_rpt, sbref_rpt_ds, [('out_report', 'in_file')])
-    ])
-
     return workflow
