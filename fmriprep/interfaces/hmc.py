@@ -282,7 +282,7 @@ def itk2moco(in_files, out_par=None, out_confounds=None):
         stdout = cmd.run().runtime.stdout
 
         if 'IdentityTransform' in stdout:
-            moco.append(np.eye(3).reshape(-1).tolist() + [0.0] * 3)
+            moco.append([0.0] * 6)
             continue
 
         mat = [float(v) for v in re.split(
@@ -293,6 +293,7 @@ def itk2moco(in_files, out_par=None, out_confounds=None):
         param_z, param_y, param_x = mat2euler(np.array(mat).reshape(3, 3))
         moco.append([param_x, param_y, param_z] + trans)
 
+    print(moco)
     moco = np.array(moco, dtype=np.float32)
 
     if out_par is None:
