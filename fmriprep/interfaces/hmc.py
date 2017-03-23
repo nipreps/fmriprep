@@ -84,7 +84,11 @@ class MotionCorrection(BaseInterface):
 
         # Check input files.
         if len(self.inputs.in_files) < 2:
-            raise RuntimeError('in_files should be a list of 2 or more files')
+            LOGGER.warn('Tried to run HMC on a single 3D file')
+            self._results['out_avg'] = self.inputs.in_files[0]
+            self._results['out_files'] = self.inputs.in_files
+            self._results['out_tfm'] = pkgrf('fmriprep', 'data/itk_identity.tfm')
+            return runtime
 
         ref_image = None
         if isdefined(self.inputs.reference_image):
