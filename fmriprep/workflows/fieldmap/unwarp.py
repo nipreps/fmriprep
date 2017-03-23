@@ -15,13 +15,13 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype.interfaces.fsl import FUGUE
 from nipype.interfaces.ants import Registration, N4BiasFieldCorrection, ApplyTransforms
-from nipype.interfaces.ants.preprocess import Matrix2FSLParams
+# from nipype.interfaces.ants.preprocess import Matrix2FSLParams
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 from fmriprep.interfaces.fmap import WarpReference, ApplyFieldmap
 from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces.nilearn import Merge
 from fmriprep.interfaces import itk
-from fmriprep.interfaces.hmc import MotionCorrection
+from fmriprep.interfaces.hmc import MotionCorrection, itk2moco
 from fmriprep.interfaces.utils import MeanTimeseries, ApplyMask
 
 def sdc_unwarp(name='SDC_unwarp', settings=None):
@@ -67,7 +67,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         fields=['in_split', 'in_merged', 'in_reference', 'in_hmcpar', 'in_mask', 'in_meta',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['out_files', 'out_mean', 'out_hmcpar', 'out_warps']), name='outputnode')
+        fields=['out_files', 'out_mean', 'out_hmcpar', 'out_confounds', 'out_warps']), name='outputnode')
 
     ref_hdr = pe.Node(FixAffine(), name='fmap_ref_hdr')
     fmap_hdr = pe.Node(FixAffine(), name='fmap_hdr')
@@ -113,8 +113,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     vsm2dfm = pe.Node(itk.FUGUEvsm2ANTSwarp(), name='fmap2dfm')
 
     # Calculate refined motion parameters after unwarping:
-    # 1. Split initial HMC parameters from inputs
-    split_hmc = pe.Node(itk.SplitITKTransform(), name='split_tfms')
     # 2. Append the HMC parameters to the fieldmap
     pre_tfms = pe.MapNode(itk.MergeANTsTransforms(in_file_invert=True),
                           iterfield=['in_file'], name='fmap2inputs_tfms')
@@ -131,12 +129,12 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     fugue_all = pe.MapNode(ApplyFieldmap(generate_report=False),
                            iterfield=['in_file', 'in_vsm'],
                            name='fmap2inputs_unwarp')
-    merge = pe.Node(Merge(), name='corrected_merge')
     # 6. Run HMC again on the corrected images, aiming at higher accuracy
     hmc2 = pe.Node(MotionCorrection(njobs=settings.get('ants_nthreads', 1)),
                    name='fmap2inputs_hmc')
-    hmc2_split = pe.Node(itk.SplitITKTransform(), name='fmap2inputs_hmc_split_tfms')
-    hmc2_plots = pe.Node(Matrix2FSLParams(), name='hmc_motion_parameters')
+
+    hmc2moco = pe.Node(niu.Function(input_names=['in_files'],
+        output_names=['out_par', 'out_confounds'], function=itk2moco), name='tfm2moco')
 
     # Final correction with refined HMC parameters
     tfm_concat = pe.MapNode(itk.MergeANTsTransforms(
@@ -155,7 +153,7 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
     mean = pe.Node(MeanTimeseries(), name='inputs_unwarped_mean')
 
     workflow.connect([
-        (inputnode, split_hmc, [('in_hmcpar', 'in_file')]),
+        (inputnode, pre_tfms, [('in_hmcpar', 'in_file')]),
         (inputnode, target_sel, [('in_split', 'in_files'),
                                  ('in_reference', 'in_reference')]),
         (inputnode, fmap_hdr, [('fmap', 'in_file')]),
@@ -186,7 +184,6 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (target_sel, unwarp, [('out_file', 'reference_image'),
                               ('out_file', 'input_image')]),
         # Run HMC again, aiming at higher accuracy
-        (split_hmc, pre_tfms, [('out_files', 'in_file')]),
         (fmap2ref, pre_tfms, [
             ('inverse_composite_transform', 'transforms')]),
         (gen_vsm, xfmmap, [('shift_out_file', 'input_image')]),
@@ -195,14 +192,10 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
             ('transforms', 'transforms'),
             ('invert_transform_flags', 'invert_transform_flags')]),
         (xfmmap, fugue_all, [('output_image', 'in_vsm')]),
-        (fugue_all, merge, [('out_corrected', 'in_files')]),
-        (fugue_all, hmc2, [('out_corrected', 'in_split')]),
-        (merge, hmc2, [('out_file', 'in_merged')]),
+        (fugue_all, hmc2, [('out_corrected', 'in_files')]),
         (unwarp, hmc2, [('output_image', 'reference_image')]),
-
-        (hmc2, hmc2_split, [('out_tfm', 'in_file')]),
-        (hmc2, hmc2_plots, [('out_movpar', 'matrix')]),
-        (hmc2_split, tfm_concat, [('out_files', 'in_file')]),
+        (hmc2, hmc2moco, [('out_tfm', 'in_files')]),
+        (hmc2, tfm_concat, [('out_tfm', 'in_file')]),
         (vsm2dfm, tfm_concat, [('out_file', 'transforms')]),
         (tfm_concat, unwarpall, [
             ('transforms', 'transforms'),
@@ -218,7 +211,8 @@ def sdc_unwarp(name='SDC_unwarp', settings=None):
         (mean, outputnode, [('out_file', 'out_mean')]),
         (unwarpall, outputnode, [('output_image', 'out_files')]),
         (tfm_comb, outputnode, [('output_image', 'out_warps')]),
-        (hmc2_plots, outputnode, [('parameters', 'out_hmcpar')])
+        (hmc2moco, outputnode, [('out_par', 'out_hmcpar'),
+                                ('out_confounds', 'out_confounds')])
     ])
     return workflow
 

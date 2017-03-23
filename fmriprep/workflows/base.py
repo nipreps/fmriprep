@@ -187,8 +187,8 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
     workflow.connect([
         (epi_pre, epi_rpt, [('outputnode.epi_mean', 'after'),
                             ('outputnode.epi_hmconly_mean', 'before')]),
-        (epi_pre, epi_rpt_ds, [('inputnode.epi', 'source_file'),
-                               ('out_report', 'in_file')])
+        (epi_pre, epi_rpt_ds, [('inputnode.epi', 'source_file')]),
+        (epi_rpt, epi_rpt_ds, [('out_report', 'in_file')])
     ])
 
     return workflow

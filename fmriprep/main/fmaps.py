@@ -3,7 +3,7 @@
 # @Author: oesteban
 # @Date:   2015-11-19 16:44:27
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-03-03 18:03:48
+# @Last Modified time: 2017-03-22 13:38:07
 """
 fMRI preprocessing workflow
 =====
@@ -169,7 +169,6 @@ def sbref_correct(subject_id, settings):
     from nipype.interfaces import fsl
     from fmriprep.utils.misc import collect_bids_data
     from fmriprep.interfaces.bids import BIDSDataGrabber, ReadSidecarJSON
-    from fmriprep.interfaces.hmc import MotionCorrection
     from fmriprep.workflows.fieldmap import fmap_estimator
     from fmriprep.workflows.sbref import sbref_preprocess
 
