@@ -26,6 +26,8 @@ from niworkflows.interfaces.masks import ComputeEPIMask, BETRPT
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT
 from niworkflows.data import get_mni_icbm152_nlin_asym_09c
 
+
+from niworkflows.interfaces import SimpleBeforeAfter
 from fmriprep.interfaces import DerivativesDataSink, FormatHMCParam
 from fmriprep.interfaces.images import FixAffine, SplitMerge
 from fmriprep.interfaces.nilearn import MaskEPI, Merge
@@ -108,6 +110,41 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
         (inputnode, ds_epi_corrected, [('epi', 'source_file')]),
         (merge, ds_epi_corrected, [('out_file', 'in_file')])
     ])
+    return workflow
+
+def epi_preproc_report(name='ReportPreproc', settings=None):
+    if settings is None:
+        settings = {}
+
+    def _getwm(files):
+        return files[2]
+
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['in_pre', 'in_post', 'in_tpms', 'in_xfm',
+                'name_source']), name='inputnode')
+
+    map_seg = pe.Node(ants.ApplyTransforms(
+        dimension=3, float=True, interpolation='NearestNeighbor'),
+        name='MapROIwm')
+
+    epi_rpt = pe.Node(SimpleBeforeAfter(), name='EPIUnwarpReport')
+    epi_rpt_ds = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='variant-hmcsdc_preproc'), name='EPIUnwarpReport_ds'
+    )
+    workflow.connect([
+        (inputnode, epi_rpt, [('in_post', 'after'),
+                              ('in_pre', 'before')]),
+        (inputnode, epi_rpt_ds, [('name_source', 'source_file')]),
+        (epi_rpt, epi_rpt_ds, [('out_report', 'in_file')]),
+        (inputnode, map_seg, [('in_post', 'reference_image'),
+                              (('in_tpms', _getwm), 'input_image'),
+                              ('in_xfm', 'transforms')]),
+        (map_seg, epi_rpt, [('output_image', 'wm_seg')])
+    ])
+
     return workflow
 
 def ref_epi_t1_registration(reportlet_suffix, inv_ds_suffix, name='ref_epi_t1_registration',

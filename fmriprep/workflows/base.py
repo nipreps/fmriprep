@@ -14,10 +14,7 @@ from copy import deepcopy
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
-from niworkflows.interfaces import SimpleBeforeAfter
-
 from fmriprep.utils.misc import collect_bids_data, get_biggest_epi_file_size_gb
-from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.interfaces import BIDSDataGrabber, BIDSFreeSurferDir
 
 from fmriprep.workflows import confounds
@@ -25,7 +22,8 @@ from fmriprep.workflows.anatomical import t1w_preprocessing
 from fmriprep.workflows.sbref import sbref_preprocess
 from fmriprep.workflows.fieldmap import fmap_estimator
 from fmriprep.workflows.epi import (epi_preprocess, ref_epi_t1_registration,
-                                    epi_hmc, epi_mni_transformation)
+                                    epi_hmc, epi_mni_transformation,
+                                    epi_preproc_report)
 
 
 
@@ -177,20 +175,35 @@ def basic_fmap_sbref_wf(subject_data, settings, name='fMRI_prep'):
                                  ('outputnode.fs_2_t1_transform', 'inputnode.fs_2_t1_transform')]),
             ])
 
-    # Generate a before/after report with epi
-    # TODO: map wm_seg to EPI and connect it to wm_seg
-    epi_rpt = pe.Node(SimpleBeforeAfter(), name='EPIUnwarpReport')
-    epi_rpt_ds = pe.Node(
-        DerivativesDataSink(base_directory=settings['reportlets_dir'],
-                            suffix='variant-hmcsdc_preproc'), name='EPIUnwarpReport_ds'
-    )
+    # Report on EPI correction
+    epireport = epi_preproc_report(settings=settings)
     workflow.connect([
-        (epi_pre, epi_rpt, [('outputnode.epi_mean', 'after'),
-                            ('outputnode.epi_hmconly_mean', 'before')]),
-        (epi_pre, epi_rpt_ds, [('inputnode.epi', 'source_file')]),
-        (epi_rpt, epi_rpt_ds, [('out_report', 'in_file')])
+        (epi_pre, epireport, [
+            ('outputnode.epi_mean', 'inputode.in_post'),
+            ('outputnode.epi_hmconly_mean', 'inputode.in_pre'),
+            ('inputnode.epi', 'name_source')]),
+        (t1w_pre, epireport, [
+            ('outputnode.t1_tpms', 'inputnode.in_tpms'),]),
+        (sbref_t1, epireport, [
+            ('outputnode.itk_t1_to_epi', 'inputnode.in_xfm')]),
+
+
     ])
 
+    # Report on SBref correction
+    epireport = epi_preproc_report(settings=settings)
+    workflow.connect([
+        (epi_pre, epireport, [
+            ('outputnode.epi_mean', 'inputode.in_post'),
+            ('outputnode.epi_hmconly_mean', 'inputode.in_pre'),
+            ('inputnode.epi', 'name_source')]),
+        (t1w_pre, epireport, [
+            ('outputnode.t1_tpms', 'inputnode.in_tpms'),]),
+        (sbref_t1, epireport, [
+            ('outputnode.itk_t1_to_epi', 'inputnode.in_xfm')]),
+
+
+    ])
     return workflow
 
 
