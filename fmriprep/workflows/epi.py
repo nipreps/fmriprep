@@ -103,7 +103,6 @@ def epi_preprocess(name='EPIprep', settings=None, has_sbref=False):
                               ('outputnode.out_warps', 'out_warps')]),
         (merge, outputnode, [('out_file', 'epi_corr')]),
         (pre_hmc, outputnode, [('out_avg', 'epi_hmconly_mean')])
-
     ])
 
     ds_epi_corrected = pe.Node(DerivativesDataSink(

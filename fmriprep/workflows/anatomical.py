@@ -273,7 +273,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
             (injector, reconall, [('subjects_dir', 'subjects_dir'),
                                   ('subject_id', 'subject_id')]),
             (recon_config, reconall, [('use_T2', 'use_T2')]),
-            (t1wmrg, fs_transform, [('out_avg', 'target_image')]),
+            (arw, fs_transform, [('out_file', 'target_image')]),
             (autorecon1, fs_transform, [('T1', 'moving_image')]),
             (recon_config, recon_report, [
                 (('t1w', fix_multi_T1w_source_name), 'source_file')]),

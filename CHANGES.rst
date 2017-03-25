@@ -1,5 +1,8 @@
-Next release
-============
+0.3.1 (24th of March 2017)
+==========================
+
+* [ENH] Perform bias field correction of EPI images prior to coregistration (#409)
+* [FIX] Fix an orientation issue affecting some datasets when bbregister was used (#408)
 
 * [ENH] A first stab at fieldmaps (#247)
 

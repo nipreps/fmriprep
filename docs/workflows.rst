@@ -95,7 +95,7 @@ EPIMNITransformation
     :scale: 100%
 
 The EPIMNITransformation sub-workflow uses the transform from
-`EPIMeanNormalization`_ and a T1-to-MNI transform from `t1w_preprocessing`_ to
+`ref_epi_t1_registration`_ and a T1-to-MNI transform from `t1w_preprocessing`_ to
 map the EPI image to standardized MNI space.
 It also maps the t1w-based mask to MNI space.
 
