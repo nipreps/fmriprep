@@ -2,60 +2,71 @@
 # -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-#
-# @Author: oesteban
-# @Date:   2016-06-03 09:35:13
-# @Last Modified by:   oesteban
-# @Last Modified time: 2016-08-17 17:41:23
-import os
-import numpy as np
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 import os.path as op
-from nipype.interfaces.base import (traits, isdefined, TraitedSpec, BaseInterface,
-                                    BaseInterfaceInputSpec, File, InputMultiPath,
-                                    OutputMultiPath)
-from nipype.interfaces import fsl
+import numpy as np
+import nibabel as nb
+from nilearn.image import mean_img
+from nipype.interfaces.base import (traits, TraitedSpec, BaseInterface,
+                                    BaseInterfaceInputSpec, File, InputMultiPath)
+from fmriprep.utils.misc import genfname
 
-class IntraModalMergeInputSpec(BaseInterfaceInputSpec):
+
+class MeanTimeseriesInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True), mandatory=True,
-                              desc='input files')
+                              desc='input file or list of files')
 
-class IntraModalMergeOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='merged image')
-    out_avg = File(exists=True, desc='average image')
-    out_mats = OutputMultiPath(exists=True, desc='output matrices')
-    out_movpar = OutputMultiPath(exists=True, desc='output movement parameters')
 
-class IntraModalMerge(BaseInterface):
-    input_spec = IntraModalMergeInputSpec
-    output_spec = IntraModalMergeOutputSpec
+class MeanTimeseriesOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output average file')
+
+class MeanTimeseries(BaseInterface):
+    input_spec = MeanTimeseriesInputSpec
+    output_spec = MeanTimeseriesOutputSpec
 
     def __init__(self, **inputs):
         self._results = {}
-        super(IntraModalMerge, self).__init__(**inputs)
+        super(MeanTimeseries, self).__init__(**inputs)
 
     def _run_interface(self, runtime):
-        if len(self.inputs.in_files) == 1:
-            self._results['out_file'] = self.inputs.in_files[0]
-            self._results['out_avg'] = self.inputs.in_files[0]
-            # TODO: generate identity out_mats and zero-filled out_movpar
+        nii = mean_img([nb.load(fname) for fname in self.inputs.in_files])
 
-            return runtime
-
-        magmrg = fsl.Merge(dimension='t', in_files=self.inputs.in_files)
-        mcflirt = fsl.MCFLIRT(cost='normcorr', save_mats=True, save_plots=True,
-                              ref_vol=0, in_file=magmrg.run().outputs.merged_file)
-        mcres = mcflirt.run()
-        self._results['out_mats'] = mcres.outputs.mat_file
-        self._results['out_movpar'] = mcres.outputs.par_file
-        self._results['out_file'] = mcres.outputs.out_file
-
-        mean = fsl.MeanImage(dimension='T', in_file=mcres.outputs.out_file)
-        self._results['out_avg'] = mean.run().outputs.out_file
+        self._results['out_file'] = genfname(
+            self.inputs.in_files[0], suffix='avg')
+        nii.to_filename(self._results['out_file'])
         return runtime
 
     def _list_outputs(self):
         return self._results
 
+class ApplyMaskInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input file')
+    in_mask = File(exists=True, mandatory=True, desc='input mask')
+
+
+class ApplyMaskOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output average file')
+
+class ApplyMask(BaseInterface):
+    input_spec = ApplyMaskInputSpec
+    output_spec = ApplyMaskOutputSpec
+
+    def __init__(self, **inputs):
+        self._results = {}
+        super(ApplyMask, self).__init__(**inputs)
+
+    def _run_interface(self, runtime):
+        out_file = genfname(self.inputs.in_file, 'brainmask')
+        nii = nb.load(self.inputs.in_file)
+        data = nii.get_data()
+        data[nb.load(self.inputs.in_mask).get_data() <= 0] = 0
+        nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
+        self._results['out_file'] = out_file
+        return runtime
+
+    def _list_outputs(self):
+        return self._results
 
 
 class FormatHMCParamInputSpec(BaseInterfaceInputSpec):
@@ -104,32 +115,22 @@ def _tsv_format(translations, rot_angles, fmt='confounds'):
 
     return out_file
 
+# DEPRECATED: use fmriprep.interfaces.nilearn.Merge
+# def nii_concat(in_files, header_source=None):
+#     from nibabel.funcs import concat_images
+#     import nibabel as nb
+#     import os
+#     from nibabel.funcs import concat_images
+#     new_nii = concat_images(in_files, check_affines=False)
 
-def nii_concat(in_files, header_source=None):
-    from nibabel.funcs import concat_images
-    import nibabel as nb
-    import os
-    new_nii = concat_images(in_files, check_affines=False)
+#     if header_source:
+#         header_nii = nb.load(header_source)
+#         new_nii.header.set_xyzt_units(t=header_nii.header.get_xyzt_units()[-1])
+#         new_nii.header.set_zooms(list(new_nii.header.get_zooms()[:3]) + [header_nii.header.get_zooms()[3]])
 
-    if header_source:
-        header_nii = nb.load(header_source)
-        new_nii.header.set_xyzt_units(t=header_nii.header.get_xyzt_units()[-1])
-        new_nii.header.set_zooms(list(new_nii.header.get_zooms()[:3]) + [header_nii.header.get_zooms()[3]])
+#     new_nii.to_filename("merged.nii.gz")
 
-    new_nii.to_filename("merged.nii.gz")
-
-    return os.path.abspath("merged.nii.gz")
-
-
-def reorient(in_file):
-    import os
-    import nibabel as nb
-
-    _, outfile = os.path.split(in_file)
-    nii = nb.as_closest_canonical(nb.load(in_file))
-    nii.to_filename(outfile)
-    return os.path.abspath(outfile)
-
+#     return os.path.abspath("merged.nii.gz")
 
 def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
                                 erosion_mm=0):
@@ -167,4 +168,3 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
                              probability_map_nii.header)
     new_nii.to_filename("roi.nii.gz")
     return os.path.abspath("roi.nii.gz"), eroded_mask_file
-

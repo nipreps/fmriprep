@@ -47,7 +47,9 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
+    'sphinxarg.ext', # argparse extension
+    'nipype.sphinxext.plot_workflow'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -339,10 +341,3 @@ for name, workflow in ds005_workflows.items():
     if isinstance(workflow, Workflow):
         workflow.write_graph(graph2use="orig", dotfilename=name + '.dot', simple_form=True)
 
-# Create command line arguments
-with open('args.txt', 'w') as fp:
-    args = subprocess.Popen([os.path.abspath(os.path.join('../fmriprep',
-                                                          'run_workflow.py')),
-                             '-h'],
-                            stdout=subprocess.PIPE).communicate()[0].decode()
-    fp.write(args)

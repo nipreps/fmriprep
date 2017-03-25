@@ -229,3 +229,12 @@ A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``.
 
 A copy of the ``fsaverage`` subject distributed with the running version of
 FreeSurfer is copied into this subjects directory.
+
+
+Susceptibility Distortion Correction (SDC)
+==========================================
+
+.. automodule:: fmriprep.workflows.fieldmap
+    :members:
+    :undoc-members:
+    :show-inheritance:

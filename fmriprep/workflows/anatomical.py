@@ -22,9 +22,7 @@ from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
 
 from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge)
-from fmriprep.interfaces.utils import reorient
 from fmriprep.utils.misc import fix_multi_T1w_source_name
-
 
 #  pylint: disable=R0914
 def t1w_preprocessing(name='t1w_preprocessing', settings=None):
@@ -42,14 +40,9 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
                 't1_2_mni_reverse_transform', 'subject_id',
                 'fs_2_t1_transform']), name='outputnode')
 
-    # 0. Align and merge if several T1w images are provided
-    t1wmrg = pe.Node(IntraModalMerge(), name='MergeT1s')
+    # 0. Align, reorient to RAS and merge if several T1w images are provided
+    t1wmrg = pe.Node(IntraModalMerge(to_ras=True, hmc=True), name='MergeT1s')
 
-    # 1. Reorient T1
-    arw = pe.Node(niu.Function(input_names=['in_file'],
-                               output_names=['out_file'],
-                               function=reorient),
-                  name='Reorient')
 
     # 2. T1 Bias Field Correction
     # Bias field correction is handled in skull strip workflows.
@@ -63,6 +56,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
     t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
                              no_bias=True, probability_maps=True),
                      name='Segmentation')
+    t1_seg.interface.estimated_memory_gb = 4
 
     # 5. Spatial normalization (T1w to MNI registration)
     t1_2_mni = pe.Node(
@@ -74,9 +68,11 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
         ),
         name='T1_2_MNI_Registration'
     )
+
     # should not be necesssary but does not hurt - make sure the multiproc
     # scheduler knows the resource limits
     t1_2_mni.interface.num_threads = settings['ants_nthreads']
+    t1_2_mni.interface.estimated_memory_gb = 8
 
     # 6. FreeSurfer reconstruction
     if settings['freesurfer']:
@@ -223,8 +219,7 @@ def t1w_preprocessing(name='t1w_preprocessing', settings=None):
 
     workflow.connect([
         (inputnode, t1wmrg, [('t1w', 'in_files')]),
-        (t1wmrg, arw, [('out_avg', 'in_file')]),
-        (arw, asw, [('out_file', 'inputnode.in_file')]),
+        (t1wmrg, asw, [('out_avg', 'inputnode.in_file')]),
         (asw, t1_seg, [('outputnode.out_file', 'in_files')]),
         (asw, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
         (asw, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),

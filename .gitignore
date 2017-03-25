@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.c
 
 # Distribution / packaging
 .Python
@@ -12,6 +13,8 @@ env/
 # build/ # commented due to some strangeness with Docker/circle setup
 develop-eggs/
 dist/
+build/lib*
+build/temp*
 downloads/
 eggs/
 .eggs/

@@ -23,16 +23,6 @@ class TestBase(TestWorkflow):
     #
     #     # check some key paths
     #     self.assert_circular(wfbasic_fmap_sbref, [
-    #         ('ref_epi_t1_registration', 'BIDSDatasource',
-    #          [('outputnode.mat_epi_to_t1', 'subject_data')]),
-    #         ('EPIUnwarpWorkflow', 'BIDSDatasource', [('outputnode.epi_mean', 'subject_data')]),
-    #         ('ConfoundDiscoverer', 'BIDSDatasource',
-    #          [('outputnode.confounds_file', 'subject_data')]),
-    #         ('EPI_SBrefRegistration', 'BIDSDatasource', [('outputnode.out_mat', 'subject_data')]),
-    #         ('EPIUnwarpWorkflow', 'EPI_HMC', [('outputnode.epi_mean', 'inputnode.epi')]),
-    #         ('ConfoundDiscoverer', 'EPI_HMC', [('outputnode.confounds_file', 'inputnode.epi')]),
-    #         ('EPI_SBrefRegistration', 'EPI_HMC', [('outputnode.out_mat', 'inputnode.epi')])
-    #     ])
     #
     #     # Make sure mandatory inputs are set/connected
     #     self._assert_mandatory_inputs_set(wfbasic_fmap_sbref)

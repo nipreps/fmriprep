@@ -24,6 +24,12 @@ DOWNLOAD_URL = (
     'https://pypi.python.org/packages/source/{name[0]}/{name}/{name}-{ver}.tar.gz'.format(
         name=__packagename__, ver=__version__))
 
+SETUP_REQUIRES = [
+    'setuptools>=18.0',
+    'numpy',
+    'cython',
+]
+
 REQUIRES = [
     'numpy',
     'lockfile',
@@ -38,7 +44,8 @@ REQUIRES = [
     'pybids>=0.1.0',
     'nitime',
     'niworkflows',
-    'nipype'
+    'nipype',
+    'statsmodels'
 ]
 
 LINKS_REQUIRES = []
@@ -49,7 +56,7 @@ TESTS_REQUIRES = [
 ]
 
 EXTRA_REQUIRES = {
-    'doc': ['sphinx', 'pydotplus', 'sphinx_rtd_theme'],
+    'doc': ['sphinx', 'pydotplus', 'sphinx_rtd_theme', 'sphinx-argparse'],
     'tests': TESTS_REQUIRES,
     'duecredit': ['duecredit']
 }
