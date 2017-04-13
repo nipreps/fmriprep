@@ -216,7 +216,7 @@ def basic_wf(subject_data, settings, name='fMRI_prep'):
 
     workflow.connect([
         (bidssrc, t1w_pre, [('t1w', 'inputnode.t1w'),
-                            ('t2w', 'inputnode.t2w']),
+                            ('t2w', 'inputnode.t2w')]),
         (bidssrc, t1w_pre, [('roi', 'inputnode.roi')]),
         (bidssrc, epi_2_t1, [('t1w', 'inputnode.t1w')]),
         (hmcwf, epi_2_t1, [('inputnode.epi', 'inputnode.name_source'),
