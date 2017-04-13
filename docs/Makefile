@@ -52,11 +52,9 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 	rm -f *.dot*
-	rm -f args.txt
 
 .PHONY: html
 html:
-	../fmriprep/run_workflow.py -h > args.txt
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

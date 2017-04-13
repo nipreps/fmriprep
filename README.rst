@@ -83,5 +83,10 @@ the ``fmriprep`` distribution.
 All trademarks referenced herein are property of their respective
 holders.
 
-Copyright (c) 2015-2016, the fmriprep developers and the CRN.
+Copyright (c) 2015-2017, the fmriprep developers and the CRN.
 All rights reserved.
+
+
+.. image:: https://badges.gitter.im/poldracklab/fmriprep.svg
+   :alt: Join the chat at https://gitter.im/poldracklab/fmriprep
+   :target: https://gitter.im/poldracklab/fmriprep?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge

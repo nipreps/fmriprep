@@ -63,9 +63,20 @@ For example: ::
     $ singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
         /work/04168/asdf/lonestar/ $WORK/lonestar/output \
         participant \
-        --participant_label sub-387 --nthreads 16 -w $WORK/lonestar/work \
+        --participant_label 387 --nthreads 16 -w $WORK/lonestar/work \
         --ants-nthreads 16
 
+.. note::
+
+   Singularity by default `exposes all environment variables from the host inside the container <https://github.com/singularityware/singularity/issues/445>`_.
+   Because of this your host libraries (such as nipype) could be accidentally used instead of the ones inside the container - if they are included in PYTHONPATH.
+   To avoid such situation we recommend unsetting PYTHONPATH in production use. For example: ::
+
+      $ PYTHONPATH="" singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
+        /work/04168/asdf/lonestar/ $WORK/lonestar/output \
+        participant \
+        --participant_label 387 --nthreads 16 -w $WORK/lonestar/work \
+        --ants-nthreads 16
 
 Manually Prepared Environment
 =============================
@@ -96,3 +107,4 @@ software tools:
 - `ANTs <http://stnava.github.io/ANTs/>`_ (version 2.1.0.Debian-Ubuntu_X64)
 - `AFNI <https://afni.nimh.nih.gov/>`_ (version Debian-16.2.07)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
+- `FreeSurfer <https://surfer.nmr.mgh.harvard.edu/>`_ (version 6.0.0)

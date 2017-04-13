@@ -9,7 +9,7 @@ import re
 
 from bids.grabbids import BIDSLayout
 
-INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'roi': [], 'sbref': []}
+INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'roi': [], 'sbref': [], 't2w': []}
 
 def _first(inlist):
     if not isinstance(inlist, (list, tuple)):
@@ -75,7 +75,11 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
         'epi': {'modality': 'func', 'type': 'bold', 'extensions': ['nii', 'nii.gz']},
         'sbref': {'modality': 'func', 'type': 'sbref', 'extensions': ['nii', 'nii.gz']},
         't1w': {'type': 'T1w', 'extensions': ['nii', 'nii.gz']},
+<<<<<<< HEAD
         'roi': {'type': 'roi', 'extensions': ['nii', 'nii.gz']}
+=======
+        't2w': {'type': 'T2w', 'extensions': ['nii', 'nii.gz']},
+>>>>>>> master
     }
 
     if task:
@@ -97,6 +101,8 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
     imaging_data['sbref'] = sbref_files
     epi_files = [x.filename for x in layout.get(**queries['epi'])]
     imaging_data['func'] = epi_files
+    t2_files = [x.filename for x in layout.get(**queries['t2w'])]
+    imaging_data['t2w'] = t2_files
 
     '''
     loop_on = ['session', 'run', 'acquisition', 'task']

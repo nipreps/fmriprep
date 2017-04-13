@@ -20,7 +20,6 @@ from nipype.workflows.dmri.fsl.utils import siemens2rads, demean_image, cleanup_
 from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
-from fmriprep.viz import stripped_brain_overlay
 
 
 def _sort_fmaps(input_images):
@@ -123,33 +122,11 @@ def phase_diff_and_magnitudes(settings, name='phase_diff_and_magnitudes'):
                            ('out_file', 'fmap_ref')])
     ])
 
-    #  Plot for report
-    fmap_magnitude_stripped_overlay = pe.Node(
-        niu.Function(
-            input_names=['in_file', 'overlay_file', 'out_file'],
-            output_names=['out_file'],
-            function=stripped_brain_overlay
-        ),
-        name='fmap_magnitude_stripped_overlay'
-    )
-    fmap_magnitude_stripped_overlay.inputs.out_file = 'fmap_magnitude_stripped_overlay.svg'
-
-    # Write corrected file in the designated output dir
-    ds_fmap_magnitude_stripped_overlay = pe.Node(
-        nio.DataSink(base_directory=op.join(settings['output_dir'], "images")),
-        name="dsFmapMagnitudeStrippedOverlay",
-        parameterization=False
-    )
-
     ds_betrpt = pe.Node(nio.DataSink(), name="BETRPTDS")
     ds_betrpt.inputs.base_directory = op.join(settings['output_dir'],
                                               'reports')
 
     workflow.connect([
-        (magmrg, fmap_magnitude_stripped_overlay, [('out_avg', 'overlay_file')]),
-        (bet, fmap_magnitude_stripped_overlay, [('mask_file', 'in_file')]),
-        (fmap_magnitude_stripped_overlay, ds_fmap_magnitude_stripped_overlay,
-         [('out_file', '@fmap_magnitude_stripped_overlay')]),
         (bet, ds_betrpt, [('out_report', 'fmap_bet_rpt')])
     ])
 

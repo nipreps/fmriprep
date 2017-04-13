@@ -38,7 +38,7 @@ class TestDerivativesDatasink(unittest.TestCase):
         deriv_filename = '{}_{}'.format(os.path.basename(self.infile_path), suffix)
         deriv_path = os.path.join(
             self.out_dir, 
-            'derivatives/sub-01/ses-01/func/', 
+            'fmriprep/sub-01/ses-01/func/',
             deriv_filename
         )
         self.assertTrue(os.path.isfile(deriv_path))

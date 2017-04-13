@@ -15,6 +15,7 @@ Contents
    :maxdepth: 2
 
    installation
+   changes
    usage
-   ds005
+   workflows
    contributors

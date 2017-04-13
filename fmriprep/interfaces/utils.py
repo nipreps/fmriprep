@@ -10,10 +10,75 @@
 import os
 import numpy as np
 import os.path as op
+import nibabel as nb
+from nipype.algorithms.confounds import is_outlier
+from nipype.interfaces.afni import Volreg
 from nipype.interfaces.base import (traits, isdefined, TraitedSpec, BaseInterface,
                                     BaseInterfaceInputSpec, File, InputMultiPath,
                                     OutputMultiPath)
 from nipype.interfaces import fsl
+
+from fmriprep.interfaces.bids import SimpleInterface
+
+
+class EstimateReferenceImageInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc="4D EPI file")
+
+
+class EstimateReferenceImageOutputSpec(TraitedSpec):
+    ref_image = File(exists=True, desc="3D reference image")
+    n_volumes_to_discard = traits.Int(desc="Number of detected non-steady "
+                                           "state volumes in the beginning of "
+                                           "the input file")
+
+
+class EstimateReferenceImage(SimpleInterface):
+    """
+    Given an 4D EPI file estimate an optimal reference image that could be later
+    used for motion estimation and coregistration purposes. If detected uses
+    T1 saturated volumes (non-steady state) otherwise a median of
+    of a subset of motion corrected volumes is used.
+    """
+    input_spec = EstimateReferenceImageInputSpec
+    output_spec = EstimateReferenceImageOutputSpec
+
+    def _run_interface(self, runtime):
+        in_nii = nb.load(self.inputs.in_file)
+        data_slice = in_nii.dataobj[:, :, :, :50]
+        global_signal = data_slice.mean(axis=0).mean(
+            axis=0).mean(axis=0)
+
+        n_volumes_to_discard = is_outlier(global_signal)
+
+        out_ref_fname = os.path.abspath("ref_image.nii.gz")
+
+        if n_volumes_to_discard == 0:
+            if in_nii.shape[-1] > 40:
+                slice = data_slice[:, :, :, 20:40]
+                slice_fname = os.path.abspath("slice.nii.gz")
+                nb.Nifti1Image(slice, in_nii.affine,
+                               in_nii.header).to_filename(slice_fname)
+            else:
+                slice_fname = self.inputs.in_file
+
+            res = Volreg(in_file=slice_fname, args='-Fourier -twopass', zpad=4,
+                         outputtype='NIFTI_GZ').run()
+
+            mc_slice_nii = nb.load(res.outputs.out_file)
+
+            median_image_data = np.median(mc_slice_nii.get_data(), axis=3)
+            nb.Nifti1Image(median_image_data, mc_slice_nii.affine,
+                           mc_slice_nii.header).to_filename(out_ref_fname)
+        else:
+            median_image_data = np.median(
+                data_slice[:, :, :, :n_volumes_to_discard], axis=3)
+            nb.Nifti1Image(median_image_data, in_nii.affine,
+                           in_nii.header).to_filename(out_ref_fname)
+
+        self._results["ref_image"] = out_ref_fname
+        self._results["n_volumes_to_discard"] = n_volumes_to_discard
+
+        return runtime
 
 class IntraModalMergeInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True), mandatory=True,
@@ -105,10 +170,16 @@ def _tsv_format(translations, rot_angles, fmt='confounds'):
     return out_file
 
 
-def nii_concat(in_files):
+def nii_concat(in_files, header_source=None):
     from nibabel.funcs import concat_images
+    import nibabel as nb
     import os
     new_nii = concat_images(in_files, check_affines=False)
+
+    if header_source:
+        header_nii = nb.load(header_source)
+        new_nii.header.set_xyzt_units(t=header_nii.header.get_xyzt_units()[-1])
+        new_nii.header.set_zooms(list(new_nii.header.get_zooms()[:3]) + [header_nii.header.get_zooms()[3]])
 
     new_nii.to_filename("merged.nii.gz")
 
@@ -130,8 +201,9 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     import os
     import nibabel as nb
     import scipy.ndimage as nd
+    from nilearn.image import resample_to_img
 
-    probability_map_nii = nb.load(in_file)
+    probability_map_nii = resample_to_img(in_file, epi_mask)
     probability_map_data = probability_map_nii.get_data()
 
     # thresholding

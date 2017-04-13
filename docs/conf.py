@@ -15,7 +15,7 @@
 import os
 import sys
 import subprocess
-from fmriprep.workflows.base import wf_ds005_type
+from fmriprep.workflows.base import basic_wf
 from nipype.pipeline.engine import Workflow
 
 # Hack for readthedocs
@@ -47,7 +47,9 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
+    'sphinxarg.ext', # argparse extension
+    'nipype.sphinxext.plot_workflow'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -65,9 +67,10 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'fmriprep'
-author = u'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, Ross Blair, Shoshana Berleant'
-copyright = u'2016, ' + author
+project = 'fmriprep'
+author = 'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, ' \
+    'Ross Blair, Shoshana Berleant, Christopher J. Markiewicz'
+copyright = '2017, ' + author
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -310,36 +313,4 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-def fake_set_up():
-    os.environ['FSLDIR'] = '' # dummy FSL dir
-    bbr_filename = 'etc/flirtsch/bbr.sch'
-    basedir = os.path.dirname(bbr_filename)
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
-    open(bbr_filename, 'w').close() # dummy existing file
-
-
-# Auto-create DAG pngs
-
-fake_set_up()
-
-ds005_wf = wf_ds005_type({'func': 'fake data'}, {'ants_nthreads': 1,
-                                                 'output_dir': 'x',
-                                                 'biggest_epi_file_size_gb': 1,
-                                                 'skip_native': True})
-
-sub_wfs = {name.split('.')[0] for name in ds005_wf.list_node_names()} # get only first-level nodes/workflows
-ds005_workflows = {name: ds005_wf.get_node(name) for name in sub_wfs}
-ds005_workflows['ds005'] = ds005_wf
-
-for name, workflow in ds005_workflows.items():
-    if isinstance(workflow, Workflow):
-        workflow.write_graph(graph2use="orig", dotfilename=name + '.dot', simple_form=True)
-
-# Create command line arguments
-with open('args.txt', 'w') as fp:
-    args = subprocess.Popen([os.path.abspath(os.path.join('../fmriprep',
-                                                          'run_workflow.py')),
-                             '-h'],
-                            stdout=subprocess.PIPE).communicate()[0]
-    fp.write(args)
+suppress_warnings = ["image.nonlocal_uri"]

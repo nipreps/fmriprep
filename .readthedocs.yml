@@ -1,0 +1,9 @@
+conda:
+    file: docs/environment.yml
+formats:
+    - none
+# requirements_file: docs/requirements.txt
+python:
+    setup_py_install: true
+    pip_install: false
+

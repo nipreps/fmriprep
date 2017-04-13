@@ -22,6 +22,12 @@
                 "file_pattern": "anat/.*t1_2_mni",
                 "title": "T1 to MNI",
                 "description": "Corrected anatomical T1 image registered into MNI space"
+            },
+            {
+                "name": "t1w_preprocessing/reconall",
+                "file_pattern": "anat/.*reconall",
+                "title": "Surface Reconstruction",
+                "description": "White and pial surfaces overlaid on T1 image"
             }
 
         ]
@@ -32,9 +38,9 @@
         [
             {
                 "name": "epi_hmc/bet_hmc",
-                "file_pattern": "func/.*bet_hmc",
+                "file_pattern": "func/.*epi_mask",
                 "title" : "Skull Stripped EPI",
-                "description": "Skull stripped and head motion corrected epi pre registration"
+                "description": "Skull stripped EPI"
             },
             {
                 "name": "sbref_preprocess/bet",
@@ -46,7 +52,13 @@
                 "name": "epi_mean_t1_registration/flt_bbr",
                 "file_pattern": "func/.*_bold_flt_bbr",
                 "title": "EPI",
-                "description": "No SBRef was found so the mean epi was used to generate transformations from EPI space to T1 Space"
+                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space - FAST segmentation used for BBR"
+            },
+            {
+                "name": "epi_mean_t1_registration/bbr",
+                "file_pattern": "func/.*_bold_bbr",
+                "title": "EPI",
+                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space"
             },
             {
                 "name": "epi/acompcor",
@@ -57,7 +69,7 @@
             {
                 "name": "epi/tcompcor",
                 "file_pattern": "func/.*_tcompcor",
-                "title": "tCompCor hich variance map",
+                "title": "tCompCor high variance map",
                 "description": "Top 5% most variable voxels within heavily eroded brain mask."
             },
             {
@@ -69,6 +81,12 @@
             {
                 "name": "sbref_t1_registration/flt_bbr",
                 "file_pattern": "func/.*sbref.*flt_bbr",
+                "title": "SBRef to T1 registration",
+                "description": "FreeSurfer surfaces not found - FAST segmentation used for BBR"
+            },
+            {
+                "name": "sbref_t1_registration/bbr",
+                "file_pattern": "func/.*sbref.*bbr",
                 "title": "SBRef to T1 registration",
                 "description": " "
             },

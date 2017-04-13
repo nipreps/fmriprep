@@ -26,24 +26,20 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     Saves the confounds in a file ('outputnode.confounds_file')'''
 
     inputnode = pe.Node(utility.IdentityInterface(fields=['fmri_file', 'movpar_file', 't1_tpms',
-                                                          'epi_mask', 't1_transform',
-                                                          'reference_image',
-                                                          'motion_confounds_file',
+                                                          'epi_mask',
                                                           'source_file']),
                         name='inputnode')
     outputnode = pe.Node(utility.IdentityInterface(fields=['confounds_file']),
                          name='outputnode')
 
-    # registration using ANTs
-    t1_registration = pe.MapNode(fsl.preprocess.ApplyXFM(interp='sinc'),
-                                 name='T1Registration', iterfield='in_file')
     # DVARS
     dvars = pe.Node(confounds.ComputeDVARS(save_all=True, remove_zerovariance=True),
                     name="ComputeDVARS")
     dvars.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
     # Frame displacement
-    frame_displace = pe.Node(confounds.FramewiseDisplacement(), name="FramewiseDisplacement")
+    frame_displace = pe.Node(confounds.FramewiseDisplacement(parameter_source="SPM"),
+                             name="FramewiseDisplacement")
     frame_displace.interface.estimated_memory_gb = settings[
                                               "biggest_epi_file_size_gb"] * 3
     # CompCor
@@ -75,6 +71,7 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     def concat_rois_func(in_WM, in_mask, ref_header):
         import os
         import nibabel as nb
+        from nilearn.image import resample_to_img
 
         WM_nii = nb.load(in_WM)
         mask_nii = nb.load(in_mask)
@@ -82,8 +79,10 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         # we have to do this explicitly because of potential differences in
         # qform_code between the two files that prevent SignalExtraction to do
         # the concatenation
-        concat_nii = nb.funcs.concat_images([WM_nii, mask_nii],
-                                            check_affines=False)
+        concat_nii = nb.funcs.concat_images([resample_to_img(WM_nii,
+                                                             mask_nii,
+                                                             interpolation='nearest'),
+                                             mask_nii])
         concat_nii = nb.Nifti1Image(concat_nii.get_data(),
                                     nb.load(ref_header).affine,
                                     nb.load(ref_header).header)
@@ -139,14 +138,14 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
                                               "biggest_epi_file_size_gb"] * 3
 
     ds_report_a = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='acompcor', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='acompcor'),
         name='ds_report_a'
     )
 
     ds_report_t = pe.Node(
-        DerivativesDataSink(base_directory=settings['output_dir'],
-                            suffix='tcompcor', out_path_base='reports'),
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='tcompcor'),
         name='ds_report_t'
     )
 
@@ -168,23 +167,36 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
     def pick_wm(files):
         return files[2]
 
+    def add_header_func(in_file):
+        import numpy as np
+        import pandas as pd
+        import os
+
+        data = np.loadtxt(in_file)
+
+        df = pd.DataFrame(data, columns=["X", "Y", "Z", "RotX", "RotY", "RotZ"])
+        df.to_csv("motion.tsv", sep="\t", index=None)
+
+        return os.path.abspath("motion.tsv")
+
+    add_header = pe.Node(utility.Function(function=add_header_func,
+                                          input_names=["in_file"],
+                                          output_names=["out_file"]),
+                         name="add_header")
+
     workflow = pe.Workflow(name=name)
     workflow.connect([
         # connect inputnode to each non-anatomical confound node
         (inputnode, dvars, [('fmri_file', 'in_file'),
                             ('epi_mask', 'in_mask')]),
-        (inputnode, frame_displace, [('movpar_file', 'in_plots')]),
+        (inputnode, frame_displace, [('movpar_file', 'in_file')]),
         (inputnode, tcompcor, [('fmri_file', 'realigned_file')]),
 
-        # anatomically-based confound computation requires coregistration
-        (inputnode, t1_registration, [('reference_image', 'reference'),
-                                      ('t1_tpms', 'in_file'),
-                                      ('t1_transform', 'in_matrix_file')]),
-        (t1_registration, CSF_roi, [(('out_file', pick_csf), 'in_file')]),
+        (inputnode, CSF_roi, [(('t1_tpms', pick_csf), 'in_file')]),
         (inputnode, CSF_roi, [('epi_mask',  'epi_mask')]),
         (CSF_roi, tcompcor, [('eroded_mask', 'mask_file')]),
 
-        (t1_registration, WM_roi, [(('out_file', pick_wm), 'in_file')]),
+        (inputnode, WM_roi, [(('t1_tpms', pick_wm), 'in_file')]),
         (inputnode, WM_roi, [('epi_mask', 'epi_mask')]),
 
         (CSF_roi, combine_rois, [('roi_file', 'in_CSF')]),
@@ -209,7 +221,8 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
         (frame_displace, concat, [('out_file', 'frame_displace')]),
         (tcompcor, concat, [('components_file', 'tcompcor')]),
         (acompcor, concat, [('components_file', 'acompcor')]),
-        (inputnode, concat, [('motion_confounds_file', 'motion')]),
+        (inputnode, add_header, [('movpar_file', 'in_file')]),
+        (add_header, concat, [('out_file', 'motion')]),
 
         (concat, outputnode, [('combined_out', 'confounds_file')]),
 
