@@ -55,7 +55,7 @@ class BIDSDataGrabberOutputSpec(TraitedSpec):
     func = OutputMultiPath(desc='output functional images')
     sbref = OutputMultiPath(desc='output sbrefs')
     t1w = OutputMultiPath(desc='output T1w images')
-    roi = OutputMultiPath(desc='outpuw ROI images')
+    roi = OutputMultiPath(desc='output ROI images')
     t2w = OutputMultiPath(desc='output T2w images')
 
 

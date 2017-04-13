@@ -75,11 +75,8 @@ def collect_bids_data(dataset, subject, task=None, session=None, run=None):
         'epi': {'modality': 'func', 'type': 'bold', 'extensions': ['nii', 'nii.gz']},
         'sbref': {'modality': 'func', 'type': 'sbref', 'extensions': ['nii', 'nii.gz']},
         't1w': {'type': 'T1w', 'extensions': ['nii', 'nii.gz']},
-<<<<<<< HEAD
-        'roi': {'type': 'roi', 'extensions': ['nii', 'nii.gz']}
-=======
-        't2w': {'type': 'T2w', 'extensions': ['nii', 'nii.gz']},
->>>>>>> master
+        'roi': {'type': 'roi', 'extensions': ['nii', 'nii.gz']},
+        't2w': {'type': 'T2w', 'extensions': ['nii', 'nii.gz']}
     }
 
     if task:
