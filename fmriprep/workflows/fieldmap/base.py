@@ -3,68 +3,65 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Base fieldmap handling utilities.
+Base fieldmap estimation
+------------------------
 
-Possible fieldmap specifications according to BIDS 1.0.0
---------------------------------------------------------
+* Subject can have no data for fieldmap estimation - unwarping should not modify
+  the images.
+* Subject can have phase-difference data.
+* Subject can have a fieldmap acquisition.
+* Subject can have :abbr:`pepolar (Phase-Encoding POLArity)` image series for a
+  phase-encoding based estimation.
+* Subject can have two or three of the above - return average.
 
-8.9.1 one phase diff image, at least one magnitude image
-8.9.2 two phase images, two magnitude images
-8.9.3 fieldmap image (and one magnitude image)
-8.9.4 multiple phase encoded directions (topup)
 
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
-from future.utils import raise_from
 
-from nipype import logging
+def fmap_estimator(fmap_bids, settings=None):
+    """
+    This workflow selects the fieldmap estimation data available for the subject and
+    returns the estimated fieldmap in mm, along with a corresponding reference image.
+    Current implementation applies the first type of fieldmap estimation found in the
+    following order of precedence:
 
-LOGGER = logging.getLogger('workflow')
-
-
-def is_fmap_type(fmap_type, filename):
-    from fmriprep.utils import misc
-    import re
-    return re.search(misc.fieldmap_suffixes[fmap_type], filename)
-
-
-def sort_fmaps(fieldmaps):  # i.e. filenames
-    from fmriprep.utils import misc
-    from fmriprep.workflows.fieldmap.base import is_fmap_type
-    fmaps = {}
-    for fmap_type in misc.fieldmap_suffixes.keys():
-        fmaps[fmap_type] = []
-        fmaps[fmap_type] = [doc for doc in fieldmaps
-                            if is_fmap_type(fmap_type, doc)]
-    return fmaps
+      * "Natural" fieldmaps
+      * Phase-difference fieldmaps
+      * PEPolar fieldmaps.
 
 
-def fieldmap_decider(fieldmap_data, settings):
-    ''' Run fieldmap_decider to automatically find a
-    Fieldmap preprocessing workflow '''
-    # inputs = { 'fieldmaps': None }
-    # outputs = { 'fieldmaps': None,
-    #             'outputnode.mag_brain': None,
-    #             'outputnode.fmap_mask': None,
-    #             'outputnode.fmap_fieldcoef': None,
-    #             'outputnode.fmap_movpar': None}
+    Outputs:
 
-    try:
-        fieldmap_data[0]
-    except IndexError as e:
-        raise_from(NotImplementedError("No fieldmap data found"), e)
+        fmap
+          The estimated fieldmap itself IN UNITS OF Hz.
+        fmap_ref
+          the anatomical reference for the fieldmap (magnitude image, corrected SEm, etc.)
+        fmap_mask
+          a brain mask for the fieldmap
 
-    for filename in subject_data['fieldmaps']:
-        if is_fmap_type('phasediff', filename):  # 8.9.1
-            from fmriprep.workflows.fieldmap.phase_diff_and_magnitudes import phase_diff_and_magnitudes
-            return phase_diff_and_magnitudes(settings)
-        elif is_fmap_type('phase', filename):  # 8.9.2
-            raise NotImplementedError("No workflow for phase fieldmap data")
-        elif is_fmap_type('fieldmap', filename):  # 8.9.3
-            from fmriprep.workflows.fieldmap.fieldmap_to_phasediff import fieldmap_to_phasediff
-            return fieldmap_to_phasediff(settings=settings)
-        elif is_fmap_type('topup', filename):  # 8.0.4
-            from fmriprep.workflows.fieldmap.se_fmap_workflow import se_fmap_workflow
-            return se_fmap_workflow(settings=settings)
 
-    raise IOError("Unrecognized fieldmap structure")
+    """
+
+    # pybids type options: (phase1|phase2|phasediff|epi|fieldmap)
+    # https://github.com/INCF/pybids/blob/213c425d8ee820f4b7a7ae96e447a4193da2f359/bids/grabbids/bids_layout.py#L63
+    if fmap_bids['type'] == 'fieldmap':
+        from .fmap import fmap_workflow
+        fmapwf = fmap_workflow(settings=settings)
+        # set inputs
+        fmapwf.inputs.inputnode.fieldmap = fmap_bids['fieldmap']
+        fmapwf.inputs.inputnode.magnitude = fmap_bids['magnitude']
+        return fmapwf
+
+    if fmap_bids['type'] == 'phasediff':
+        from .phdiff import phdiff_workflow
+        phwf = phdiff_workflow(settings=settings)
+        # set inputs
+        phwf.inputs.inputnode.phasediff = fmap_bids['phasediff']
+        phwf.inputs.inputnode.magnitude = [
+            fmap_bids['magnitude1'],
+            fmap_bids['magnitude2']
+        ]
+        return phwf
+
+    if fmap_bids['type'] in ['phase1', 'phase2', 'epi']:
+        raise NotImplementedError

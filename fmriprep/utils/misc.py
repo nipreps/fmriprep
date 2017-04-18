@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 import copy
 from glob import glob
 import itertools
@@ -10,6 +16,30 @@ import re
 from bids.grabbids import BIDSLayout
 
 INPUTS_SPEC = {'fieldmaps': [], 'func': [], 't1': [], 'sbref': [], 't2w': []}
+
+
+def genfname(in_file, suffix=None, path=None, ext=None):
+    from os import getcwd
+    import os.path as op
+
+    fname, fext = op.splitext(op.basename(in_file))
+    if fext == '.gz':
+        fname, fext2 = op.splitext(fname)
+        fext = fext2 + fext
+
+    if path is None:
+        path = getcwd()
+
+    if ext is None:
+        ext = fext
+
+    if ext != '' and not ext.startswith('.'):
+        ext = '.' + ext
+
+    if suffix is None:
+        suffix = 'mod'
+
+    return op.join(path, '{}_{}{}'.format(fname, suffix, ext))
 
 def _first(inlist):
     if not isinstance(inlist, (list, tuple)):
@@ -24,30 +54,6 @@ def make_folder(folder):
         if exc.errno == EEXIST:
             pass
     return folder
-
-def gen_list(inlist, base=1):
-    return range(base, len(inlist) + base)
-
-def _walk_dir_for_prefix(target_dir, prefix):
-    return [x for x in next(os.walk(target_dir))[1]
-            if x.startswith(prefix)]
-
-def is_fieldmap_file(string):
-    is_fieldmap_file = False
-    for suffix in fieldmap_suffixes.values():
-        if re.search(suffix, string):
-            is_fieldmap_file = True
-    return is_fieldmap_file
-
-
-fieldmap_suffixes = {
-    'phasediff': r"phasediff[0-9]*\.nii(\.gz)?",
-    'magnitude': r"magnitude[0-9]*\.nii(\.gz)?",
-    'phase': r"phase[0-9]+\.nii(\.gz)?",
-    'fieldmap': r"fieldmap\.nii(\.gz)?",
-    'topup': r"epi\.nii(\.gz)?"
-}
-
 
 def collect_bids_data(dataset, subject, task=None, session=None, run=None):
     subject = str(subject)
@@ -141,6 +147,22 @@ def fix_multi_T1w_source_name(in_files):
         return os.path.join(base, "sub-%s_T1w.nii.gz" % subject_label)
     else:
         return in_files
+
+
+def _extract_wm(in_file):
+    import os.path as op
+    import nibabel as nb
+    import numpy as np
+
+    image = nb.load(in_file)
+    data = image.get_data().astype(np.uint8)
+    data[data != 3] = 0
+    data[data > 0] = 1
+
+    out_file = op.abspath('wm_mask.nii.gz')
+    nb.Nifti1Image(data, image.get_affine(),
+                   image.get_header()).to_filename(out_file)
+    return out_file
 
 if __name__ == '__main__':
     pass

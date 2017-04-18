@@ -24,6 +24,12 @@ DOWNLOAD_URL = (
     'https://pypi.python.org/packages/source/{name[0]}/{name}/{name}-{ver}.tar.gz'.format(
         name=__packagename__, ver=__version__))
 
+SETUP_REQUIRES = [
+    'setuptools>=18.0',
+    'numpy',
+    'cython',
+]
+
 REQUIRES = [
     'numpy',
     'lockfile',
@@ -32,12 +38,13 @@ REQUIRES = [
     'matplotlib',
     'nilearn',
     'sklearn',
-    'nibabel',
+    'nibabel>=2.1.0',
     'pandas',
     'grabbit',
     'pybids>=0.1.0',
     'nitime',
     'niworkflows',
+    'statsmodels',
     'nipype',
 ]
 

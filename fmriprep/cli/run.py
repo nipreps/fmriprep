@@ -65,10 +65,11 @@ def get_parser():
 
     g_conf = parser.add_argument_group('Workflow configuration')
     g_conf.add_argument(
-        '--ignore', required=False, action='store', choices=['fieldmaps',
-                                                             'slicetiming'], nargs="+", default=[],
-        help='ignore selected aspects of the input dataset to disable related'
+        '--ignore', required=False, action='store', nargs="+", default=[],
+        choices=['fieldmap', 'sbref', 'slicetiming'],
+        help='ignore selected aspects of the input dataset to disable corresponding '
              'parts of the workflow')
+
     g_conf.add_argument('--skip-native', action='store_true', default=False,
                         help="don't output timeseries in native space")
 
@@ -81,6 +82,18 @@ def get_parser():
     g_ants.add_argument('--no-skull-strip-ants', dest="skull_strip_ants", action='store_false',
                         help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
     g_ants.set_defaults(skull_strip_ants=True)
+
+    # Fieldmap options
+    g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
+    g_fmap.add_argument('--use-fieldmap', action='store_true', default=False,
+                        help='explicitly enable fieldmap-based correction')
+    g_fmap.add_argument('--fmap-bspline', action='store_true', default=False,
+                        help='fit a B-Spline field using least-squares (experimental)')
+    g_fmap.add_argument('--fmap-no-demean', action='store_false', default=True,
+                        help='do not remove median (within mask) from fieldmap')
+    g_fmap.add_argument('--fmap-los', action='store', default=9, choices=[6, 9, 12], type=int,
+                        help='compensate Low-Order Shiming (LOS) increasing the dof in EPI-to-T1'
+                             ' registration')
 
     # FreeSurfer options
     g_fs = parser.add_argument_group('Specific options for FreeSurfer preprocessing')
@@ -131,7 +144,14 @@ def create_workflow(opts):
         'freesurfer': opts.freesurfer,
         'hires': opts.hires,
         'reportlets_dir': op.join(op.abspath(opts.work_dir), 'reportlets'),
+        'fmap_bspline': opts.fmap_bspline,
+        'fmap_demean': opts.fmap_no_demean,
+        'epi2t1_dof': opts.fmap_los,
     }
+
+    # To be removed when fieldmaps are not experimental anymore
+    if not opts.use_fieldmap:
+        settings['ignore'].append('fieldmap')
 
     # set up logger
     logger = logging.getLogger('cli')

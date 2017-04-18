@@ -9,25 +9,30 @@ available is used as the input. For example, slice timing correction will be
 performed only if the ``SliceTiming`` metadata field is found for the input
 dataset.
 
-High-level view of the pipeline:
+High-level view of the basic pipeline (for single-band datasets, without
+slice-timing information and no fieldmap acquisitions):
 
 .. workflow::
-    :graph2use: orig
+    :graph2use: colored
     :simple_form: yes
 
     from fmriprep.workflows.base import basic_wf
-    wf = basic_wf({'func': ['bold_preprocessing']},
-                           settings={'ants_nthreads': 1,
-                                     'nthreads': 1,
-                                     'freesurfer': True,
-                                     'reportlets_dir': '.',
-                                     'output_dir': '.',
-                                     'bids_root': '.',
-                                     'biggest_epi_file_size_gb': 3,
-                                     'skull_strip_ants': True,
-                                     'skip_native': False,
-                                     'debug': False,
-                                     'hires': True})
+    wf = basic_wf(
+        {'func': ['bold_preprocessing']},
+        settings={'ants_nthreads': 1,
+                  'nthreads': 1,
+                  'freesurfer': True,
+                  'reportlets_dir': '.',
+                  'output_dir': '.',
+                  'bids_root': '.',
+                  'biggest_epi_file_size_gb': 3,
+                  'skull_strip_ants': True,
+                  'skip_native': False,
+                  'ignore': [],
+                  'debug': False,
+                  'hires': True}
+    )
+
 
 T1w/T2w preprocessing
 ---------------------
@@ -143,20 +148,19 @@ BOLD preprocessing
     :simple_form: yes
 
     from fmriprep.workflows.epi import bold_preprocessing
-    wf = bold_preprocessing("bold_preprocessing",
-                            metadata={"RepetitionTime": 2.0,
-                           "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
-                 settings={'ants_nthreads': 1,
-                           'ignore':[],
-                                     'nthreads': 1,
-                                     'freesurfer': True,
-                                     'reportlets_dir': '.',
-                                     'output_dir': '.',
-                                     'bids_root': '.',
-                                     'biggest_epi_file_size_gb': 3,
-                                     'skull_strip_ants': True,
-                                     'skip_native': False,
-                                     'debug': False})
+    wf = bold_preprocessing(
+        "bold_preprocessing",
+        settings={'ants_nthreads': 1,
+                  'ignore':[],
+                  'nthreads': 1,
+                  'freesurfer': True,
+                  'reportlets_dir': '.',
+                  'output_dir': '.',
+                  'bids_root': '.',
+                  'biggest_epi_file_size_gb': 3,
+                  'skull_strip_ants': True,
+                  'skip_native': False,
+                  'debug': False})
 
 Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
@@ -385,3 +389,12 @@ A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``.
 
 A copy of the ``fsaverage`` subject distributed with the running version of
 FreeSurfer is copied into this subjects directory.
+
+
+Susceptibility Distortion Correction (SDC)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: fmriprep.workflows.fieldmap
+    :members:
+    :undoc-members:
+    :show-inheritance:

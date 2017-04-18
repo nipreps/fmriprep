@@ -15,11 +15,10 @@ dependencies:
     - "~/docker"
 
   pre:
-    - mkdir -p $HOME/data
-    - mkdir -p $HOME/docker
-    - mkdir -p $HOME/ds005/out $HOME/ds054/out
-    - mkdir -p $HOME/ds005/scratch && sudo setfacl -d -m group:ubuntu:rwx $HOME/ds005/scratch && sudo setfacl -m group:ubuntu:rwx $HOME/ds005/scratch
-    - mkdir -p $HOME/ds054/scratch && sudo setfacl -d -m group:ubuntu:rwx $HOME/ds054/scratch && sudo setfacl -m group:ubuntu:rwx $HOME/ds054/scratch
+    - mkdir -p $HOME/data $HOME/docker
+    - mkdir -p $HOME/ds005 && sudo setfacl -d -m group:ubuntu:rwx $HOME/ds005 && sudo setfacl -m group:ubuntu:rwx $HOME/ds005
+    - mkdir -p $HOME/ds054 && sudo setfacl -d -m group:ubuntu:rwx $HOME/ds054 && sudo setfacl -m group:ubuntu:rwx $HOME/ds054
+    - mkdir -p $HOME/docs && sudo setfacl -d -m group:ubuntu:rwx $HOME/docs && sudo setfacl -m group:ubuntu:rwx $HOME/docs
     # Download test data
     - if [[ ! -d $HOME/data/ds005 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds005_downsampled.tar.gz "${DS005_URL}" && tar xzf ds005_downsampled.tar.gz -C $HOME/data/; fi
     - if [[ ! -d $HOME/data/ds054 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds054_downsampled.tar.gz "${DS054_URL}" && tar xzf ds054_downsampled.tar.gz -C $HOME/data/; fi
@@ -28,19 +27,18 @@ dependencies:
   override:
     - if [[ -e $HOME/docker/image.tar ]]; then docker load -i $HOME/docker/image.tar; fi
     - sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'$CIRCLE_TAG'/" fmriprep/info.py
-    - e=1 && for i in {1..5}; do docker build -t poldracklab/fmriprep:latest --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=$CIRCLE_TAG . && e=0 && break || sleep 15; done && [ "$e" -eq "0" ] :
+    - e=1 && for i in {1..5}; do docker build --rm=false -t poldracklab/fmriprep:latest --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=$CIRCLE_TAG . && e=0 && break || sleep 15; done && [ "$e" -eq "0" ] :
         timeout: 21600
     - mkdir -p $HOME/docker; docker save poldracklab/fmriprep:latest > $HOME/docker/image.tar
 test:
   override:
-    - docker run -ti --rm --entrypoint="python" poldracklab/fmriprep:latest -m unittest discover test
-    - set -o pipefail && docker run -ti --rm -v $HOME/_build_html/:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest -T -E -b html -d _build/doctrees-readthedocs -W -D language=en docs/ /_build_html 2>&1 | tee builddocs.log :
+    - docker run -ti --rm=false --entrypoint="python" poldracklab/fmriprep:latest -m unittest discover test
+    - set -o pipefail && docker run -ti --rm=false -v $HOME/docs:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest -T -E -b html -d _build/doctrees-readthedocs -W -D language=en docs/ /_build_html 2>&1 | tee $HOME/docs/builddocs.log :
         timeout: 4800
-    - cat builddocs.log && if grep -q "ERROR" builddocs.log; then false; else true; fi
-    # Disabling until fieldmaps refactor is ready
-    #- docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds054/scratch:/scratch -v $HOME/ds054/out:/out poldracklab/fmriprep:latest /data/ds054 /out/ participant --no-freesurfer --debug -w /scratch:
-    #    timeout: 4800
-    - docker run -ti --rm -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --no-freesurfer --debug -w /scratch:
+    - cat $HOME/docs/builddocs.log && if grep -q "ERROR" $HOME/docs/builddocs.log; then false; else true; fi
+    - docker run -ti --rm=false -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds054/scratch:/scratch -v $HOME/ds054/out:/out poldracklab/fmriprep:latest /data/ds054 /out/ participant --ignore sbref --no-freesurfer --debug -w /scratch:
+        timeout: 4800
+    - docker run -ti --rm=false -v $HOME/nipype.cfg:/root/.nipype/nipype.cfg:ro -v $HOME/data:/data:ro -v $HOME/ds005/scratch:/scratch -v $HOME/ds005/out:/out poldracklab/fmriprep:latest /data/ds005 /out/ participant --no-freesurfer --debug -w /scratch:
        timeout: 4800
     - find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
     - find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
@@ -51,7 +49,7 @@ general:
     - "~/ds054/scratch"
     - "~/ds005/out"
     - "~/ds005/scratch"
-    - "~/_build_html"
+    - "~/docs"
 
 deployment:
   production:
