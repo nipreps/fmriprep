@@ -52,21 +52,28 @@ def discover_wf(settings, name="ConfoundDiscoverer"):
 
     CSF_roi = pe.Node(utility.Function(input_names=['in_file', 'epi_mask',
                                                     'erosion_mm',
-                                                    'epi_mask_erosion_mm'],
+                                                    'epi_mask_erosion_mm', 'min_percent',
+                                                    'max_percent'],
                                        output_names=['roi_file', 'eroded_mask'],
                                        function=prepare_roi_from_probtissue),
                       name='CSF_roi')
     CSF_roi.inputs.erosion_mm = 0
     CSF_roi.inputs.epi_mask_erosion_mm = 30
+    CSF_roi.inputs.min_percent = 0 # this can happen if the ventricles are particularly small
+    TBD = 1 # based on beast
+    CSF_roi.inputs.max_percent = TBD
 
     WM_roi = pe.Node(utility.Function(input_names=['in_file', 'epi_mask',
                                                    'erosion_mm',
-                                                   'epi_mask_erosion_mm'],
+                                                   'epi_mask_erosion_mm', 'min_percent',
+                                                   'max_percent'],
                                       output_names=['roi_file', 'eroded_mask'],
                                       function=prepare_roi_from_probtissue),
                      name='WM_roi')
     WM_roi.inputs.erosion_mm = 6
     WM_roi.inputs.epi_mask_erosion_mm = 10
+    WM_roi.inputs.min_percent = 9
+    WM_roi.inputs.max_percent = 14
 
     def concat_rois_func(in_WM, in_mask, ref_header):
         import os

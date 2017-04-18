@@ -195,9 +195,61 @@ def reorient(in_file):
     nii.to_filename(outfile)
     return os.path.abspath(outfile)
 
+def prepare_good_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0, erosion_mm=0,
+                                     probability_threshold=.95, min_percent=9, max_percent=14,
+                                     num_tries = 10):
+    """ tune values to get a robust ROI
+
+    min_percent and max_percent defaults are based on results from BEAST white matter rois with
+    erosion_mm=0 and epi_mask_erosion_mm=10. They are small percentages because for aCompCor we want
+    to try very hard to avoid gray matter voxels """
+    import copy
+
+    def _try_try_again(recursion_depth=0, direction=None):
+        assert direction in [None, -1, 1]
+
+        if recursion_depth > num_tries:
+            raise RuntimeException('Giving up after {} tries.'.format(num_tries))
+
+        _, roi_proposal = prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm,
+                                                      erosion_mm)
+        roi_percent = _get_brain_volume(roi_proposal, epi_mask)
+
+        if min_percent <= roi_percent <= max_percent: # it falls within the right range!
+            good_roi = roi_proposal
+        else: # need to tune
+            new_direction = 1 if roi_percent < min_percent else -1
+            if direction is not None and direction != new_direction:
+                knob = _next_knob(knob)
+
+            found_good_new_value = False
+            while not found_good_new_value:
+                new_value = values[knob] + direction * steps[knob]
+                if mins[knob] <= new_value <= maxes[knob]:
+                    values[knob] = new_value
+                    found_good_new_value = True
+                else:
+                    knob = _next_knob(knob)
+
+            good_roi = _try_try_again(recursion_depth + 1, new_direction)
+
+        return good_roi
+
+    def _next_knob(knob):
+        if knob == 2:
+            raise RuntimeException('Ran out of knobs. Giving up.')
+        return knob + 1
+
+    mins = [min(probability_threshold, .9), min(epi_mask_erosion_mm, 0), min(erosion_mm, 0)]
+    maxes = [max(probability_threshold, .99), max(epi_mask_erosion_mm, 30), max(erosion_mm, 10)]
+    steps = [.1, 1, 1]
+    values = [probability_threshold, epi_mask_erosion_mm, erosion_mm]
+    knob = 0
+    return _try_try_again()
+
 
 def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
-                                erosion_mm=0):
+                                erosion_mm=0, probability_threshold=0.95):
     import os
     import nibabel as nb
     import scipy.ndimage as nd
@@ -207,7 +259,7 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     probability_map_data = probability_map_nii.get_data()
 
     # thresholding
-    probability_map_data[probability_map_data < 0.95] = 0
+    probability_map_data[probability_map_data < probability_threshold] = 0
     probability_map_data[probability_map_data != 0] = 1
 
     epi_mask_nii = nb.load(epi_mask)
@@ -233,3 +285,30 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     new_nii.to_filename("roi.nii.gz")
     return os.path.abspath("roi.nii.gz"), eroded_mask_file
 
+def _get_brain_volume(roi_mask, brain_mask):
+    """ gets the brain volume indicated by `roi_mask` divided by the total brain volume indicated
+    by `brain_mask`
+
+    Returns a percentage (between 0 and 100 inclusive) """
+
+    import warnings
+
+    import nibabel as nb
+    import numpy as np
+
+    def _percent_volume(mask):
+        return mask.sum(axis=None) / brain_mask_volume
+
+    roi_mask_data = nb.load(in_CSF).get_data()
+    brain_mask_data = nb.load(brain_mask).get_data()
+
+    assert roi_mask_data.shape == brain_mask_data.shape
+
+    valid = True
+    brain_mask_volume = brain_mask_data.sum(axis=None)
+
+    combined_data = brain_mask_data.add(roi_mask_data)
+    combined_mask_data = np.zeroslike(combined_data)
+    combined_mask_data[combined_data == 2] = 1
+
+    return _percent_volume(combined_mask)
