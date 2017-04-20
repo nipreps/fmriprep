@@ -129,6 +129,8 @@ class DerivativesDataSink(SimpleInterface):
             mod = 'anat'
         elif 'dwi' in op.dirname(self.inputs.source_file):
             mod = 'dwi'
+        elif 'fmap' in op.dirname(self.inputs.source_file):
+            mod = 'fmap'
 
         base_directory = os.getcwd()
         if isdefined(self.inputs.base_directory):
@@ -185,6 +187,7 @@ class ReadSidecarJSON(SimpleInterface):
                       '(_rec-(?P<rec_id>[a-zA-Z0-9]+))?(_run-(?P<run_id>[a-zA-Z0-9]+))?')
     input_spec = ReadSidecarJSONInputSpec
     output_spec = ReadSidecarJSONOutputSpec
+    _always_run = True
 
     def _run_interface(self, runtime):
         metadata = get_metadata_for_nifti(self.inputs.in_file)
@@ -212,8 +215,9 @@ class BIDSFreeSurferDirInputSpec(BaseInterfaceInputSpec):
                                 desc='FreeSurfer installation directory')
     subjects_dir = traits.Str('freesurfer', usedefault=True,
                               desc='Name of FreeSurfer subjects directory')
+    spaces = traits.List(traits.Str, desc='Set of output spaces to prepare')
     overwrite_fsaverage = traits.Bool(False, usedefault=True,
-                                      desc='Overwrite fsaverage, if present')
+                                      desc='Overwrite fsaverage directories, if present')
 
 
 class BIDSFreeSurferDirOutputSpec(TraitedSpec):
@@ -237,14 +241,17 @@ class BIDSFreeSurferDir(SimpleInterface):
         make_folder(subjects_dir)
         self._results['subjects_dir'] = subjects_dir
 
-        source = os.path.join(self.inputs.freesurfer_home, 'subjects',
-                              'fsaverage')
-        dest = os.path.join(subjects_dir, 'fsaverage')
-        # Finesse is overrated. Either leave it alone or completely clobber it.
-        if os.path.exists(dest) and self.inputs.overwrite_fsaverage:
-            rmtree(dest)
-        if not os.path.exists(dest):
-            copytree(source, dest)
+        for space in self.inputs.spaces:
+            # Skip non-freesurfer spaces and fsnative
+            if not space.startswith('fsaverage'):
+                continue
+            source = os.path.join(self.inputs.freesurfer_home, 'subjects', space)
+            dest = os.path.join(subjects_dir, space)
+            # Finesse is overrated. Either leave it alone or completely clobber it.
+            if os.path.exists(dest) and self.inputs.overwrite_fsaverage:
+                rmtree(dest)
+            if not os.path.exists(dest):
+                copytree(source, dest)
 
         return runtime
 

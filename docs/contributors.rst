@@ -23,12 +23,27 @@ Patching working repositories
 In order to test new code without rebuilding the Docker image, it is
 possible to mount working repositories as source directories within the
 container.
-In the docker container, the all Python packages are installed in
-``/usr/local/miniconda/lib/python3.6/site-packages``.
+The `fmriprep-docker`_ script simplifies this for the most common repositories::
 
-To patch in working repositories of FMRIPREP or its dependencies, for instance
-contained in ``$HOME/projects/``, add the following arguments to your docker
-command: ::
+    -f PATH, --patch-fmriprep PATH
+                          working fmriprep repository (default: None)
+    -n PATH, --patch-niworkflows PATH
+                          working niworkflows repository (default: None)
+    -p PATH, --patch-nipype PATH
+                          working nipype repository (default: None)
+
+For instance, if your repositories are contained in ``$HOME/projects``::
+
+    $ fmriprep-docker -f $HOME/projects/fmriprep/fmriprep \
+                      -n $HOME/projects/niworkflows/niworkflows \
+                      -p $HOME/projects/nipype/nipype \
+                      -i poldracklab/fmriprep:latest \
+                      $HOME/fullds005 $HOME/dockerout participant
+
+Note the ``-i`` flag allows you to specify an image.
+
+When invoking ``docker`` directly, the mount options must be specified
+with the ``-v`` flag::
 
     -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro
     -v $HOME/projects/niworkflows/niworkflows:/usr/local/miniconda/lib/python3.6/site-packages/niworkflows:ro
@@ -41,8 +56,13 @@ For example, ::
         poldracklab/fmriprep:latest /data /out/out participant \
         -w /out/work/
 
-In order to work directly in the container, use ``--entrypoint=bash``, and
-omit the fmriprep arguments: ::
+In order to work directly in the container, pass the ``--shell`` flag to
+``fmriprep-docker``::
+
+    $ fmriprep-docker --shell $HOME/fullds005 $HOME/dockerout participant
+
+This is the equivalent of using ``--entrypoint=bash`` and omitting the fmriprep
+arguments in a ``docker`` command::
 
     $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out \
         -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro --entrypoint=bash \
@@ -97,3 +117,7 @@ repository, located in ``~/projects/fmriprep``: ::
 
 To work in this image, replace ``poldracklab/fmriprep:latest`` with
 ``fmriprep`` in any of the above commands.
+This image may be accessed by the `fmriprep-docker`_ wrapper via the
+``-i`` flag, e.g. ::
+
+    $ fmriprep-docker -i fmriprep --shell

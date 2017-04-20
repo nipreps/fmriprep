@@ -8,6 +8,8 @@ Anatomical Reference -processing workflows.
 Originally coded by Craig Moodie. Refactored by the CRN Developers.
 
 """
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 import os.path as op
 
 from nipype.interfaces import ants
@@ -23,7 +25,7 @@ from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
 
 from fmriprep.interfaces import (DerivativesDataSink, IntraModalMerge)
-from fmriprep.interfaces.utils import reorient
+from fmriprep.interfaces.images import reorient
 from fmriprep.utils.misc import fix_multi_T1w_source_name
 
 
@@ -81,206 +83,7 @@ def t1w_preprocessing(settings, name='t1w_preprocessing'):
 
     # 6. FreeSurfer reconstruction
     if settings['freesurfer']:
-        nthreads = settings['nthreads']
-
-        def detect_inputs(t1w_list, t2w_list=[], hires_enabled=True):
-            from nipype.interfaces.base import isdefined
-            from nipype.utils.filemanip import filename_to_list
-            from nipype.interfaces.traits_extension import Undefined
-            import nibabel as nib
-            t1w_list = filename_to_list(t1w_list)
-            t2w_list = filename_to_list(t2w_list) if isdefined(t2w_list) else []
-            t1w_ref = nib.load(t1w_list[0])
-            # Use high resolution preprocessing if voxel size < 1.0mm
-            # Tolerance of 0.05mm requires that rounds down to 0.9mm or lower
-            hires = hires_enabled and max(t1w_ref.header.get_zooms()) < 1 - 0.05
-            t1w_outs = [t1w_list.pop(0)]
-            for t1w in t1w_list:
-                img = nib.load(t1w)
-                if all((img.shape == t1w_ref.shape,
-                        img.header.get_zooms() == t1w_ref.header.get_zooms())):
-                    t1w_outs.append(t1w)
-
-            t2w = Undefined
-            if t2w_list and max(nib.load(t2w_list[0]).header.get_zooms()) < 1.2:
-                t2w = t2w_list[0]
-
-            # https://surfer.nmr.mgh.harvard.edu/fswiki/SubmillimeterRecon
-            mris_inflate = '-n 50' if hires else Undefined
-            return (t1w_outs, t2w, isdefined(t2w), hires, mris_inflate)
-
-        recon_config = pe.Node(
-            niu.Function(
-                function=detect_inputs,
-                input_names=['t1w_list', 't2w_list', 'hires_enabled'],
-                output_names=['t1w', 't2w', 'use_T2', 'hires', 'mris_inflate']),
-            name='ReconConfig',
-            run_without_submitting=True)
-        recon_config.inputs.hires_enabled = settings['hires']
-
-        def bidsinfo(in_file):
-            from fmriprep.interfaces.bids import BIDS_NAME
-            match = BIDS_NAME.search(in_file)
-            params = match.groupdict() if match is not None else {}
-            return tuple(map(params.get, ['subject_id', 'ses_id', 'task_id',
-                                          'acq_id', 'rec_id', 'run_id']))
-
-        bids_info = pe.Node(
-            niu.Function(function=bidsinfo, input_names=['in_file'],
-                         output_names=['subject_id', 'ses_id', 'task_id',
-                                       'acq_id', 'rec_id', 'run_id']),
-            name='BIDSInfo',
-            run_without_submitting=True)
-
-        autorecon1 = pe.Node(
-            freesurfer.ReconAll(
-                directive='autorecon1',
-                flags='-noskullstrip',
-                openmp=nthreads,
-                parallel=True),
-            name='AutoRecon1')
-        autorecon1.interface._can_resume = False
-        autorecon1.interface.num_threads = nthreads
-
-        def inject_skullstripped(subjects_dir, subject_id, skullstripped):
-            import os
-            import nibabel as nib
-            from nilearn.image import resample_to_img, new_img_like
-            from nipype.utils.filemanip import copyfile
-            mridir = os.path.join(subjects_dir, subject_id, 'mri')
-            t1 = os.path.join(mridir, 'T1.mgz')
-            bm_auto = os.path.join(mridir, 'brainmask.auto.mgz')
-            bm = os.path.join(mridir, 'brainmask.mgz')
-
-            if not os.path.exists(bm_auto):
-                img = nib.load(t1)
-                mask = nib.load(skullstripped)
-                bmask = new_img_like(mask, mask.get_data() > 0)
-                resampled_mask = resample_to_img(bmask, img, 'nearest')
-                masked_image = new_img_like(img, img.get_data() * resampled_mask.get_data())
-                masked_image.to_filename(bm_auto)
-
-            if not os.path.exists(bm):
-                copyfile(bm_auto, bm, copy=True, use_hardlink=True)
-
-            return subjects_dir, subject_id
-
-        injector = pe.Node(
-            niu.Function(
-                function=inject_skullstripped,
-                input_names=['subjects_dir', 'subject_id', 'skullstripped'],
-                output_names=['subjects_dir', 'subject_id']),
-            name='InjectSkullstrip')
-
-        reconall = pe.Node(
-            ReconAllRPT(
-                flags='-noskullstrip',
-                openmp=nthreads,
-                parallel=True,
-                out_report='reconall.svg',
-                generate_report=True),
-            name='ReconAll')
-        reconall.interface.num_threads = nthreads
-
-        fs_transform = pe.Node(
-            freesurfer.Tkregister2(fsl_out='freesurfer2subT1.mat',
-                                   reg_header=True),
-            name='FreeSurferTransform')
-
-        recon_report = pe.Node(
-            DerivativesDataSink(base_directory=settings['reportlets_dir'],
-                                suffix='reconall'),
-            name='ReconAll_Report'
-        )
-
-        midthickness = pe.MapNode(
-            freesurfer.MRIsExpand(thickness=True, distance=0.5,
-                                  out_name='midthickness'),
-            iterfield='in_file',
-            name='MidThickness')
-
-        save_midthickness = pe.Node(nio.DataSink(parameterization=False),
-                                    name='SaveMidthickness')
-        surface_list = pe.Node(niu.Merge(4), name='SurfaceList')
-        gifticonv = pe.MapNode(freesurfer.MRIsConvert(out_datatype='gii'),
-                               iterfield='in_file', name='GiftiSurfaces')
-
-        def get_gifti_name(in_file):
-            import os
-            import re
-            in_format = re.compile(r'(?P<LR>[lr])h.(?P<surf>.+)_converted.gii')
-            name = os.path.basename(in_file)
-            info = in_format.match(name).groupdict()
-            info['LR'] = info['LR'].upper()
-            return '{surf}.{LR}.surf'.format(**info)
-
-        name_surfs = pe.MapNode(
-            niu.Function(
-                function=get_gifti_name,
-                input_names=['in_file'],
-                output_names=['normalized']),
-            iterfield='in_file',
-            name='NameSurfs'
-            )
-
-        def normalize_surfs(in_file):
-            """ Re-center GIFTI coordinates to fit align to native T1 space
-
-            For midthickness surfaces, add MidThickness metadata
-
-            Coordinate update based on:
-            https://github.com/Washington-University/workbench/blob/1b79e56/src/Algorithms/AlgorithmSurfaceApplyAffine.cxx#L73-L91
-            and
-            https://github.com/Washington-University/Pipelines/blob/ae69b9a/PostFreeSurfer/scripts/FreeSurfer2CaretConvertAndRegisterNonlinear.sh#L147
-            """
-            import os
-            import numpy as np
-            import nibabel as nib
-            img = nib.load(in_file)
-            pointset = img.get_arrays_from_intent('NIFTI_INTENT_POINTSET')[0]
-            coords = pointset.data
-            c_ras_keys = ('VolGeomC_R', 'VolGeomC_A', 'VolGeomC_S')
-            ras = np.array([float(pointset.metadata[key])
-                            for key in c_ras_keys])
-            # Apply C_RAS translation to coordinates
-            pointset.data = (coords + ras).astype(coords.dtype)
-
-            secondary = nib.gifti.GiftiNVPairs('AnatomicalStructureSecondary',
-                                               'MidThickness')
-            geom_type = nib.gifti.GiftiNVPairs('GeometricType', 'Anatomical')
-            has_ass = has_geo = False
-            for nvpair in pointset.meta.data:
-                # Remove C_RAS translation from metadata to avoid double-dipping in FreeSurfer
-                if nvpair.name in c_ras_keys:
-                    nvpair.value = '0.000000'
-                # Check for missing metadata
-                elif nvpair.name == secondary.name:
-                    has_ass = True
-                elif nvpair.name == geom_type.name:
-                    has_geo = True
-            fname = os.path.basename(in_file)
-            # Update metadata for MidThickness/graymid surfaces
-            if 'midthickness' in fname.lower() or 'graymid' in fname.lower():
-                if not has_ass:
-                    pointset.meta.data.insert(1, secondary)
-                if not has_geo:
-                    pointset.meta.data.insert(2, geom_type)
-            img.to_filename(fname)
-            return os.path.abspath(fname)
-
-        fix_surfs = pe.MapNode(
-            niu.Function(
-                function=normalize_surfs,
-                input_names=['in_file'],
-                output_names=['out_file']),
-            iterfield='in_file',
-            name='FixSurfs')
-
-        ds_surfs = pe.MapNode(
-            DerivativesDataSink(base_directory=settings['output_dir']),
-            iterfield=['in_file', 'suffix'],
-            name='DerivSurfs'
-        )
+        surface_recon = surface_reconstruction(settings=settings)
 
     # Resample the brain mask and the tissue probability maps into mni space
     bmask_mni = pe.Node(
@@ -353,43 +156,14 @@ def t1w_preprocessing(settings, name='t1w_preprocessing'):
 
     if settings['freesurfer']:
         workflow.connect([
-            (inputnode, recon_config, [('t1w', 't1w_list'),
-                                       ('t2w', 't2w_list')]),
-            (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
-            (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
-            (recon_config, autorecon1, [('t1w', 'T1_files'),
-                                        ('t2w', 'T2_file'),
-                                        ('hires', 'hires'),
-                                        # First run only (recon-all saves expert options)
-                                        ('mris_inflate', 'mris_inflate')]),
-            (bids_info, autorecon1, [('subject_id', 'subject_id')]),
-            (autorecon1, injector, [('subjects_dir', 'subjects_dir'),
-                                    ('subject_id', 'subject_id')]),
-            (asw, injector, [('outputnode.out_file', 'skullstripped')]),
-            (injector, reconall, [('subjects_dir', 'subjects_dir'),
-                                  ('subject_id', 'subject_id')]),
-            (recon_config, reconall, [('use_T2', 'use_T2')]),
-            (arw, fs_transform, [('out_file', 'target_image')]),
-            (autorecon1, fs_transform, [('T1', 'moving_image')]),
-            (recon_config, recon_report, [
-                (('t1w', fix_multi_T1w_source_name), 'source_file')]),
-            (reconall, recon_report, [('out_report', 'in_file')]),
-            (reconall, outputnode, [('subject_id', 'subject_id')]),
-            (fs_transform, outputnode, [('fsl_file', 'fs_2_t1_transform')]),
-            (reconall, midthickness, [('smoothwm', 'in_file')]),
-            (reconall, save_midthickness, [('subjects_dir', 'base_directory'),
-                                           ('subject_id', 'container')]),
-            (midthickness, save_midthickness, [('out_file', 'surf.@graymid')]),
-            (reconall, surface_list, [('smoothwm', 'in1'),
-                                      ('pial', 'in2'),
-                                      ('inflated', 'in3')]),
-            (save_midthickness, surface_list, [('out_file', 'in4')]),
-            (surface_list, gifticonv, [('out', 'in_file')]),
-            (gifticonv, name_surfs, [('converted', 'in_file')]),
-            (gifticonv, fix_surfs, [('converted', 'in_file')]),
-            (inputnode, ds_surfs, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-            (name_surfs, ds_surfs, [('normalized', 'suffix')]),
-            (fix_surfs, ds_surfs, [('out_file', 'in_file')]),
+            (inputnode, surface_recon, [('t1w', 'inputnode.t1w'),
+                                        ('t2w', 'inputnode.t2w'),
+                                        ('subjects_dir', 'inputnode.subjects_dir')]),
+            (arw, surface_recon, [('out_file', 'inputnode.reoriented_t1')]),
+            (asw, surface_recon, [('outputnode.out_file', 'inputnode.skullstripped_t1')]),
+            (surface_recon, outputnode, [('outputnode.subjects_dir', 'subjects_dir'),
+                                         ('outputnode.subject_id', 'subject_id'),
+                                         ('outputnode.fs_2_t1_transform', 'fs_2_t1_transform')]),
             ])
 
     # Write corrected file in the designated output dir
@@ -496,5 +270,271 @@ def skullstrip_ants(name='ANTsBrainExtraction', settings=None):
                                       ('N4Corrected0', 'bias_corrected'),
                                       ('out_report', 'out_report')])
     ])
+
+    return workflow
+
+
+def surface_reconstruction(name='SurfaceReconstruction', settings=None):
+    if settings is None:
+        settings = {'debug': False}
+
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=['t1w', 't2w', 'reoriented_t1', 'skullstripped_t1', 'subjects_dir']),
+        name='inputnode')
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['subjects_dir', 'subject_id', 'fs_2_t1_transform']), name='outputnode')
+
+    nthreads = settings['nthreads']
+
+    def detect_inputs(t1w_list, t2w_list=[], hires_enabled=True):
+        from nipype.interfaces.base import isdefined
+        from nipype.utils.filemanip import filename_to_list
+        from nipype.interfaces.traits_extension import Undefined
+        import nibabel as nib
+        t1w_list = filename_to_list(t1w_list)
+        t2w_list = filename_to_list(t2w_list) if isdefined(t2w_list) else []
+        t1w_ref = nib.load(t1w_list[0])
+        # Use high resolution preprocessing if voxel size < 1.0mm
+        # Tolerance of 0.05mm requires that rounds down to 0.9mm or lower
+        hires = hires_enabled and max(t1w_ref.header.get_zooms()) < 1 - 0.05
+        t1w_outs = [t1w_list.pop(0)]
+        for t1w in t1w_list:
+            img = nib.load(t1w)
+            if all((img.shape == t1w_ref.shape,
+                    img.header.get_zooms() == t1w_ref.header.get_zooms())):
+                t1w_outs.append(t1w)
+
+        t2w = Undefined
+        if t2w_list and max(nib.load(t2w_list[0]).header.get_zooms()) < 1.2:
+            t2w = t2w_list[0]
+
+        # https://surfer.nmr.mgh.harvard.edu/fswiki/SubmillimeterRecon
+        mris_inflate = '-n 50' if hires else Undefined
+        return (t1w_outs, t2w, isdefined(t2w), hires, mris_inflate)
+
+    recon_config = pe.Node(
+        niu.Function(
+            function=detect_inputs,
+            input_names=['t1w_list', 't2w_list', 'hires_enabled'],
+            output_names=['t1w', 't2w', 'use_T2', 'hires', 'mris_inflate']),
+        name='ReconConfig',
+        run_without_submitting=True)
+    recon_config.inputs.hires_enabled = settings['hires']
+
+    def bidsinfo(in_file):
+        from fmriprep.interfaces.bids import BIDS_NAME
+        match = BIDS_NAME.search(in_file)
+        params = match.groupdict() if match is not None else {}
+        return tuple(map(params.get, ['subject_id', 'ses_id', 'task_id',
+                                      'acq_id', 'rec_id', 'run_id']))
+
+    bids_info = pe.Node(
+        niu.Function(function=bidsinfo, input_names=['in_file'],
+                     output_names=['subject_id', 'ses_id', 'task_id',
+                                   'acq_id', 'rec_id', 'run_id']),
+        name='BIDSInfo',
+        run_without_submitting=True)
+
+    autorecon1 = pe.Node(
+        freesurfer.ReconAll(
+            directive='autorecon1',
+            flags='-noskullstrip',
+            openmp=nthreads,
+            parallel=True),
+        name='AutoRecon1')
+    autorecon1.interface._can_resume = False
+    autorecon1.interface.num_threads = nthreads
+
+    def inject_skullstripped(subjects_dir, subject_id, skullstripped):
+        import os
+        import nibabel as nib
+        from nilearn.image import resample_to_img, new_img_like
+        from nipype.utils.filemanip import copyfile
+        mridir = os.path.join(subjects_dir, subject_id, 'mri')
+        t1 = os.path.join(mridir, 'T1.mgz')
+        bm_auto = os.path.join(mridir, 'brainmask.auto.mgz')
+        bm = os.path.join(mridir, 'brainmask.mgz')
+
+        if not os.path.exists(bm_auto):
+            img = nib.load(t1)
+            mask = nib.load(skullstripped)
+            bmask = new_img_like(mask, mask.get_data() > 0)
+            resampled_mask = resample_to_img(bmask, img, 'nearest')
+            masked_image = new_img_like(img, img.get_data() * resampled_mask.get_data())
+            masked_image.to_filename(bm_auto)
+
+        if not os.path.exists(bm):
+            copyfile(bm_auto, bm, copy=True, use_hardlink=True)
+
+        return subjects_dir, subject_id
+
+    injector = pe.Node(
+        niu.Function(
+            function=inject_skullstripped,
+            input_names=['subjects_dir', 'subject_id', 'skullstripped'],
+            output_names=['subjects_dir', 'subject_id']),
+        name='InjectSkullstrip')
+
+    reconall = pe.Node(
+        ReconAllRPT(
+            flags='-noskullstrip',
+            openmp=nthreads,
+            parallel=True,
+            out_report='reconall.svg',
+            generate_report=True),
+        name='ReconAll')
+    reconall.interface.num_threads = nthreads
+
+    fs_transform = pe.Node(
+        freesurfer.Tkregister2(fsl_out='freesurfer2subT1.mat',
+                               reg_header=True),
+        name='FreeSurferTransform')
+
+    recon_report = pe.Node(
+        DerivativesDataSink(base_directory=settings['reportlets_dir'],
+                            suffix='reconall'),
+        name='ReconAll_Report'
+    )
+
+    midthickness = pe.MapNode(
+        freesurfer.MRIsExpand(thickness=True, distance=0.5,
+                              out_name='midthickness'),
+        iterfield='in_file',
+        name='MidThickness')
+
+    save_midthickness = pe.Node(nio.DataSink(parameterization=False),
+                                name='SaveMidthickness')
+    surface_list = pe.Node(niu.Merge(4), name='SurfaceList')
+    gifticonv = pe.MapNode(freesurfer.MRIsConvert(out_datatype='gii'),
+                           iterfield='in_file', name='GiftiSurfaces')
+
+    def get_gifti_name(in_file):
+        import os
+        import re
+        in_format = re.compile(r'(?P<LR>[lr])h.(?P<surf>.+)_converted.gii')
+        name = os.path.basename(in_file)
+        info = in_format.match(name).groupdict()
+        info['LR'] = info['LR'].upper()
+        return '{surf}.{LR}.surf'.format(**info)
+
+    name_surfs = pe.MapNode(
+        niu.Function(
+            function=get_gifti_name,
+            input_names=['in_file'],
+            output_names=['normalized']),
+        iterfield='in_file',
+        name='NameSurfs'
+        )
+
+    def normalize_surfs(in_file):
+        """ Re-center GIFTI coordinates to fit align to native T1 space
+
+        For midthickness surfaces, add MidThickness metadata
+
+        Coordinate update based on:
+        https://github.com/Washington-University/workbench/blob/1b79e56/src/Algorithms/AlgorithmSurfaceApplyAffine.cxx#L73-L91
+        and
+        https://github.com/Washington-University/Pipelines/blob/ae69b9a/PostFreeSurfer/scripts/FreeSurfer2CaretConvertAndRegisterNonlinear.sh#L147
+        """
+        import os
+        import numpy as np
+        import nibabel as nib
+        img = nib.load(in_file)
+        pointset = img.get_arrays_from_intent('NIFTI_INTENT_POINTSET')[0]
+        coords = pointset.data
+        c_ras_keys = ('VolGeomC_R', 'VolGeomC_A', 'VolGeomC_S')
+        ras = np.array([float(pointset.metadata[key])
+                        for key in c_ras_keys])
+        # Apply C_RAS translation to coordinates
+        pointset.data = (coords + ras).astype(coords.dtype)
+
+        secondary = nib.gifti.GiftiNVPairs('AnatomicalStructureSecondary',
+                                           'MidThickness')
+        geom_type = nib.gifti.GiftiNVPairs('GeometricType', 'Anatomical')
+        has_ass = has_geo = False
+        for nvpair in pointset.meta.data:
+            # Remove C_RAS translation from metadata to avoid double-dipping in FreeSurfer
+            if nvpair.name in c_ras_keys:
+                nvpair.value = '0.000000'
+            # Check for missing metadata
+            elif nvpair.name == secondary.name:
+                has_ass = True
+            elif nvpair.name == geom_type.name:
+                has_geo = True
+        fname = os.path.basename(in_file)
+        # Update metadata for MidThickness/graymid surfaces
+        if 'midthickness' in fname.lower() or 'graymid' in fname.lower():
+            if not has_ass:
+                pointset.meta.data.insert(1, secondary)
+            if not has_geo:
+                pointset.meta.data.insert(2, geom_type)
+        img.to_filename(fname)
+        return os.path.abspath(fname)
+
+    fix_surfs = pe.MapNode(
+        niu.Function(
+            function=normalize_surfs,
+            input_names=['in_file'],
+            output_names=['out_file']),
+        iterfield='in_file',
+        name='FixSurfs')
+
+    ds_surfs = pe.MapNode(
+        DerivativesDataSink(base_directory=settings['output_dir']),
+        iterfield=['in_file', 'suffix'],
+        name='DerivSurfs'
+    )
+
+    workflow.connect([
+        # Configuration
+        (inputnode, recon_config, [('t1w', 't1w_list'),
+                                   ('t2w', 't2w_list')]),
+        (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
+        # Passing subjects_dir / subject_id enforces serial order
+        (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
+        (bids_info, autorecon1, [('subject_id', 'subject_id')]),
+        (autorecon1, injector, [('subjects_dir', 'subjects_dir'),
+                                ('subject_id', 'subject_id')]),
+        (injector, reconall, [('subjects_dir', 'subjects_dir'),
+                              ('subject_id', 'subject_id')]),
+        (reconall, outputnode, [('subjects_dir', 'subjects_dir'),
+                                ('subject_id', 'subject_id')]),
+        # Reconstruction phases
+        (recon_config, autorecon1, [('t1w', 'T1_files'),
+                                    ('t2w', 'T2_file'),
+                                    ('hires', 'hires'),
+                                    # First run only (recon-all saves expert options)
+                                    ('mris_inflate', 'mris_inflate')]),
+        (inputnode, injector, [('skullstripped_t1', 'skullstripped')]),
+        (recon_config, reconall, [('use_T2', 'use_T2')]),
+        # Display surface contours on structural image
+        (recon_config, recon_report, [
+            (('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        (reconall, recon_report, [('out_report', 'in_file')]),
+        # Construct transform from FreeSurfer conformed image to FMRIPREP
+        # reoriented image
+        (inputnode, fs_transform, [('reoriented_t1', 'target_image')]),
+        (autorecon1, fs_transform, [('T1', 'moving_image')]),
+        (fs_transform, outputnode, [('fsl_file', 'fs_2_t1_transform')]),
+        # Generate midthickness surfaces and save to FreeSurfer derivatives
+        (reconall, midthickness, [('smoothwm', 'in_file')]),
+        (reconall, save_midthickness, [('subjects_dir', 'base_directory'),
+                                       ('subject_id', 'container')]),
+        (midthickness, save_midthickness, [('out_file', 'surf.@graymid')]),
+        # Produce valid GIFTI surface files (dense mesh)
+        (reconall, surface_list, [('smoothwm', 'in1'),
+                                  ('pial', 'in2'),
+                                  ('inflated', 'in3')]),
+        (save_midthickness, surface_list, [('out_file', 'in4')]),
+        (surface_list, gifticonv, [('out', 'in_file')]),
+        (gifticonv, name_surfs, [('converted', 'in_file')]),
+        (gifticonv, fix_surfs, [('converted', 'in_file')]),
+        (inputnode, ds_surfs, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        (name_surfs, ds_surfs, [('normalized', 'suffix')]),
+        (fix_surfs, ds_surfs, [('out_file', 'in_file')]),
+        ])
 
     return workflow

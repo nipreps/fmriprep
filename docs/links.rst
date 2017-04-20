@@ -8,3 +8,4 @@
 .. _`submillimeter reconstruction`: https://surfer.nmr.mgh.harvard.edu/fswiki/SubmillimeterRecon
 .. _GIFTI: https://www.nitrc.org/projects/gifti/
 .. _`Connectome Workbench`: https://www.humanconnectome.org/software/connectome-workbench.html
+.. _`fmriprep-docker`: https://pypi.python.org/pypi/fmriprep-docker

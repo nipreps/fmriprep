@@ -30,8 +30,7 @@ class SubReport(object):
 
     def order_by_run(self):
         run_reps = {}
-        for elem_index in range(len(self.elements) - 1, -1, -1):
-            element = self.elements[elem_index]
+        for element in self.elements:
             for index in range(len(element.files_contents) - 1, -1, -1):
                 filename = element.files_contents[index][0]
                 file_contents = element.files_contents[index][1]
@@ -93,11 +92,7 @@ class Report(object):
         self._load_config(config)
 
     def _load_config(self, config):
-        try:
-            config = json.load(open(config, 'r'))
-        except Exception as e:
-            print(e)
-            return
+        config = json.load(open(config, 'r'))
 
         for e in config['sub_reports']:
             sub_report = SubReport(**e)

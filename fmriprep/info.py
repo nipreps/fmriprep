@@ -8,9 +8,9 @@ from __future__ import unicode_literals
 
 __version__ = '99.99.99'
 __author__ = 'The CRN developers'
-__copyright__ = 'Copyright 2016, Center for Reproducible Neuroscience, Stanford University'
+__copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski', 'Shoshana Berleant',
-               'Russell A. Poldrack']
+               'Christopher J. Markiewicz', 'Russell A. Poldrack']
 __license__ = '3-clause BSD'
 __maintainer__ = 'Ross Blair'
 __email__ = 'crn.poldracklab@gmail.com'
@@ -24,6 +24,13 @@ DOWNLOAD_URL = (
     'https://pypi.python.org/packages/source/{name[0]}/{name}/{name}-{ver}.tar.gz'.format(
         name=__packagename__, ver=__version__))
 
+
+SETUP_REQUIRES = [
+    'setuptools>=18.0',
+    'numpy',
+    'cython',
+]
+
 REQUIRES = [
     'numpy',
     'lockfile',
@@ -32,12 +39,13 @@ REQUIRES = [
     'matplotlib',
     'nilearn',
     'sklearn',
-    'nibabel',
+    'nibabel>=2.1.0',
     'pandas',
     'grabbit',
     'pybids>=0.1.0',
     'nitime',
     'niworkflows',
+    'statsmodels',
     'nipype'
 ]
 
@@ -61,6 +69,6 @@ CLASSIFIERS = [
     'Intended Audience :: Science/Research',
     'Topic :: Scientific/Engineering :: Image Recognition',
     'License :: OSI Approved :: BSD License',
-    'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
 ]

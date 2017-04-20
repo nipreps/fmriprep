@@ -15,7 +15,19 @@ Make sure command-line `Docker is installed <https://docs.docker.com/engine/inst
 
 See `External Dependencies`_ for more information (e.g., specific versions) on what is included in the fmriprep Docker image.
 
-Now, assuming you have data, you can run fmriprep. You will need an active internet connection the first time. ::
+There are two ways to run fmriprep through Docker; the first, recommended way
+is to use the `fmriprep-docker`_ wrapper.
+This requires Python and an internet connection.
+
+To install::
+
+    $ pip install --user --upgrade fmriprep-docker
+
+To run::
+
+    $ fmriprep-docker /path/to/data/dir /path/to/output/dir participant
+
+The second way to run fmriprep is to invoke ``docker`` directly. ::
 
     $ docker run -ti --rm \
         -v filepath/to/data/dir:/data:ro \

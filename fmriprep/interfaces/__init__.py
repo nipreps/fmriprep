@@ -4,5 +4,4 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 from fmriprep.interfaces.bids import ReadSidecarJSON, DerivativesDataSink, \
     BIDSDataGrabber, BIDSFreeSurferDir
-from fmriprep.interfaces.images import ImageDataSink
-from fmriprep.interfaces.utils import FormatHMCParam, IntraModalMerge
+from fmriprep.interfaces.images import IntraModalMerge, CopyHeader

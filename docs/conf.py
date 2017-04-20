@@ -314,3 +314,8 @@ texinfo_documents = [
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 suppress_warnings = ["image.nonlocal_uri"]
+
+os.environ["FREESURFER_HOME"] = "tmp"
+
+with open("/tmp/build-stamp.txt", "w") as fp:
+    fp.write("freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0-2beb96c")

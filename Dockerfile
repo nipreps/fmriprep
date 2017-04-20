@@ -6,7 +6,16 @@ COPY docker/files/neurodebian.gpg /root/.neurodebian.gpg
 
 # Prepare environment
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl bzip2 ca-certificates xvfb && \
+    apt-get install -y --no-install-recommends \
+                    curl \
+                    bzip2 \
+                    ca-certificates \
+                    xvfb \
+                    cython3 \
+                    build-essential \
+                    autoconf \
+                    libtool \
+                    pkg-config && \
     curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
     apt-key add /root/.neurodebian.gpg && \
     (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
@@ -18,8 +27,6 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.0/frees
     --exclude='freesurfer/subjects/fsaverage_sym' \
     --exclude='freesurfer/subjects/fsaverage3' \
     --exclude='freesurfer/subjects/fsaverage4' \
-    --exclude='freesurfer/subjects/fsaverage5' \
-    --exclude='freesurfer/subjects/fsaverage6' \
     --exclude='freesurfer/subjects/cvs_avg35' \
     --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
     --exclude='freesurfer/subjects/bert' \
@@ -49,7 +56,8 @@ ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
 RUN echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IC9vcHQvZnJlZXN1cmZlci9saWNlbnNlLnR4dAo=" | base64 -d | sh
 
 # Installing Neurodebian packages (FSL, AFNI, git)
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
                     fsl-core=5.0.9-1~nd+1+nd16.04+1 \
                     afni=16.2.07~dfsg.1-2~nd16.04+1
 
@@ -98,7 +106,7 @@ RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_6
     rm Miniconda3-4.3.11-Linux-x86_64.sh
 
 ENV PATH=/usr/local/miniconda/bin:$PATH \
-	LANG=C.UTF-8 \
+    LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
@@ -118,7 +126,8 @@ RUN conda install -y mkl=2017.0.1 mkl-service &&  \
 RUN python -c "from matplotlib import font_manager"
 
 # Installing Ubuntu packages and cleaning up
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
                     git=1:2.7.4-0ubuntu1 \
                     graphviz=2.38.0-12ubuntu2 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

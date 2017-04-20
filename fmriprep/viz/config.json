@@ -8,28 +8,40 @@
             {
                 "name": "skullstrip_ants/t1_skull_strip",
                 "file_pattern": "anat/.*skull_strip",
-                "title": "Skull Stripped T1",
+                "title": "Skull stripped T1",
                 "description": "Stripped T1 placed over an image of the unstripped T1"
             },
             {
                 "name": "t1w_preprocessing/t1_seg",
                 "file_pattern": "anat/.*t1_seg",
-                "title": "T1 Segmentation",
+                "title": "T1 segmentation",
                 "description": " "
             },
             {
                 "name": "t1w_preprocessing/t1_2_mni",
                 "file_pattern": "anat/.*t1_2_mni",
-                "title": "T1 to MNI",
+                "title": "T1 to MNI registration",
                 "description": "Corrected anatomical T1 image registered into MNI space"
             },
             {
                 "name": "t1w_preprocessing/reconall",
                 "file_pattern": "anat/.*reconall",
-                "title": "Surface Reconstruction",
+                "title": "Surface reconstruction",
                 "description": "White and pial surfaces overlaid on T1 image"
             }
 
+        ]
+    },
+    {
+        "name": "Fieldmaps",
+        "elements":
+        [
+            {
+                "name": "fmap/magnitude_mask",
+                "file_pattern": "fmap/.*fmap_mask",
+                "title": "Skull stripped magnitude image",
+                "description": "Brain extraction of the magnitude image from the fieldmap"
+            }
         ]
     },
     {
@@ -37,28 +49,40 @@
         "elements":
         [
             {
-                "name": "epi_hmc/bet_hmc",
-                "file_pattern": "func/.*epi_mask",
-                "title" : "Skull Stripped EPI",
-                "description": "Skull stripped EPI"
+                "name": "epi/fmpa_reg",
+                "file_pattern": "func/.*fmap_reg\\.",
+                "title": "Fieldmap to EPI registration",
+                "description": "Results of affine coregistration between the magnitude image of the fieldmap and the reference EPI image"
             },
             {
-                "name": "sbref_preprocess/bet",
-                "file_pattern": "func/.*sbref_bet",
-                "title": "Skull Stripped Sbref",
-                "description": "Unwarped and stripped sbref with a background image of an unwarped sbref"
+                "name": "epi/fmpa_reg",
+                "file_pattern": "func/.*fmap_reg_vsm\\.",
+                "title": "Fieldmap",
+                "description": "Overlaid on the reference EPI image"
+            },
+            {
+                "name": "epi/unwarp",
+                "file_pattern": "func/.*bold_variant-hmcsdc_preproc\\.",
+                "title": "Susceptibility distortion correction",
+                "description": "Results of performing susceptibility distortion correction (SDC) on the EPI"
+            },
+            {
+                "name": "epi_hmc/bet_hmc",
+                "file_pattern": "func/.*epi_mask",
+                "title" : "Skull stripped EPI",
+                "description": "Skull stripped EPI"
             },
             {
                 "name": "epi_mean_t1_registration/flt_bbr",
                 "file_pattern": "func/.*_bold_flt_bbr",
-                "title": "EPI",
-                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space - FAST segmentation used for BBR"
+                "title": "EPI to T1 registration",
+                "description": "EPI was used to generate transformations from EPI space to T1 Space - FAST segmentation used for BBR"
             },
             {
                 "name": "epi_mean_t1_registration/bbr",
                 "file_pattern": "func/.*_bold_bbr",
-                "title": "EPI",
-                "description": "No SBRef was found so the mean EPI was used to generate transformations from EPI space to T1 Space"
+                "title": "EPI to T1 registration",
+                "description": "EPI was used to generate transformations from EPI space to T1 Space"
             },
             {
                 "name": "epi/acompcor",
@@ -71,32 +95,7 @@
                 "file_pattern": "func/.*_tcompcor",
                 "title": "tCompCor high variance map",
                 "description": "Top 5% most variable voxels within heavily eroded brain mask."
-            },
-            {
-                "name": "epi_unwarp/epi_unwarp_bet",
-                "file_pattern": "func/.*epi_unwarp_bet",
-                "title": "Corrected EPI",
-                "description": " "
-            },
-            {
-                "name": "sbref_t1_registration/flt_bbr",
-                "file_pattern": "func/.*sbref.*flt_bbr",
-                "title": "SBRef to T1 registration",
-                "description": "FreeSurfer surfaces not found - FAST segmentation used for BBR"
-            },
-            {
-                "name": "sbref_t1_registration/bbr",
-                "file_pattern": "func/.*sbref.*bbr",
-                "title": "SBRef to T1 registration",
-                "description": " "
-            },
-            {
-                "name": "epi_sbref_registration/epi_sbref",
-                "file_pattern": "func/.*epi_sbref",
-                "title": "EPI to SBRef registration",
-                "description": " "
             }
-
         ]
     }
 ]
