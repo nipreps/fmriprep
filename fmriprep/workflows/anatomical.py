@@ -16,6 +16,7 @@ from nipype.interfaces import ants
 from nipype.interfaces import freesurfer
 from nipype.interfaces import utility as niu
 from nipype.interfaces import io as nio
+from nipype.interfaces.traits_extension import Undefined
 from nipype.pipeline import engine as pe
 
 from niworkflows.interfaces.registration import RobustMNINormalizationRPT
@@ -340,13 +341,8 @@ def init_surface_recon_wf(name='surface_recon_wf', settings=None):
         name='bids_info',
         run_without_submitting=True)
 
-    pre_recon = pe.Node(
-        freesurfer.ReconAll(
-            directive='autorecon1',
-            flags='-nomotioncor -notalairach -nonuintensitycor '
-                  '-nonormalization -noskullstrip',
-        ),
-        name='PreRecon')
+    pre_recon = pe.Node(freesurfer.ReconAll(directive=Undefined),
+                        name='PreRecon')
 
     autorecon1 = pe.Node(
         freesurfer.ReconAll(
