@@ -29,4 +29,4 @@ dependencies:
     - nitime
     - nilearn
     - git+https://github.com/nipy/nipype.git@dc68922bf9ac1dd910c3ca9b5b8c0dbb093f4691#egg=nipype
-    - git+https://github.com/poldracklab/niworkflows.git@c855e3fa35beba401de86278e5560dbdbcf00309#egg=niworkflows
+    - git+https://github.com/poldracklab/niworkflows.git@76952e5f2b2822200683981e92df5f1128ad2c69#egg=niworkflows
