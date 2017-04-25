@@ -16,6 +16,7 @@ from nipype.interfaces import ants
 from nipype.interfaces import freesurfer as fs
 from nipype.interfaces import utility as niu
 from nipype.interfaces import io as nio
+from nipype.interfaces.traits_extension import Undefined
 from nipype.pipeline import engine as pe
 
 from niworkflows.interfaces.registration import RobustMNINormalizationRPT
@@ -338,6 +339,9 @@ def init_surface_recon_wf(nthreads, hires, reportlets_dir, output_dir,
         name='bids_info',
         run_without_submitting=True)
 
+    pre_recon = pe.Node(freesurfer.ReconAll(directive=Undefined),
+                        name='PreRecon')
+
     autorecon1 = pe.Node(
         fs.ReconAll(
             directive='autorecon1',
@@ -486,8 +490,10 @@ def init_surface_recon_wf(nthreads, hires, reportlets_dir, output_dir,
                                    ('t2w', 't2w_list')]),
         (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
         # Passing subjects_dir / subject_id enforces serial order
-        (inputnode, autorecon1, [('subjects_dir', 'subjects_dir')]),
-        (bids_info, autorecon1, [('subject_id', 'subject_id')]),
+        (inputnode, pre_recon, [('subjects_dir', 'subjects_dir')]),
+        (bids_info, pre_recon, [('subject_id', 'subject_id')]),
+        (pre_recon, autorecon1, [('subjects_dir', 'subjects_dir'),
+                                 ('subject_id', 'subject_id')]),
         (autorecon1, injector, [('subjects_dir', 'subjects_dir'),
                                 ('subject_id', 'subject_id')]),
         (injector, reconall, [('subjects_dir', 'subjects_dir'),
@@ -495,11 +501,11 @@ def init_surface_recon_wf(nthreads, hires, reportlets_dir, output_dir,
         (reconall, outputnode, [('subjects_dir', 'subjects_dir'),
                                 ('subject_id', 'subject_id')]),
         # Reconstruction phases
-        (recon_config, autorecon1, [('t1w', 'T1_files'),
-                                    ('t2w', 'T2_file'),
-                                    ('hires', 'hires'),
-                                    # First run only (recon-all saves expert options)
-                                    ('mris_inflate', 'mris_inflate')]),
+        (recon_config, pre_recon, [('t1w', 'T1_files'),
+                                   ('t2w', 'T2_file'),
+                                   # First run only (recon-all saves expert options)
+                                   ('mris_inflate', 'mris_inflate')]),
+        (recon_config, autorecon1, [('hires', 'hires')]),
         (inputnode, injector, [('skullstripped_t1', 'skullstripped')]),
         (recon_config, reconall, [('use_T2', 'use_T2')]),
         # Display surface contours on structural image
