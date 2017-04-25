@@ -123,7 +123,7 @@ class IntraModalMerge(BaseInterface):
             magmrg = fsl.Merge(dimension='t', in_files=self.inputs.in_files)
             in_files = magmrg.run().outputs.merged_file
         mcflirt = fsl.MCFLIRT(cost='normcorr', save_mats=True, save_plots=True,
-                              ref_vol=0, in_file=in_files)
+                              ref_vol=0, dof=9, in_file=in_files)
         mcres = mcflirt.run()
         self._results['out_mats'] = mcres.outputs.mat_file
         self._results['out_movpar'] = mcres.outputs.par_file
