@@ -41,34 +41,29 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     import scipy.ndimage as nd
     from nilearn.image import resample_to_img
 
-    probability_map_nii = resample_to_img(in_file, epi_mask)
-    probability_map_data = probability_map_nii.get_data()
-
-    # thresholding
-    probability_map_data[probability_map_data < 0.95] = 0
-    probability_map_data[probability_map_data != 0] = 1
+    probability_map = resample_to_img(in_file, epi_mask)
+    max_zoom = max(probability_map.header.get_zooms())
 
     epi_mask_nii = nb.load(epi_mask)
     epi_mask_data = epi_mask_nii.get_data()
     if epi_mask_erosion_mm:
         epi_mask_data = nd.binary_erosion(
-            epi_mask_data,
-            iterations=int(epi_mask_erosion_mm /
-                           max(probability_map_nii.header.get_zooms()))).astype(int)
-        eroded_mask_file = os.path.abspath("erodd_mask.nii.gz")
-        nb.Nifti1Image(epi_mask_data, epi_mask_nii.affine,
-                       epi_mask_nii.header).to_filename(eroded_mask_file)
+            epi_mask_data, iterations=(epi_mask_erosion_mm // max_zoom)).astype('u1')
+        eroded_mask_file = os.path.abspath("eroded_mask.nii.gz")
+        img = nb.Nifti1Image(epi_mask_data, epi_mask_nii.affine, epi_mask_nii.header)
+        img.set_data_dtype('u1')
+        img.to_filename(eroded_mask_file)
     else:
         eroded_mask_file = epi_mask
-    probability_map_data[epi_mask_data != 1] = 0
+
+    probability_mask = epi_mask_data * (probability_map.get_data() >= 0.95)
 
     # shrinking
     if erosion_mm:
-        iter_n = int(erosion_mm/max(probability_map_nii.header.get_zooms()))
-        probability_map_data = nd.binary_erosion(probability_map_data,
-                                                 iterations=iter_n).astype(int)
+        probability_mask = nd.binary_erosion(probability_mask,
+                                             iterations=erosion_mm // max_zoom).astype('u1')
 
-    new_nii = nb.Nifti1Image(probability_map_data, probability_map_nii.affine,
-                             probability_map_nii.header)
+    new_nii = nb.Nifti1Image(probability_mask, probability_map.affine, probability_map.header)
+    new_nii.set_data_dtype('u1')
     new_nii.to_filename("roi.nii.gz")
     return os.path.abspath("roi.nii.gz"), eroded_mask_file
