@@ -153,7 +153,10 @@ class Report(object):
             trim_blocks=True, lstrip_blocks=True
         )
         report_tpl = env.get_template('viz/report.tpl')
-        report_render = report_tpl.render(sub_reports=self.sub_reports, errors=self.errors)
+        # Ignore subreports with no children
+        sub_reports = [sub_report for sub_report in self.sub_reports
+                       if len(sub_report.elements) > 0]
+        report_render = report_tpl.render(sub_reports=sub_reports, errors=self.errors)
         with open(os.path.join(self.out_dir, "fmriprep", self.out_filename), 'w') as fp:
             fp.write(report_render)
         return len(self.errors)
