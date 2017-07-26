@@ -34,6 +34,7 @@ from fmriprep.workflows.fieldmap.unwarp import init_pepolar_unwarp_wf
 from fmriprep.workflows.util import (
     init_enhance_and_skullstrip_epi_wf, init_skullstrip_epi_wf,
     init_bbreg_wf, init_fsl_bbr_wf)
+from fmriprep.due import due, Doi
 
 LOGGER = logging.getLogger('workflow')
 
@@ -747,6 +748,11 @@ def init_epi_mni_trans_wf(output_dir, template, bold_file_size_gb,
     return workflow
 
 
+@due.dcite(
+    Doi('10.1371/journal.pone.0152472'),
+    description="Susceptibility distortion correction warp estimation",
+    tags=['implementation']
+)
 def init_nonlinear_sdc_wf(bold_file, layout, freesurfer, bold2t1w_dof,
                           template, omp_nthreads,
                           atlas_threshold=3, name='nonlinear_sdc_wf'):

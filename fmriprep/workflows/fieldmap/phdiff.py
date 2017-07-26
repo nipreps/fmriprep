@@ -27,6 +27,7 @@ from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
 from fmriprep.interfaces.bids import DerivativesDataSink
+from fmriprep.due import due, Doi
 
 
 def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
@@ -131,6 +132,11 @@ def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
 # Helper functions
 # ------------------------------------------------------
 
+@due.dcite(
+    Doi('10.1006/nimg.2001.1054'),
+    description="Conversion of the input phase-difference map into a fieldmap in Hz",
+    tags=['edu']
+)
 def phdiff2fmap(in_file, delta_te, out_file=None):
     r"""
     Converts the input phase-difference map into a fieldmap in Hz,

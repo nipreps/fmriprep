@@ -23,6 +23,7 @@ from .info import (
     __description__,
     __longdesc__
 )
+from .due import due, Url
 
 import warnings
 
@@ -46,3 +47,17 @@ def _new_version():
         iflogger.warn('afni_vcheck executable not found')
     return v
 Info.version = staticmethod(_new_version)
+
+due.cite(
+    # Chicken/egg problem with Zenodo here regarding DOI.  Might need
+    # custom Zenodo?  TODO: add DOI for a Zenodo entry when available
+    # Doi("1.2.3/x.y.z"),
+    Url('http://fmriprep.readthedocs.io'),
+    description="A Robust Preprocessing Pipeline for fMRI Data",
+    version=__version__,
+    # Most likely that eventually you might not need to explicitly demand
+    # citing the module merely on input, but since it is unlikely to be imported
+    # unless used, forcing citation "always"
+    cite_module=True,
+    path="fmriprep"
+)
