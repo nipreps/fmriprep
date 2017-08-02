@@ -46,8 +46,16 @@ class StructuralReference(fs.RobustTemplate):
         if len(img.shape) > 3 and img.shape[3] > 1:
             return cmd
 
+        in_file = self.inputs.in_files[0]
         out_file = self._list_outputs()['out_file']
-        copyfile(self.inputs.in_files[0], out_file)
+        copyfile(in_file, out_file)
+
+        if isdefined(self.inputs.transform_outputs):
+            transform_outputs = self._list_outputs()['transform_outputs']
+            lta = LTAConvert(in_lta='identity.nofile', source=in_file,
+                             target=out_file, out_lta=transform_outputs[0])
+            lta.run()
+
         return "echo Only one time point!"
 
     def _format_arg(self, name, spec, value):
