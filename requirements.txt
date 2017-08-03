@@ -1,1 +1,1 @@
-git+https://github.com/danlurie/niworkflows.git@6cdfd1fa953172226fb4a1288065e33e6afa9b9d#egg=niworkflows-0.1.6-dev
+git+https://github.com/danlurie/niworkflows.git@46881bd62ff32fd3b4333ed408ad6479a30795f9#egg=niworkflows-0.1.6-dev
