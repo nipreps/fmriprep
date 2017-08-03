@@ -72,18 +72,13 @@ class BIDSDataGrabber(SimpleInterface):
         if not bids_dict['t1w']:
             raise FileNotFoundError('No T1w images found for subject sub-{}'.format(
                 self.inputs.subject_id))
-
-        self._results['roi'] = bids_dict['roi']
-        if not bids_dict['roi']:
-            raise FileNotFoundError('No lesion mask images found for subject sub-{}'.format(
-                self.inputs.subject_id))
     
         self._results['func'] = bids_dict['func']
         if not bids_dict['func']:
             raise FileNotFoundError('No functional images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 
-        for imtype in ['t2w', 'fmap', 'sbref']:
+        for imtype in ['t2w', 'fmap', 'sbref', 'roi']:
             self._results[imtype] = bids_dict[imtype]
             if not bids_dict[imtype]:
                 LOGGER.warn('No \'{}\' images found for sub-{}'.format(
