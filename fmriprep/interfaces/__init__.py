@@ -7,7 +7,7 @@ from .bids import (
 )
 from .images import IntraModalMerge, InvertT1w, ValidateImage, ConformSeries
 from .freesurfer import (
-    StructuralReference, MakeMidthickness, FSInjectBrainExtracted, FSDetectInputs
+    StructuralReference, MakeMidthickness, FSInjectBrainExtracted, FSDetectInputs, LTAConvert
 )
 from .surf import NormalizeSurf, GiftiNameSource, GiftiSetAnatomicalStructure
 from .reports import AnatomicalSummary

@@ -146,7 +146,8 @@ class ConformSeriesInputSpec(BaseInterfaceInputSpec):
 
 
 class ConformSeriesOutputSpec(TraitedSpec):
-    t1w_list = OutputMultiPath(exists=True, desc='conformed T1w images')
+    t1w_list = OutputMultiPath(File(exists=True), desc='conformed T1w images')
+    transforms = OutputMultiPath(File(exists=True), desc='conformation transforms')
     out_report = File(exists=True, desc='conformation report')
 
 
@@ -220,9 +221,17 @@ class ConformSeries(SimpleInterface):
         target_span = target_shape * target_zooms
 
         out_names = []
+        transforms = []
         for img, orig, fname in zip(reoriented, valid_imgs, valid_fnames):
             zooms = np.array(img.header.get_zooms()[:3])
             shape = np.array(img.shape)
+
+            # Reconstruct transform from orig to img
+            ornt_xfm = nb.orientations.inv_ornt_aff(
+                nb.io_orientation(orig.affine), orig.shape)
+            # Identity unless proven otherwise
+            target_affine = img.affine.copy()
+            conform_xfm = np.eye(4)
 
             xyz_unit = img.header.get_xyzt_units()[0]
             if xyz_unit == 'unknown':
@@ -236,7 +245,6 @@ class ConformSeries(SimpleInterface):
             rescale = not np.allclose(zooms, target_zooms, atol=atol)
             resize = not np.all(shape == target_shape)
             if rescale or resize:
-                target_affine = np.eye(4, dtype=img.affine.dtype)
                 if rescale:
                     scale_factor = target_zooms / zooms
                     target_affine[:3, :3] = img.affine[:3, :3].dot(np.diag(scale_factor))
@@ -254,9 +262,11 @@ class ConformSeries(SimpleInterface):
                     target_affine[:3, 3] = img.affine[:3, 3]
 
                 data = nli.resample_img(img, target_affine, target_shape).get_data()
+                conform_xfm = np.linalg.inv(img.affine).dot(target_affine)
                 img = img.__class__(data, target_affine, img.header)
 
             out_name = fname_presuffix(fname, suffix='_ras', newpath=runtime.cwd)
+            mat_name = fname_presuffix(fname, suffix='.mat', newpath=runtime.cwd, use_ext=False)
 
             # Image may be reoriented, rescaled, and/or resized
             if img is not orig:
@@ -264,9 +274,16 @@ class ConformSeries(SimpleInterface):
             else:
                 copyfile(fname, out_name, copy=True, use_hardlink=True)
 
+            transform = ornt_xfm.dot(conform_xfm)
+            assert np.allclose(orig.affine.dot(transform), target_affine)
+
+            np.savetxt(mat_name, transform, fmt='%.08f')
+
             out_names.append(out_name)
+            transforms.append(mat_name)
 
         self._results['t1w_list'] = out_names
+        self._results['transforms'] = transforms
 
         # Create report
         segment = self._generate_segment(dropped_images, target_shape, target_zooms)

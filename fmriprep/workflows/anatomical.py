@@ -25,7 +25,7 @@ from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
 
 from ..interfaces import (
-    DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
+    DerivativesDataSink, StructuralReference, LTAConvert, MakeMidthickness, FSInjectBrainExtracted,
     FSDetectInputs, BIDSInfo, NormalizeSurf, GiftiNameSource, ConformSeries, AnatomicalSummary
 )
 from ..utils.misc import fix_multi_T1w_source_name, add_suffix
@@ -65,8 +65,11 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
                             initial_timepoint=1,      # For deterministic behavior
                             intensity_scaling=True,   # 7-DOF (rigid + intensity)
                             subsample_threshold=200,
+                            transform_outputs=True,
                             ),
         name='t1_merge')
+
+    convert_xfms = pe.MapNode(LTAConvert(out_fsl=True), name='convert_xfms', iterfield=['in_lta'])
 
     # 2. T1 Bias Field Correction
     # Bias field correction is handled in skull strip workflows.
@@ -133,6 +136,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
             (('t1w_list', len_above_thresh, 2, longitudinal), 'no_iteration'),
             (('t1w_list', add_suffix, '_template'), 'out_file')]),
         (t1_merge, skullstrip_wf, [('out_file', 'inputnode.in_file')]),
+        (t1_merge, convert_xfms, [('transform_outputs', 'in_lta')]),
         (skullstrip_wf, t1_seg, [('outputnode.out_file', 'in_files')]),
         (skullstrip_wf, outputnode, [('outputnode.bias_corrected', 't1_preproc'),
                                      ('outputnode.out_file', 't1_brain'),
