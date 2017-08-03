@@ -7,6 +7,18 @@
 # @Date:   2016-06-03 09:35:13
 # @Last Modified by:   oesteban
 # @Last Modified time: 2017-02-13 11:44:23
+"""
+Interfaces for handling BIDS-like neuroimaging structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fetch some example data:
+
+    >>> import os
+    >>> from niworkflows import data
+    >>> data_root = data.get_bids_examples(variant='BIDS-examples-1-enh-ds054')
+    >>> os.chdir(data_root)
+
+"""
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import os
@@ -15,18 +27,18 @@ import re
 import simplejson as json
 from shutil import copy, copytree, rmtree
 
-from nipype import logging
-from nipype.interfaces.base import (
-    traits, isdefined, TraitedSpec, BaseInterface, BaseInterfaceInputSpec,
+from niworkflows.nipype import logging
+from niworkflows.nipype.interfaces.base import (
+    traits, isdefined, TraitedSpec, BaseInterfaceInputSpec,
     File, Directory, InputMultiPath, OutputMultiPath, Str
 )
 from builtins import str, bytes
 
-from fmriprep.utils.misc import make_folder
+from niworkflows.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
 BIDS_NAME = re.compile(
-    '^(.*\/)?(?P<subject_id>sub-[a-zA-Z0-9]+)(_(?P<ses_id>ses-[a-zA-Z0-9]+))?'
+    '^(.*\/)?(?P<subject_id>sub-[a-zA-Z0-9]+)(_(?P<session_id>ses-[a-zA-Z0-9]+))?'
     '(_(?P<task_id>task-[a-zA-Z0-9]+))?(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
     '(_(?P<rec_id>rec-[a-zA-Z0-9]+))?(_(?P<run_id>run-[a-zA-Z0-9]+))?')
 
@@ -35,13 +47,29 @@ class FileNotFoundError(IOError):
     pass
 
 
-class SimpleInterface(BaseInterface):
-    def __init__(self, **inputs):
-        super(SimpleInterface, self).__init__(**inputs)
-        self._results = {}
+class BIDSInfoInputSpec(BaseInterfaceInputSpec):
+    in_file = File(mandatory=True, desc='input file, part of a BIDS tree')
 
-    def _list_outputs(self):
-        return self._results
+
+class BIDSInfoOutputSpec(TraitedSpec):
+    subject_id = traits.Str()
+    session_id = traits.Str()
+    task_id = traits.Str()
+    acq_id = traits.Str()
+    rec_id = traits.Str()
+    run_id = traits.Str()
+
+
+class BIDSInfo(SimpleInterface):
+    input_spec = BIDSInfoInputSpec
+    output_spec = BIDSInfoOutputSpec
+
+    def _run_interface(self, runtime):
+        match = BIDS_NAME.search(self.inputs.in_file)
+        params = match.groupdict() if match is not None else {}
+        self._results = {key: val for key, val in list(params.items())
+                         if val is not None}
+        return runtime
 
 
 class BIDSDataGrabberInputSpec(BaseInterfaceInputSpec):
@@ -52,7 +80,7 @@ class BIDSDataGrabberInputSpec(BaseInterfaceInputSpec):
 class BIDSDataGrabberOutputSpec(TraitedSpec):
     out_dict = traits.Dict(desc='output data structure')
     fmap = OutputMultiPath(desc='output fieldmaps')
-    func = OutputMultiPath(desc='output functional images')
+    bold = OutputMultiPath(desc='output functional images')
     sbref = OutputMultiPath(desc='output sbrefs')
     t1w = OutputMultiPath(desc='output T1w images')
     roi = OutputMultiPath(desc='output ROI images')
@@ -62,6 +90,13 @@ class BIDSDataGrabberOutputSpec(TraitedSpec):
 class BIDSDataGrabber(SimpleInterface):
     input_spec = BIDSDataGrabberInputSpec
     output_spec = BIDSDataGrabberOutputSpec
+    _require_funcs = True
+
+    def __init__(self, *args, **kwargs):
+        anat_only = kwargs.pop('anat_only')
+        super(BIDSDataGrabber, self).__init__(*args, **kwargs)
+        if anat_only is not None:
+            self._require_funcs = not anat_only
 
     def _run_interface(self, runtime):
         bids_dict = self.inputs.subject_data
@@ -72,13 +107,13 @@ class BIDSDataGrabber(SimpleInterface):
         if not bids_dict['t1w']:
             raise FileNotFoundError('No T1w images found for subject sub-{}'.format(
                 self.inputs.subject_id))
-    
-        self._results['func'] = bids_dict['func']
-        if not bids_dict['func']:
+
+        self._results['bold'] = bids_dict['bold']
+        if self._require_funcs and not bids_dict['bold']:
             raise FileNotFoundError('No functional images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 
-        for imtype in ['t2w', 'fmap', 'sbref', 'roi']:
+        for imtype in ['bold', 't2w', 'fmap', 'sbref', 'roi']:
             self._results[imtype] = bids_dict[imtype]
             if not bids_dict[imtype]:
                 LOGGER.warn('No \'{}\' images found for sub-{}'.format(
@@ -96,10 +131,30 @@ class DerivativesDataSinkInputSpec(BaseInterfaceInputSpec):
     suffix = traits.Str('', mandatory=True, desc='suffix appended to source_file')
     extra_values = traits.List(traits.Str)
 
+
 class DerivativesDataSinkOutputSpec(TraitedSpec):
     out_file = OutputMultiPath(File(exists=True, desc='written file path'))
 
+
 class DerivativesDataSink(SimpleInterface):
+    """
+    Saves the `in_file` into a BIDS-Derivatives folder provided
+    by `base_directory`, given the input reference `source_file`.
+
+    >>> import tempfile
+    >>> from fmriprep.utils.bids import collect_data
+    >>> tmpdir = tempfile.mkdtemp()
+    >>> tmpfile = os.path.join(tmpdir, 'a_temp_file.nii.gz')
+    >>> open(tmpfile, 'w').close()  # "touch" the file
+    >>> dsink = DerivativesDataSink(base_directory=tmpdir)
+    >>> dsink.inputs.in_file = tmpfile
+    >>> dsink.inputs.source_file = collect_data('ds114', '01')['t1w'][0]
+    >>> dsink.inputs.suffix = 'target-mni'
+    >>> res = dsink.run()
+    >>> res.outputs.out_file  # doctest: +ELLIPSIS
+    '.../fmriprep/sub-01/ses-retest/anat/sub-01_ses-retest_T1w_target-mni.nii.gz'
+
+    """
     input_spec = DerivativesDataSinkInputSpec
     output_spec = DerivativesDataSinkOutputSpec
     out_path_base = "fmriprep"
@@ -132,13 +187,13 @@ class DerivativesDataSink(SimpleInterface):
             base_directory = op.abspath(self.inputs.base_directory)
 
         out_path = '{}/{subject_id}'.format(self.out_path_base, **m.groupdict())
-        if m.groupdict().get('ses_id') is not None:
-            out_path += '/{ses_id}'.format(**m.groupdict())
+        if m.groupdict().get('session_id') is not None:
+            out_path += '/{session_id}'.format(**m.groupdict())
         out_path += '/{}'.format(mod)
 
         out_path = op.join(base_directory, out_path)
 
-        make_folder(out_path)
+        os.makedirs(out_path, exist_ok=True)
 
         base_fname = op.join(out_path, fname)
 
@@ -164,6 +219,7 @@ class ReadSidecarJSONInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='the input nifti file')
     fields = traits.List(traits.Str, desc='get only certain fields')
 
+
 class ReadSidecarJSONOutputSpec(TraitedSpec):
     subject_id = traits.Str()
     session_id = traits.Str()
@@ -172,6 +228,7 @@ class ReadSidecarJSONOutputSpec(TraitedSpec):
     rec_id = traits.Str()
     run_id = traits.Str()
     out_dict = traits.Dict()
+
 
 class ReadSidecarJSON(SimpleInterface):
     """
@@ -221,7 +278,7 @@ class BIDSFreeSurferDirOutputSpec(TraitedSpec):
 
 
 class BIDSFreeSurferDir(SimpleInterface):
-    """ Create a FreeSurfer subjects directory in a BIDS derivatives directory
+    """Create a FreeSurfer subjects directory in a BIDS derivatives directory
     and copy fsaverage from the local FreeSurfer distribution.
 
     Output subjects_dir = ``{derivatives}/{subjects_dir}``, and may be passed to
@@ -233,10 +290,15 @@ class BIDSFreeSurferDir(SimpleInterface):
     def _run_interface(self, runtime):
         subjects_dir = os.path.join(self.inputs.derivatives,
                                     self.inputs.subjects_dir)
-        make_folder(subjects_dir)
+        os.makedirs(subjects_dir, exist_ok=True)
         self._results['subjects_dir'] = subjects_dir
 
-        for space in self.inputs.spaces:
+        spaces = list(self.inputs.spaces)
+        # Always copy fsaverage, for proper recon-all functionality
+        if 'fsaverage' not in spaces:
+            spaces.append('fsaverage')
+
+        for space in spaces:
             # Skip non-freesurfer spaces and fsnative
             if not space.startswith('fsaverage'):
                 continue
@@ -252,7 +314,7 @@ class BIDSFreeSurferDir(SimpleInterface):
 
 
 def get_metadata_for_nifti(in_file):
-    """Fetchs metadata for a given nifi file"""
+    """Fetch metadata for a given nifti file"""
     in_file = op.abspath(in_file)
 
     fname, ext = op.splitext(in_file)
@@ -306,6 +368,7 @@ def get_metadata_for_nifti(in_file):
                 merged_param_dict.update(param_dict)
 
     return merged_param_dict
+
 
 def _splitext(fname):
     fname, ext = op.splitext(op.basename(fname))

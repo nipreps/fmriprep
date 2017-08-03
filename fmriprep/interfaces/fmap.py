@@ -8,19 +8,17 @@ Interfaces to deal with the various types of fieldmap sources
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import os.path as op
-from shutil import copy
 from builtins import range
 import numpy as np
 import nibabel as nb
-from nipype import logging
-from nipype.interfaces.base import (BaseInterface, BaseInterfaceInputSpec, TraitedSpec,
-                                    File, isdefined, traits, InputMultiPath, Str)
-from nipype.interfaces import fsl
-from niworkflows.interfaces.registration import FUGUERPT
+from niworkflows.nipype import logging
+from niworkflows.nipype.interfaces.base import (
+    BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits)
+from niworkflows.interfaces.base import SimpleInterface
 from fmriprep.utils.misc import genfname
 
 LOGGER = logging.getLogger('interface')
+
 
 class FieldEnhanceInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='input fieldmap')
@@ -39,20 +37,13 @@ class FieldEnhanceOutputSpec(TraitedSpec):
     out_unwrapped = File(desc='unwrapped fieldmap')
 
 
-class FieldEnhance(BaseInterface):
+class FieldEnhance(SimpleInterface):
     """
     The FieldEnhance interface wraps a workflow to massage the input fieldmap
     and return it masked, despiked, etc.
     """
     input_spec = FieldEnhanceInputSpec
     output_spec = FieldEnhanceOutputSpec
-
-    def __init__(self, **inputs):
-        self._results = {}
-        super(FieldEnhance, self).__init__(**inputs)
-
-    def _list_outputs(self):
-        return self._results
 
     def _run_interface(self, runtime):
         from scipy import ndimage as sim
@@ -74,7 +65,8 @@ class FieldEnhance(BaseInterface):
                 struc = sim.iterate_structure(sim.generate_binary_structure(3, 2), 1)
                 mask = sim.binary_erosion(
                     mask, struc,
-                    iterations=self.inputs.mask_erode).astype(np.uint8)  # pylint: disable=no-member
+                    iterations=self.inputs.mask_erode
+                    ).astype(np.uint8)  # pylint: disable=no-member
 
         self._results['out_file'] = genfname(self.inputs.in_file, suffix='enh')
         datanii = nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header)
@@ -118,7 +110,6 @@ class FieldEnhance(BaseInterface):
                 diffmapnii = nb.Nifti1Image(
                     diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
                     datanii.affine, datanii.header)
-
 
                 bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
                                                njobs=self.inputs.njobs)
@@ -170,7 +161,7 @@ def _despike2d(data, thres, neigh=None):
 
 def _unwrap(fmap_data, mag_file, mask=None):
     from math import pi
-    from nipype.interfaces.fsl import PRELUDE
+    from niworkflows.nipype.interfaces.fsl import PRELUDE
     magnii = nb.load(mag_file)
 
     if mask is None:

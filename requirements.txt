@@ -1,2 +1,1 @@
-git+https://github.com/nipy/nipype.git@c15df990c1e0849aa789bc15aae286b0a6c16b6c#egg=nipype
-git+https://github.com/poldracklab/niworkflows.git@9fa4e417b4c355d7695e87cf036a9a6a43054c06#egg=niworkflows
+git+https://github.com/poldracklab/niworkflows.git@153c1bc66ca274d8e063af4e4d75d0f686423ffe#egg=niworkflows-0.1.6-dev

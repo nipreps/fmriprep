@@ -5,10 +5,11 @@ import logging
 from networkx.exception import NetworkXUnfeasible
 from traits.trait_base import _Undefined as trait_undefined
 
-from nipype.pipeline import engine
-from nipype.interfaces import utility
+from niworkflows.nipype.pipeline import engine
+from niworkflows.nipype.interfaces import utility
 
 logging.disable(logging.INFO)
+
 
 class TestWorkflow(unittest.TestCase):
     ''' Subclass for test within the workflow module.
@@ -75,10 +76,12 @@ class TestWorkflow(unittest.TestCase):
             workflow.disconnect([(from_node, to_node, fields)])
 
     def assert_inputs_set(self, workflow, additional_inputs={}):
-        ''' Check that all mandatory inputs of nodes in the workflow (at the first level) are already
-        set. Additionally, check that inputs in additional_inputs are set. An input is "set" if it is
+        ''' Check that all mandatory inputs of nodes in the workflow (at the first level) are
+        already set. Additionally, check that inputs in additional_inputs are set. An input is
+        "set" if it is
             a) defined explicitly (e.g. in the Interface declaration)
-            OR b) connected to another node's output (e.g. using the workflow.connect method)
+            OR
+            b) connected to another node's output (e.g. using the workflow.connect method)
         additional_inputs is a dict:
             {'node_name': ['mandatory', 'input', 'fields']}'''
         dummy_node = engine.Node(utility.IdentityInterface(fields=['dummy']), name='DummyNode')
@@ -90,18 +93,19 @@ class TestWorkflow(unittest.TestCase):
             for field in set(mandatory_inputs + other_inputs):
                 if field_is_defined(node, field):
                     pass
-                else: # not explicitly defined
+                else:  # not explicitly defined
                     # maybe it is connected to an output
                     with self.assertRaises(Exception):
                         # throws an error if the input is already connected
                         workflow.connect([(dummy_node, node, [('dummy', field)])])
+
 
 def field_is_defined(node, field_name):
     ''' returns true if field is a defined trait, false if not '''
 
     # getting the input object is a headache
     name_chain = field_name.split('.')
-    input_ = node.inputs # nipype "Bunch" obj
+    input_ = node.inputs  # nipype "Bunch" obj
     for name in name_chain:
         # in the last iteration, input_ magically becomes an input object rather than a "Bunch"
         input_ = input_.get()[name]

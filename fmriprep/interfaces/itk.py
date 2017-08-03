@@ -11,10 +11,12 @@ ITK files handling
 from __future__ import print_function, division, absolute_import, unicode_literals
 import numpy as np
 import nibabel as nb
-from nipype.interfaces.base import (
-    traits, TraitedSpec, BaseInterface, BaseInterfaceInputSpec, File)
+from niworkflows.nipype.interfaces.base import (
+    traits, TraitedSpec, BaseInterfaceInputSpec, File)
+from niworkflows.interfaces.base import SimpleInterface
 
 from fmriprep.utils.misc import genfname
+
 
 class FUGUEvsm2ANTSwarpInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True,
@@ -27,7 +29,7 @@ class FUGUEvsm2ANTSwarpOutputSpec(TraitedSpec):
     out_file = File(desc='the output warp field')
 
 
-class FUGUEvsm2ANTSwarp(BaseInterface):
+class FUGUEvsm2ANTSwarp(SimpleInterface):
 
     """
     Convert a voxel-shift-map to ants warp
@@ -35,13 +37,6 @@ class FUGUEvsm2ANTSwarp(BaseInterface):
     """
     input_spec = FUGUEvsm2ANTSwarpInputSpec
     output_spec = FUGUEvsm2ANTSwarpOutputSpec
-
-    def __init__(self, **inputs):
-        self._results = {}
-        super(FUGUEvsm2ANTSwarp, self).__init__(**inputs)
-
-    def _list_outputs(self):
-        return self._results
 
     def _run_interface(self, runtime):
 

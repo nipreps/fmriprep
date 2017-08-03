@@ -1,3 +1,110 @@
+Next release
+============
+
+
+0.6.0 (31st of July 2017)
+=========================
+
+With thanks to Yaroslav Halchenko and Ilkay Isik for contributions.
+
+* [ENH] Set threshold on up-sampling ratio in conformation, report results (#601)
+* [ENH] Censor non-steady-state volumes prior to CompCor (#603)
+* [FIX] Conformation failure in thick-slice, oblique T1w datasets (#601)
+* [FIX] Crash/report failure of phase-difference SDC pipeline (#602, #604)
+* [FIX] Prevent AFNI NIfTI extensions from crashing reference EPI estimation (#619)
+* [DOC] Save logs to output directory (#605)
+* [ENH] Upgrade to ICA-AROMA 0.4.1-beta (#611)
+
+0.5.4 (20th of July 2017)
+=========================
+
+* [DOC] Improved report summaries describing steps taken (#584)
+* [ENH] Uniformize command-line argument style (#592)
+
+0.5.3 (18th of July 2017)
+=========================
+
+With thanks to Yaroslav Halchenko for contributions.
+
+* [ENH] High-pass filter time series prior to CompCor (#577)
+* [ENH] Validate and minimally conform BOLD images (#581)
+* [FIX] Bug that prevented PE direction estimation (#586)
+* [DOC] Log version/time in report (#587)
+
+0.5.2 (30th of June 2017)
+=========================
+
+With thanks to James Kent for contributions.
+
+* [ENH] Calculate noise components in functional data with ICA-AROMA (#539)
+* [FIX] Remove unused parameters from function node, resolving crash (#576)
+
+0.5.1 (24th of June 2017)
+=========================
+
+* [FIX] Invalid parameter in ``bbreg_wf`` (#572)
+
+0.5.0 (21st of June 2017)
+=========================
+
+With thanks to James Kent for contributions.
+
+* [ENH] EXPERIMENTAL: Fieldmap-less susceptibility correction with ``--use-syn-sdc`` option (#544)
+* [FIX] Reduce interpolation artifacts in ConformSeries (#564)
+* [FIX] Improve consistency of handling of fieldmaps (#565)
+* [FIX] Apply T2w pial surface refinement at correct stage of FreeSurfer pipeline (#568)
+* [ENH] Add ``--anat-only`` workflow option (#560)
+* [FIX] Output all tissue class/probability maps (#569)
+* [ENH] Upgrade to ANTs 2.2.0 (#561)
+
+0.4.6 (14th of June 2017)
+=========================
+
+* [ENH] Conform and minimally resample multiple T1w images (#545)
+* [FIX] Return non-zero exit code on all errors (#554)
+* [ENH] Improve error reporting for missing subjects (#558)
+
+0.4.5 (12th of June 2017)
+=========================
+
+With thanks to Marcel Falkiewicz for contributions.
+
+* [FIX] Correctly display help in ``fmriprep-docker`` (#533)
+* [FIX] Avoid invalid symlinks when running FreeSurfer (#536)
+* [ENH] Improve dependency management for users unable to use Docker/Singularity containers (#549)
+* [FIX] Return correct exit code when a Function node fails (#554)
+
+0.4.4 (20th of May 2017)
+========================
+
+With thanks to Feilong Ma for contributions.
+
+* [ENH] Option to provide a custom reference grid image (``--output-grid-reference``) for determining the field of view and resolution of output images (#480)
+* [ENH] Improved EPI skull stripping and tissue contrast enhancements (#519)
+* [ENH] Improve resource use estimates in FreeSurfer workflow (#506)
+* [ENH] Moved missing values in the DVARS* and FramewiseDisplacement columns of the _confounds.tsv from last row to the first row (#523)
+* [ENH] More robust initialization of the normalization procedure (#529)
+
+0.4.3 (10th of May 2017)
+========================
+
+* [ENH] ``--output-space template`` targets template specified by ``--template`` flag (``MNI152NLin2009cAsym`` supported) (#498)
+* [FIX] Fix a bug causing small numerical discrepancies in input data voxel size to lead to different FOV of the output files (#513)
+
+0.4.2 (3rd of May 2017)
+=======================
+
+* [ENH] Use robust template generation for multiple T1w images (#481)
+* [ENH] Anatomical MNI outputs respect ``--output-space`` selection (#490)
+* [ENH] Added support for distortion correction using opposite phase encoding direction EPI images (#493)
+* [ENH] Switched to FSL BET for skullstripping of EPI images (#493)
+* [ENH] ``--omp-nthreads`` controls maximum per-process thread count; replaces ``--ants-nthreads`` (#500)
+
+0.4.1 (20th of April 2017)
+==========================
+
+* Hotfix release (dependencies and deployment system)
+
 0.4.0 (20th of April 2017)
 ==========================
 

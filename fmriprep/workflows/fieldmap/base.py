@@ -12,7 +12,9 @@ Base fieldmap estimation
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-def fmap_estimator(fmap_bids, settings=None):
+
+def init_fmap_estimator_wf(fmap_bids, reportlets_dir, omp_nthreads,
+                           fmap_bspline):
     """
     This workflow selects the fieldmap estimation data available for the subject and
     returns the estimated fieldmap in mm, along with a corresponding reference image.
@@ -37,23 +39,25 @@ def fmap_estimator(fmap_bids, settings=None):
     # pybids type options: (phase1|phase2|phasediff|epi|fieldmap)
     # https://github.com/INCF/pybids/blob/213c425d8ee820f4b7a7ae96e447a4193da2f359/bids/grabbids/bids_layout.py#L63
     if fmap_bids['type'] == 'fieldmap':
-        from .fmap import fmap_workflow
-        fmapwf = fmap_workflow(settings=settings)
+        from .fmap import init_fmap_wf
+        fmap_wf = init_fmap_wf(reportlets_dir=reportlets_dir,
+                               omp_nthreads=omp_nthreads,
+                               fmap_bspline=fmap_bspline)
         # set inputs
-        fmapwf.inputs.inputnode.fieldmap = fmap_bids['fieldmap']
-        fmapwf.inputs.inputnode.magnitude = fmap_bids['magnitude']
-        return fmapwf
+        fmap_wf.inputs.inputnode.fieldmap = fmap_bids['fieldmap']
+        fmap_wf.inputs.inputnode.magnitude = fmap_bids['magnitude']
+        return fmap_wf
 
     if fmap_bids['type'] == 'phasediff':
-        from .phdiff import phdiff_workflow
-        phwf = phdiff_workflow(settings=settings)
+        from .phdiff import init_phdiff_wf
+        phdiff_wf = init_phdiff_wf(reportlets_dir=reportlets_dir)
         # set inputs
-        phwf.inputs.inputnode.phasediff = fmap_bids['phasediff']
-        phwf.inputs.inputnode.magnitude = [
+        phdiff_wf.inputs.inputnode.phasediff = fmap_bids['phasediff']
+        phdiff_wf.inputs.inputnode.magnitude = [
             fmap_bids['magnitude1'],
             fmap_bids['magnitude2']
         ]
-        return phwf
+        return phdiff_wf
 
     if fmap_bids['type'] in ['phase1', 'phase2', 'epi']:
         raise NotImplementedError

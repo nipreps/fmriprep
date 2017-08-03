@@ -12,7 +12,7 @@ from datetime import datetime as dt
 
 from builtins import object, str, bytes
 
-from nipype import logging
+from niworkflows.nipype import logging
 LOGGER = logging.getLogger('interfaces')
 
 
@@ -141,8 +141,8 @@ class BSplineFieldmap(object):
     def invert(self):
         targets = self._fmapxyz.copy()
         targets[:, self._pedir] += self._smoothed[tuple(self._fmapijk.T)]
-        print('[%s] Inverting transform :: evaluating tensor-product cubic BSpline on %d points, %d control points' %
-              (dt.now(), len(targets), len(self._knots_xyz)))
+        print('[%s] Inverting transform :: evaluating tensor-product cubic BSpline on %d points, '
+              '%d control points' % (dt.now(), len(targets), len(self._knots_xyz)))
         self._Xinv = tbspl_eval(targets, self._knots_xyz, self._knots_zooms, self._njobs)
         print('[%s] Finished BSpline evaluation, %s' %
               (dt.now(), str(self._Xinv.shape)))
@@ -166,9 +166,6 @@ class BSplineFieldmap(object):
         y = gridxyz[0, :, 0, 1]
         z = gridxyz[0, 0, :, 2]
 
-        xyzmin = (x.min(), y.min(), z.min())
-        xyzmax = (x.max(), y.max(), z.max())
-
         targets = self._fmapxyz.copy()
 
         if inverse:
@@ -189,6 +186,7 @@ class BSplineFieldmap(object):
 #         X = fif.tbspl_eval(np.array([in_coord]), self._knots_xyz, self._knots_zooms)
 #         new_coord = in_coord + X.dot(self._coeff if not inverse else self._invcoeff)
 
+
 def get_ijk(data, offset=0):
     """
     Calculates voxel coordinates from data
@@ -203,6 +201,7 @@ def get_ijk(data, offset=0):
                  offset[2]:(offset[2] + data.shape[2])]
     return grid.reshape(3, -1).T
 
+
 def compute_affine(data, zooms):
     """
     Compose a RAS affine mat, since the affine of the image might not be RAS
@@ -210,6 +209,7 @@ def compute_affine(data, zooms):
     aff = np.eye(4) * (list(zooms) + [1])
     aff[:3, 3] -= aff[:3, :3].dot(np.array(data.shape[:3], dtype=float) - 1.0) * 0.5
     return aff
+
 
 def _approx(fmapnii, s=14.):
     """
@@ -271,7 +271,6 @@ def bspl_smoothing(fmapnii, masknii=None, knot_space=[18., 18., 20.]):
     """
     from datetime import datetime as dt
     from builtins import str, bytes
-    from scipy.linalg import pinv2
 
     if not isinstance(knot_space, (list, tuple)):
         knot_space = [knot_space] * 3
@@ -364,6 +363,7 @@ def tbspl_eval(points, knots, zooms, njobs=None):
         pool.join()
 
     return vstack(coeffs)
+
 
 def _evalp(args):
     import numpy as np

@@ -13,50 +13,65 @@ High-level view of the basic pipeline (for single-band datasets, without
 slice-timing information and no fieldmap acquisitions):
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
-    from fmriprep.workflows.base import basic_wf
-    wf = basic_wf(
-        {'func': ['bold_preprocessing']},
-        settings={'ants_nthreads': 1,
-                  'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'bids_root': '.',
-                  'biggest_epi_file_size_gb': 3,
-                  'skull_strip_ants': True,
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  'ignore': [],
-                  'debug': False,
-                  'hires': True,
-                  'bold2t1w_dof': 9}
-    )
+    from fmriprep.workflows.base import init_single_subject_wf
+    wf = init_single_subject_wf(subject_id='test',
+                                name='single_subject_wf',
+                                task_id='',
+                                longitudinal=False,
+                                omp_nthreads=1,
+                                freesurfer=True,
+                                reportlets_dir='.',
+                                output_dir='.',
+                                bids_dir='.',
+                                skull_strip_ants=True,
+                                template='MNI152NLin2009cAsym',
+                                output_spaces=['T1w', 'fsnative',
+                                              'template', 'fsaverage5'],
+                                ignore=[],
+                                debug=False,
+                                anat_only=False,
+                                hires=True,
+                                bold2t1w_dof=9,
+                                fmap_bspline=False,
+                                fmap_demean=True,
+                                use_syn=True,
+                                force_syn=True,
+                                output_grid_ref=None,
+                                use_aroma=False,
+                                ignore_aroma_err=False)
 
 
 T1w/T2w preprocessing
 ---------------------
-:mod:`fmriprep.workflows.anatomical.t1w_preprocessing`
+:mod:`fmriprep.workflows.anatomical.init_anat_preproc_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
-    from fmriprep.workflows.anatomical import t1w_preprocessing
-    wf = t1w_preprocessing(settings={'ants_nthreads': 1,
-                                     'nthreads': 1,
-                                     'freesurfer': True,
-                                     'reportlets_dir': '.',
-                                     'output_dir': '.',
-                                     'skull_strip_ants': True,
-                                     'debug': False,
-                                     'hires': True})
+    from fmriprep.workflows.anatomical import init_anat_preproc_wf
+    wf = init_anat_preproc_wf(omp_nthreads=1,
+                              reportlets_dir='.',
+                              output_dir='.',
+                              template='MNI152NLin2009cAsym',
+                              output_spaces=['T1w', 'fsnative',
+                                             'template', 'fsaverage5'],
+                              skull_strip_ants=True,
+                              freesurfer=True,
+                              longitudinal=False,
+                              debug=False,
+                              hires=True)
 
-This sub-workflow finds the skull stripping mask and the
-white matter/gray matter/cerebrospinal fluid segments and finds a non-linear
-warp to the MNI space.
+The anatomical sub-workflow begins by constructing a template image by
+:ref:`conforming <conformation>` any T1-weighted images to RAS orientation and
+a common voxel size, and, in the case of multiple images, merges them into a
+single template (see `Longitudinal processing`_).
+This template is then skull-stripped, and the white matter/gray
+matter/cerebrospinal fluid segments are found.
+Finally, a non-linear registration to the MNI template space is estimated.
 
 .. figure:: _static/brainextraction_t1.svg
     :scale: 100%
@@ -73,23 +88,30 @@ warp to the MNI space.
 
     Animation showing T1w to MNI normalization (ANTs)
 
+Longitudinal processing
+~~~~~~~~~~~~~~~~~~~~~~~
+In the case of multiple sessions, T1w images are merged into a single template
+image using FreeSurfer's `mri_robust_template`_.
+This template may be *unbiased*, or equidistant from all source images, or
+aligned to the first image (determined lexicographically by session label).
+For two images, the additional cost of estimating an unbiased template is
+trivial and is the default behavior, but, for greater than two images, the cost
+can be a slowdown of an order of magnitude.
+Therefore, in the case of three or more images, ``fmriprep`` constructs
+templates aligned to the first image, unless passed the ``--longitudinal``
+flag, which forces the estimation of an unbiased template.
+
 Surface preprocessing
 ~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.anatomical.surface_reconstruction`
+:mod:`fmriprep.workflows.anatomical.init_surface_recon_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
-    from fmriprep.workflows.anatomical import surface_reconstruction
-    wf = surface_reconstruction(
-        settings={'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  'hires': True})
+    from fmriprep.workflows.anatomical import init_surface_recon_wf
+    wf = init_surface_recon_wf(omp_nthreads=1,
+                               hires=True)
 
 ``fmriprep`` uses FreeSurfer_ to reconstruct surfaces from T1w/T2w
 structural images.
@@ -115,10 +137,25 @@ would be processed by the following command::
 The second phase imports the brainmask calculated in the `T1w/T2w preprocessing`_
 sub-workflow.
 The final phase resumes reconstruction, using the T2w image to assist
-in finding the pial surface, if available::
+in finding the pial surface, if available.
+In order to utilize resources efficiently, this is broken down into six
+sub-stages; the first and last are run serially, while each pair of
+per-hemisphere stages are run in parallel, if possible::
 
     $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
-        -all -T2pial
+        -autorecon2-volonly
+    $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
+        -autorecon2-perhemi -hemi lh
+    $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
+        -autorecon2-perhemi -hemi rh
+    $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
+        -autorecon-hemi lh -T2pial \
+        -noparcstats -noparcstats2 -noparcstats3 -nohyporelabel -nobalabels
+    $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
+        -autorecon-hemi rh -T2pial \
+        -noparcstats -noparcstats2 -noparcstats3 -nohyporelabel -nobalabels
+    $ recon-all -sd <output dir>/freesurfer -subjid sub-<subject_label> \
+        -autorecon3
 
 Reconstructed white and pial surfaces are included in the report.
 
@@ -146,28 +183,31 @@ packages, including FreeSurfer and the `Connectome Workbench`_.
 
 BOLD preprocessing
 ------------------
-:mod:`fmriprep.workflows.epi.bold_preprocessing`
+:mod:`fmriprep.workflows.epi.init_func_preproc_wf`
 
 .. workflow::
     :graph2use: orig
     :simple_form: yes
 
-    from fmriprep.workflows.epi import bold_preprocessing
-    wf = bold_preprocessing(
-        "bold_preprocessing",
-        settings={'ants_nthreads': 1,
-                  'ignore':[],
-                  'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'bids_root': '.',
-                  'biggest_epi_file_size_gb': 3,
-                  'skull_strip_ants': True,
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  'debug': False,
-                  'bold2t1w_dof': 9})
+    from fmriprep.workflows.epi import init_func_preproc_wf
+    wf = init_func_preproc_wf('/completely/made/up/path/sub-01_task-nback_bold.nii.gz',
+                              omp_nthreads=1,
+                              ignore=[],
+                              freesurfer=True,
+                              reportlets_dir='.',
+                              output_dir='.',
+                              template='MNI152NLin2009cAsym',
+                              output_spaces=['T1w', 'fsnative',
+                                             'template', 'fsaverage5'],
+                              debug=False,
+                              bold2t1w_dof=9,
+                              fmap_bspline=True,
+                              fmap_demean=True,
+                              use_syn=True,
+                              force_syn=True,
+                              output_grid_ref=None,
+                              use_aroma=False,
+                              ignore_aroma_err=False)
 
 Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
@@ -175,28 +215,18 @@ Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
 Head-motion estimation and slice time correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.epi.epi_hmc`
+:mod:`fmriprep.workflows.epi.init_epi_hmc_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.epi import epi_hmc
-    wf = epi_hmc(
+    from fmriprep.workflows.epi import init_epi_hmc_wf
+    wf = init_epi_hmc_wf(
         metadata={"RepetitionTime": 2.0,
                   "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
-        settings={'ants_nthreads': 1,
-                  'ignore':[],
-                  'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'bids_root': '.',
-                  'biggest_epi_file_size_gb': 3,
-                  'skull_strip_ants': True,
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  'debug': False})
+                  ignore=[],
+                  bold_file_size_gb=3)
 
 This workflow performs slice time
 correction (if ``SliceTiming`` field is present in the input dataset metadata), head
@@ -217,7 +247,7 @@ Skullstripping of the reference image is performed using Nilearn.
 .. figure:: _static/brainextraction.svg
     :scale: 100%
 
-    Brain extraction (nilearn).
+    Brain extraction (BET).
 
 Susceptibility Distortion Correction (SDC)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -227,30 +257,22 @@ Susceptibility Distortion Correction (SDC)
     :undoc-members:
     :show-inheritance:
 
+
 EPI to T1w registration
 ~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.epi.ref_epi_t1_registration`
+:mod:`fmriprep.workflows.epi.init_epi_reg_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.epi import ref_epi_t1_registration
-    wf = ref_epi_t1_registration(
-        "ref_epi_t1_registration",
-        settings={'ants_nthreads': 1,
-                  'ignore':[],
-                  'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'bids_root': '.',
-                  'biggest_epi_file_size_gb': 3,
-                  'skull_strip_ants': True,
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  'debug': False,
-                  'bold2t1w_dof': 9})
+    from fmriprep.workflows.epi import init_epi_reg_wf
+    wf = init_epi_reg_wf(freesurfer=True,
+                         output_dir='.',
+                         bold_file_size_gb=3,
+                         output_spaces=['T1w', 'fsnative',
+                                        'template', 'fsaverage5'],
+                         bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the
 reconstructed subject using
@@ -267,25 +289,17 @@ boundary.
 
 EPI to MNI transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.epi.epi_mni_transformation`
+:mod:`fmriprep.workflows.epi.init_epi_mni_trans_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.epi import epi_mni_transformation
-    wf = epi_mni_transformation(
-        "epi_mni_transformation",
-        settings={'ants_nthreads': 1,
-                  'ignore':[],
-                  'nthreads': 1,
-                  'freesurfer': True,
-                  'reportlets_dir': '.',
-                  'output_dir': '.',
-                  'bids_root': '.',
-                  'biggest_epi_file_size_gb': 3,
-                  'skull_strip_ants': True,
-                  'debug': False})
+    from fmriprep.workflows.epi import init_epi_mni_trans_wf
+    wf = init_epi_mni_trans_wf(output_dir='.',
+                               template='MNI152NLin2009cAsym',
+                               bold_file_size_gb=3,
+                               output_grid_ref=None)
 
 This sub-workflow uses the transform from
 `Head-motion estimation and slice time correction`_,
@@ -299,19 +313,15 @@ step, so as little information is lost as possible.
 
 EPI sampled to FreeSurfer surfaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.epi.epi_surf_sample`
+:mod:`fmriprep.workflows.epi.init_epi_surf_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.epi import epi_surf_sample
-    wf = epi_surf_sample(
-        "epi_surf_sample",
-        settings={'output_dir': '.',
-                  'output_spaces': ['T1w', 'fsnative',
-                                    'MNI152NLin2009cAsym', 'fsaverage5'],
-                  })
+    from fmriprep.workflows.epi import init_epi_surf_wf
+    wf = init_epi_surf_wf(output_spaces=['T1w', 'fsnative',
+                                         'template', 'fsaverage5'])
 
 If FreeSurfer processing is enabled, the motion-corrected functional series
 (after single shot resampling to T1w space) is sampled to the
@@ -325,32 +335,36 @@ All surface outputs are in GIFTI format.
 
 Confounds estimation
 ~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.confounds.discover_wf`
+:mod:`fmriprep.workflows.confounds.init_discover_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.confounds import discover_wf
-    wf = discover_wf(name="discover_wf",
-                 settings={'ants_nthreads': 1,
-                           'ignore':[],
-                                     'nthreads': 1,
-                                     'freesurfer': True,
-                                     'reportlets_dir': '.',
-                                     'output_dir': '.',
-                                     'bids_root': '.',
-                                     'biggest_epi_file_size_gb': 3,
-                                     'skull_strip_ants': True,
-                                     'debug': False})
+    from fmriprep.workflows.confounds import init_discover_wf
+    wf = init_discover_wf(
+        name="discover_wf",
+        use_aroma=False, ignore_aroma_err=False, bold_file_size_gb=3,
+        metadata={"RepetitionTime": 2.0,
+                  "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]})
 
 Given a motion-corrected fMRI, a brain mask, MCFLIRT movement parameters and a
 segmentation, the `discover_wf` sub-workflow calculates potential
 confounds per volume.
 
 Calculated confounds include the mean global signal, mean tissue class signal,
-tCompCor, aCompCor, Framewise Displacement, 6 motion parameters and DVARS.
+tCompCor, aCompCor, Framewise Displacement, 6 motion parameters, DVARS, and, if
+the ``--use-aroma`` flag is enabled, the noise components identified by ICA-AROMA
+(those to be removed by the "aggressive" denoising strategy).
 
+*Note*: Confounds for performing *non*-aggressive denoising cannot be generated in FMRIPREP.
+If the ``--use-aroma`` flag is passed to FMRIPREP, the MELODIC mix and noise component indices will
+be generated, and non-aggressive denoising may be performed with ``fsl_regfilt``, *e.g.*::
+
+    ``fsl_regfilt -i sub-<subject_label>_task-<task_id>_bold_space-<space>_preproc.nii.gz \
+        -f $(cat sub-<subject_label>_task-<task_id>_bold_AROMAnoiseICs.csv) \
+        -d sub-<subject_label>_task-<task_id>_bold_MELODICmix.tsv \
+        -o sub-<subject_label>_task-<task_id>_bold_space-<space>_AromaNonAggressiveDenoised.nii.gz``
 
 Reports
 -------
@@ -385,6 +399,8 @@ Derivatives related to t1w files are in the ``anat`` subfolder:
 Derivatives related to EPI files are in the ``func`` subfolder.
 
 - ``*bold_confounds.tsv`` A tab-separated value file with one column per calculated confound and one row per timepoint/volume
+- ``*bold_AROMAnoiseICs.csv`` A comma-separated value file listing each MELODIC component classified as noise
+- ``*bold_MELODICmix.tsv`` A tab-separated value file with one column per MELODIC component
 
 Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
 
@@ -419,4 +435,3 @@ A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``.
 Copies of the ``fsaverage`` subjects distributed with the running version of
 FreeSurfer are copied into this subjects directory, if any functional data are
 sampled to those subject spaces.
-

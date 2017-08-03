@@ -18,22 +18,18 @@ Fieldmap preprocessing workflow for fieldmap data structure
 """
 from __future__ import print_function, division, absolute_import, unicode_literals
 
-import os
-import os.path as op
-
-from nipype.interfaces import ants
-from nipype.interfaces import fsl
-from nipype.interfaces import io as nio
-from nipype.interfaces import utility as niu
-from nipype.pipeline import engine as pe
-from nipype.workflows.dmri.fsl.utils import siemens2rads, demean_image, cleanup_edge_pipeline
+from niworkflows.nipype.interfaces import ants, fsl, utility as niu
+from niworkflows.nipype.pipeline import engine as pe
+# Note that demean_image imports from nipype
+from niworkflows.nipype.workflows.dmri.fsl.utils import siemens2rads, demean_image, \
+    cleanup_edge_pipeline
 from niworkflows.interfaces.masks import BETRPT
 
 from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
 from fmriprep.interfaces.bids import DerivativesDataSink
 
 
-def phdiff_workflow(name='FMAP_phdiff', settings=None):
+def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
     magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
@@ -41,9 +37,11 @@ def phdiff_workflow(name='FMAP_phdiff', settings=None):
     <https://github.com/nipy/nipype/blob/master/nipype/workflows/dmri/fsl/artifacts.py#L514>`_.
 
     .. workflow ::
+        :graph2use: orig
+        :simple_form: yes
 
-        from fmriprep.workflows.fieldmap.phdiff import phdiff_workflow
-        wf = phdiff_workflow(settings={'reportlets_dir': '.'})
+        from fmriprep.workflows.fieldmap.phdiff import init_phdiff_wf
+        wf = init_phdiff_wf(reportlets_dir='.')
 
 
     Outputs::
@@ -54,8 +52,6 @@ def phdiff_workflow(name='FMAP_phdiff', settings=None):
 
 
     """
-    if settings is None:
-        settings = {}
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['magnitude', 'phasediff']),
                         name='inputnode')
@@ -63,49 +59,41 @@ def phdiff_workflow(name='FMAP_phdiff', settings=None):
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['fmap', 'fmap_ref', 'fmap_mask']), name='outputnode')
 
-
     def _pick1st(inlist):
         return inlist[0]
 
     # Read phasediff echo times
-    meta = pe.Node(ReadSidecarJSON(), name='metadata')
-    dte = pe.Node(niu.Function(input_names=['in_values'], output_names=['delta_te'],
-                               function=_delta_te), name='ComputeDeltaTE')
+    meta = pe.Node(ReadSidecarJSON(), name='meta')
+    dte = pe.Node(niu.Function(function=_delta_te), name='dte')
 
     # Merge input magnitude images
-    magmrg = pe.Node(IntraModalMerge(), name='MagnitudeFuse')
+    magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
     # de-gradient the fields ("bias/illumination artifact")
-    n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3), name='MagnitudeBias')
+    n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True), name='n4')
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
-                  name='MagnitudeBET')
+                  name='bet')
     ds_fmap_mask = pe.Node(
-        DerivativesDataSink(base_directory=settings['reportlets_dir'],
-                            suffix='fmap_mask'),name='ds_fmap_mask')
+        DerivativesDataSink(base_directory=reportlets_dir,
+                            suffix='fmap_mask'), name='ds_fmap_mask')
     # uses mask from bet; outputs a mask
     # dilate = pe.Node(fsl.maths.MathsCommand(
     #     nan2zeros=True, args='-kernel sphere 5 -dilM'), name='MskDilate')
 
     # phase diff -> radians
-    pha2rads = pe.Node(niu.Function(
-        input_names=['in_file'], output_names=['out_file'],
-        function=siemens2rads), name='PreparePhase')
+    pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
 
     # FSL PRELUDE will perform phase-unwrapping
-    prelude = pe.Node(fsl.PRELUDE(), name='PhaseUnwrap')
+    prelude = pe.Node(fsl.PRELUDE(), name='prelude')
 
     denoise = pe.Node(fsl.SpatialFilter(operation='median', kernel_shape='sphere',
-                                        kernel_size=3), name='PhaseDenoise')
+                                        kernel_size=3), name='denoise')
 
-    demean = pe.Node(niu.Function(
-        input_names=['in_file', 'in_mask'], output_names=['out_file'],
-        function=demean_image), name='DemeanFmap')
+    demean = pe.Node(niu.Function(function=demean_image), name='demean')
 
-    cleanup = cleanup_edge_pipeline()
+    cleanup_wf = cleanup_edge_pipeline(name="cleanup_wf")
 
-    compfmap = pe.Node(niu.Function(
-        input_names=['in_file', 'delta_te'], output_names=['out_file'],
-        function=phdiff2fmap), name='ComputeFieldmap')
+    compfmap = pe.Node(niu.Function(function=phdiff2fmap), name='compfmap')
 
     # The phdiff2fmap interface is equivalent to:
     # rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)
@@ -121,15 +109,15 @@ def phdiff_workflow(name='FMAP_phdiff', settings=None):
         (n4, bet, [('output_image', 'in_file')]),
         (bet, prelude, [('mask_file', 'mask_file')]),
         (inputnode, pha2rads, [('phasediff', 'in_file')]),
-        (pha2rads, prelude, [('out_file', 'phase_file')]),
+        (pha2rads, prelude, [('out', 'phase_file')]),
         (meta, dte, [('out_dict', 'in_values')]),
-        (dte, compfmap, [('delta_te', 'delta_te')]),
+        (dte, compfmap, [('out', 'delta_te')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
         (denoise, demean, [('out_file', 'in_file')]),
-        (demean, cleanup, [('out_file', 'inputnode.in_file')]),
-        (bet, cleanup, [('mask_file', 'inputnode.in_mask')]),
-        (cleanup, compfmap, [('outputnode.out_file', 'in_file')]),
-        (compfmap, outputnode, [('out_file', 'fmap')]),
+        (demean, cleanup_wf, [('out', 'inputnode.in_file')]),
+        (bet, cleanup_wf, [('mask_file', 'inputnode.in_mask')]),
+        (cleanup_wf, compfmap, [('outputnode.out_file', 'in_file')]),
+        (compfmap, outputnode, [('out', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')]),
         (inputnode, ds_fmap_mask, [('phasediff', 'source_file')]),

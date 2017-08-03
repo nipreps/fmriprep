@@ -1,0 +1,16 @@
+# vim ft=yaml
+language: python
+sudo: false
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+python:
+  - 3.6
+
+before_install:
+  - python -m pip install --upgrade pip
+  - pip install "flake8<3.0" flake8-putty
+
+script:
+  - flake8 fmriprep test wrapper

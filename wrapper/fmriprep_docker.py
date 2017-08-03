@@ -115,8 +115,10 @@ def check_memory(image):
     """Check total memory from within a docker container"""
     ret = subprocess.run(['docker', 'run', '--rm', '--entrypoint=free',
                           image, '-m'],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.DEVNULL)
+                         stdout=subprocess.PIPE)
+    if ret.returncode:
+        return -1
+
     mem = [line.decode().split()[1]
            for line in ret.stdout.splitlines()
            if line.startswith(b'Mem:')][0]
@@ -152,8 +154,9 @@ def merge_help(wrapper_help, target_help):
 
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
-    assert overlap == set('hvw'), "Clobbering options: {}".format(
-        ', '.join(overlap - set('hvw')))
+    expected_overlap = set(['h', 'v', 'w', 'output-grid-reference'])
+    assert overlap == expected_overlap, "Clobbering options: {}".format(
+        ', '.join(overlap - expected_overlap))
 
     sections = []
 
@@ -217,11 +220,17 @@ def main():
                         default='poldracklab/fmriprep:{}'.format(__version__),
                         help='image name')
 
+    # Options for mapping files and directories into container
+    # Update `expected_overlap` variable in merge_help() when adding to this
     g_wrap = parser.add_argument_group(
         'Wrapper options',
         'Standard options that require mapping files into the container')
     g_wrap.add_argument('-w', '--work-dir', action='store',
                         help='path where intermediate results should be stored')
+    g_wrap.add_argument('--output-grid-reference', required=False, action='store',
+                        type=os.path.abspath,
+                        help='Grid reference image for resampling BOLD files to volume template '
+                             'space.')
 
     # Developer patch/shell options
     g_dev = parser.add_argument_group(
@@ -245,7 +254,7 @@ def main():
     opts, unknown_args = parser.parse_known_args()
 
     # Set help if no directories set
-    if (opts.bids_dir, opts.output_dir) == ('', ''):
+    if (opts.bids_dir, opts.output_dir, opts.version) == ('', '', False):
         opts.help = True
 
     # Stop if no docker / docker fails to run
@@ -277,9 +286,14 @@ def main():
                 return 1
         if resp not in ('y', 'Y', ''):
             return 0
+        print('Downloading. This may take a while...')
 
     # Warn on low memory allocation
     mem_total = check_memory(opts.image)
+    if mem_total == -1:
+        print('Could not detect memory capacity of Docker container.\n'
+              'Do you have permission to run docker?')
+        return 1
     if mem_total < 8000:
         print('Warning: <8GB of RAM is available within your Docker '
               'environment.\nSome parts of fMRIprep may fail to complete.')
@@ -317,6 +331,11 @@ def main():
     if opts.config:
         command.extend(['-v', ':'.join((opts.config,
                                         '/root/.nipype/nipype.cfg', 'ro'))])
+
+    if opts.output_grid_reference:
+        target = '/imports/' + os.path.basename(opts.output_grid_reference)
+        command.extend(['-v', ':'.join((opts.output_grid_reference, target, 'ro'))])
+        unknown_args.extend(['--output-grid-reference', target])
 
     if opts.shell:
         command.append('--entrypoint=bash')

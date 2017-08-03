@@ -1,0 +1,62 @@
+{
+  "creators": [
+    {
+      "name": "Esteban, Oscar",
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0001-8435-6191"
+    },
+    {
+      "name": "Blair, Ross",
+      "affiliation": "Department of Psychology, Stanford University"
+    },
+    {
+      "name": "Markiewicz, Christopher J.",
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0002-6533-164X"
+    },
+	{
+      "name": "Berleant, Shoshana L.",
+      "affiliation": "Department of Psychology, Stanford University"
+    },
+    {
+      "name": "Moodie, Craig",
+      "affiliation": "Stanford University",
+      "orcid": "0000-0003-0867-1469"
+    },
+	{
+      "name": "Ma, Feilong",
+      "affiliation": "Dartmouth College",
+      "orcid": "0000-0002-6838-3971"
+    },
+    {
+      "name": "Isik, Ayse Ilkay",
+      "affiliation": "Max Planck Institute for Empirical Aesthetics",
+      "orcid": "0000-0002-1652-9297"
+    },
+    {
+      "name": "Erramuzpe, Asier",
+      "affiliation": "Computational Neuroimaging Lab, BioCruces Health Research Institute",
+      "orcid": "0000-0002-9402-2184"
+    },
+    {
+      "name": "Poldrack, Russell A.",
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0001-6755-0259"
+    },
+    {
+      "name": "Gorgolewski, Krzysztof J.",
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0003-3321-7583"
+    }
+  ],
+  "keywords": [
+    "neuroimaging",
+    "workflow",
+    "pipeline",
+    "preprocessing",
+    "fMRI",
+    "BIDS"
+  ],
+  "license": "BSD 3-clause",
+  "upload_type": "software"
+}

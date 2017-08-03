@@ -38,13 +38,14 @@ body {
                     {% for run_report in sub_report.run_reports %}
                         <li><a class="dropdown-item" href="#{{run_report.name}}">{{run_report.title}}</a></li>
                     {% endfor %}
-                    <li><a class="dropdown-item" href="#errors">Errors</a></li>
                     </ul>
                 </li>
             {% else %}
                 <li><a href="#{{sub_report.name}}">{{ sub_report.name }}</a></li>
             {% endif %}
         {% endfor %}
+        <li><a class="dropdown-item" href="#about">About</a></li>
+        <li><a class="dropdown-item" href="#errors">Errors</a></li>
     </ul>
 <div>
 </nav>
@@ -61,14 +62,15 @@ body {
                 <h2 class="run-title">Reports for {{ run_report.title }}</h2>
                 {% for elem in run_report.elements %}
                     {% if elem.files_contents %}
-                        <h3 class="elem-title">{{ elem.title }}</h3>
-                        <p class="elem-desc">{{ elem.description }}<p>
-                        <br>
+                        {% if elem.title %}<h3 class="elem-title">{{ elem.title }}</h3>{% endif %}
+                        {% if elem.description %}<p class="elem-desc">{{ elem.description }}<p><br />{% endif %}
                         {% for image in elem.files_contents %}
+                            {% if elem.raw %}{{ image.1 }}{% else %}
                             <div class="elem-image">{{ image.1 }}</div><br>
                             <div class="elem-filename">
                                 Filename: {{ image.0 }}
                             </div>
+                            {% endif %}
                         {% endfor %}
                     {% endif %}
                 {% endfor %}
@@ -77,18 +79,29 @@ body {
     {% else %}
         {% for elem in sub_report.elements %}
             {% if elem.files_contents %}
-            <h3 class="elem-title">{{ elem.title }}</h3>
-            <p class="elem-desc">{{ elem.description }}<p>
-            <br>
-            {% for image in elem.files_contents %}
-                <div class="elem-image">{{ image.1 }}</div><br>
-                Filename: {{ image.0 }}
-            {% endfor %}
+                {% if elem.title %}<h3 class="elem-title">{{ elem.title }}</h3>{% endif %}
+                {% if elem.description %}<p class="elem-desc">{{ elem.description }}<p><br />{% endif %}
+                {% for image in elem.files_contents %}
+                    {% if elem.raw %}{{ image.1 }}{% else %}
+                    <div class="elem-image">{{ image.1 }}</div><br>
+                    <div class="elem-filename">
+                        Filename: {{ image.0 }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
             {% endif %}
         {% endfor %}
     {% endif %}
     </div>
 {% endfor %}
+
+<div id="about">
+    <h1 class="sub-report-title">About</h1>
+    <ul>
+        <li>FMRIPREP version: {{ version }}</li>
+        <li>Report generated: {{ date }}</li>
+    </ul>
+</div>
 
 <div id="errors">
     <h1 class="sub-report-title">Errors</h1>
@@ -112,6 +125,8 @@ body {
             </div>
         </div>
         </li>
+    {% else %}
+        <li>No errors to report!</li>
     {% endfor %}
     </ul>
 </div>

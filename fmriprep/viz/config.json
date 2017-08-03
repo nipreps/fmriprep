@@ -6,25 +6,35 @@
         "elements":
         [
             {
+                "name": "anat/summary",
+                "file_pattern": "anat/.*_summary",
+                "raw": true
+            },
+            {
+                "name": "anat/conform",
+                "file_pattern": "anat/.*_conform",
+                "raw": true
+            },
+            {
                 "name": "skullstrip_ants/t1_skull_strip",
                 "file_pattern": "anat/.*skull_strip",
                 "title": "Skull stripped T1",
                 "description": "Stripped T1 placed over an image of the unstripped T1"
             },
             {
-                "name": "t1w_preprocessing/t1_seg",
+                "name": "anat_preproc/t1_seg",
                 "file_pattern": "anat/.*t1_seg",
                 "title": "T1 segmentation",
                 "description": " "
             },
             {
-                "name": "t1w_preprocessing/t1_2_mni",
+                "name": "anat_preproc/t1_2_mni",
                 "file_pattern": "anat/.*t1_2_mni",
                 "title": "T1 to MNI registration",
                 "description": "Corrected anatomical T1 image registered into MNI space"
             },
             {
-                "name": "t1w_preprocessing/reconall",
+                "name": "anat_preproc/reconall",
                 "file_pattern": "anat/.*reconall",
                 "title": "Surface reconstruction",
                 "description": "White and pial surfaces overlaid on T1 image"
@@ -49,6 +59,16 @@
         "elements":
         [
             {
+                "name": "epi/summary",
+                "file_pattern": "func/.*_summary",
+                "raw": true
+            },
+            {
+                "name": "epi/validation",
+                "file_pattern": "func/.*_validation\\.",
+                "raw": true
+            },
+            {
                 "name": "epi/fmpa_reg",
                 "file_pattern": "func/.*fmap_reg\\.",
                 "title": "Fieldmap to EPI registration",
@@ -65,6 +85,12 @@
                 "file_pattern": "func/.*bold_variant-hmcsdc_preproc\\.",
                 "title": "Susceptibility distortion correction",
                 "description": "Results of performing susceptibility distortion correction (SDC) on the EPI"
+            },
+            {
+                "name": "epi/sdc_syn",
+                "file_pattern": "func/.*syn_sdc",
+                "title": "Susceptibility distortion correction (No fieldmaps)",
+                "description": "Results of performing SyN-based SDC on the EPI"
             },
             {
                 "name": "epi_hmc/bet_hmc",

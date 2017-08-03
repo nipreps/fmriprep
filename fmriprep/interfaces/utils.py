@@ -5,8 +5,9 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import nibabel as nb
-from nipype.interfaces.base import (TraitedSpec, BaseInterface,
-                                    BaseInterfaceInputSpec, File)
+from niworkflows.nipype.interfaces.base import TraitedSpec, BaseInterfaceInputSpec, File
+from niworkflows.interfaces.base import SimpleInterface
+
 from fmriprep.utils.misc import genfname
 
 
@@ -14,16 +15,14 @@ class ApplyMaskInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='input file')
     in_mask = File(exists=True, mandatory=True, desc='input mask')
 
+
 class ApplyMaskOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='output average file')
 
-class ApplyMask(BaseInterface):
+
+class ApplyMask(SimpleInterface):
     input_spec = ApplyMaskInputSpec
     output_spec = ApplyMaskOutputSpec
-
-    def __init__(self, **inputs):
-        self._results = {}
-        super(ApplyMask, self).__init__(**inputs)
 
     def _run_interface(self, runtime):
         out_file = genfname(self.inputs.in_file, 'brainmask')
@@ -33,9 +32,6 @@ class ApplyMask(BaseInterface):
         nb.Nifti1Image(data, nii.affine, nii.header).to_filename(out_file)
         self._results['out_file'] = out_file
         return runtime
-
-    def _list_outputs(self):
-        return self._results
 
 
 def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
@@ -55,10 +51,13 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
     epi_mask_nii = nb.load(epi_mask)
     epi_mask_data = epi_mask_nii.get_data()
     if epi_mask_erosion_mm:
-        epi_mask_data = nd.binary_erosion(epi_mask_data,
-                                      iterations=int(epi_mask_erosion_mm/max(probability_map_nii.header.get_zooms()))).astype(int)
+        epi_mask_data = nd.binary_erosion(
+            epi_mask_data,
+            iterations=int(epi_mask_erosion_mm /
+                           max(probability_map_nii.header.get_zooms()))).astype(int)
         eroded_mask_file = os.path.abspath("erodd_mask.nii.gz")
-        nb.Nifti1Image(epi_mask_data, epi_mask_nii.affine, epi_mask_nii.header).to_filename(eroded_mask_file)
+        nb.Nifti1Image(epi_mask_data, epi_mask_nii.affine,
+                       epi_mask_nii.header).to_filename(eroded_mask_file)
     else:
         eroded_mask_file = epi_mask
     probability_map_data[epi_mask_data != 1] = 0
@@ -68,7 +67,6 @@ def prepare_roi_from_probtissue(in_file, epi_mask, epi_mask_erosion_mm=0,
         iter_n = int(erosion_mm/max(probability_map_nii.header.get_zooms()))
         probability_map_data = nd.binary_erosion(probability_map_data,
                                                  iterations=iter_n).astype(int)
-
 
     new_nii = nb.Nifti1Image(probability_map_data, probability_map_nii.affine,
                              probability_map_nii.header)

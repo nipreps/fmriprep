@@ -58,8 +58,9 @@ RUN echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW
 # Installing Neurodebian packages (FSL, AFNI, git)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-                    fsl-core=5.0.9-1~nd+1+nd16.04+1 \
-                    afni=16.2.07~dfsg.1-2~nd16.04+1
+                    fsl-core=5.0.9-4~nd16.04+1 \
+                    fsl-mni152-templates=5.0.7-2 \
+                    afni=16.2.07~dfsg.1-5~nd16.04+1
 
 ENV FSLDIR=/usr/share/fsl/5.0 \
     FSLOUTPUTTYPE=NIFTI_GZ \
@@ -71,16 +72,15 @@ ENV FSLDIR=/usr/share/fsl/5.0 \
     AFNI_MODELPATH=/usr/lib/afni/models \
     AFNI_IMSAVE_WARNINGS=NO \
     AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
-    AFNI_PLUGINPATH=/usr/lib/afni/plugins \
-    PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
+    AFNI_PLUGINPATH=/usr/lib/afni/plugins
+ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
 
-# Installing and setting up ANTs
-RUN mkdir -p /opt/ants && \
-    curl -sSL "https://github.com/stnava/ANTs/releases/download/v2.1.0/Linux_Ubuntu14.04.tar.bz2" \
-    | tar -xjC /opt/ants --strip-components 1
-
-ENV ANTSPATH /opt/ants
-ENV PATH $ANTSPATH:$PATH
+# Installing ANTs 2.2.0 (NeuroDocker build)
+ENV ANTSPATH=/usr/lib/ants
+RUN mkdir -p $ANTSPATH && \
+    curl -sSL "https://dl.dropbox.com/s/2f4sui1z6lcgyek/ANTs-Linux-centos5_x86_64-v2.2.0-0740f91.tar.gz" \
+    | tar -xzC $ANTSPATH --strip-components 1
+ENV PATH=$ANTSPATH:$PATH
 
 # Installing and setting up c3d
 RUN mkdir -p /opt/c3d && \
@@ -99,6 +99,14 @@ RUN curl -sSLO "http://downloads.webmproject.org/releases/webp/libwebp-0.5.2-lin
 RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g svgo
+
+# Installing and setting up ICA_AROMA
+RUN mkdir -p /opt/ICA-AROMA && \
+  curl -sSL "https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4.1-beta.tar.gz" \
+  | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
+  chmod +x /opt/ICA-AROMA/ICA_AROMA.py
+
+ENV PATH=/opt/ICA-AROMA:$PATH
 
 # Installing and setting up miniconda
 RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
@@ -155,6 +163,8 @@ ENV CRN_SHARED_DATA /niworkflows_data
 RUN python -c 'from niworkflows.data.getters import get_mni_template_ras; get_mni_template_ras()' && \
     python -c 'from niworkflows.data.getters import get_mni_icbm152_nlin_asym_09c; get_mni_icbm152_nlin_asym_09c()' && \
     python -c 'from niworkflows.data.getters import get_ants_oasis_template_ras; get_ants_oasis_template_ras()'
+
+RUN ldconfig
 
 WORKDIR /root/src/fmriprep
 
