@@ -143,6 +143,8 @@ def collect_data(dataset, participant_label, task=None):
                 'extensions': ['nii', 'nii.gz']},
         't1w': {'subject': participant_label, 'type': 'T1w',
                 'extensions': ['nii', 'nii.gz']},
+        'roi': {'subject': participant_label, 'type': 'roi',
+                'extensions': ['nii', 'nii.gz']},
     }
 
     if task:
