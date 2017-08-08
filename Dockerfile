@@ -109,17 +109,20 @@ RUN mkdir -p /opt/ICA-AROMA && \
 ENV PATH=/opt/ICA-AROMA:$PATH
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
-    bash Miniconda3-4.3.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-4.3.11-Linux-x86_64.sh
+ENV CONDA_VER=4.3.21
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-$CONDA_VER-Linux-x86_64.sh && \
+    bash Miniconda3-$CONDA_VER-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-$CONDA_VER-Linux-x86_64.sh
 
 ENV PATH=/usr/local/miniconda/bin:$PATH \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
-RUN conda install -y mkl=2017.0.1 mkl-service &&  \
-    conda install -y numpy=1.12.0 \
+RUN conda install -y --no-update-dependencies conda=$CONDA_VER mkl=2017.0.1 mkl-service &&  \
+    conda install -y --no-update-dependencies \
+                     conda=$CONDA_VER \
+                     numpy=1.12.0 \
                      scipy=0.18.1 \
                      scikit-learn=0.18.1 \
                      matplotlib=2.0.0 \
@@ -128,9 +131,7 @@ RUN conda install -y mkl=2017.0.1 mkl-service &&  \
                      libxslt=1.1.29\
                      traits=4.6.0 &&  \
     chmod +x /usr/local/miniconda/bin/* && \
-    conda clean --all -y && \
-    conda clean -tipsy && \
-    find /usr/local/miniconda/ -name ".wh*" -exec rm {} +
+    conda clean --all -y
 
 # Precaching fonts
 RUN python -c "from matplotlib import font_manager"
