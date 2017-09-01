@@ -6,16 +6,14 @@
 Interfaces to deal with the various types of fieldmap sources
 
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 
-from builtins import range
 import numpy as np
 import nibabel as nb
 from niworkflows.nipype import logging
+from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits)
 from niworkflows.interfaces.base import SimpleInterface
-from fmriprep.utils.misc import genfname
 
 LOGGER = logging.getLogger('interface')
 
@@ -66,14 +64,16 @@ class FieldEnhance(SimpleInterface):
                 mask = sim.binary_erosion(
                     mask, struc,
                     iterations=self.inputs.mask_erode
-                    ).astype(np.uint8)  # pylint: disable=no-member
+                ).astype(np.uint8)  # pylint: disable=no-member
 
-        self._results['out_file'] = genfname(self.inputs.in_file, suffix='enh')
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_file, suffix='_enh', newpath=runtime.cwd)
         datanii = nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header)
 
         if self.inputs.unwrap:
             data = _unwrap(data, self.inputs.in_magnitude, mask)
-            self._results['out_unwrapped'] = genfname(self.inputs.in_file, suffix='unwrap')
+            self._results['out_unwrapped'] = fname_presuffix(
+                self.inputs.in_file, suffix='_unwrap', newpath=runtime.cwd)
             nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header).to_filename(
                 self._results['out_unwrapped'])
 
@@ -81,7 +81,7 @@ class FieldEnhance(SimpleInterface):
             datanii.to_filename(self._results['out_file'])
             return runtime
         else:
-            from fmriprep.utils import bspline as fbsp
+            from ..utils import bspline as fbsp
             from statsmodels.robust.scale import mad
 
             # Fit BSplines (coarse)
@@ -168,7 +168,7 @@ def _unwrap(fmap_data, mag_file, mask=None):
         mask = np.ones_like(fmap_data, dtype=np.uint8)
 
     fmapmax = max(abs(fmap_data[mask > 0].min()), fmap_data[mask > 0].max())
-    fmap_data *= pi/fmapmax
+    fmap_data *= pi / fmapmax
 
     nb.Nifti1Image(fmap_data, magnii.affine).to_filename('fmap_rad.nii.gz')
     nb.Nifti1Image(mask, magnii.affine).to_filename('fmap_mask.nii.gz')
@@ -179,5 +179,5 @@ def _unwrap(fmap_data, mag_file, mask=None):
                   magnitude_file='fmap_mag.nii.gz',
                   mask_file='fmap_mask.nii.gz').run()
 
-    unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax/pi)
+    unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax / pi)
     return unwrapped

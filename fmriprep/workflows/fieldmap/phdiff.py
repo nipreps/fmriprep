@@ -16,7 +16,6 @@ Fieldmap preprocessing workflow for fieldmap data structure
 8.9.1 in BIDS 1.0.0: one phase diff and at least one magnitude image
 
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 from niworkflows.nipype.interfaces import ants, fsl, utility as niu
 from niworkflows.nipype.pipeline import engine as pe
@@ -25,11 +24,10 @@ from niworkflows.nipype.workflows.dmri.fsl.utils import siemens2rads, demean_ima
     cleanup_edge_pipeline
 from niworkflows.interfaces.masks import BETRPT
 
-from fmriprep.interfaces import ReadSidecarJSON, IntraModalMerge
-from fmriprep.interfaces.bids import DerivativesDataSink
+from ...interfaces import ReadSidecarJSON, IntraModalMerge, DerivativesDataSink
 
 
-def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
+def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
     magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
@@ -41,7 +39,7 @@ def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.fieldmap.phdiff import init_phdiff_wf
-        wf = init_phdiff_wf(reportlets_dir='.')
+        wf = init_phdiff_wf(reportlets_dir='.', omp_nthreads=1)
 
 
     Outputs::
@@ -63,19 +61,20 @@ def init_phdiff_wf(reportlets_dir, name='phdiff_wf'):
         return inlist[0]
 
     # Read phasediff echo times
-    meta = pe.Node(ReadSidecarJSON(), name='meta')
-    dte = pe.Node(niu.Function(function=_delta_te), name='dte')
+    meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01, run_without_submitting=True)
+    dte = pe.Node(niu.Function(function=_delta_te), name='dte', mem_gb=0.01)
 
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
     # de-gradient the fields ("bias/illumination artifact")
-    n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True), name='n4')
+    n4 = pe.Node(ants.N4BiasFieldCorrection(
+        dimension=3, copy_header=True, num_threads=omp_nthreads), name='n4', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
-    ds_fmap_mask = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='fmap_mask'), name='ds_fmap_mask')
+    ds_fmap_mask = pe.Node(DerivativesDataSink(
+            base_directory=reportlets_dir, suffix='fmap_mask'), name='ds_fmap_mask',
+            mem_gb=0.01, run_without_submitting=True)
     # uses mask from bet; outputs a mask
     # dilate = pe.Node(fsl.maths.MathsCommand(
     #     nan2zeros=True, args='-kernel sphere 5 -dilM'), name='MskDilate')

@@ -101,12 +101,12 @@ RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
 # Installing and setting up ICA_AROMA
-RUN curl -sSLO https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4-beta.tar.gz &&\
-  tar -xf v0.4-beta.tar.gz -C /opt &&\
-  chmod +x /opt/ICA-AROMA-0.4-beta/ICA_AROMA.py &&\
-  chmod +x /opt/ICA-AROMA-0.4-beta/ICA_AROMA_functions.py
+RUN mkdir -p /opt/ICA-AROMA && \
+  curl -sSL "https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4.1-beta.tar.gz" \
+  | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
+  chmod +x /opt/ICA-AROMA/ICA_AROMA.py
 
-ENV PATH=/opt/ICA-AROMA-0.4-beta:$PATH
+ENV PATH=/opt/ICA-AROMA:$PATH
 
 # Installing and setting up miniconda
 RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
@@ -118,7 +118,7 @@ ENV PATH=/usr/local/miniconda/bin:$PATH \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
-RUN conda install -y mkl=2017.0.1 mkl-service &&  \
+RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
     conda install -y numpy=1.12.0 \
                      scipy=0.18.1 \
                      scikit-learn=0.18.1 \
@@ -126,9 +126,10 @@ RUN conda install -y mkl=2017.0.1 mkl-service &&  \
                      pandas=0.19.2 \
                      libxml2=2.9.4 \
                      libxslt=1.1.29\
-                     traits=4.6.0 &&  \
-    chmod +x /usr/local/miniconda/bin/* && \
-    conda clean --all -y
+                     traits=4.6.0; sync &&  \
+    chmod +x /usr/local/miniconda/bin/*; sync && \
+    conda clean --all -y; sync && \
+    conda clean -tipsy && sync
 
 # Precaching fonts
 RUN python -c "from matplotlib import font_manager"
@@ -163,6 +164,8 @@ ENV CRN_SHARED_DATA /niworkflows_data
 RUN python -c 'from niworkflows.data.getters import get_mni_template_ras; get_mni_template_ras()' && \
     python -c 'from niworkflows.data.getters import get_mni_icbm152_nlin_asym_09c; get_mni_icbm152_nlin_asym_09c()' && \
     python -c 'from niworkflows.data.getters import get_ants_oasis_template_ras; get_ants_oasis_template_ras()'
+
+RUN ldconfig
 
 WORKDIR /root/src/fmriprep
 

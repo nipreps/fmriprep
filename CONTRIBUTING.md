@@ -1,5 +1,7 @@
 # Contributing
 
+If you are new to the project don't forget to add your name and affiliation to the `.zenodo.json` file.
+
 ## Code style guide
 
 ### Function and variable names

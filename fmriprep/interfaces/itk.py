@@ -8,14 +8,13 @@ ITK files handling
 
 
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 import numpy as np
 import nibabel as nb
+from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec, File)
-from niworkflows.interfaces.base import SimpleInterface
 
-from fmriprep.utils.misc import genfname
+from niworkflows.interfaces.base import SimpleInterface
 
 
 class FUGUEvsm2ANTSwarpInputSpec(BaseInterfaceInputSpec):
@@ -75,8 +74,8 @@ class FUGUEvsm2ANTSwarp(SimpleInterface):
         field = field[:, :, :, np.newaxis, :]
 
         # Write out
-        self._results['out_file'] = genfname(
-            self.inputs.in_file, suffix='antswarp')
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_file, suffix='_antswarp', newpath=runtime.cwd)
         nb.Nifti1Image(
             field.astype(np.dtype('<f4')), nii.affine, hdr).to_filename(
                 self._results['out_file'])

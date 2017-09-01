@@ -12,10 +12,11 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    installation
    changes
    usage
    workflows
    contributors
+   api/index.rst

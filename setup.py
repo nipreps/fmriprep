@@ -56,7 +56,7 @@ def main():
         entry_points={'console_scripts': [
             'fmriprep=fmriprep.cli.run:main'
         ]},
-        packages=find_packages(),
+        packages=find_packages(exclude=("tests",)),
         zip_safe=False,
         ext_modules=extensions
     )

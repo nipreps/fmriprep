@@ -4,9 +4,17 @@
 Installation
 ------------
 
-There are three ways to use fmriprep: in a `Docker Container`_, in a `Singularity Container`_, or in a `Manually Prepared Environment`_.
-Using a container method is highly recommended.
+There are four ways to use fmriprep: on the free cloud service OpenNeuro.org, in a `Docker Container`_, in a `Singularity Container`_, or in a `Manually Prepared Environment`_.
+Using OpenNeuro or a local container method is highly recommended.
 Once you are ready to run fmriprep, see Usage_ for details.
+
+OpenNeuro
+=========
+
+fmriprep is available on the free cloud platform `OpenNeuro.org <http://openneuro.org>`.
+After uploading your BIDS compatible dataset to OpenNeuro you will be able to
+run fmriprep for free using OpenNeuro servers. Since there is no installation
+required this is the easiest way to run fmriprep.
 
 Docker Container
 ================
@@ -68,14 +76,14 @@ If the data to be preprocessed is also on the HPC, you are ready to run fmriprep
     $ singularity run path/to/singularity/image.img \
         path/to/data/dir path/to/output/dir \
         participant \
-        --participant_label label
+        --participant-label label
 
 For example: ::
 
     $ singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
         /work/04168/asdf/lonestar/ $WORK/lonestar/output \
         participant \
-        --participant_label 387 --nthreads 16 -w $WORK/lonestar/work \
+        --participant-label 387 --nthreads 16 -w $WORK/lonestar/work \
         --ants-nthreads 16
 
 .. note::
@@ -87,7 +95,7 @@ For example: ::
       $ PYTHONPATH="" singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
         /work/04168/asdf/lonestar/ $WORK/lonestar/output \
         participant \
-        --participant_label 387 --nthreads 16 -w $WORK/lonestar/work \
+        --participant-label 387 --nthreads 16 -w $WORK/lonestar/work \
         --ants-nthreads 16
 
 Manually Prepared Environment
@@ -107,7 +115,7 @@ If you have pip installed, install fmriprep ::
 
 If you have your data on hand, you are ready to run fmriprep: ::
 
-    $ fmriprep data/dir output/dir participant --participant_label label
+    $ fmriprep data/dir output/dir participant --participant-label label
 
 External Dependencies
 =====================
@@ -120,4 +128,4 @@ software tools:
 - `AFNI <https://afni.nimh.nih.gov/>`_ (version Debian-16.2.07)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
 - `FreeSurfer <https://surfer.nmr.mgh.harvard.edu/>`_ (version 6.0.0)
-- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4-beta)
+- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)

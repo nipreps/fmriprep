@@ -1,4 +1,13 @@
-from __future__ import unicode_literals
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
+"""
+fMRIprep reports builder
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+"""
 
 import json
 import re
@@ -10,23 +19,21 @@ from pkg_resources import resource_filename as pkgrf
 
 
 class Element(object):
-    def __init__(self, name, file_pattern, title, description):
+    def __init__(self, name, file_pattern, title=None, description=None, raw=False):
         self.name = name
         self.file_pattern = re.compile(file_pattern)
         self.title = title
         self.description = description
         self.files_contents = []
+        self.raw = raw
 
 
 class SubReport(object):
     def __init__(self, name, elements, title=''):
         self.name = name
         self.title = title
-        self.elements = []
         self.run_reports = []
-        for e in elements:
-            element = Element(**e)
-            self.elements.append(element)
+        self.elements = [Element(**e) for e in elements]
 
     def order_by_run(self):
         run_reps = {}
@@ -38,7 +45,8 @@ class SubReport(object):
                 if not name:
                     continue
                 new_elem = {'name': element.name, 'file_pattern': element.file_pattern,
-                            'title': element.title, 'description': element.description}
+                            'title': element.title, 'description': element.description,
+                            'raw': element.raw}
                 try:
                     new_element = Element(**new_elem)
                     run_reps[name].elements.append(new_element)
@@ -110,7 +118,6 @@ class Report(object):
                         if element.file_pattern.search(f) and (ext == 'svg' or ext == 'html'):
                             with open(f) as fp:
                                 content = fp.read()
-                                content = '\n'.join(content.split('\n')[1:])
                                 element.files_contents.append((f, content))
         for sub_report in self.sub_reports:
             sub_report.order_by_run()
@@ -153,13 +160,39 @@ class Report(object):
             trim_blocks=True, lstrip_blocks=True
         )
         report_tpl = env.get_template('viz/report.tpl')
-        report_render = report_tpl.render(sub_reports=self.sub_reports, errors=self.errors)
+        # Ignore subreports with no children
+        sub_reports = [sub_report for sub_report in self.sub_reports
+                       if len(sub_report.run_reports) > 0 or
+                       any(elem.files_contents for elem in sub_report.elements)]
+        report_render = report_tpl.render(sub_reports=sub_reports, errors=self.errors)
         with open(os.path.join(self.out_dir, "fmriprep", self.out_filename), 'w') as fp:
             fp.write(report_render)
         return len(self.errors)
 
 
 def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
+    """
+    Runs the reports
+
+    >>> import os
+    >>> from shutil import copytree
+    >>> from tempfile import TemporaryDirectory
+    >>> filepath = os.path.dirname(os.path.realpath(__file__))
+    >>> test_data_path = os.path.realpath(os.path.join(filepath,
+    ...                                   '../data/tests/work'))
+    >>> curdir = os.getcwd()
+    >>> tmpdir = TemporaryDirectory()
+    >>> os.chdir(tmpdir.name)
+    >>> data_dir = copytree(test_data_path, os.path.abspath('work'))
+    >>> os.makedirs('out/fmriprep', exist_ok=True)
+    >>> run_reports(os.path.abspath('work/reportlets'),
+    ...             os.path.abspath('out'),
+    ...             '01', 'madeoutuuid')
+    0
+    >>> os.chdir(curdir)
+    >>> tmpdir.cleanup()
+
+    """
     reportlet_path = os.path.join(reportlets_dir, 'fmriprep', "sub-" + subject_label)
     config = pkgrf('fmriprep', 'viz/config.json')
 

@@ -16,7 +16,7 @@ if [ "${CIRCLE_NODE_TOTAL:-}" != "2" ]; then
 fi
 
 # Only run docs if DOCSONLY or "docs only" (or similar) is in the commit message
-if echo $GIT_COMMIT_DESC | grep -Pi 'docs[ _]?only'; then
+if echo ${GIT_COMMIT_DESC} | grep -Pi 'docs[ _]?only'; then
     case ${CIRCLE_NODE_INDEX} in
         0)
           docker run -ti --rm=false -v $HOME/docs:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest \
@@ -34,16 +34,16 @@ fi
 case ${CIRCLE_NODE_INDEX} in
   0)
     fmriprep-docker -i poldracklab/fmriprep:latest --config $HOME/nipype.cfg -w $HOME/ds054/scratch $HOME/data/ds054 $HOME/ds054/out participant --no-freesurfer --debug --write-graph --force-syn
-    find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
+    find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -type f -delete
     ;;
   1)
-    docker run -ti --rm=false --entrypoint="python" poldracklab/fmriprep:latest -m unittest discover test
+    docker run -ti --rm=false --entrypoint="/usr/local/miniconda/bin/py.test" poldracklab/fmriprep:latest . --doctest-modules --ignore=docs --ignore=setup.py
     docker run -ti --rm=false -v $HOME/docs:/_build_html --entrypoint=sphinx-build poldracklab/fmriprep:latest \
         -T -E -b html -d _build/doctrees-readthedocs -W -D language=en docs/ /_build_html 2>&1 \
         | tee $HOME/docs/builddocs.log
     cat $HOME/docs/builddocs.log && if grep -q "ERROR" $HOME/docs/builddocs.log; then false; else true; fi
     fmriprep-docker -i poldracklab/fmriprep:latest --help
-    fmriprep-docker -i poldracklab/fmriprep:latest --config $HOME/nipype.cfg -w $HOME/ds005/scratch $HOME/data/ds005 $HOME/ds005/out participant --debug --write-graph --use-aroma --ignore-aroma-denoising-errors
-    find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.svg" -not -name "*.rst" -type f -delete
+    fmriprep-docker -i poldracklab/fmriprep:latest --config $HOME/nipype.cfg -w $HOME/ds005/scratch $HOME/data/ds005 $HOME/ds005/out participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors
+    find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -type f -delete
     ;;
 esac
