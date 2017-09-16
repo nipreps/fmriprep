@@ -27,6 +27,7 @@ class TestBase(TestWorkflow):
                                          freesurfer=False,
                                          output_spaces=['T1w'],
                                          template='MNI152NLin2009cAsym',
+                                         medial_surface_nan=False,
                                          hires=False,
                                          bold2t1w_dof=9,
                                          fmap_bspline=True,

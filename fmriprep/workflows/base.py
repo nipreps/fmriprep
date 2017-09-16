@@ -33,7 +33,7 @@ from .bold import init_func_preproc_wf
 def init_fmriprep_wf(subject_list, task_id, run_uuid,
                      ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                      skull_strip_ants, work_dir, output_dir, bids_dir,
-                     freesurfer, output_spaces, template, hires,
+                     freesurfer, output_spaces, template, medial_surface_nan, hires,
                      bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
                      use_aroma, ignore_aroma_err, output_grid_ref):
     """
@@ -65,6 +65,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               output_spaces=['T1w', 'fsnative',
                                             'template', 'fsaverage5'],
                               template='MNI152NLin2009cAsym',
+                              medial_surface_nan=False,
                               hires=True,
                               bold2t1w_dof=9,
                               fmap_bspline=False,
@@ -120,6 +121,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
             Name of template targeted by `'template'` output space
+        medial_surface_nan : bool
+            Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
         bold2t1w_dof : 6, 9 or 12
@@ -170,6 +173,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    freesurfer=freesurfer,
                                                    output_spaces=output_spaces,
                                                    template=template,
+                                                   medial_surface_nan=medial_surface_nan,
                                                    hires=hires,
                                                    bold2t1w_dof=bold2t1w_dof,
                                                    fmap_bspline=fmap_bspline,
@@ -197,7 +201,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
 def init_single_subject_wf(subject_id, task_id, name,
                            ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                            skull_strip_ants, reportlets_dir, output_dir, bids_dir,
-                           freesurfer, output_spaces, template, hires,
+                           freesurfer, output_spaces, template, medial_surface_nan, hires,
                            bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
                            output_grid_ref, use_aroma, ignore_aroma_err):
     """
@@ -228,6 +232,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     template='MNI152NLin2009cAsym',
                                     output_spaces=['T1w', 'fsnative',
                                                   'template', 'fsaverage5'],
+                                    medial_surface_nan=False,
                                     ignore=[],
                                     debug=False,
                                     low_mem=False,
@@ -286,6 +291,8 @@ def init_single_subject_wf(subject_id, task_id, name,
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
             Name of template targeted by `'template'` output space
+        medial_surface_nan : bool
+            Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
         bold2t1w_dof : 6, 9 or 12
@@ -401,6 +408,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                reportlets_dir=reportlets_dir,
                                                output_spaces=output_spaces,
                                                template=template,
+                                               medial_surface_nan=medial_surface_nan,
                                                output_dir=output_dir,
                                                omp_nthreads=omp_nthreads,
                                                low_mem=low_mem,

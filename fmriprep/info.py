@@ -71,6 +71,7 @@ REQUIRES = [
     'statsmodels',
     'nipype',
     'seaborn',
+    'joblib',
 ]
 
 LINKS_REQUIRES = []

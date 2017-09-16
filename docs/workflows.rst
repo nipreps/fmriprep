@@ -30,6 +30,7 @@ slice-timing information and no fieldmap acquisitions):
                                 template='MNI152NLin2009cAsym',
                                 output_spaces=['T1w', 'fsnative',
                                               'template', 'fsaverage5'],
+                                medial_surface_nan=False,
                                 ignore=[],
                                 debug=False,
                                 low_mem=False,
@@ -184,6 +185,7 @@ BOLD preprocessing
                               template='MNI152NLin2009cAsym',
                               output_spaces=['T1w', 'fsnative',
                                              'template', 'fsaverage5'],
+                              medial_surface_nan=False,
                               debug=False,
                               low_mem=False,
                               bold2t1w_dof=9,
@@ -212,7 +214,8 @@ Head-motion estimation and slice time correction
         metadata={"RepetitionTime": 2.0,
                   "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
                   ignore=[],
-                  bold_file_size_gb=3)
+                  bold_file_size_gb=3,
+                  omp_nthreads=1)
 
 This workflow performs slice time
 correction (if ``SliceTiming`` field is present in the input dataset metadata), head
@@ -255,6 +258,7 @@ EPI to T1w registration
     from fmriprep.workflows.bold import init_bold_reg_wf
     wf = init_bold_reg_wf(freesurfer=True,
                           bold_file_size_gb=3,
+                          omp_nthreads=1,
                           bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the
@@ -281,6 +285,7 @@ EPI to MNI transformation
     from fmriprep.workflows.bold import init_bold_mni_trans_wf
     wf = init_bold_mni_trans_wf(template='MNI152NLin2009cAsym',
                                 bold_file_size_gb=3,
+                                omp_nthreads=1,
                                 output_grid_ref=None)
 
 This sub-workflow uses the transform from
@@ -303,7 +308,8 @@ EPI sampled to FreeSurfer surfaces
 
     from fmriprep.workflows.bold import init_bold_surf_wf
     wf = init_bold_surf_wf(output_spaces=['T1w', 'fsnative',
-                                         'template', 'fsaverage5'])
+                                         'template', 'fsaverage5'],
+                           medial_surface_nan=False)
 
 If FreeSurfer processing is enabled, the motion-corrected functional series
 (after single shot resampling to T1w space) is sampled to the
@@ -405,7 +411,7 @@ Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
 
 - ``*bold_space-<space>_brainmask.nii.gz`` Brain mask for EPI files, calculated by nilearn on the average EPI volume, post-motion correction
 - ``*bold_space-<space>_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation) EPI file
-- ``*bold_space-<space>_variant-smoothAROMAnonaggr_brainmask.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation),
+- ``*bold_space-<space>_variant-smoothAROMAnonaggr_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation),
   smoothed (6mm), and non-aggressively denoised (using AROMA) EPI file - currently produced only for the ``MNI152NLin2009cAsym`` space
 
 Surface output spaces include ``fsnative`` (full density subject-specific mesh),

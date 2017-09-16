@@ -16,7 +16,6 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
-from ..info import __version__
 
 logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
 logger = logging.getLogger('cli')
@@ -35,6 +34,7 @@ def _warn_redirect(message, category, filename, lineno, file=None, line=None):
 
 def get_parser():
     """Build parser object"""
+    from ..info import __version__
 
     verstr = 'fmriprep v{}'.format(__version__)
 
@@ -119,12 +119,16 @@ def get_parser():
         '--template', required=False, action='store',
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
-
     g_conf.add_argument(
         '--output-grid-reference', required=False, action='store', default=None,
         help='Grid reference image for resampling BOLD files to volume template space. '
              'It determines the field of view and resolution of the output images, '
              'but is not used in normalization.')
+    g_conf.add_argument(
+        '--medial-surface-nan', required=False, action='store', default=False,
+        help='Replace medial wall values with NaNs on functional GIFTI files. Only '
+        'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
+
     # ICA_AROMA options
     g_aroma = parser.add_argument_group('Specific options for running ICA_AROMA')
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
@@ -166,6 +170,10 @@ def get_parser():
         '--reports-only', action='store_true', default=False,
         help='only generate reports, don\'t run workflows. This will only rerun report '
              'aggregation, not reportlet generation for specific nodes.')
+    g_other.add_argument(
+        '--run-uuid', action='store', default=None,
+        help='Specify UUID of previous run, to include error logs in report. '
+             'No effect without --reports-only.')
     g_other.add_argument('--write-graph', action='store_true', default=False,
                          help='Write workflow graph.')
 
@@ -205,6 +213,7 @@ def create_workflow(opts):
     from ..viz.reports import run_reports
     from ..workflows.base import init_fmriprep_wf
     from ..utils.bids import collect_participants
+    from ..info import __version__
 
     # Set up some instrumental utilities
     errno = 0
@@ -262,6 +271,8 @@ def create_workflow(opts):
     # Called with reports only
     if opts.reports_only:
         logger.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
+        if opts.run_uuid is not None:
+            run_uuid = opts.run_uuid
         report_errors = [
             run_reports(op.join(work_dir, 'reportlets'), output_dir, subject_label,
                         run_uuid=run_uuid)
@@ -292,6 +303,7 @@ def create_workflow(opts):
         freesurfer=opts.freesurfer,
         output_spaces=opts.output_space,
         template=opts.template,
+        medial_surface_nan=opts.medial_surface_nan,
         output_grid_ref=opts.output_grid_reference,
         hires=opts.hires,
         bold2t1w_dof=opts.bold2t1w_dof,
@@ -329,4 +341,5 @@ def create_workflow(opts):
 
 
 if __name__ == '__main__':
-    main()
+    raise RuntimeError("fmriprep/cli/run.py should not be run directly;\n"
+                       "Please `pip install` fmriprep and use the `fmriprep` command")

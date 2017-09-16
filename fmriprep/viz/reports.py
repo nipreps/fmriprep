@@ -12,6 +12,7 @@ fMRIprep reports builder
 import json
 import re
 import os
+import html
 
 import jinja2
 from niworkflows.nipype.utils.filemanip import loadcrash
@@ -133,25 +134,47 @@ class Report(object):
             .pklz crash file found. '''
         for root, directories, filenames in os.walk(error_dir):
             for f in filenames:
-                # Only deal with files that start with crash and end in pklz
-                if not (f[:5] == 'crash' and f[-4:] == 'pklz'):
-                    continue
-                crash_data = loadcrash(os.path.join(root, f))
-                error = {}
-                node = None
-                if 'node' in crash_data:
-                    node = crash_data['node']
-                error['traceback'] = ''.join(crash_data['traceback']).replace("\\n", "<br \>")
-                error['file'] = f
+                crashtype = os.path.splitext(f)[1]
+                if f[:5] == 'crash' and crashtype == '.pklz':
+                    self.errors.append(self._read_pkl(os.path.join(root, f)))
+                elif f[:5] == 'crash' and crashtype == '.txt':
+                    self.errors.append(self._read_txt(os.path.join(root, f)))
 
-                if node:
-                    error['node'] = node
-                    if node.base_dir:
-                        error['node_dir'] = node.output_dir()
-                    else:
-                        error['node_dir'] = "Node crashed before execution"
-                    error['inputs'] = sorted(node.inputs.trait_get().items())
-                self.errors.append(error)
+    @staticmethod
+    def _read_pkl(fname):
+        crash_data = loadcrash(fname)
+        data = {'file': fname,
+                'traceback': ''.join(crash_data['traceback']).replace("\\n", "<br \>")}
+        if 'node' in crash_data:
+            data['node'] = crash_data['node']
+            if data['node'].base_dir:
+                data['node_dir'] = data['node'].output_dir()
+            else:
+                data['node_dir'] = "Node crashed before execution"
+            data['inputs'] = sorted(data['node'].inputs.trait_get().items())
+        return data
+
+    @staticmethod
+    def _read_txt(fname):
+        with open(fname, 'r') as fobj:
+            crash_data = fobj.read()
+        lines = crash_data.splitlines()
+        data = {'file': fname}
+        traceback_start = 0
+        if lines[0].startswith('Node'):
+            data['node'] = lines[0].split(': ', 1)[1]
+            data['node_dir'] = lines[1].split(': ', 1)[1]
+            inputs = []
+            for i, line in enumerate(lines[5:], 5):
+                if not line:
+                    traceback_start = i + 1
+                    break
+                inputs.append(tuple(map(html.escape, line.split(' = ', 1))))
+            data['inputs'] = sorted(inputs)
+        else:
+            data['node_dir'] = "Node crashed before execution"
+        data['traceback'] = '\n'.join(lines[traceback_start:])
+        return data
 
     def generate_report(self):
         searchpath = pkgrf('fmriprep', '/')
