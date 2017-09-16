@@ -110,9 +110,7 @@ body {
                 <li>{{ name }}: {{ spec }}</li>
             {% endfor %}
             </ul>
-            <pre>
-            {{ error.traceback }}
-            </pre>
+            <pre>{{ error.traceback }}</pre>
             </div>
         </div>
         </li>

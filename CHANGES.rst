@@ -1,6 +1,15 @@
 Next release
 ============
 
+1.0.0-rc4 (12th of September 2017)
+==================================
+
+With thanks to Mathias Goncalves for contributions.
+
+* [ENH] Collapse ITK transforms of head-motion correction in only one file (#695)
+* [FIX] Raise error when run.py is called directly (#692)
+* [FIX] Parse crash files when they are stored as text (#690)
+* [ENH] Replace medial wall values with NaNs (#687)
 
 1.0.0-rc3 (28th of August 2017)
 ===============================

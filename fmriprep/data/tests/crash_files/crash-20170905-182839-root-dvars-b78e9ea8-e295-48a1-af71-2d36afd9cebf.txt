@@ -1,0 +1,41 @@
+Node: fmriprep_wf.single_subject_100185_wf.func_preproc_task_machinegame_run_01_wf.bold_confounds_wf.dvars
+Working directory: /scratch/fmriprep_wf/single_subject_100185_wf/func_preproc_task_machinegame_run_01_wf/bold_confounds_wf/dvars
+
+Node inputs:
+
+figdpi = 100
+figformat = png
+figsize = (11.7, 2.3)
+ignore_exception = False
+in_file = /scratch/fmriprep_wf/single_subject_100185_wf/func_preproc_task_machinegame_run_01_wf/bold_reg_wf/merge/vol0000_trans_merged.nii.gz
+in_mask = /scratch/fmriprep_wf/single_subject_100185_wf/func_preproc_task_machinegame_run_01_wf/bold_reg_wf/mask_t1w_tfm/ref_image_corrected_brain_mask_maths_trans.nii.gz
+intensity_normalization = 1000.0
+remove_zerovariance = True
+save_all = True
+save_nstd = False
+save_plot = False
+save_std = True
+save_vxstd = False
+series_tr = <undefined>
+
+Traceback (most recent call last):
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/pipeline/plugins/multiproc.py", line 52, in run_node
+    result['result'] = node.run(updatehash=updatehash)
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/pipeline/engine/nodes.py", line 372, in run
+    self._run_interface()
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/pipeline/engine/nodes.py", line 482, in _run_interface
+    self._result = self._run_command(execute)
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/pipeline/engine/nodes.py", line 613, in _run_command
+    result = self._interface.run()
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/interfaces/base.py", line 1083, in run
+    runtime = self._run_wrapper(runtime)
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/interfaces/base.py", line 1031, in _run_wrapper
+    runtime = self._run_interface(runtime)
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/algorithms/confounds.py", line 143, in _run_interface
+    intensity_normalization=self.inputs.intensity_normalization)
+  File "/usr/local/miniconda/lib/python3.6/site-packages/niworkflows/nipype/algorithms/confounds.py", line 786, in compute_dvars
+    1)[:, 0]
+  File "/usr/local/miniconda/lib/python3.6/site-packages/numpy/lib/shape_base.py", line 91, in apply_along_axis
+    res = func1d(arr[tuple(i.tolist())], *args, **kwargs)
+IndexError: index 0 is out of bounds for axis 0 with size 0
+Interface ComputeDVARS failed to run. 
