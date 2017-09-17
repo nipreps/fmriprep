@@ -1816,7 +1816,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             workflow.connect([
                 (inputnode, smooth_wf, [('bold_t1', 'inputnode.bold'),
                                         ('bold_mask_t1', 'inputnode.bold_mask')]),
-                (smooth_wf, ds_bold_smooth_t1, [('outputnode.bold_smooth', 'bold_smooth_t1')]),
+                (smooth_wf, ds_bold_smooth_t1, [('outputnode.bold_smooth', 'in_file')]),
                 (inputnode, ds_bold_smooth_t1, [('source_file', 'source_file')]),
             ])
 
@@ -1832,7 +1832,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             workflow.connect([
                 (inputnode, smooth_wf, [('bold_mni', 'inputnode.bold'),
                                         ('bold_mask_mni', 'inputnode.bold_mask')]),
-                (smooth_wf, ds_bold_smooth_mni, [('outputnode.bold_smooth', 'bold_smooth_mni')]),
+                (smooth_wf, ds_bold_smooth_mni, [('outputnode.bold_smooth', 'in_file')]),
                 (inputnode, ds_bold_smooth_mni, [('source_file', 'source_file')]),
             ])
 
