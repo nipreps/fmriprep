@@ -382,7 +382,8 @@ Smoothing
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_smooth_wf
-    wf = init_smooth_wf(smooth_fwhm=6)
+    wf = init_smooth_wf(name='smooth_wf',
+                        smooth_fwhm=6)
 
 This sub-workflow (optional; use with ``--smooth-fwhm``) uses FSL's SUSAN to smooth
 derivatives in whichever output space(s) were selected. This implementation of SUSAN
