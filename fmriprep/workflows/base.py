@@ -249,7 +249,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     force_syn=True,
                                     output_grid_ref=None,
                                     use_aroma=False,
-                                    ignore_aroma_err=False)
+                                    ignore_aroma_err=False,
+                                    smooth_fwhm=None)
 
     Parameters
 
