@@ -132,7 +132,7 @@ def get_parser():
     # BOLD Preprocessing options
     g_bold = parser.add_argument_group('Specific options for preprocessing BOLD')
     g_bold.add_argument('--smooth-fwhm', action='store', required=False,
-                        type=int, help='Smooth data with FSL\'s SUSAN. '
+                        type=int, default=None, help='Smooth data with FSL\'s SUSAN. '
                         'select the kernel size (mm) you wish to smooth by.')
     g_bold.add_argument('--use-aroma', action='store_true', default=False,
                         help='add ICA_AROMA to your preprocessing stream')

@@ -101,7 +101,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   medial_surface_nan=False,
                                   use_aroma=False,
                                   ignore_aroma_err=False,
-                                  smooth_fwhm='')
+                                  smooth_fwhm=None)
 
     Parameters
 
@@ -155,7 +155,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Path of custom reference image for normalization
         layout : BIDSLayout
             BIDSLayout structure to enable metadata retrieval
-        smooth_fwhm : int
+        smooth_fwhm : int or None
             size of smoothing kernel to apply to BOLD series
 
     Inputs
@@ -557,7 +557,7 @@ def init_smooth_wf(smooth_fwhm, name='smooth_wf'):
 
     Parameters
 
-        smooth_fwhm : int
+        smooth_fwhm : int or None
             size of smoothing kernel to apply to BOLD series
 
     Inputs

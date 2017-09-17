@@ -37,7 +37,7 @@ class TestBase(TestWorkflow):
                                          use_syn=True,
                                          force_syn=True,
                                          output_grid_ref=None,
-                                         smooth_fwhm='')
+                                         smooth_fwhm=None)
         wfbasic.write_graph()
         self._assert_mandatory_inputs_set(wfbasic)
 

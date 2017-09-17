@@ -75,7 +75,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               use_aroma=False,
                               ignore_aroma_err=False,
                               output_grid_ref=None,
-                              smooth_fwhm='')
+                              smooth_fwhm=None)
 
 
     Parameters
@@ -143,7 +143,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Do not fail on ICA-AROMA errors
         output_grid_ref : str or None
             Path of custom reference image for normalization
-        smooth_fwhm : int
+        smooth_fwhm : int or None
             size of smoothing kernel to apply to BOLD series
 
     """
@@ -316,7 +316,7 @@ def init_single_subject_wf(subject_id, task_id, name,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
-        smooth_fwhm : int
+        smooth_fwhm : int or None
             size of smoothing kernel to apply to BOLD series
 
     Inputs

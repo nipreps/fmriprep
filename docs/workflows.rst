@@ -44,7 +44,7 @@ slice-timing information and no fieldmap acquisitions):
                                 output_grid_ref=None,
                                 use_aroma=False,
                                 ignore_aroma_err=False,
-                                smooth_fwhm='')
+                                smooth_fwhm=None)
 
 
 T1w/T2w preprocessing
@@ -197,7 +197,7 @@ BOLD preprocessing
                               output_grid_ref=None,
                               use_aroma=False,
                               ignore_aroma_err=False,
-                              smooth_fwhm='')
+                              smooth_fwhm=None)
 
 Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
