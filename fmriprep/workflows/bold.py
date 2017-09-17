@@ -1727,7 +1727,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
 
     # Had to have if so workflow doesn't try to initialize with an illegal value
-    if smooth:
+    if smooth_fwhm:
         smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
 
     ds_bold_mask_t1 = pe.Node(DerivativesDataSink(base_directory=output_dir,
