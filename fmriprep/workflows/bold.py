@@ -1725,7 +1725,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         name='ds_bold_t1', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-
     # Had to have if so workflow doesn't try to initialize with an illegal value
     if smooth_fwhm:
         smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
