@@ -1771,10 +1771,11 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                 name="ds_bold_smooth_t1", run_without_submitting=True,
                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_bold_smooth_mni = pe.Node(DerivativesDataSink(base_directory=output_dir,
-                                                     suffix=suffix_fmt_smooth(template, smooth_fwhm)),
-                                 name="ds_bold_smooth_mni", run_without_submitting=True,
-                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
+    ds_bold_smooth_mni = pe.Node(DerivativesDataSink(
+        base_directory=output_dir,
+        suffix=suffix_fmt_smooth(template, smooth_fwhm)),
+        name="ds_bold_smooth_mni", run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     ds_bold_smooth_mni
     if use_aroma:
