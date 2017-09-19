@@ -502,7 +502,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             name='bold_mni_trans_wf'
         )
 
-        smooth_wf = init_smooth_wf(fwhm=smooth_fwhm)
+        smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
 
         workflow.connect([
             (inputnode, bold_mni_trans_wf, [
