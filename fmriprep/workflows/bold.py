@@ -489,6 +489,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                     ('outputnode.out_mask', 'inputnode.ref_bold_mask')]),
             ])
 
+    # do smoothing if --smooth-fwhm is specified
+    smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
+
     if 'template' in output_spaces:
         # Apply transforms in 1 shot
         # Only use uncompressed output if AROMA is to be run
@@ -501,8 +504,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             use_fieldwarp=(fmaps is not None or use_syn),
             name='bold_mni_trans_wf'
         )
-
-        smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
 
         workflow.connect([
             (inputnode, bold_mni_trans_wf, [
