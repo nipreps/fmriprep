@@ -489,9 +489,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                     ('outputnode.out_mask', 'inputnode.ref_bold_mask')]),
             ])
 
-    # do smoothing if --smooth-fwhm is specified
-    smooth_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
-
     if 'template' in output_spaces:
         # Apply transforms in 1 shot
         # Only use uncompressed output if AROMA is to be run
@@ -540,19 +537,23 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ])
 
         if smooth_fwhm:
+            smooth_bold_mni_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
             workflow.connect([
-                (bold_mni_trans_wf, smooth_wf,
+                (bold_mni_trans_wf, smooth_bold_mni_wf,
                     [('outputnode.bold_mni', 'inputnode.bold'),
                      ('outputnode.bold_mask_mni', 'inputnode.bold_mask')]),
-                (smooth_wf, outputnode,
+                (smooth_bold_mni_wf, outputnode,
                     [('outputnode.bold_smooth', 'bold_smooth_mni')]),
             ])
 
+    # do smoothing if --smooth-fwhm is specified
+    # wf can't be initialized if smooth-fwhm is NoneType
     if smooth_fwhm:
+        smooth_bold_t1_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
         workflow.connect([
-            (bold_reg_wf, smooth_wf, [('outputnode.bold_t1', 'inputnode.bold'),
+            (bold_reg_wf, smooth_bold_t1_wf, [('outputnode.bold_t1', 'inputnode.bold'),
                                       ('outputnode.bold_mask_t1', 'inputnode.bold_mask')]),
-            (smooth_wf, outputnode, [('outputnode.bold_smooth', 'bold_smooth_t1')]),
+            (smooth_bold_t1_wf, outputnode, [('outputnode.bold_smooth', 'bold_smooth_t1')]),
         ])
 
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
