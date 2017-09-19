@@ -132,8 +132,8 @@ def get_parser():
     # BOLD Preprocessing options
     g_bold = parser.add_argument_group('Specific options for preprocessing BOLD')
     g_bold.add_argument('--smooth-fwhm', action='store', required=False,
-                        type=int, default=None, help='Smooth data with FSL\'s SUSAN. '
-                        'select the kernel size (mm) you wish to smooth by.')
+                        type=float, default=None, help="Specify FWHM kernel (in mm) "
+                        "for smoothing BOLD data. Uses FSL's SUSAN algorithm.")
     g_bold.add_argument('--use-aroma', action='store_true', default=False,
                         help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
@@ -316,7 +316,7 @@ def create_workflow(opts):
         force_syn=opts.force_syn,
         use_aroma=opts.use_aroma,
         ignore_aroma_err=opts.ignore_aroma_denoising_errors,
-        smooth_fwhm=opts.smooth_fwhm
+        smooth_fwhm=opts.smooth_fwhm,
     )
 
     if opts.write_graph:

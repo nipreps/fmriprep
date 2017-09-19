@@ -143,8 +143,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Do not fail on ICA-AROMA errors
         output_grid_ref : str or None
             Path of custom reference image for normalization
-        smooth_fwhm : int or None
-            size of smoothing kernel to apply to BOLD series
+        smooth_fwhm : float or None
+            size of smoothing kernel (in mm) to apply to BOLD series
 
     """
     fmriprep_wf = pe.Workflow(name='fmriprep_wf')
@@ -317,8 +317,8 @@ def init_single_subject_wf(subject_id, task_id, name,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
-        smooth_fwhm : int or None
-            size of smoothing kernel to apply to BOLD series
+        smooth_fwhm : float or None
+            size of smoothing kernel (in mm) to apply to BOLD series
 
     Inputs
 
