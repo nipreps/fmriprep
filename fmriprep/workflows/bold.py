@@ -551,9 +551,11 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     if smooth_fwhm:
         smooth_bold_t1_wf = init_smooth_wf(smooth_fwhm=smooth_fwhm)
         workflow.connect([
-            (bold_reg_wf, smooth_bold_t1_wf, [('outputnode.bold_t1', 'inputnode.bold'),
-                                      ('outputnode.bold_mask_t1', 'inputnode.bold_mask')]),
-            (smooth_bold_t1_wf, outputnode, [('outputnode.bold_smooth', 'bold_smooth_t1')]),
+            (bold_reg_wf, smooth_bold_t1_wf,
+                [('outputnode.bold_t1', 'inputnode.bold'),
+                 ('outputnode.bold_mask_t1', 'inputnode.bold_mask')]),
+            (smooth_bold_t1_wf, outputnode,
+                [('outputnode.bold_smooth', 'bold_smooth_t1')]),
         ])
 
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
