@@ -1800,7 +1800,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         name="ds_bold_smooth_mni", run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_bold_smooth_mni
     if use_aroma:
         workflow.connect([
             (inputnode, ds_aroma_noise_ics, [('source_file', 'source_file'),
