@@ -5,3 +5,4 @@
 """
 The fmriprep reporting engine for visual assessment
 """
+from .reports import run_reports

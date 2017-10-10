@@ -128,4 +128,4 @@ software tools:
 - `AFNI <https://afni.nimh.nih.gov/>`_ (version Debian-16.2.07)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
 - `FreeSurfer <https://surfer.nmr.mgh.harvard.edu/>`_ (version 6.0.0)
-- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4-beta)
+- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)

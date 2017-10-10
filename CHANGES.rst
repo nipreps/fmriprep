@@ -2,6 +2,67 @@ Next release
 ============
 
 
+1.0.0-rc5 (25th of September 2017)
+==================================
+
+* [FIX] Skip slice time correction on BOLD series < 5 volumes (#711)
+* [FIX] Skip AFNI check for new versions (#723)
+* [DOC] Documentation clarification and updates (#698, #711)
+
+1.0.0-rc4 (12th of September 2017)
+==================================
+
+With thanks to Mathias Goncalves for contributions.
+
+* [ENH] Collapse ITK transforms of head-motion correction in only one file (#695)
+* [FIX] Raise error when run.py is called directly (#692)
+* [FIX] Parse crash files when they are stored as text (#690)
+* [ENH] Replace medial wall values with NaNs (#687)
+
+1.0.0-rc3 (28th of August 2017)
+===============================
+
+With thanks to Anibal Sólon for contributions.
+
+* [ENH] Add --low-mem option to reduce memory usage for large BOLD series (#663)
+* [ENH] Parallelize anatomical conformation step (#666)
+* [FIX] Handle missing functional data in SubjectSummary node (#670)
+* [FIX] Disable --no-skull-strip-ants (AFNI skull-stripping) (#674)
+* [FIX] Initialize SyN SDC more robustly (#680)
+* [DOC] Add comprehensive documentation of workflow API (#638)
+
+1.0.0-rc2 (12th of August 2017)
+===============================
+
+* [ENH] Increased support for partial field-of-view BOLD datasets (#659)
+* [FIX] Slice time correction is now being applied to output data (not only to intermediate file used for motion estimation - #662)
+* [FIX] Fieldmap unwarping is now being applied to MNI space outputs (not only to T1w space outputs - #662)
+
+1.0.0-rc1 (8th of August 2017)
+==============================
+
+* [ENH] Include ICA-AROMA confounds in report (#646)
+* [ENH] Save non-aggressively denoised BOLD series (#648)
+* [ENH] Improved logging messages (#621)
+* [ENH] Improved resource management (#622, #629, #640, #641)
+* [ENH] Improved confound header names (#634)
+* [FIX] Ensure multi-T1w image datasets have RAS-oriented template (#637)
+* [FIX] More informative errors for conflicting options (#632)
+* [DOC] Improved report summaries (#647)
+
+0.6.0 (31st of July 2017)
+=========================
+
+With thanks to Yaroslav Halchenko and Ilkay Isik for contributions.
+
+* [ENH] Set threshold on up-sampling ratio in conformation, report results (#601)
+* [ENH] Censor non-steady-state volumes prior to CompCor (#603)
+* [FIX] Conformation failure in thick-slice, oblique T1w datasets (#601)
+* [FIX] Crash/report failure of phase-difference SDC pipeline (#602, #604)
+* [FIX] Prevent AFNI NIfTI extensions from crashing reference EPI estimation (#619)
+* [DOC] Save logs to output directory (#605)
+* [ENH] Upgrade to ICA-AROMA 0.4.1-beta (#611)
+
 0.5.4 (20th of July 2017)
 =========================
 

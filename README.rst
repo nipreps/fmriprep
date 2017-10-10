@@ -34,7 +34,7 @@ running a variety of group level analyses (task based or resting state fMRI, gra
 .. note::
 
    fmriprep performs minimal preprocessing.
-   Here we define 'minimal preprocessing'  as motion correction, field unwarping, normalization, field bias correction, and brain extraction.
+   Here we define 'minimal preprocessing'  as motion correction, field unwarping, normalization, bias field correction, and brain extraction.
    See the workflows_ for more details.
 
 The fmriprep pipeline primarily
@@ -62,9 +62,9 @@ Principles
 
 ``fmriprep`` is built around three principles:
 
-1. **Robustness** - the pipeline adapts the preprocessing steps depending on the input dataset and should provide results as good as possible independently of scanner make, scanning parameters or presence of additional correction scans (such as fieldmaps)
-2. **Ease of use** - thanks to dependance on the BIDS standard manual parameter input is reduced to a minimum allow the pipeline to run in an automatic fashion.
-3. **"Glass box"** philosophy - automation should not mean that one should not visually inspect the results or understand the methods. Thus ``fmriprep`` provides for each subject visual reports detailing the accuracy of the most important processing steps. This combined with the documentation can help researchers to understand the process and decide which subjects should be kept for the group level analysis.
+1. **Robustness** - The pipeline adapts the preprocessing steps depending on the input dataset and should provide results as good as possible independently of scanner make, scanning parameters or presence of additional correction scans (such as fieldmaps).
+2. **Ease of use** - Thanks to dependence on the BIDS standard, manual parameter input is reduced to a minimum, allowing the pipeline to run in an automatic fashion.
+3. **"Glass box"** philosophy - Automation should not mean that one should not visually inspect the results or understand the methods. Thus, ``fmriprep`` provides visual reports for each subject, detailing the accuracy of the most important processing steps. This, combined with the documentation, can help researchers to understand the process and decide which subjects should be kept for the group level analysis.
 
 Acknowledgements
 ----------------
