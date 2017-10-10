@@ -23,7 +23,7 @@ from .info import (
     __description__,
     __longdesc__
 )
-from .due import due, Url
+from .due import due, Url, Doi
 
 import warnings
 
