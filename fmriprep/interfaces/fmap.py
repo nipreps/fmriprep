@@ -14,6 +14,7 @@ from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits)
 from niworkflows.interfaces.base import SimpleInterface
+from ...due import Doi
 
 LOGGER = logging.getLogger('interface')
 
@@ -127,6 +128,50 @@ class FieldEnhance(SimpleInterface):
         return runtime
 
 
+class PhaseDiff2FieldmapInputSpec(BaseInterfaceInputSpec):
+    in_file = traits.File(exists=True, mandatory=True, desc='Input phdiff file')
+    delta_te = traits.Float(mandatory=True, desc='Echo time (TE) difference')
+
+
+class PhaseDiff2FieldmapOutputSpec(TraitedSpec):
+    out_file = traits.File(exists=True)
+
+
+class PhaseDiff2Fieldmap(SimpleInterface):
+    r"""
+    Converts the input phase-difference map into a fieldmap in Hz,
+    using the eq. (1) of [Hutton2002]_:
+
+    .. math::
+
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
+
+
+    In this case, we do not take into account the gyromagnetic ratio of the
+    proton (:math:`\gamma`), since it will be applied inside TOPUP:
+
+    .. math::
+
+        \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
+
+
+    .. [Hutton2002] Hutton et al., Image Distortion Correction in fMRI: A Quantitative
+                    Evaluation, NeuroImage 16(1):217-240, 2002. doi:`10.1006/nimg.2001.1054
+                    <http://dx.doi.org/10.1006/nimg.2001.1054>`_.
+
+    """
+    input_spec = PhaseDiff2FieldmapInputSpec
+    output_spec = PhaseDiff2FieldmapOutputSpec
+    references_ = [{
+        'entry': Doi('10.1006/nimg.2001.1054'),
+        'description': "Conversion of the input phase-difference map into a fieldmap in Hz",
+        'tags': ['edu']}]
+
+    def _run_interface(self, runtime):
+        self.outputs['out_file'] = phdiff2fmap(self.inputs.in_file, self.inputs.delta_te)
+        return runtime
+
+
 def _despike2d(data, thres, neigh=None):
     """
     despiking as done in FSL fugue
@@ -181,3 +226,50 @@ def _unwrap(fmap_data, mag_file, mask=None):
 
     unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax / pi)
     return unwrapped
+
+
+# The phdiff2fmap interface is equivalent to:
+# rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)
+# pre_fugue = pe.Node(fsl.FUGUE(save_fmap=True), name='ComputeFieldmapFUGUE')
+# rsec2hz (divide by 2pi)
+def phdiff2fmap(in_file, delta_te, out_file=None):
+    r"""
+    Converts the input phase-difference map into a fieldmap in Hz,
+    using the eq. (1) of [Hutton2002]_:
+
+    .. math::
+
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
+
+
+    In this case, we do not take into account the gyromagnetic ratio of the
+    proton (:math:`\gamma`), since it will be applied inside TOPUP:
+
+    .. math::
+
+        \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
+
+
+    .. [Hutton2002] Hutton et al., Image Distortion Correction in fMRI: A Quantitative
+                    Evaluation, NeuroImage 16(1):217-240, 2002. doi:`10.1006/nimg.2001.1054
+                    <http://dx.doi.org/10.1006/nimg.2001.1054>`_.
+
+    """
+    import numpy as np
+    import nibabel as nb
+    import os.path as op
+    import math
+
+    #  GYROMAG_RATIO_H_PROTON_MHZ = 42.576
+
+    if out_file is None:
+        fname, fext = op.splitext(op.basename(in_file))
+        if fext == '.gz':
+            fname, _ = op.splitext(fname)
+        out_file = op.abspath('./%s_fmap.nii.gz' % fname)
+
+    image = nb.load(in_file)
+    data = (image.get_data().astype(np.float32) / (2. * math.pi * delta_te))
+
+    nb.Nifti1Image(data, image.affine, image.header).to_filename(out_file)
+    return out_file
