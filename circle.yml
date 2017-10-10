@@ -46,13 +46,19 @@ test:
         parallel: true
         environment:
           GIT_COMMIT_DESC: $(git log --format=oneline -n 1 $CIRCLE_SHA1)
+    - bash .circle/outputs_check.sh :
+        parallel: true
+        environment:
+          GIT_COMMIT_DESC: $(git log --format=oneline -n 1 $CIRCLE_SHA1)
 
 general:
   artifacts:
     - "~/ds054/out"
     - "~/ds054/scratch"
+    - "~/ds054/test"
     - "~/ds005/out"
     - "~/ds005/scratch"
+    - "~/ds005/test"
     - "~/docs"
 
 deployment:

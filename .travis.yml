@@ -13,4 +13,4 @@ before_install:
   - pip install "flake8<3.0" flake8-putty
 
 script:
-  - flake8 fmriprep test wrapper
+  - flake8 fmriprep wrapper

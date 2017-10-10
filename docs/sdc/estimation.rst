@@ -35,4 +35,4 @@ be corrected using the fieldmap-based estimates.
 
 Feedback will be enthusiastically received.
 
-.. autofunction:: fmriprep.workflows.epi.init_nonlinear_sdc_wf
+.. autofunction:: fmriprep.workflows.bold.init_nonlinear_sdc_wf

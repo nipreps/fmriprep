@@ -1,14 +1,22 @@
-'''  Class and utilities for testing the workflows module '''
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
+"""
+Class and utilities for testing the workflows module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+"""
 
 import unittest
 import logging
 from networkx.exception import NetworkXUnfeasible
-from traits.trait_base import _Undefined as trait_undefined
 
-from niworkflows.nipype.pipeline import engine
-from niworkflows.nipype.interfaces import utility
+from niworkflows.nipype.pipeline import engine as pe
+from niworkflows.nipype.interfaces.base import isdefined
+from niworkflows.nipype.interfaces import utility as niu
 
-logging.disable(logging.INFO)
+logging.disable(logging.INFO)  # <- do we really want to do this?
 
 
 class TestWorkflow(unittest.TestCase):
@@ -19,7 +27,7 @@ class TestWorkflow(unittest.TestCase):
                                        expected_inputs, expected_outputs,
                                        actual):
         ''' somewhat hacky way to confirm workflows are as expected, but with low confidence '''
-        self.assertIsInstance(actual, engine.Workflow)
+        self.assertIsInstance(actual, pe.Workflow)
         self.assertEqual(expected_name, actual.name)
 
         # assert it has the same nodes
@@ -84,30 +92,17 @@ class TestWorkflow(unittest.TestCase):
             b) connected to another node's output (e.g. using the workflow.connect method)
         additional_inputs is a dict:
             {'node_name': ['mandatory', 'input', 'fields']}'''
-        dummy_node = engine.Node(utility.IdentityInterface(fields=['dummy']), name='DummyNode')
+        dummy_node = pe.Node(niu.IdentityInterface(fields=['dummy']), name='DummyNode')
         node_names = [name for name in workflow.list_node_names() if name.count('.') == 0]
         for node_name in set(node_names + list(additional_inputs.keys())):
             node = workflow.get_node(node_name)
             mandatory_inputs = list(node.inputs.traits(mandatory=True).keys())
             other_inputs = additional_inputs[node_name] if node_name in additional_inputs else []
             for field in set(mandatory_inputs + other_inputs):
-                if field_is_defined(node, field):
+                if isdefined(getattr(node.inputs, field)):
                     pass
                 else:  # not explicitly defined
                     # maybe it is connected to an output
                     with self.assertRaises(Exception):
                         # throws an error if the input is already connected
                         workflow.connect([(dummy_node, node, [('dummy', field)])])
-
-
-def field_is_defined(node, field_name):
-    ''' returns true if field is a defined trait, false if not '''
-
-    # getting the input object is a headache
-    name_chain = field_name.split('.')
-    input_ = node.inputs  # nipype "Bunch" obj
-    for name in name_chain:
-        # in the last iteration, input_ magically becomes an input object rather than a "Bunch"
-        input_ = input_.get()[name]
-
-    return input_.__class__ != trait_undefined

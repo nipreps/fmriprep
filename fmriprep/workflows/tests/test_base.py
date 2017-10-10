@@ -1,8 +1,8 @@
 ''' Testing module for fmriprep.workflows.base '''
 import mock
 
-from fmriprep.workflows.base import init_single_subject_wf
-from test.workflows.utilities import TestWorkflow
+from ...utils.testing import TestWorkflow
+from ..base import init_single_subject_wf
 
 
 @mock.patch('fmriprep.interfaces.BIDSDataGrabber')  # no actual BIDS dir necessary
@@ -16,15 +16,19 @@ class TestBase(TestWorkflow):
                                          task_id='',
                                          ignore=[],
                                          debug=False,
+                                         low_mem=False,
                                          anat_only=False,
+                                         longitudinal=False,
                                          omp_nthreads=1,
                                          skull_strip_ants=False,
+                                         skull_strip_template='OASIS',
                                          reportlets_dir='.',
                                          output_dir='.',
                                          bids_dir='.',
                                          freesurfer=False,
                                          output_spaces=['T1w'],
                                          template='MNI152NLin2009cAsym',
+                                         medial_surface_nan=False,
                                          hires=False,
                                          bold2t1w_dof=9,
                                          fmap_bspline=True,
@@ -35,7 +39,6 @@ class TestBase(TestWorkflow):
                                          force_syn=True,
                                          output_grid_ref=None)
         wfbasic.write_graph()
-
         self._assert_mandatory_inputs_set(wfbasic)
 
     def _assert_mandatory_inputs_set(self, workflow):

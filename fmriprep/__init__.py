@@ -51,7 +51,7 @@ Info.version = staticmethod(_new_version)
 due.cite(
     # Chicken/egg problem with Zenodo here regarding DOI.  Might need
     # custom Zenodo?  TODO: add DOI for a Zenodo entry when available
-    # Doi("1.2.3/x.y.z"),
+    Doi("10.5281/zenodo.996169"),
     Url('http://fmriprep.readthedocs.io'),
     description="A Robust Preprocessing Pipeline for fMRI Data",
     version=__version__,
