@@ -26,7 +26,6 @@ structural images.
 
 import os.path as op
 
-from niworkflows.nipype.interfaces import ants
 from niworkflows.nipype.interfaces import freesurfer as fs
 from niworkflows.nipype.interfaces import utility as niu
 from niworkflows.nipype.interfaces import io as nio
@@ -37,6 +36,7 @@ from niworkflows.anat.skullstrip import afni_wf as init_skullstrip_afni_wf
 import niworkflows.data as nid
 from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
+from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ..interfaces import (
     DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
@@ -228,20 +228,20 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
 
     # Resample the brain mask and the tissue probability maps into mni space
     mni_mask = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='NearestNeighbor'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='NearestNeighbor'),
         name='mni_mask'
     )
 
     mni_seg = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='NearestNeighbor'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='NearestNeighbor'),
         name='mni_seg'
     )
 
     mni_tpms = pe.MapNode(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='Linear'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='Linear'),
         iterfield=['input_image'],
         name='mni_tpms'
     )

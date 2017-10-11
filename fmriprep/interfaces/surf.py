@@ -14,9 +14,9 @@ import numpy as np
 import nibabel as nb
 
 from niworkflows.nipype.interfaces.base import (
-    BaseInterfaceInputSpec, TraitedSpec, File, traits, isdefined)
-
-from niworkflows.interfaces.base import SimpleInterface
+    BaseInterfaceInputSpec, TraitedSpec, File, traits, isdefined,
+    SimpleInterface
+)
 
 
 class NormalizeSurfInputSpec(BaseInterfaceInputSpec):

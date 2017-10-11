@@ -14,9 +14,8 @@ import time
 from collections import Counter
 from niworkflows.nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
-    File, Directory, InputMultiPath, Str, isdefined)
-from niworkflows.interfaces.base import SimpleInterface
-
+    File, Directory, InputMultiPath, Str, isdefined,
+    SimpleInterface)
 from niworkflows.nipype.interfaces import freesurfer as fs
 
 from .bids import BIDS_NAME

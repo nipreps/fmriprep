@@ -67,14 +67,14 @@ REQUIRES = [
     'grabbit',
     'pybids>=0.3',
     'nitime',
-    'niworkflows>=0.1.7',
+    'niworkflows>=0.1.8',
     'statsmodels',
     'nipype',
     'seaborn',
-    'joblib',
 ]
 
-LINKS_REQUIRES = []
+LINKS_REQUIRES = [
+]
 
 TESTS_REQUIRES = [
     "mock",

@@ -20,34 +20,9 @@ from niworkflows.nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
     File, InputMultiPath, OutputMultiPath)
 from niworkflows.nipype.interfaces import fsl
-from niworkflows.interfaces.base import SimpleInterface
-
+from niworkflows.nipype.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
-
-
-class GenerateSamplingReferenceInputSpec(BaseInterfaceInputSpec):
-    fixed_image = File(exists=True, mandatory=True, desc='the reference file')
-    moving_image = File(exists=True, mandatory=True, desc='the pixel size reference')
-
-
-class GenerateSamplingReferenceOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='one file with all inputs flattened')
-
-
-class GenerateSamplingReference(SimpleInterface):
-    """
-    Generates a reference grid for resampling one image keeping original resolution,
-    but moving data to a different space (e.g. MNI)
-    """
-
-    input_spec = GenerateSamplingReferenceInputSpec
-    output_spec = GenerateSamplingReferenceOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_file'] = _gen_reference(self.inputs.fixed_image,
-                                                   self.inputs.moving_image)
-        return runtime
 
 
 class IntraModalMergeInputSpec(BaseInterfaceInputSpec):
@@ -466,18 +441,6 @@ def _flatten_split_merge(in_files):
         nb.concat_images(all_nii).to_filename(merged)
 
     return merged, flat_split
-
-
-def _gen_reference(fixed_image, moving_image, out_file=None):
-    if out_file is None:
-        out_file = fname_presuffix(fixed_image, suffix='_reference', newpath=os.getcwd())
-    new_zooms = nli.load_img(moving_image).header.get_zooms()[:3]
-    # Avoid small differences in reported resolution to cause changes to
-    # FOV. See https://github.com/poldracklab/fmriprep/issues/512
-    new_zooms_round = np.round(new_zooms, 3)
-    nli.resample_img(fixed_image, target_affine=np.diag(new_zooms_round),
-                     interpolation='nearest').to_filename(out_file)
-    return out_file
 
 
 def extract_wm(in_seg, wm_label=3):

@@ -16,6 +16,7 @@ import os.path as op
 
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu
+from niworkflows.interfaces.utils import CopyXForm
 from niworkflows.nipype.interfaces import fsl, afni, c3, ants, freesurfer as fs
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT
 from niworkflows.interfaces.masks import SimpleShowMaskRPT
@@ -81,10 +82,13 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
                             name='combine_masks')
     apply_mask = pe.Node(fsl.ApplyMask(),
                          name='apply_mask')
+    copy_xform = pe.Node(CopyXForm(), name='copy_xform',
+                         mem_gb=0.1, run_without_submitting=True)
     mask_reportlet = pe.Node(SimpleShowMaskRPT(), name='mask_reportlet')
 
     workflow.connect([
         (inputnode, n4_correct, [('in_file', 'input_image')]),
+        (inputnode, copy_xform, [('in_file', 'hdr_file')]),
         (n4_correct, skullstrip_first_pass, [('output_image', 'in_file')]),
         (skullstrip_first_pass, unifize, [('out_file', 'in_file')]),
         (unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
@@ -96,9 +100,10 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
         (combine_masks, mask_reportlet, [('out_file', 'mask_file')]),
         (combine_masks, outputnode, [('out_file', 'mask_file')]),
         (mask_reportlet, outputnode, [('out_report', 'out_report')]),
-        (apply_mask, outputnode, [('out_file', 'skull_stripped_file')]),
+        (apply_mask, copy_xform, [('out_file', 'in_file')]),
+        (copy_xform, outputnode, [('out_file', 'skull_stripped_file')]),
         (n4_correct, outputnode, [('output_image', 'bias_corrected_file')]),
-        ])
+    ])
 
     return workflow
 
@@ -237,20 +242,32 @@ def init_bbreg_wf(bold2t1w_dof, name='bbreg_wf'):
         name='bbregister')
 
     lta_concat = pe.Node(fs.ConcatenateLTA(out_file='out.lta'), name='lta_concat')
-    lta2itk_fwd = pe.Node(fs.utils.LTAConvert(out_itk=True), name='lta2itk_fwd')
-    lta2itk_inv = pe.Node(fs.utils.LTAConvert(out_itk=True, invert=True), name='lta2itk_inv')
+    # XXX LTA-FSL-ITK may ultimately be able to be replaced with a straightforward
+    # LTA-ITK transform, but right now the translation parameters are off.
+    lta2fsl_fwd = pe.Node(fs.utils.LTAConvert(out_fsl=True), name='lta2fsl_fwd')
+    lta2fsl_inv = pe.Node(fs.utils.LTAConvert(out_fsl=True, invert=True), name='lta2fsl_inv')
+    fsl2itk_fwd = pe.Node(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
+                          name='fsl2itk_fwd', mem_gb=DEFAULT_MEMORY_MIN_GB)
+    fsl2itk_inv = pe.Node(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
+                          name='fsl2itk_inv', mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     workflow.connect([
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
         (bbregister, outputnode, [('out_report', 'out_report')]),
-        (lta2itk_fwd, outputnode, [('out_itk', 'itk_bold_to_t1')]),
-        (lta2itk_inv, outputnode, [('out_itk', 'itk_t1_to_bold')]),
+        (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
+        (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
         (inputnode, lta_concat, [('t1_2_fsnative_reverse_transform', 'in_lta2')]),
         (bbregister, lta_concat, [('out_lta_file', 'in_lta1')]),
-        (lta_concat, lta2itk_fwd, [('out_file', 'in_lta')]),
-        (lta_concat, lta2itk_inv, [('out_file', 'in_lta')]),
+        (lta_concat, lta2fsl_fwd, [('out_file', 'in_lta')]),
+        (lta_concat, lta2fsl_inv, [('out_file', 'in_lta')]),
+        (inputnode, fsl2itk_fwd, [('t1_brain', 'reference_file'),
+                                  ('in_file', 'source_file')]),
+        (inputnode, fsl2itk_inv, [('in_file', 'reference_file'),
+                                  ('t1_brain', 'source_file')]),
+        (lta2fsl_fwd, fsl2itk_fwd, [('out_fsl', 'transform_file')]),
+        (lta2fsl_inv, fsl2itk_inv, [('out_fsl', 'transform_file')]),
         ])
 
     return workflow

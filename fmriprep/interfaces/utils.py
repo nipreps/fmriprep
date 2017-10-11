@@ -16,9 +16,9 @@ from nilearn.image import resample_to_img
 
 from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
-    traits, isdefined, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath
+    traits, isdefined, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath,
+    SimpleInterface
 )
-from niworkflows.interfaces.base import SimpleInterface
 
 
 class TPM2ROIInputSpec(BaseInterfaceInputSpec):

@@ -30,8 +30,7 @@ from niworkflows.nipype.interfaces.base import (
     isdefined, InputMultiPath, BaseInterfaceInputSpec, TraitedSpec, File, traits, Directory
 )
 from niworkflows.nipype.interfaces import freesurfer as fs
-
-from niworkflows.interfaces.base import SimpleInterface
+from niworkflows.nipype.interfaces.base import SimpleInterface
 
 
 class StructuralReference(fs.RobustTemplate):

@@ -15,9 +15,9 @@ import numpy as np
 import pandas as pd
 from niworkflows.nipype import logging
 from niworkflows.nipype.interfaces.base import (
-    traits, TraitedSpec, BaseInterfaceInputSpec, File, Directory, isdefined
+    traits, TraitedSpec, BaseInterfaceInputSpec, File, Directory, isdefined,
+    SimpleInterface
 )
-from niworkflows.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
 
