@@ -69,7 +69,7 @@ LOGGER = logging.getLogger('workflow')
 
 
 def init_func_preproc_wf(bold_file, ignore, freesurfer,
-                         bold2t1w_dof, reportlets_dir,
+                         use_bbr, bold2t1w_dof, reportlets_dir,
                          output_spaces, template, output_dir, omp_nthreads,
                          fmap_bspline, fmap_demean, use_syn, force_syn,
                          use_aroma, ignore_aroma_err, medial_surface_nan,
@@ -92,6 +92,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   output_spaces=['T1w', 'fsnative',
                                                  'template', 'fsaverage5'],
                                   debug=False,
+                                  use_bbr=True,
                                   bold2t1w_dof=9,
                                   fmap_bspline=True,
                                   fmap_demean=True,
@@ -104,7 +105,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   ignore_aroma_err=False,
                                   smooth_fwhm=None)
 
-    Parameters
+    **Parameters**
 
         bold_file : str
             BOLD series NIfTI file
@@ -113,6 +114,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         freesurfer : bool
             Enable FreeSurfer functional registration (bbregister) and resampling
             BOLD series to FreeSurfer surface meshes.
+        use_bbr : bool or None
+            Enable/disable boundary-based registration refinement.
+            If ``None``, test BBR result for distortion before accepting.
         bold2t1w_dof : 6, 9 or 12
             Degrees-of-freedom for BOLD-T1w registration
         reportlets_dir : str
@@ -159,7 +163,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         smooth_fwhm : float or None
             size of smoothing kernel (in mm) to apply to BOLD series
 
-    Inputs
+    **Inputs**
 
         bold_file
             BOLD series NIfTI file
@@ -186,7 +190,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Affine transform from FreeSurfer subject space to T1w space
 
 
-    Outputs
+    **Outputs**
 
         bold_t1
             BOLD series, resampled to T1w space
@@ -208,6 +212,21 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Noise components identified by ICA-AROMA
         melodic_mix
             FSL MELODIC mixing matrix
+
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.bold.init_bold_reference_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_stc_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_hmc_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_reg_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_confounds_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.unwarp.init_pepolar_unwarp_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.init_fmap_estimator_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.init_sdc_unwarp_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_nonlinear_sdc_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_mni_trans_wf`
+        * :py:func:`~fmriprep.workflows.bold.init_bold_surf_wf`
 
     """
 
@@ -270,11 +289,13 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file']),
         name='outputnode')
 
-    summary = pe.Node(FunctionalSummary(output_spaces=output_spaces,
-                                        pe_direction=bold_pe), name='summary',
-                      mem_gb=0.05)
-    summary.inputs.slice_timing = run_stc
-    summary.inputs.registration = 'bbregister' if freesurfer else 'FLIRT'
+    summary = pe.Node(
+        FunctionalSummary(output_spaces=output_spaces,
+                          slice_timing=run_stc,
+                          registration='FreeSurfer' if freesurfer else 'FSL',
+                          registration_dof=bold2t1w_dof,
+                          pe_direction=bold_pe),
+        name='summary', mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
 
     func_reports_wf = init_func_reports_wf(reportlets_dir=reportlets_dir,
                                            freesurfer=freesurfer,
@@ -321,6 +342,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     # mean BOLD registration to T1w
     bold_reg_wf = init_bold_reg_wf(name='bold_reg_wf',
                                    freesurfer=freesurfer,
+                                   use_bbr=use_bbr,
                                    bold2t1w_dof=bold2t1w_dof,
                                    bold_file_size_gb=bold_file_size_gb,
                                    omp_nthreads=omp_nthreads,
@@ -363,6 +385,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.validation_report', 'inputnode.validation_report')]),
         (bold_reg_wf, func_reports_wf, [
             ('outputnode.out_report', 'inputnode.bold_reg_report'),
+            ('outputnode.fallback', 'inputnode.bold_reg_fallback'),
         ]),
         (bold_confounds_wf, outputnode, [
             ('outputnode.confounds_file', 'confounds'),
@@ -377,6 +400,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.tcompcor_report', 'inputnode.tcompcor_report'),
             ('outputnode.ica_aroma_report', 'inputnode.ica_aroma_report')]),
         (bold_confounds_wf, summary, [('outputnode.confounds_list', 'confounds')]),
+        (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
         (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
     ])
 
@@ -677,7 +701,7 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
         from fmriprep.workflows.bold import init_bold_reference_wf
         wf = init_bold_reference_wf(omp_nthreads=1)
 
-    Parameters
+    **Parameters**
 
         bold_file : str
             BOLD series NIfTI file
@@ -686,12 +710,12 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
         name : str
             Name of workflow (default: ``bold_reference_wf``)
 
-    Inputs
+    **Inputs**
 
         bold_file
             BOLD series NIfTI file
 
-    Outputs
+    **Outputs**
 
         bold_file
             Validated BOLD series NIfTI file
@@ -709,6 +733,11 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
             Reportlet showing quality of masking
         validation_report
             HTML reportlet indicating whether ``bold_file`` had a valid affine
+
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.util.init_enhance_and_skullstrip_wf`
 
     """
     workflow = pe.Workflow(name=name)
@@ -764,21 +793,21 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
                       "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
             )
 
-    Parameters
+    **Parameters**
 
         metadata : dict
             BIDS metadata for BOLD file
         name : str
             Name of workflow (default: ``bold_stc_wf``)
 
-    Inputs
+    **Inputs**
 
         bold_file
             BOLD series NIfTI file
         skip_vols
             Number of non-steady-state volumes detected at beginning of ``bold_file``
 
-    Outputs
+    **Outputs**
 
         stc_file
             Slice-timing corrected BOLD series NIfTI file
@@ -838,7 +867,7 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
         from fmriprep.workflows.bold import init_bold_hmc_wf
         wf = init_bold_hmc_wf(bold_file_size_gb=3, omp_nthreads=1)
 
-    Parameters
+    **Parameters**
 
         bold_file_size_gb : float
             Size of BOLD file in GB
@@ -847,14 +876,14 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
         name : str
             Name of workflow (default: ``bold_hmc_wf``)
 
-    Inputs
+    **Inputs**
 
         bold_file
             BOLD series NIfTI file
         raw_ref_image
             Reference image to which BOLD series is motion corrected
 
-    Outputs
+    **Outputs**
 
         bold_split
             Individual 3D volumes, not motion corrected
@@ -901,7 +930,7 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
     return workflow
 
 
-def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
+def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
                      name='bold_reg_wf', use_compression=True,
                      use_fieldwarp=False):
     """
@@ -922,12 +951,16 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
         wf = init_bold_reg_wf(freesurfer=True,
                               bold_file_size_gb=3,
                               omp_nthreads=1,
+                              use_bbr=True,
                               bold2t1w_dof=9)
 
-    Parameters
+    **Parameters**
 
         freesurfer : bool
             Enable FreeSurfer functional registration (bbregister)
+        use_bbr : bool or None
+            Enable/disable boundary-based registration refinement.
+            If ``None``, test BBR result for distortion before accepting.
         bold2t1w_dof : 6, 9 or 12
             Degrees-of-freedom for BOLD-T1w registration
         bold_file_size_gb : float
@@ -941,7 +974,7 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
         use_fieldwarp : bool
             Include SDC warp in single-shot transform from BOLD to T1
 
-    Inputs
+    **Inputs**
 
         name_source
             BOLD series NIfTI file
@@ -973,7 +1006,7 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
         fieldwarp
             a :abbr:`DFM (displacements field map)` in ITK format
 
-    Outputs
+    **Outputs**
 
         itk_bold_to_t1
             Affine transform from ``ref_bold_brain`` to T1 space (ITK format)
@@ -985,6 +1018,14 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
             BOLD mask in T1 space
         out_report
             Reportlet visualizing quality of registration
+        fallback
+            Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.util.init_bbreg_wf`
+        * :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`
 
     """
     workflow = pe.Workflow(name=name)
@@ -999,14 +1040,15 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold',
                                       'bold_t1', 'bold_mask_t1',
-                                      'out_report']),
+                                      'out_report', 'fallback']),
         name='outputnode'
     )
 
     if freesurfer:
-        bbr_wf = init_bbreg_wf(bold2t1w_dof)
+        bbr_wf = init_bbreg_wf(use_bbr=use_bbr, bold2t1w_dof=bold2t1w_dof,
+                               omp_nthreads=omp_nthreads)
     else:
-        bbr_wf = init_fsl_bbr_wf(bold2t1w_dof)
+        bbr_wf = init_fsl_bbr_wf(use_bbr=use_bbr, bold2t1w_dof=bold2t1w_dof)
 
     workflow.connect([
         (inputnode, bbr_wf, [
@@ -1018,7 +1060,8 @@ def init_bold_reg_wf(freesurfer, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
             ('t1_brain', 'inputnode.t1_brain')]),
         (bbr_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
                               ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
-                              ('outputnode.out_report', 'out_report')]),
+                              ('outputnode.out_report', 'out_report'),
+                              ('outputnode.fallback', 'fallback')]),
     ])
 
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
@@ -1088,7 +1131,7 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
                                              'template', 'fsaverage5'],
                                medial_surface_nan=False)
 
-    Parameters
+    **Parameters**
 
         output_spaces : list
             List of output spaces functional images are to be resampled to
@@ -1099,7 +1142,7 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
         medial_surface_nan : bool
             Replace medial wall values with NaNs on functional GIFTI files
 
-    Inputs
+    **Inputs**
 
         source_file
             Motion-corrected BOLD series in T1 space
@@ -1108,7 +1151,7 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
         subject_id
             FreeSurfer subject ID
 
-    Outputs
+    **Outputs**
 
         surfaces
             BOLD series, resampled to FreeSurfer surfaces
@@ -1222,7 +1265,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
                                     omp_nthreads=1,
                                     output_grid_ref=None)
 
-    Parameters
+    **Parameters**
 
         template : str
             Name of template targeted by `'template'` output space
@@ -1239,7 +1282,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
         use_fieldwarp : bool
             Include SDC warp in single-shot transform from BOLD to MNI
 
-    Inputs
+    **Inputs**
 
         itk_bold_to_t1
             Affine transform from ``ref_bold_brain`` to T1 space (ITK format)
@@ -1257,7 +1300,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
         fieldwarp
             a :abbr:`DFM (displacements field map)` in ITK format
 
-    Outputs
+    **Outputs**
 
         bold_mni
             BOLD series, resampled to template space
@@ -1379,7 +1422,7 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
             template='MNI152NLin2009cAsym',
             omp_nthreads=8)
 
-    Inputs
+    **Inputs**
 
         t1_brain
             skull-stripped, bias-corrected structural image
@@ -1390,7 +1433,7 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
         t1_2_mni_reverse_transform
             inverse registration transform of T1w image to MNI template
 
-    Outputs
+    **Outputs**
 
         out_reference_brain
             the ``bold_ref`` image after unwarping
@@ -1535,14 +1578,14 @@ def init_fmap_unwarp_report_wf(reportlets_dir, name='fmap_unwarp_report_wf'):
         from fmriprep.workflows.anatomical import init_fmap_unwarp_report_wf
         wf = init_fmap_unwarp_report_wf(reportlets_dir='.')
 
-    Parameters
+    **Parameters**
 
         reportlets_dir : str
             Directory in which to save reportlets
         name : str, optional
             Workflow name (default: fmap_unwarp_report_wf)
 
-    Inputs
+    **Inputs**
 
         in_pre
             Reference image, before unwarping
@@ -1600,8 +1643,8 @@ def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma, use_syn, name='f
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['source_file', 'summary_report', 'validation_report', 'bold_mask_report',
-                    'bold_reg_report', 'acompcor_report', 'tcompcor_report', 'syn_sdc_report',
-                    'ica_aroma_report']),
+                    'bold_reg_report', 'bold_reg_fallback', 'acompcor_report', 'tcompcor_report',
+                    'syn_sdc_report', 'ica_aroma_report']),
         name='inputnode')
 
     ds_summary_report = pe.Node(
@@ -1628,9 +1671,14 @@ def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma, use_syn, name='f
         name='ds_syn_sdc_report', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
+    def _bold_reg_suffix(fallback, freesurfer):
+        if fallback:
+            return 'coreg' if freesurfer else 'flirt'
+        else:
+            return 'bbr' if freesurfer else 'flt_bbr'
+
     ds_bold_reg_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='bbr' if freesurfer else 'flt_bbr'),
+        DerivativesDataSink(base_directory=reportlets_dir),
         name='ds_bold_reg_report', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
@@ -1659,8 +1707,10 @@ def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma, use_syn, name='f
                                            ('validation_report', 'in_file')]),
         (inputnode, ds_bold_mask_report, [('source_file', 'source_file'),
                                           ('bold_mask_report', 'in_file')]),
-        (inputnode, ds_bold_reg_report, [('source_file', 'source_file'),
-                                         ('bold_reg_report', 'in_file')]),
+        (inputnode, ds_bold_reg_report, [
+            ('source_file', 'source_file'),
+            ('bold_reg_report', 'in_file'),
+            (('bold_reg_fallback', _bold_reg_suffix, freesurfer), 'suffix')]),
         (inputnode, ds_acompcor_report, [('source_file', 'source_file'),
                                          ('acompcor_report', 'in_file')]),
         (inputnode, ds_tcompcor_report, [('source_file', 'source_file'),

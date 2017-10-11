@@ -5,7 +5,7 @@
 Base module variables
 """
 
-__version__ = '1.0.0-rc6-dev'
+__version__ = '1.0.0-rc7-dev'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
