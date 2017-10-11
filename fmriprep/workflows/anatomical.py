@@ -363,6 +363,7 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
             ('t1_seg', 'inputnode.t1_seg'),
             ('t1_tpms', 'inputnode.t1_tpms'),
             ('t1_2_mni_forward_transform', 'inputnode.t1_2_mni_forward_transform'),
+            ('t1_2_mni_reverse_transform', 'inputnode.t1_2_mni_reverse_transform'),
             ('t1_2_mni', 'inputnode.t1_2_mni'),
             ('mni_mask', 'inputnode.mni_mask'),
             ('mni_seg', 'inputnode.mni_seg'),
@@ -872,8 +873,8 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['source_file', 't1_preproc', 't1_mask', 't1_seg', 't1_tpms',
-                    't1_2_mni_forward_transform', 't1_2_mni', 'mni_mask',
-                    'mni_seg', 'mni_tpms',
+                    't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
+                    't1_2_mni', 'mni_mask', 'mni_seg', 'mni_tpms',
                     't1_2_fsnative_reverse_transform', 'surfaces']),
         name='inputnode')
 
@@ -918,6 +919,12 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
     ds_mni_tpms.inputs.extra_values = ['CSF', 'GM', 'WM']
 
     # Transforms
+    suffix_fmt = 'space-{}_target-{}_{}'.format
+    ds_t1_mni_inv_warp = pe.Node(
+        DerivativesDataSink(base_directory=output_dir,
+                            suffix=suffix_fmt(template, 'T1w', 'warp')),
+        name='ds_t1_mni_inv_warp', run_without_submitting=True)
+
     suffix_fmt = 'target-{}_{}'.format
     ds_t1_mni_warp = pe.Node(
         DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt(template, 'warp')),
@@ -964,6 +971,8 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         workflow.connect([
             (inputnode, ds_t1_mni_warp, [('source_file', 'source_file'),
                                          ('t1_2_mni_forward_transform', 'in_file')]),
+            (inputnode, ds_t1_mni_inv_warp, [('source_file', 'source_file'),
+                                             ('t1_2_mni_reverse_transform', 'in_file')]),
             (inputnode, ds_t1_mni, [('source_file', 'source_file'),
                                     ('t1_2_mni', 'in_file')]),
             (inputnode, ds_mni_mask, [('source_file', 'source_file'),

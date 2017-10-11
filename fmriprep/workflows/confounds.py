@@ -55,7 +55,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
                                 ignore_aroma_err=True,
                                 metadata={})
 
-    Parameters
+    **Parameters**
 
         bold_file_size_gb : float
             Size of BOLD file in GB
@@ -66,7 +66,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         metadata : dict
             BIDS metadata for BOLD file
 
-    Inputs
+    **Inputs**
 
         bold_t1
             BOLD image, resampled in T1w space
@@ -83,7 +83,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         bold_mask_mni
             BOLD series mask in template space
 
-    Outputs
+    **Outputs**
 
         confounds_file
             TSV of all aggregated confounds
@@ -101,6 +101,11 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
             FSL MELODIC mixing matrix
         nonaggr_denoised_file
             BOLD series with non-aggressive ICA-AROMA denoising applied
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.confounds.init_ica_aroma_wf`
+
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
@@ -263,12 +268,12 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         from fmriprep.workflows.confounds import init_ica_aroma_wf
         wf = init_ica_aroma_wf()
 
-    Parameters
+    **Parameters**
 
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
 
-    Inputs
+    **Inputs**
 
         bold_mni
             BOLD series, resampled to template space
@@ -277,7 +282,7 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         bold_mask_mni
             BOLD series mask in template space
 
-    Outputs
+    **Outputs**
 
         aroma_confounds
             TSV of confounds identified as noise by ICA-AROMA

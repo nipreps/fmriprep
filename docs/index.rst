@@ -19,4 +19,5 @@ Contents
    usage
    workflows
    contributors
+   citing
    api/index.rst

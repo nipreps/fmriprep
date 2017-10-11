@@ -37,6 +37,7 @@ slice-timing information and no fieldmap acquisitions):
                                 low_mem=False,
                                 anat_only=False,
                                 hires=True,
+                                use_bbr=True,
                                 bold2t1w_dof=9,
                                 fmap_bspline=False,
                                 fmap_demean=True,
@@ -198,6 +199,7 @@ BOLD preprocessing
                               medial_surface_nan=False,
                               debug=False,
                               low_mem=False,
+                              use_bbr=True,
                               bold2t1w_dof=9,
                               fmap_bspline=True,
                               fmap_demean=True,
@@ -296,13 +298,14 @@ EPI to T1w registration
 :mod:`fmriprep.workflows.bold.init_bold_reg_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_reg_wf
     wf = init_bold_reg_wf(freesurfer=True,
                           bold_file_size_gb=3,
                           omp_nthreads=1,
+                          use_bbr=True,
                           bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the

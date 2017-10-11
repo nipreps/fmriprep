@@ -30,6 +30,7 @@ class TestBase(TestWorkflow):
                                          template='MNI152NLin2009cAsym',
                                          medial_surface_nan=False,
                                          hires=False,
+                                         use_bbr=None,
                                          bold2t1w_dof=9,
                                          fmap_bspline=True,
                                          fmap_demean=True,

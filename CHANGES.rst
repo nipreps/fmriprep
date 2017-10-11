@@ -2,6 +2,23 @@ Next release
 ============
 
 
+1.0.0-rc6 (11th of October 2017)
+================================
+
+* [ENH] Add inverse normalization transform (MNI -> T1w) to derivatives (#754)
+* [ENH] Fall back to initial registration if BBR fails (#694)
+* [FIX] Header and affine transform updates to resolve intermittent
+  misalignments in reports (#743)
+* [FIX] Register FreeSurfer template to FMRIPREP template, handling pre-run
+  FreeSurfer subjects more robustly, saving affine to derivatives (#733)
+* [ENH] Add OpenFMRI participant sampler command-line tool (#704)
+* [ENH] For SyN-SDC, assume phase-encoding direction of A-P unless specified
+  L-R (#740, #744)
+* [ENH] Permit skull-stripping with NKI ANTs template (#729)
+* [ENH] Erode aCompCor masks to target volume proportions, instead of fixed
+  distances (#731, #732)
+* [DOC] Documentation updates (#748)
+
 1.0.0-rc5 (25th of September 2017)
 ==================================
 

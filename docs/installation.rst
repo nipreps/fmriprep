@@ -4,38 +4,43 @@
 Installation
 ------------
 
-There are four ways to use fmriprep: on the free cloud service OpenNeuro.org, in a `Docker Container`_, in a `Singularity Container`_, or in a `Manually Prepared Environment`_.
+There are four ways to use fmriprep: on the free cloud service OpenNeuro.org,
+in a `Docker Container`_, in a `Singularity Container`_, or in a `Manually
+Prepared Environment`_.
 Using OpenNeuro or a local container method is highly recommended.
 Once you are ready to run fmriprep, see Usage_ for details.
 
 OpenNeuro
 =========
 
-fmriprep is available on the free cloud platform `OpenNeuro.org <http://openneuro.org>`.
-After uploading your BIDS compatible dataset to OpenNeuro you will be able to
-run fmriprep for free using OpenNeuro servers. Since there is no installation
-required this is the easiest way to run fmriprep.
+fmriprep is available on the free cloud platform `OpenNeuro.org
+<http://openneuro.org>`_.
+After uploading your BIDS-compatible dataset to OpenNeuro you will be able to
+run fmriprep for free using OpenNeuro servers.
+This is the easiest way to run fmriprep, as there is no installation required.
 
 Docker Container
 ================
 
-Make sure command-line `Docker is installed <https://docs.docker.com/engine/installation/>`_.
-
-See `External Dependencies`_ for more information (e.g., specific versions) on what is included in the fmriprep Docker image.
-
-There are two ways to run fmriprep through Docker; the first, recommended way
-is to use the `fmriprep-docker`_ wrapper.
-This requires Python and an internet connection.
+In order to run fmriprep in a Docker container, Docker must be `installed
+<https://docs.docker.com/engine/installation/>`_.
+Once Docker is installed, the recommended way to run fmriprep is to use the
+fmriprep-docker_ wrapper, which requires Python and an Internet connection.
 
 To install::
 
     $ pip install --user --upgrade fmriprep-docker
 
-To run::
+When run, ``fmriprep-docker`` will generate a Docker command line for you,
+print it out for reporting purposes, and then run the command, e.g.::
 
     $ fmriprep-docker /path/to/data/dir /path/to/output/dir participant
+    RUNNING: docker run --rm -it -v /path/to/data/dir:/data:ro \
+        -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
+        /data /out participant
+    ...
 
-The second way to run fmriprep is to invoke ``docker`` directly. ::
+You may also invoke ``docker`` directly::
 
     $ docker run -ti --rm \
         -v filepath/to/data/dir:/data:ro \
@@ -53,6 +58,9 @@ For example: ::
         /data /out/out \
         participant \
         --ignore fieldmaps
+
+See `External Dependencies`_ for more information (e.g., specific versions) on
+what is included in the latest Docker images.
 
 Singularity Container
 =====================
@@ -123,9 +131,9 @@ External Dependencies
 ``fmriprep`` is implemented using nipype_, but it requires some other neuroimaging
 software tools:
 
-- `FSL <http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_ (version 5.0.9)
-- `ANTs <http://stnava.github.io/ANTs/>`_ (version 2.2.0 - NeuroDocker build)
-- `AFNI <https://afni.nimh.nih.gov/>`_ (version Debian-16.2.07)
+- FSL_ (version 5.0.9)
+- ANTs_ (version 2.2.0 - NeuroDocker build)
+- AFNI_ (version Debian-16.2.07)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
-- `FreeSurfer <https://surfer.nmr.mgh.harvard.edu/>`_ (version 6.0.0)
+- FreeSurfer_ (version 6.0.0)
 - `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)

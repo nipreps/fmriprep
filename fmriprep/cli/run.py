@@ -116,6 +116,12 @@ def get_parser():
              ' - fsaverage*: FreeSurfer average meshes'
     )
     g_conf.add_argument(
+        '--force-bbr', action='store_true', dest='use_bbr', default=None,
+        help='Always use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
+        '--force-no-bbr', action='store_false', dest='use_bbr', default=None,
+        help='Do not use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
         '--template', required=False, action='store',
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
@@ -310,6 +316,7 @@ def create_workflow(opts):
         medial_surface_nan=opts.medial_surface_nan,
         output_grid_ref=opts.output_grid_reference,
         hires=opts.hires,
+        use_bbr=opts.use_bbr,
         bold2t1w_dof=opts.bold2t1w_dof,
         fmap_bspline=opts.fmap_bspline,
         fmap_demean=opts.fmap_no_demean,

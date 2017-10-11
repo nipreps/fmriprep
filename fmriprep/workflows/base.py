@@ -34,7 +34,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                      ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                      skull_strip_ants, skull_strip_template, work_dir, output_dir, bids_dir,
                      freesurfer, output_spaces, template, medial_surface_nan, hires,
-                     bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
+                     use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
                      use_aroma, ignore_aroma_err, output_grid_ref):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
@@ -68,6 +68,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               template='MNI152NLin2009cAsym',
                               medial_surface_nan=False,
                               hires=True,
+                              use_bbr=True,
                               bold2t1w_dof=9,
                               fmap_bspline=False,
                               fmap_demean=True,
@@ -128,6 +129,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
+        use_bbr : bool or None
+            Enable/disable boundary-based registration refinement.
+            If ``None``, test BBR result for distortion before accepting.
         bold2t1w_dof : 6, 9 or 12
             Degrees-of-freedom for BOLD-T1w registration
         fmap_bspline : bool
@@ -179,6 +183,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    template=template,
                                                    medial_surface_nan=medial_surface_nan,
                                                    hires=hires,
+                                                   use_bbr=use_bbr,
                                                    bold2t1w_dof=bold2t1w_dof,
                                                    fmap_bspline=fmap_bspline,
                                                    fmap_demean=fmap_demean,
@@ -206,8 +211,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                            ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                            skull_strip_ants, skull_strip_template, reportlets_dir, output_dir,
                            bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
-                           hires, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                           output_grid_ref, use_aroma, ignore_aroma_err):
+                           hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn,
+                           force_syn, output_grid_ref, use_aroma, ignore_aroma_err):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -243,6 +248,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     low_mem=False,
                                     anat_only=False,
                                     hires=True,
+                                    use_bbr=True,
                                     bold2t1w_dof=9,
                                     fmap_bspline=False,
                                     fmap_demean=True,
@@ -302,6 +308,9 @@ def init_single_subject_wf(subject_id, task_id, name,
             Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
+        use_bbr : bool or None
+            Enable/disable boundary-based registration refinement.
+            If ``None``, test BBR result for distortion before accepting.
         bold2t1w_dof : 6, 9 or 12
             Degrees-of-freedom for BOLD-T1w registration
         fmap_bspline : bool
@@ -412,6 +421,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                layout=layout,
                                                ignore=ignore,
                                                freesurfer=freesurfer,
+                                               use_bbr=use_bbr,
                                                bold2t1w_dof=bold2t1w_dof,
                                                reportlets_dir=reportlets_dir,
                                                output_spaces=output_spaces,
