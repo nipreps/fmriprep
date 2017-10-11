@@ -99,8 +99,8 @@
                 "description": "Results of performing SyN-based SDC on the EPI"
             },
             {
-                "name": "epi_hmc/bet_hmc",
-                "file_pattern": "func/.*epi_mask",
+                "name": "epi_hmc/bold_mask",
+                "file_pattern": "func/.*bold_mask",
                 "title" : "Skull stripped EPI",
                 "description": "Skull stripped EPI"
             },

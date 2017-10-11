@@ -137,12 +137,15 @@ def get_parser():
     g_bold.add_argument('--use-aroma', action='store_true', default=False,
                         help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
-    # g_ants = parser.add_argument_group('Specific options for ANTs registrations')
+    g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     # g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
     #                     help='use ANTs-based skull-stripping (default, slow))')
     # g_ants.add_argument('--no-skull-strip-ants', dest="skull_strip_ants", action='store_false',
     #                     help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
     # g_ants.set_defaults(skull_strip_ants=True)
+    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
+                        choices=['OASIS', 'NKI'],
+                        help='select ANTs skull-stripping template (default: OASIS))')
 
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
@@ -300,6 +303,7 @@ def create_workflow(opts):
         longitudinal=opts.longitudinal,
         omp_nthreads=omp_nthreads,
         skull_strip_ants=True,
+        skull_strip_template=opts.skull_strip_template,
         work_dir=work_dir,
         output_dir=output_dir,
         bids_dir=bids_dir,

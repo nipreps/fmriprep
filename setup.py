@@ -54,7 +54,8 @@ def main():
         package_data={'fmriprep': ['data/*.json', 'data/*.nii.gz', 'data/*.mat',
                                    'viz/*.tpl', 'viz/*.json']},
         entry_points={'console_scripts': [
-            'fmriprep=fmriprep.cli.run:main'
+            'fmriprep=fmriprep.cli.run:main',
+            'sample_openfmri=fmriprep.cli.sample_openfmri:main'
         ]},
         packages=find_packages(exclude=("tests",)),
         zip_safe=False,

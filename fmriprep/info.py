@@ -5,7 +5,7 @@
 Base module variables
 """
 
-__version__ = '1.0.0-rc4-dev'
+__version__ = '1.0.0-rc6-dev'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
@@ -67,14 +67,14 @@ REQUIRES = [
     'grabbit',
     'pybids>=0.3',
     'nitime',
-    'niworkflows>=0.1.6',
+    'niworkflows>=0.1.8',
     'statsmodels',
     'nipype',
     'seaborn',
-    'joblib',
 ]
 
-LINKS_REQUIRES = []
+LINKS_REQUIRES = [
+]
 
 TESTS_REQUIRES = [
     "mock",
@@ -83,9 +83,10 @@ TESTS_REQUIRES = [
 ]
 
 EXTRA_REQUIRES = {
-    'doc': ['sphinx>=1.5.3', 'pydotplus', 'sphinx_rtd_theme', 'sphinx-argparse'],
+    'doc': ['sphinx>=1.5.3', 'pydotplus', 'pydot>=1.2.3', 'sphinx_rtd_theme', 'sphinx-argparse'],
     'tests': TESTS_REQUIRES,
-    'duecredit': ['duecredit']
+    'duecredit': ['duecredit'],
+    'datalad': ['datalad'],
 }
 
 # Enable a handle to install all extra dependencies at once

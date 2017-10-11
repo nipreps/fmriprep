@@ -146,8 +146,15 @@ RUN apt-get update && \
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
-# Installing dev requirements (packages that are not in pypi)
 WORKDIR /root/
+
+# Precaching atlases
+ENV CRN_SHARED_DATA /niworkflows_data
+ADD docker/scripts/get_templates.sh get_templates.sh
+RUN mkdir $CRN_SHARED_DATA && \
+    /root/get_templates.sh
+
+# Installing dev requirements (packages that are not in pypi)
 ADD requirements.txt requirements.txt
 RUN pip install -r requirements.txt && \
     rm -rf ~/.cache/pip
@@ -157,13 +164,6 @@ COPY . /root/src/fmriprep
 RUN cd /root/src/fmriprep && \
     pip install .[all] && \
     rm -rf ~/.cache/pip
-
-# Precaching atlases
-RUN mkdir /niworkflows_data
-ENV CRN_SHARED_DATA /niworkflows_data
-RUN python -c 'from niworkflows.data.getters import get_mni_template_ras; get_mni_template_ras()' && \
-    python -c 'from niworkflows.data.getters import get_mni_icbm152_nlin_asym_09c; get_mni_icbm152_nlin_asym_09c()' && \
-    python -c 'from niworkflows.data.getters import get_ants_oasis_template_ras; get_ants_oasis_template_ras()'
 
 RUN ldconfig
 

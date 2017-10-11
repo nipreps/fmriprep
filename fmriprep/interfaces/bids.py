@@ -6,7 +6,7 @@
 # @Author: oesteban
 # @Date:   2016-06-03 09:35:13
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-02-13 11:44:23
+# @Last Modified time: 2017-10-10 15:37:47
 """
 Interfaces for handling BIDS-like neuroimaging structures
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -35,10 +35,9 @@ from shutil import copy, copytree, rmtree, copyfileobj
 from niworkflows.nipype import logging
 from niworkflows.nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterfaceInputSpec,
-    File, Directory, InputMultiPath, OutputMultiPath, Str
+    File, Directory, InputMultiPath, OutputMultiPath, Str,
+    SimpleInterface
 )
-
-from niworkflows.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
 BIDS_NAME = re.compile(

@@ -15,7 +15,7 @@ ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_space-MNI152NLin2009cAsym_clas
 ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz
 ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_space-MNI152NLin2009cAsym_dtissue.nii.gz
 ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_space-MNI152NLin2009cAsym_preproc.nii.gz
-ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_space-MNI152NLin2009cAsym_warp.h5
+ds054/out/fmriprep/sub-100185/anat/sub-100185_T1w_target-MNI152NLin2009cAsym_warp.h5
 ds054/out/fmriprep/sub-100185/func
 ds054/out/fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_confounds.tsv
 ds054/out/fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz

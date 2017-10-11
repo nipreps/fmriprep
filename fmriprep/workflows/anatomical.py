@@ -26,7 +26,6 @@ structural images.
 
 import os.path as op
 
-from niworkflows.nipype.interfaces import ants
 from niworkflows.nipype.interfaces import freesurfer as fs
 from niworkflows.nipype.interfaces import utility as niu
 from niworkflows.nipype.interfaces import io as nio
@@ -37,6 +36,7 @@ from niworkflows.anat.skullstrip import afni_wf as init_skullstrip_afni_wf
 import niworkflows.data as nid
 from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
+from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ..interfaces import (
     DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
@@ -46,8 +46,8 @@ from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 
 
 #  pylint: disable=R0914
-def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, freesurfer,
-                         longitudinal, omp_nthreads, hires, reportlets_dir, output_dir,
+def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, template, debug,
+                         freesurfer, longitudinal, omp_nthreads, hires, reportlets_dir, output_dir,
                          name='anat_preproc_wf'):
     r"""
     This workflow controls the anatomical preprocessing stages of FMRIPREP.
@@ -72,6 +72,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
                                   output_spaces=['T1w', 'fsnative',
                                                  'template', 'fsaverage5'],
                                   skull_strip_ants=True,
+                                  skull_strip_template='OASIS',
                                   freesurfer=True,
                                   longitudinal=False,
                                   debug=False,
@@ -82,6 +83,8 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
         skull_strip_ants : bool
             Use ANTs BrainExtraction.sh-based skull-stripping workflow.
             If ``False``, uses a faster AFNI-based workflow
+        skull_strip_template : str
+            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
         output_spaces : list
             List of output spaces functional images are to be resampled to.
 
@@ -153,8 +156,8 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
-        fs_2_t1_transform
-            Affine transform from FreeSurfer subject space to T1w space
+        t1_2_fsnative_reverse_transform
+            LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
         surfaces
             GIFTI surfaces (gray/white boundary, midthickness, pial, inflated)
 
@@ -174,7 +177,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
         fields=['t1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_2_mni', 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                 'mni_mask', 'mni_seg', 'mni_tpms',
-                'subjects_dir', 'subject_id', 'fs_2_t1_transform', 'surfaces']),
+                'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'surfaces']),
         name='outputnode')
 
     # 0. Reorient T1w image(s) to RAS and resample to common voxel space
@@ -198,11 +201,13 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
     # Bias field correction is handled in skull strip workflows.
 
     # 3. Skull-stripping
-    skullstrip_wf = init_skullstrip_afni_wf(name='skullstrip_afni_wf')
     if skull_strip_ants:
         skullstrip_wf = init_skullstrip_ants_wf(name='skullstrip_ants_wf',
+                                                skull_strip_template=skull_strip_template,
                                                 debug=debug,
                                                 omp_nthreads=omp_nthreads)
+    else:
+        skullstrip_wf = init_skullstrip_afni_wf(name='skullstrip_afni_wf')
 
     # 4. Segmentation
     t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
@@ -223,20 +228,20 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
 
     # Resample the brain mask and the tissue probability maps into mni space
     mni_mask = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='NearestNeighbor'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='NearestNeighbor'),
         name='mni_mask'
     )
 
     mni_seg = pe.Node(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='NearestNeighbor'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='NearestNeighbor'),
         name='mni_seg'
     )
 
     mni_tpms = pe.MapNode(
-        ants.ApplyTransforms(dimension=3, default_value=0, float=True,
-                             interpolation='Linear'),
+        ApplyTransforms(dimension=3, default_value=0, float=True,
+                        interpolation='Linear'),
         iterfield=['input_image'],
         name='mni_tpms'
     )
@@ -314,7 +319,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
             (surface_recon_wf, outputnode, [
                 ('outputnode.subjects_dir', 'subjects_dir'),
                 ('outputnode.subject_id', 'subject_id'),
-                ('outputnode.fs_2_t1_transform', 'fs_2_t1_transform'),
+                ('outputnode.t1_2_fsnative_reverse_transform', 't1_2_fsnative_reverse_transform'),
                 ('outputnode.surfaces', 'surfaces')]),
         ])
 
@@ -362,6 +367,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
             ('mni_mask', 'inputnode.mni_mask'),
             ('mni_seg', 'inputnode.mni_seg'),
             ('mni_tpms', 'inputnode.mni_tpms'),
+            ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform'),
             ('surfaces', 'inputnode.surfaces'),
         ]),
     ])
@@ -369,7 +375,7 @@ def init_anat_preproc_wf(skull_strip_ants, output_spaces, template, debug, frees
     return workflow
 
 
-def init_skullstrip_ants_wf(debug, omp_nthreads, name='skullstrip_ants_wf'):
+def init_skullstrip_ants_wf(skull_strip_template, debug, omp_nthreads, name='skullstrip_ants_wf'):
     r"""
     This workflow performs skull-stripping using ANTs' ``BrainExtraction.sh``
 
@@ -378,10 +384,12 @@ def init_skullstrip_ants_wf(debug, omp_nthreads, name='skullstrip_ants_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.anatomical import init_skullstrip_ants_wf
-        wf = init_skullstrip_ants_wf(debug=False, omp_nthreads=1)
+        wf = init_skullstrip_ants_wf(skull_strip_template='OASIS', debug=False, omp_nthreads=1)
 
     **Parameters**
 
+        skull_strip_template : str
+            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
         debug : bool
             Enable debugging outputs
         omp_nthreads : int
@@ -404,7 +412,24 @@ def init_skullstrip_ants_wf(debug, omp_nthreads, name='skullstrip_ants_wf'):
             Reportlet visualizing quality of skull-stripping
 
     """
-    from niworkflows.data import get_ants_oasis_template_ras
+    if skull_strip_template == 'OASIS':
+        from niworkflows.data import get_ants_oasis_template_ras
+        template_dir = get_ants_oasis_template_ras()
+        brain_template = op.join(template_dir, 'T_template0.nii.gz')
+        brain_probability_mask = op.join(
+            template_dir, 'T_template0_BrainCerebellumProbabilityMask.nii.gz')
+        extraction_registration_mask = op.join(
+            template_dir, 'T_template0_BrainCerebellumRegistrationMask.nii.gz')
+    elif skull_strip_template == 'NKI':
+        from niworkflows.data.getters import get_ants_nki_template_ras
+        template_dir = get_ants_nki_template_ras()
+        brain_template = op.join(template_dir, 'T_template.nii.gz')
+        brain_probability_mask = op.join(
+            template_dir, 'T_template_BrainCerebellumProbabilityMask.nii.gz')
+        extraction_registration_mask = op.join(
+            template_dir, 'T_template_BrainCerebellumExtractionMask.nii.gz')
+    else:
+        raise ValueError("Unknown skull-stripping template; select from {OASIS, NKI}")
 
     workflow = pe.Workflow(name=name)
 
@@ -419,18 +444,9 @@ def init_skullstrip_ants_wf(debug, omp_nthreads, name='skullstrip_ants_wf'):
         num_threads=omp_nthreads, keep_temporary_files=1),
         name='t1_skull_strip', n_procs=omp_nthreads)
 
-    t1_skull_strip.inputs.brain_template = op.join(
-        get_ants_oasis_template_ras(),
-        'T_template0.nii.gz'
-    )
-    t1_skull_strip.inputs.brain_probability_mask = op.join(
-        get_ants_oasis_template_ras(),
-        'T_template0_BrainCerebellumProbabilityMask.nii.gz'
-    )
-    t1_skull_strip.inputs.extraction_registration_mask = op.join(
-        get_ants_oasis_template_ras(),
-        'T_template0_BrainCerebellumRegistrationMask.nii.gz'
-    )
+    t1_skull_strip.inputs.brain_template = brain_template
+    t1_skull_strip.inputs.brain_probability_mask = brain_probability_mask
+    t1_skull_strip.inputs.extraction_registration_mask = extraction_registration_mask
 
     workflow.connect([
         (inputnode, t1_skull_strip, [('in_file', 'anatomical_image')]),
@@ -499,8 +515,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
-        fs_2_t1_transform
-            FSL-style affine matrix translating from FreeSurfer T1.mgz to T1w
+        t1_2_fsnative_reverse_transform
+            LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
         surfaces
             GIFTI surfaces for gray/white matter boundary, pial surface,
             midthickness (or graymid) surface, and inflated surfaces
@@ -521,7 +537,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
         name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['subjects_dir', 'subject_id', 'fs_2_t1_transform', 'surfaces', 'out_report']),
+            fields=['subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'surfaces',
+                    'out_report']),
         name='outputnode')
 
     recon_config = pe.Node(FSDetectInputs(hires_enabled=hires), name='recon_config',
@@ -539,9 +556,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
     skull_strip_extern = pe.Node(FSInjectBrainExtracted(), name='skull_strip_extern',
                                  run_without_submitting=True)
 
-    fs_transform = pe.Node(
-        fs.Tkregister2(fsl_out='freesurfer2subT1.mat', reg_header=True),
-        name='fs_transform')
+    fsnative_2_t1_xfm = pe.Node(fs.RobustRegister(auto_sens=True, est_int_scale=True),
+                                name='fsnative_2_t1_xfm')
 
     autorecon_resume_wf = init_autorecon_resume_wf(omp_nthreads=omp_nthreads)
     gifti_surface_wf = init_gifti_surface_wf()
@@ -570,14 +586,16 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
         (recon_config, autorecon_resume_wf, [('use_t2w', 'inputnode.use_T2')]),
         # Construct transform from FreeSurfer conformed image to FMRIPREP
         # reoriented image
-        (inputnode, fs_transform, [('t1w', 'target_image')]),
-        (autorecon1, fs_transform, [('T1', 'moving_image')]),
+        (inputnode, fsnative_2_t1_xfm, [('t1w', 'target_file')]),
+        (autorecon1, fsnative_2_t1_xfm, [('T1', 'source_file')]),
+        (fsnative_2_t1_xfm, gifti_surface_wf, [
+            ('out_reg_file', 'inputnode.t1_2_fsnative_reverse_transform')]),
         # Output
         (autorecon_resume_wf, outputnode, [('outputnode.subjects_dir', 'subjects_dir'),
                                            ('outputnode.subject_id', 'subject_id'),
                                            ('outputnode.out_report', 'out_report')]),
         (gifti_surface_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
-        (fs_transform, outputnode, [('fsl_file', 'fs_2_t1_transform')]),
+        (fsnative_2_t1_xfm, outputnode, [('out_reg_file', 't1_2_fsnative_reverse_transform')]),
     ])
 
     return workflow
@@ -730,6 +748,8 @@ def init_gifti_surface_wf(name='gifti_surface_wf'):
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
+        t1_2_fsnative_reverse_transform
+            LTA formatted affine transform file (inverse)
 
     **Outputs**
 
@@ -740,7 +760,9 @@ def init_gifti_surface_wf(name='gifti_surface_wf'):
     """
     workflow = pe.Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(['subjects_dir', 'subject_id']), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(['subjects_dir', 'subject_id',
+                                               't1_2_fsnative_reverse_transform']),
+                        name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(['surfaces']), name='outputnode')
 
     get_surfaces = pe.Node(nio.FreeSurferSource(), name='get_surfaces')
@@ -775,6 +797,7 @@ def init_gifti_surface_wf(name='gifti_surface_wf'):
         (save_midthickness, surface_list, [('out_file', 'in4')]),
         (surface_list, fs_2_gii, [('out', 'in_file')]),
         (fs_2_gii, fix_surfs, [('converted', 'in_file')]),
+        (inputnode, fix_surfs, [('t1_2_fsnative_reverse_transform', 'transform_file')]),
         (fix_surfs, outputnode, [('out_file', 'surfaces')]),
     ])
     return workflow
@@ -850,7 +873,8 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         niu.IdentityInterface(
             fields=['source_file', 't1_preproc', 't1_mask', 't1_seg', 't1_tpms',
                     't1_2_mni_forward_transform', 't1_2_mni', 'mni_mask',
-                    'mni_seg', 'mni_tpms', 'surfaces']),
+                    'mni_seg', 'mni_tpms',
+                    't1_2_fsnative_reverse_transform', 'surfaces']),
         name='inputnode')
 
     ds_t1_preproc = pe.Node(
@@ -893,9 +917,17 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         name='ds_mni_tpms', run_without_submitting=True)
     ds_mni_tpms.inputs.extra_values = ['CSF', 'GM', 'WM']
 
+    # Transforms
+    suffix_fmt = 'target-{}_{}'.format
     ds_t1_mni_warp = pe.Node(
         DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt(template, 'warp')),
         name='ds_t1_mni_warp', run_without_submitting=True)
+
+    lta_2_itk = pe.Node(fs.utils.LTAConvert(out_itk=True, invert=True), name='lta_2_itk')
+
+    ds_t1_fsnative = pe.Node(
+        DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt('fsnative', 'affine')),
+        name='ds_t1_fsnative', run_without_submitting=True)
 
     name_surfs = pe.MapNode(GiftiNameSource(pattern=r'(?P<LR>[lr])h.(?P<surf>.+)_converted.gii',
                                             template='{surf}.{LR}.surf'),
@@ -920,6 +952,9 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     if freesurfer:
         workflow.connect([
+            (inputnode, lta_2_itk, [('t1_2_fsnative_reverse_transform', 'in_lta')]),
+            (inputnode, ds_t1_fsnative, [('source_file', 'source_file')]),
+            (lta_2_itk, ds_t1_fsnative, [('out_itk', 'in_file')]),
             (inputnode, name_surfs, [('surfaces', 'in_file')]),
             (inputnode, ds_surfs, [('source_file', 'source_file'),
                                    ('surfaces', 'in_file')]),

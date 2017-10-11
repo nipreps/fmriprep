@@ -141,7 +141,9 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
                        name="acompcor", mem_gb=bold_file_size_gb * 3)
 
     csf_roi = pe.Node(TPM2ROI(erode_mm=0, mask_erode_mm=30), name='csf_roi')
-    wm_roi = pe.Node(TPM2ROI(erode_mm=6, mask_erode_mm=10), name='wm_roi')
+    wm_roi = pe.Node(TPM2ROI(erode_prop=0.6,
+                             mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
+                     name='wm_roi')
     merge_rois = pe.Node(niu.Merge(2), name='merge_rois', run_without_submitting=True, mem_gb=0.01)
     combine_rois = pe.Node(CombineROIs(), name='combine_rois')
     concat_rois = pe.Node(ConcatROIs(), name='concat_rois')

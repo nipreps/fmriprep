@@ -1,6 +1,14 @@
 Next release
 ============
 
+
+1.0.0-rc5 (25th of September 2017)
+==================================
+
+* [FIX] Skip slice time correction on BOLD series < 5 volumes (#711)
+* [FIX] Skip AFNI check for new versions (#723)
+* [DOC] Documentation clarification and updates (#698, #711)
+
 1.0.0-rc4 (12th of September 2017)
 ==================================
 

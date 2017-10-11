@@ -32,7 +32,7 @@ from .bold import init_func_preproc_wf
 
 def init_fmriprep_wf(subject_list, task_id, run_uuid,
                      ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
-                     skull_strip_ants, work_dir, output_dir, bids_dir,
+                     skull_strip_ants, skull_strip_template, work_dir, output_dir, bids_dir,
                      freesurfer, output_spaces, template, medial_surface_nan, hires,
                      bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
                      use_aroma, ignore_aroma_err, output_grid_ref, smooth_fwhm):
@@ -58,6 +58,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               longitudinal=False,
                               omp_nthreads=1,
                               skull_strip_ants=True,
+                              skull_strip_template='OASIS',
                               work_dir='.',
                               output_dir='.',
                               bids_dir='.',
@@ -102,6 +103,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
         skull_strip_ants : bool
             Use ANTs BrainExtraction.sh-based skull-stripping workflow
             If ``False``, uses a faster AFNI-based workflow
+        skull_strip_template : str
+            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
         work_dir : str
             Directory in which to store workflow execution state and temporary files
         output_dir : str
@@ -170,6 +173,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    longitudinal=longitudinal,
                                                    omp_nthreads=omp_nthreads,
                                                    skull_strip_ants=skull_strip_ants,
+                                                   skull_strip_template=skull_strip_template,
                                                    reportlets_dir=reportlets_dir,
                                                    output_dir=output_dir,
                                                    bids_dir=bids_dir,
@@ -204,9 +208,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
 
 def init_single_subject_wf(subject_id, task_id, name,
                            ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
-                           skull_strip_ants, reportlets_dir, output_dir, bids_dir,
-                           freesurfer, output_spaces, template, medial_surface_nan, hires,
-                           bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
+                           skull_strip_ants, skull_strip_template, reportlets_dir, output_dir,
+                           bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
+                           hires, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
                            output_grid_ref, use_aroma, ignore_aroma_err, smooth_fwhm):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
@@ -233,6 +237,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     output_dir='.',
                                     bids_dir='.',
                                     skull_strip_ants=True,
+                                    skull_strip_template='OASIS',
                                     template='MNI152NLin2009cAsym',
                                     output_spaces=['T1w', 'fsnative',
                                                   'template', 'fsaverage5'],
@@ -276,6 +281,8 @@ def init_single_subject_wf(subject_id, task_id, name,
         skull_strip_ants : bool
             Use ANTs BrainExtraction.sh-based skull-stripping workflow
             If ``False``, uses a faster AFNI-based workflow
+        skull_strip_template : str
+            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
         reportlets_dir : str
             Directory in which to save reportlets
         output_dir : str
@@ -376,6 +383,7 @@ def init_single_subject_wf(subject_id, task_id, name,
     # Preprocessing of T1w (includes registration to MNI)
     anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
                                            skull_strip_ants=skull_strip_ants,
+                                           skull_strip_template=skull_strip_template,
                                            output_spaces=output_spaces,
                                            template=template,
                                            debug=debug,
@@ -445,7 +453,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                 (anat_preproc_wf, func_preproc_wf,
                  [('outputnode.subjects_dir', 'inputnode.subjects_dir'),
                   ('outputnode.subject_id', 'inputnode.subject_id'),
-                  ('outputnode.fs_2_t1_transform', 'inputnode.fs_2_t1_transform')]),
+                  ('outputnode.t1_2_fsnative_reverse_transform',
+                   'inputnode.t1_2_fsnative_reverse_transform')]),
             ])
 
     return workflow

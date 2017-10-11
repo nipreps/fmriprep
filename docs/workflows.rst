@@ -27,6 +27,7 @@ slice-timing information and no fieldmap acquisitions):
                                 output_dir='.',
                                 bids_dir='.',
                                 skull_strip_ants=True,
+                                skull_strip_template='OASIS',
                                 template='MNI152NLin2009cAsym',
                                 output_spaces=['T1w', 'fsnative',
                                               'template', 'fsaverage5'],
@@ -63,6 +64,7 @@ T1w/T2w preprocessing
                               output_spaces=['T1w', 'fsnative',
                                              'template', 'fsaverage5'],
                               skull_strip_ants=True,
+                              skull_strip_template='OASIS',
                               freesurfer=True,
                               longitudinal=False,
                               debug=False,
@@ -103,6 +105,14 @@ can be a slowdown of an order of magnitude.
 Therefore, in the case of three or more images, ``fmriprep`` constructs
 templates aligned to the first image, unless passed the ``--longitudinal``
 flag, which forces the estimation of an unbiased template.
+
+.. note::
+
+    The preprocessed T1w image defines the ``T1w`` space.
+    In the case of multiple T1w images, this space may not be precisely aligned
+    with any of the original images.
+    Reconstructed surfaces and functional datasets will be registered to the
+    ``T1w`` space, and not to the input images.
 
 Surface preprocessing
 ~~~~~~~~~~~~~~~~~~~~~
@@ -201,37 +211,26 @@ BOLD preprocessing
 
 Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
-.. bold_hmc :
+.. _bold_ref:
 
-Head-motion estimation and slice time correction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_hmc_wf`
+BOLD reference image estimation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`fmriprep.workflows.bold.init_bold_reference_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
-    from fmriprep.workflows.bold import init_bold_hmc_wf
-    wf = init_bold_hmc_wf(
-        metadata={"RepetitionTime": 2.0,
-                  "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
-                  ignore=[],
-                  bold_file_size_gb=3,
-                  omp_nthreads=1)
+    from fmriprep.workflows.bold import init_bold_reference_wf
+    wf = init_bold_reference_wf(omp_nthreads=1)
 
-This workflow performs slice time
-correction (if ``SliceTiming`` field is present in the input dataset metadata), head
-motion estimation, and skullstripping.
-
-Slice time correction is performed
-using AFNI 3dTShift. All slices are realigned in time to the middle of each
-TR. Slice time correction can be disabled with ``--ignore slicetiming`` command
-line argument.
-
-FSL MCFLIRT is used to estimate motion
-transformations using an automatically estimated reference scan. If T1-saturation effects
-("dummy scans" or non-steady state volumes) are detected they are used as reference due to
-their superior tissue contrast. Otherwise a median of motion corrected subset of volumes is used.
+This workflow estimates a reference image for a BOLD series, which is used to
+:ref:`estimate head motion <bold_hmc>` and :ref:`register BOLD series to T1
+<bold_reg>`,
+and performs skull-stripping and contrast enhancement.
+If T1-saturation effects ("dummy scans" or non-steady state volumes) are
+detected they are used as reference due to their superior tissue contrast.
+Otherwise a median of motion corrected subset of volumes is used.
 
 Skullstripping of the reference image is performed using Nilearn.
 
@@ -239,6 +238,49 @@ Skullstripping of the reference image is performed using Nilearn.
     :scale: 100%
 
     Brain extraction (BET).
+
+.. _bold_stc:
+
+Slice time correction
+~~~~~~~~~~~~~~~~~~~~~
+:mod:`fmriprep.workflows.bold.init_bold_stc_wf`
+
+.. workflow::
+    :graph2use: colored
+    :simple_form: yes
+
+    from fmriprep.workflows.bold import init_bold_stc_wf
+    wf = init_bold_stc_wf(
+        metadata={'RepetitionTime': 2.0,
+                  'SliceTiming': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
+        )
+
+If the ``SliceTiming`` field is present in the input dataset metadata, this
+workflow will be included to perform slice time correction prior to head motion
+estimation.
+Slice time correction is performed using AFNI 3dTShift.
+All slices are realigned in time to the middle of each TR.
+
+Slice time correction can be disabled with ``--ignore slicetiming`` command
+line argument.
+If a BOLD series has fewer than 5 usable (steady-state) volumes, slice time
+correction will be disabled.
+
+.. _bold_hmc:
+
+Head-motion estimation
+~~~~~~~~~~~~~~~~~~~~~~
+:mod:`fmriprep.workflows.bold.init_bold_hmc_wf`
+
+.. workflow::
+    :graph2use: colored
+    :simple_form: yes
+
+    from fmriprep.workflows.bold import init_bold_hmc_wf
+    wf = init_bold_hmc_wf(bold_file_size_gb=3, omp_nthreads=1)
+
+FSL MCFLIRT is used to estimate motion transformations using an automatically
+estimated reference scan (see :ref:`bold_ref`).
 
 Susceptibility Distortion Correction (SDC)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -248,6 +290,8 @@ Susceptibility Distortion Correction (SDC)
     :undoc-members:
     :show-inheritance:
 
+
+.. _bold_reg:
 
 EPI to T1w registration
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -264,8 +308,8 @@ EPI to T1w registration
                           bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the
-reconstructed subject using
-the gray/white matter boundary (FreeSurfer's ``?h.white`` surfaces).
+reconstructed subject using the gray/white matter boundary (FreeSurfer's
+``?h.white`` surfaces).
 
 .. figure:: _static/EPIT1Normalization.svg
     :scale: 100%
@@ -290,11 +334,11 @@ EPI to MNI transformation
                                 omp_nthreads=1,
                                 output_grid_ref=None)
 
-This sub-workflow uses the transform from
-`Head-motion estimation and slice time correction`_,
-`Susceptibility Distortion Correction (SDC)`_ (if fieldmaps are available),
-`EPI to T1w registration`_, and a T1w-to-MNI transform from
-`T1w/T2w preprocessing`_ to map the EPI image to standardized MNI space.
+This sub-workflow concatenates the transforms calculated upstream (see
+`Head-motion estimation`_, `Susceptibility Distortion Correction (SDC)`_ (if
+fieldmaps are available), `EPI to T1w registration`_, and a T1w-to-MNI
+transform from `T1w/T2w preprocessing`_) to map the EPI image to standardized
+MNI space.
 It also maps the T1w-based mask to MNI space.
 
 Transforms are concatenated and applied all at once, with one interpolation (Lanczos)
@@ -403,12 +447,12 @@ Derivatives
 There are additional files, called "Derivatives", outputted to ``<output dir>/fmriprep/sub-<subject_label>/``.
 See the `BIDS Derivatives`_ spec for more information.
 
-Derivatives related to t1w files are in the ``anat`` subfolder:
+Derivatives related to T1w files are in the ``anat`` subfolder:
 
 - ``*T1w_brainmask.nii.gz`` Brain mask derived using ANTS or AFNI, depending on the command flag ``--skull-strip-ants``
 - ``*T1w_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as above, but in MNI space.
 - ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
-- ``*T1w_preproc.nii.gz`` Bias field corrected t1w file, using ANTS' N4BiasFieldCorrection
+- ``*T1w_preproc.nii.gz`` Bias field corrected T1w file, using ANTS' N4BiasFieldCorrection
 - ``*T1w_smoothwm.[LR].surf.gii`` Smoothed GrayWhite surfaces
 - ``*T1w_pial.[LR].surf.gii`` Pial surfaces
 - ``*T1w_midthickness.[LR].surf.gii`` MidThickness surfaces
@@ -417,7 +461,8 @@ Derivatives related to t1w files are in the ``anat`` subfolder:
 - ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
-- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform t1w into MNI space
+- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform T1w into MNI space
+- ``*T1w_target-fsnative_affine.txt`` Affine transform to transform T1w into ``fsnative`` space
 
 Derivatives related to EPI files are in the ``func`` subfolder.
 
