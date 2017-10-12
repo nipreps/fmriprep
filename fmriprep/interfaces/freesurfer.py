@@ -6,8 +6,19 @@
 FreeSurfer tools interfaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Fetch some example data:
+
+    >>> import os
+    >>> from niworkflows import data
+    >>> data_root = data.get_bids_examples(variant='BIDS-examples-1-enh-ds054')
+    >>> os.chdir(data_root)
+
+Disable warnings:
+
+    >>> import niworkflows.nipype as nn
+    >>> nn.logging.getLogger('interface').setLevel('ERROR')
+
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 import os.path as op
 import nibabel as nb
@@ -19,13 +30,23 @@ from niworkflows.nipype.interfaces.base import (
     isdefined, InputMultiPath, BaseInterfaceInputSpec, TraitedSpec, File, traits, Directory
 )
 from niworkflows.nipype.interfaces import freesurfer as fs
-
-from niworkflows.interfaces.base import SimpleInterface
+from niworkflows.nipype.interfaces.base import SimpleInterface
 
 
 class StructuralReference(fs.RobustTemplate):
     """ Variation on RobustTemplate that simply copies the source if a single
-    volume is provided. """
+    volume is provided.
+
+    >>> from fmriprep.utils.bids import collect_data
+    >>> t1w = collect_data('ds114', '01')[0]['t1w']
+    >>> template = StructuralReference()
+    >>> template.inputs.in_files = t1w
+    >>> template.inputs.auto_detect_sensitivity = True
+    >>> template.cmdline  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    'mri_robust_template --satit --mov .../sub-01_ses-retest_T1w.nii.gz
+        .../sub-01_ses-test_T1w.nii.gz --template mri_robust_template_out.mgz'
+
+    """
     @property
     def cmdline(self):
         cmd = super(StructuralReference, self).cmdline

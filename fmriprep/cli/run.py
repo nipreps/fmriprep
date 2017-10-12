@@ -5,7 +5,6 @@
 fMRI preprocessing workflow
 =====
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import os.path as op
@@ -17,7 +16,6 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
-from fmriprep.info import __version__
 
 logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
 logger = logging.getLogger('cli')
@@ -36,6 +34,7 @@ def _warn_redirect(message, category, filename, lineno, file=None, line=None):
 
 def get_parser():
     """Build parser object"""
+    from ..info import __version__
 
     verstr = 'fmriprep v{}'.format(__version__)
 
@@ -80,6 +79,9 @@ def get_parser():
                          help='maximum number of threads per-process')
     g_perfm.add_argument('--mem_mb', '--mem-mb', action='store', default=0, type=int,
                          help='upper bound memory limit for FMRIPREP processes')
+    g_perfm.add_argument('--low-mem', action='store_true',
+                         help='attempt to reduce memory usage (will increase disk usage '
+                              'in working directory)')
     g_perfm.add_argument('--use-plugin', action='store', default=None,
                          help='nipype plugin configuration file')
     g_perfm.add_argument('--anat-only', action='store_true',
@@ -114,26 +116,39 @@ def get_parser():
              ' - fsaverage*: FreeSurfer average meshes'
     )
     g_conf.add_argument(
+        '--force-bbr', action='store_true', dest='use_bbr', default=None,
+        help='Always use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
+        '--force-no-bbr', action='store_false', dest='use_bbr', default=None,
+        help='Do not use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
         '--template', required=False, action='store',
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
-
     g_conf.add_argument(
         '--output-grid-reference', required=False, action='store', default=None,
         help='Grid reference image for resampling BOLD files to volume template space. '
              'It determines the field of view and resolution of the output images, '
              'but is not used in normalization.')
+    g_conf.add_argument(
+        '--medial-surface-nan', required=False, action='store', default=False,
+        help='Replace medial wall values with NaNs on functional GIFTI files. Only '
+        'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
+
     # ICA_AROMA options
     g_aroma = parser.add_argument_group('Specific options for running ICA_AROMA')
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
                          help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
-    g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
-                        help='use ANTs-based skull-stripping (default, slow))')
-    g_ants.add_argument('--no-skull-strip-ants', dest="skull_strip_ants", action='store_false',
-                        help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
-    g_ants.set_defaults(skull_strip_ants=True)
+    # g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
+    #                     help='use ANTs-based skull-stripping (default, slow))')
+    # g_ants.add_argument('--no-skull-strip-ants', dest="skull_strip_ants", action='store_false',
+    #                     help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
+    # g_ants.set_defaults(skull_strip_ants=True)
+    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
+                        choices=['OASIS', 'NKI'],
+                        help='select ANTs skull-stripping template (default: OASIS))')
 
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
@@ -164,6 +179,10 @@ def get_parser():
         '--reports-only', action='store_true', default=False,
         help='only generate reports, don\'t run workflows. This will only rerun report '
              'aggregation, not reportlet generation for specific nodes.')
+    g_other.add_argument(
+        '--run-uuid', action='store', default=None,
+        help='Specify UUID of previous run, to include error logs in report. '
+             'No effect without --reports-only.')
     g_other.add_argument('--write-graph', action='store_true', default=False,
                          help='Write workflow graph.')
 
@@ -200,9 +219,10 @@ def main():
 def create_workflow(opts):
     """Build workflow"""
     from niworkflows.nipype import config as ncfg
-    from fmriprep.viz.reports import run_reports
-    from fmriprep.workflows.base import init_fmriprep_wf
-    from fmriprep.utils.bids import collect_participants
+    from ..viz.reports import run_reports
+    from ..workflows.base import init_fmriprep_wf
+    from ..utils.bids import collect_participants
+    from ..info import __version__
 
     # Set up some instrumental utilities
     errno = 0
@@ -260,6 +280,8 @@ def create_workflow(opts):
     # Called with reports only
     if opts.reports_only:
         logger.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
+        if opts.run_uuid is not None:
+            run_uuid = opts.run_uuid
         report_errors = [
             run_reports(op.join(work_dir, 'reportlets'), output_dir, subject_label,
                         run_uuid=run_uuid)
@@ -279,18 +301,22 @@ def create_workflow(opts):
         run_uuid=run_uuid,
         ignore=opts.ignore,
         debug=opts.debug,
+        low_mem=opts.low_mem,
         anat_only=opts.anat_only,
         longitudinal=opts.longitudinal,
         omp_nthreads=omp_nthreads,
-        skull_strip_ants=opts.skull_strip_ants,
+        skull_strip_ants=True,
+        skull_strip_template=opts.skull_strip_template,
         work_dir=work_dir,
         output_dir=output_dir,
         bids_dir=bids_dir,
         freesurfer=opts.freesurfer,
         output_spaces=opts.output_space,
         template=opts.template,
+        medial_surface_nan=opts.medial_surface_nan,
         output_grid_ref=opts.output_grid_reference,
         hires=opts.hires,
+        use_bbr=opts.use_bbr,
         bold2t1w_dof=opts.bold2t1w_dof,
         fmap_bspline=opts.fmap_bspline,
         fmap_demean=opts.fmap_no_demean,
@@ -326,4 +352,5 @@ def create_workflow(opts):
 
 
 if __name__ == '__main__':
-    main()
+    raise RuntimeError("fmriprep/cli/run.py should not be run directly;\n"
+                       "Please `pip install` fmriprep and use the `fmriprep` command")

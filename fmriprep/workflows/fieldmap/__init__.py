@@ -58,7 +58,6 @@ in the absence of fieldmaps. See :ref:`fieldmapless_estimation` for
 further details.
 
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 from .base import init_fmap_estimator_wf
 from .unwarp import init_sdc_unwarp_wf

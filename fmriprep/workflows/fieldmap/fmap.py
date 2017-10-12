@@ -16,19 +16,14 @@ This corresponds to the section 8.9.3 --fieldmap image (and one magnitude image)
 of the BIDS specification.
 
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
 
 from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu
-
-from niworkflows.nipype.interfaces import fsl, ants
-from niworkflows.interfaces.masks import BETRPT
+from niworkflows.nipype.interfaces import utility as niu, fsl, ants
 # Note that deman_image imports from nipype
 from niworkflows.nipype.workflows.dmri.fsl.utils import demean_image, cleanup_edge_pipeline
-from fmriprep.interfaces import IntraModalMerge
-from fmriprep.interfaces.bids import DerivativesDataSink
-from fmriprep.interfaces.fmap import FieldEnhance
-from fmriprep.interfaces.utils import ApplyMask
+from niworkflows.interfaces.masks import BETRPT
+
+from ...interfaces import IntraModalMerge, DerivativesDataSink, FieldEnhance
 
 
 def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
@@ -60,13 +55,14 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
                       name='fmapmrg')
 
     # de-gradient the fields ("bias/illumination artifact")
-    n4_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
-                         name='n4_correct')
+    n4_correct = pe.Node(ants.N4BiasFieldCorrection(
+        dimension=3, copy_header=True, num_threads=omp_nthreads),
+        n_procs=omp_nthreads, name='n4_correct')
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
-    ds_fmap_mask = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='fmap_mask'), name='ds_fmap_mask')
+    ds_fmap_mask = pe.Node(DerivativesDataSink(
+        base_directory=reportlets_dir, suffix='fmap_mask'),
+        name='ds_fmap_mask', run_without_submitting=True)
 
     workflow.connect([
         (inputnode, magmrg, [('magnitude', 'in_files')]),
@@ -83,9 +79,7 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
         # despike_threshold=1.0, mask_erode=1),
         fmapenh = pe.Node(FieldEnhance(
             unwrap=False, despike=False, njobs=omp_nthreads),
-            name='fmapenh')
-        fmapenh.interface.num_threads = omp_nthreads
-        fmapenh.interface.estimated_memory_gb = 4
+            name='fmapenh', mem_gb=4, n_procs=omp_nthreads)
 
         workflow.connect([
             (bet, fmapenh, [('mask_file', 'in_mask'),
@@ -105,7 +99,7 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
         demean = pe.Node(niu.Function(function=demean_image), name='demean')
         cleanup_wf = cleanup_edge_pipeline(name='cleanup_wf')
 
-        applymsk = pe.Node(ApplyMask(), name='applymsk')
+        applymsk = pe.Node(fsl.ApplyMask(), name='applymsk')
 
         workflow.connect([
             (bet, prelude, [('mask_file', 'mask_file'),
@@ -119,7 +113,7 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
             (demean, cleanup_wf, [('out', 'inputnode.in_file')]),
             (bet, cleanup_wf, [('mask_file', 'inputnode.in_mask')]),
             (cleanup_wf, applymsk, [('outputnode.out_file', 'in_file')]),
-            (bet, applymsk, [('mask_file', 'in_mask')]),
+            (bet, applymsk, [('mask_file', 'mask_file')]),
             (applymsk, outputnode, [('out_file', 'fmap')]),
         ])
 
@@ -127,12 +121,14 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
 
 
 def _torads(in_file, out_file=None):
+    import os
     from math import pi
     import nibabel as nb
-    from fmriprep.utils.misc import genfname
+    from niworkflows.nipype.utils.filemanip import fname_presuffix
 
     if out_file is None:
-        out_file = genfname(in_file, suffix='rad')
+        out_file = fname_presuffix(
+            in_file, suffix='_rad', newpath=os.getcwd())
 
     fmapnii = nb.load(in_file)
     fmapdata = fmapnii.get_data()
@@ -145,11 +141,14 @@ def _torads(in_file, out_file=None):
 
 
 def _tohz(in_file, cutoff_hz, out_file=None):
+    import os
     from math import pi
     import nibabel as nb
-    from fmriprep.utils.misc import genfname
+    from niworkflows.nipype.utils.filemanip import fname_presuffix
+
     if out_file is None:
-        out_file = genfname(in_file, suffix='hz')
+        out_file = fname_presuffix(in_file, suffix='_hz',
+                                   newpath=os.getcwd())
 
     fmapnii = nb.load(in_file)
     fmapdata = fmapnii.get_data()

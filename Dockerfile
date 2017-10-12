@@ -118,7 +118,7 @@ ENV PATH=/usr/local/miniconda/bin:$PATH \
     LC_ALL=C.UTF-8
 
 # Installing precomputed python packages
-RUN conda install -y mkl=2017.0.1 mkl-service &&  \
+RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
     conda install -y numpy=1.12.0 \
                      scipy=0.18.1 \
                      scikit-learn=0.18.1 \
@@ -126,9 +126,10 @@ RUN conda install -y mkl=2017.0.1 mkl-service &&  \
                      pandas=0.19.2 \
                      libxml2=2.9.4 \
                      libxslt=1.1.29\
-                     traits=4.6.0 &&  \
-    chmod +x /usr/local/miniconda/bin/* && \
-    conda clean --all -y
+                     traits=4.6.0; sync &&  \
+    chmod +x /usr/local/miniconda/bin/*; sync && \
+    conda clean --all -y; sync && \
+    conda clean -tipsy && sync
 
 # Precaching fonts
 RUN python -c "from matplotlib import font_manager"
@@ -145,8 +146,15 @@ RUN apt-get update && \
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
-# Installing dev requirements (packages that are not in pypi)
 WORKDIR /root/
+
+# Precaching atlases
+ENV CRN_SHARED_DATA /niworkflows_data
+ADD docker/scripts/get_templates.sh get_templates.sh
+RUN mkdir $CRN_SHARED_DATA && \
+    /root/get_templates.sh
+
+# Installing dev requirements (packages that are not in pypi)
 ADD requirements.txt requirements.txt
 RUN pip install -r requirements.txt && \
     rm -rf ~/.cache/pip
@@ -156,13 +164,6 @@ COPY . /root/src/fmriprep
 RUN cd /root/src/fmriprep && \
     pip install .[all] && \
     rm -rf ~/.cache/pip
-
-# Precaching atlases
-RUN mkdir /niworkflows_data
-ENV CRN_SHARED_DATA /niworkflows_data
-RUN python -c 'from niworkflows.data.getters import get_mni_template_ras; get_mni_template_ras()' && \
-    python -c 'from niworkflows.data.getters import get_mni_icbm152_nlin_asym_09c; get_mni_icbm152_nlin_asym_09c()' && \
-    python -c 'from niworkflows.data.getters import get_ants_oasis_template_ras; get_ants_oasis_template_ras()'
 
 RUN ldconfig
 

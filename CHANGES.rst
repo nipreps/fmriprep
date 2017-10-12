@@ -2,6 +2,71 @@ Next release
 ============
 
 
+1.0.0-rc6 (11th of October 2017)
+================================
+
+* [ENH] Add inverse normalization transform (MNI -> T1w) to derivatives (#754)
+* [ENH] Fall back to initial registration if BBR fails (#694)
+* [FIX] Header and affine transform updates to resolve intermittent
+  misalignments in reports (#743)
+* [FIX] Register FreeSurfer template to FMRIPREP template, handling pre-run
+  FreeSurfer subjects more robustly, saving affine to derivatives (#733)
+* [ENH] Add OpenFMRI participant sampler command-line tool (#704)
+* [ENH] For SyN-SDC, assume phase-encoding direction of A-P unless specified
+  L-R (#740, #744)
+* [ENH] Permit skull-stripping with NKI ANTs template (#729)
+* [ENH] Erode aCompCor masks to target volume proportions, instead of fixed
+  distances (#731, #732)
+* [DOC] Documentation updates (#748)
+
+1.0.0-rc5 (25th of September 2017)
+==================================
+
+* [FIX] Skip slice time correction on BOLD series < 5 volumes (#711)
+* [FIX] Skip AFNI check for new versions (#723)
+* [DOC] Documentation clarification and updates (#698, #711)
+
+1.0.0-rc4 (12th of September 2017)
+==================================
+
+With thanks to Mathias Goncalves for contributions.
+
+* [ENH] Collapse ITK transforms of head-motion correction in only one file (#695)
+* [FIX] Raise error when run.py is called directly (#692)
+* [FIX] Parse crash files when they are stored as text (#690)
+* [ENH] Replace medial wall values with NaNs (#687)
+
+1.0.0-rc3 (28th of August 2017)
+===============================
+
+With thanks to Anibal Sólon for contributions.
+
+* [ENH] Add --low-mem option to reduce memory usage for large BOLD series (#663)
+* [ENH] Parallelize anatomical conformation step (#666)
+* [FIX] Handle missing functional data in SubjectSummary node (#670)
+* [FIX] Disable --no-skull-strip-ants (AFNI skull-stripping) (#674)
+* [FIX] Initialize SyN SDC more robustly (#680)
+* [DOC] Add comprehensive documentation of workflow API (#638)
+
+1.0.0-rc2 (12th of August 2017)
+===============================
+
+* [ENH] Increased support for partial field-of-view BOLD datasets (#659)
+* [FIX] Slice time correction is now being applied to output data (not only to intermediate file used for motion estimation - #662)
+* [FIX] Fieldmap unwarping is now being applied to MNI space outputs (not only to T1w space outputs - #662)
+
+1.0.0-rc1 (8th of August 2017)
+==============================
+
+* [ENH] Include ICA-AROMA confounds in report (#646)
+* [ENH] Save non-aggressively denoised BOLD series (#648)
+* [ENH] Improved logging messages (#621)
+* [ENH] Improved resource management (#622, #629, #640, #641)
+* [ENH] Improved confound header names (#634)
+* [FIX] Ensure multi-T1w image datasets have RAS-oriented template (#637)
+* [FIX] More informative errors for conflicting options (#632)
+* [DOC] Improved report summaries (#647)
+
 0.6.0 (31st of July 2017)
 =========================
 

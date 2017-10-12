@@ -28,21 +28,3 @@ import warnings
 
 # cmp is not used by fmriprep, so ignore nipype-generated warnings
 warnings.filterwarnings('ignore', r'cmp not installed')
-
-# Monkey-patch to ignore AFNI upgrade warnings
-from niworkflows.nipype.interfaces.afni import Info  # noqa: E402
-
-_old_version = Info.version
-
-
-def _new_version():
-    from niworkflows.nipype import logging
-    iflogger = logging.getLogger('interface')
-    level = iflogger.getEffectiveLevel()
-    iflogger.setLevel('ERROR')
-    v = _old_version()
-    iflogger.setLevel(level)
-    if v is None:
-        iflogger.warn('afni_vcheck executable not found')
-    return v
-Info.version = staticmethod(_new_version)
