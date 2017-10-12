@@ -256,7 +256,6 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         return len(in_list) > threshold
 
     workflow.connect([
-        (inputnode, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
         (inputnode, t1_2_mni, [('roi', 'lesion_mask')]),
         (inputnode, t1_template_dimensions, [('t1w', 't1w_list')]),
         (t1_template_dimensions, t1_conform, [
