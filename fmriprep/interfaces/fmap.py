@@ -14,7 +14,7 @@ from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
     SimpleInterface)
-from ...due import Doi
+from ..due import Doi
 
 LOGGER = logging.getLogger('interface')
 
@@ -168,7 +168,7 @@ class PhaseDiff2Fieldmap(SimpleInterface):
         'tags': ['edu']}]
 
     def _run_interface(self, runtime):
-        self.outputs['out_file'] = phdiff2fmap(self.inputs.in_file, self.inputs.delta_te)
+        self._results['out_file'] = phdiff2fmap(self.inputs.in_file, self.inputs.delta_te)
         return runtime
 
 

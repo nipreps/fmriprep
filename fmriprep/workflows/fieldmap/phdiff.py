@@ -111,7 +111,7 @@ def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
         (demean, cleanup_wf, [('out', 'inputnode.in_file')]),
         (bet, cleanup_wf, [('mask_file', 'inputnode.in_mask')]),
         (cleanup_wf, phdiff2fmap, [('outputnode.out_file', 'in_file')]),
-        (phdiff2fmap, outputnode, [('out', 'fmap')]),
+        (phdiff2fmap, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')]),
         (inputnode, ds_fmap_mask, [('phasediff', 'source_file')]),
