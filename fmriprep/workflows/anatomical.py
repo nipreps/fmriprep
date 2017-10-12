@@ -256,7 +256,6 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         return len(in_list) > threshold
 
     workflow.connect([
-        (inputnode, t1_2_mni, [('roi', 'lesion_mask')]),
         (inputnode, t1_template_dimensions, [('t1w', 't1w_list')]),
         (t1_template_dimensions, t1_conform, [
             ('t1w_valid_list', 'in_file'),
@@ -288,6 +287,7 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         mni_tpms.inputs.reference_image = ref_img
 
         workflow.connect([
+            (inputnode, t1_2_mni, [('roi', 'lesion_mask')]),
             (skullstrip_wf, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
             (skullstrip_wf, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),
             (skullstrip_wf, mni_mask, [('outputnode.out_mask', 'input_image')]),
