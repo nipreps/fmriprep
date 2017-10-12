@@ -1788,7 +1788,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                              name="ds_melodic_mix", run_without_submitting=True,
                              mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    suffix_fmt_smooth = 'space-{}_variant-SUSAN{}mm_preproc'.format
+    suffix_fmt_smooth = 'space-{}_variant-SUSAN{:.0g}mm_preproc'.format
     ds_bold_smooth_t1 = pe.Node(DerivativesDataSink(
         base_directory=output_dir,
         suffix=suffix_fmt_smooth('T1w', smooth_fwhm)),
