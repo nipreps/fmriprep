@@ -1,1 +1,1 @@
-niworkflows>=0.1.8
+git+https://github.com/danlurie/niworkflows.git@9e426921314d0ec3e55353d2ca035b4fc42671fb#egg=niworkflows-0.1.9-dev

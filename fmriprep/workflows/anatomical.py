@@ -171,8 +171,9 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['t1w', 't2w', 'subjects_dir', 'subject_id']),
+        niu.IdentityInterface(fields=['t1w', 't2w', 'roi', 'subjects_dir', 'subject_id']),
         name='inputnode')
+
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['t1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_2_mni', 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
@@ -286,6 +287,7 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         mni_tpms.inputs.reference_image = ref_img
 
         workflow.connect([
+            (inputnode, t1_2_mni, [('roi', 'lesion_mask')]),
             (skullstrip_wf, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
             (skullstrip_wf, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),
             (skullstrip_wf, mni_mask, [('outputnode.out_mask', 'input_image')]),

@@ -110,6 +110,7 @@ class BIDSDataGrabberOutputSpec(TraitedSpec):
     bold = OutputMultiPath(desc='output functional images')
     sbref = OutputMultiPath(desc='output sbrefs')
     t1w = OutputMultiPath(desc='output T1w images')
+    roi = OutputMultiPath(desc='output ROI images')
     t2w = OutputMultiPath(desc='output T2w images')
 
 
@@ -152,7 +153,7 @@ class BIDSDataGrabber(SimpleInterface):
             raise FileNotFoundError('No functional images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 
-        for imtype in ['bold', 't2w', 'fmap', 'sbref']:
+        for imtype in ['bold', 't2w', 'fmap', 'sbref', 'roi']:
             if not bids_dict[imtype]:
                 LOGGER.warn('No \'{}\' images found for sub-{}'.format(
                     imtype, self.inputs.subject_id))
