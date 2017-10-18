@@ -32,7 +32,6 @@ from niworkflows.nipype.interfaces import io as nio
 from niworkflows.nipype.pipeline import engine as pe
 
 from niworkflows.interfaces.registration import RobustMNINormalizationRPT
-from niworkflows.anat.skullstrip import afni_wf as init_skullstrip_afni_wf
 import niworkflows.data as nid
 from niworkflows.interfaces.masks import BrainExtractionRPT
 from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
@@ -46,7 +45,7 @@ from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 
 
 #  pylint: disable=R0914
-def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, template, debug,
+def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                          freesurfer, longitudinal, omp_nthreads, hires, reportlets_dir, output_dir,
                          name='anat_preproc_wf'):
     r"""
@@ -71,7 +70,6 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
                                   template='MNI152NLin2009cAsym',
                                   output_spaces=['T1w', 'fsnative',
                                                  'template', 'fsaverage5'],
-                                  skull_strip_ants=True,
                                   skull_strip_template='OASIS',
                                   freesurfer=True,
                                   longitudinal=False,
@@ -80,9 +78,6 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
 
     **Parameters**
 
-        skull_strip_ants : bool
-            Use ANTs BrainExtraction.sh-based skull-stripping workflow.
-            If ``False``, uses a faster AFNI-based workflow
         skull_strip_template : str
             Name of ANTs skull-stripping template ('OASIS' or 'NKI')
         output_spaces : list
@@ -156,6 +151,8 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
+        t1_2_fsnative_forward_transform
+            LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
         t1_2_fsnative_reverse_transform
             LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
         surfaces
@@ -177,7 +174,8 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         fields=['t1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_2_mni', 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                 'mni_mask', 'mni_seg', 'mni_tpms',
-                'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'surfaces']),
+                'subjects_dir', 'subject_id', 't1_2_fsnative_forward_transform',
+                't1_2_fsnative_reverse_transform', 'surfaces']),
         name='outputnode')
 
     # 0. Reorient T1w image(s) to RAS and resample to common voxel space
@@ -191,6 +189,8 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
                             initial_timepoint=1,      # For deterministic behavior
                             intensity_scaling=True,   # 7-DOF (rigid + intensity)
                             subsample_threshold=200,
+                            fixed_timepoint=not longitudinal,
+                            no_iteration=not longitudinal,
                             ),
         name='t1_merge')
 
@@ -201,13 +201,10 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
     # Bias field correction is handled in skull strip workflows.
 
     # 3. Skull-stripping
-    if skull_strip_ants:
-        skullstrip_wf = init_skullstrip_ants_wf(name='skullstrip_ants_wf',
-                                                skull_strip_template=skull_strip_template,
-                                                debug=debug,
-                                                omp_nthreads=omp_nthreads)
-    else:
-        skullstrip_wf = init_skullstrip_afni_wf(name='skullstrip_afni_wf')
+    skullstrip_ants_wf = init_skullstrip_ants_wf(name='skullstrip_ants_wf',
+                                                 skull_strip_template=skull_strip_template,
+                                                 debug=debug,
+                                                 omp_nthreads=omp_nthreads)
 
     # 4. Segmentation
     t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
@@ -249,11 +246,6 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
     def set_threads(in_list, maximum):
         return min(len(in_list), maximum)
 
-    def len_above_thresh(in_list, threshold, longitudinal):
-        if longitudinal:
-            return False
-        return len(in_list) > threshold
-
     workflow.connect([
         (inputnode, t1_template_dimensions, [('t1w', 't1w_list')]),
         (t1_template_dimensions, t1_conform, [
@@ -263,15 +255,13 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         (t1_conform, t1_merge, [
             ('out_file', 'in_files'),
             (('out_file', set_threads, omp_nthreads), 'num_threads'),
-            (('out_file', len_above_thresh, 2, longitudinal), 'fixed_timepoint'),
-            (('out_file', len_above_thresh, 2, longitudinal), 'no_iteration'),
             (('out_file', add_suffix, '_template'), 'out_file')]),
         (t1_merge, t1_reorient, [('out_file', 'in_file')]),
-        (t1_reorient, skullstrip_wf, [('out_file', 'inputnode.in_file')]),
-        (skullstrip_wf, t1_seg, [('outputnode.out_file', 'in_files')]),
-        (skullstrip_wf, outputnode, [('outputnode.bias_corrected', 't1_preproc'),
-                                     ('outputnode.out_file', 't1_brain'),
-                                     ('outputnode.out_mask', 't1_mask')]),
+        (t1_reorient, skullstrip_ants_wf, [('out_file', 'inputnode.in_file')]),
+        (skullstrip_ants_wf, t1_seg, [('outputnode.out_file', 'in_files')]),
+        (skullstrip_ants_wf, outputnode, [('outputnode.bias_corrected', 't1_preproc'),
+                                          ('outputnode.out_file', 't1_brain'),
+                                          ('outputnode.out_mask', 't1_mask')]),
         (t1_seg, outputnode, [('tissue_class_map', 't1_seg'),
                               ('probability_maps', 't1_tpms')]),
     ])
@@ -286,9 +276,9 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
         mni_tpms.inputs.reference_image = ref_img
 
         workflow.connect([
-            (skullstrip_wf, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
-            (skullstrip_wf, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),
-            (skullstrip_wf, mni_mask, [('outputnode.out_mask', 'input_image')]),
+            (skullstrip_ants_wf, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
+            (skullstrip_ants_wf, t1_2_mni, [('outputnode.out_mask', 'moving_mask')]),
+            (skullstrip_ants_wf, mni_mask, [('outputnode.out_mask', 'input_image')]),
             (t1_2_mni, mni_mask, [('composite_transform', 'transforms')]),
             (t1_seg, mni_seg, [('tissue_class_map', 'input_image')]),
             (t1_2_mni, mni_seg, [('composite_transform', 'transforms')]),
@@ -314,31 +304,29 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id')]),
             (t1_reorient, surface_recon_wf, [('out_file', 'inputnode.t1w')]),
-            (skullstrip_wf, surface_recon_wf, [
+            (skullstrip_ants_wf, surface_recon_wf, [
                 ('outputnode.out_file', 'inputnode.skullstripped_t1')]),
             (surface_recon_wf, outputnode, [
                 ('outputnode.subjects_dir', 'subjects_dir'),
                 ('outputnode.subject_id', 'subject_id'),
+                ('outputnode.t1_2_fsnative_forward_transform', 't1_2_fsnative_forward_transform'),
                 ('outputnode.t1_2_fsnative_reverse_transform', 't1_2_fsnative_reverse_transform'),
                 ('outputnode.surfaces', 'surfaces')]),
         ])
 
     anat_reports_wf = init_anat_reports_wf(
-        reportlets_dir=reportlets_dir, skull_strip_ants=skull_strip_ants,
-        output_spaces=output_spaces, template=template, freesurfer=freesurfer)
+        reportlets_dir=reportlets_dir, output_spaces=output_spaces, template=template,
+        freesurfer=freesurfer)
     workflow.connect([
         (inputnode, anat_reports_wf, [
             (('t1w', fix_multi_T1w_source_name), 'inputnode.source_file')]),
         (t1_template_dimensions, anat_reports_wf, [
             ('out_report', 'inputnode.t1_conform_report')]),
+        (skullstrip_ants_wf, anat_reports_wf, [
+            ('outputnode.out_report', 'inputnode.t1_skull_strip_report')]),
         (t1_seg, anat_reports_wf, [('out_report', 'inputnode.t1_seg_report')]),
     ])
 
-    if skull_strip_ants:
-        workflow.connect([
-            (skullstrip_wf, anat_reports_wf, [
-                ('outputnode.out_report', 'inputnode.t1_skull_strip_report')])
-        ])
     if freesurfer:
         workflow.connect([
             (surface_recon_wf, anat_reports_wf, [
@@ -368,7 +356,7 @@ def init_anat_preproc_wf(skull_strip_ants, skull_strip_template, output_spaces, 
             ('mni_mask', 'inputnode.mni_mask'),
             ('mni_seg', 'inputnode.mni_seg'),
             ('mni_tpms', 'inputnode.mni_tpms'),
-            ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform'),
+            ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform'),
             ('surfaces', 'inputnode.surfaces'),
         ]),
     ])
@@ -516,6 +504,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
+        t1_2_fsnative_forward_transform
+            LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
         t1_2_fsnative_reverse_transform
             LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
         surfaces
@@ -538,7 +528,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
         name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'surfaces',
+            fields=['subjects_dir', 'subject_id', 't1_2_fsnative_forward_transform',
+                    't1_2_fsnative_reverse_transform', 'surfaces',
                     'out_report']),
         name='outputnode')
 
@@ -559,6 +550,8 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
 
     fsnative_2_t1_xfm = pe.Node(fs.RobustRegister(auto_sens=True, est_int_scale=True),
                                 name='fsnative_2_t1_xfm')
+    t1_2_fsnative_xfm = pe.Node(fs.utils.LTAConvert(out_lta=True, invert=True),
+                                name='t1_2_fsnative_xfm')
 
     autorecon_resume_wf = init_autorecon_resume_wf(omp_nthreads=omp_nthreads)
     gifti_surface_wf = init_gifti_surface_wf()
@@ -591,11 +584,13 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
         (autorecon1, fsnative_2_t1_xfm, [('T1', 'source_file')]),
         (fsnative_2_t1_xfm, gifti_surface_wf, [
             ('out_reg_file', 'inputnode.t1_2_fsnative_reverse_transform')]),
+        (fsnative_2_t1_xfm, t1_2_fsnative_xfm, [('out_reg_file', 'in_lta')]),
         # Output
         (autorecon_resume_wf, outputnode, [('outputnode.subjects_dir', 'subjects_dir'),
                                            ('outputnode.subject_id', 'subject_id'),
                                            ('outputnode.out_report', 'out_report')]),
         (gifti_surface_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
+        (t1_2_fsnative_xfm, outputnode, [('out_lta', 't1_2_fsnative_forward_transform')]),
         (fsnative_2_t1_xfm, outputnode, [('out_reg_file', 't1_2_fsnative_reverse_transform')]),
     ])
 
@@ -804,7 +799,7 @@ def init_gifti_surface_wf(name='gifti_surface_wf'):
     return workflow
 
 
-def init_anat_reports_wf(reportlets_dir, skull_strip_ants, output_spaces,
+def init_anat_reports_wf(reportlets_dir, output_spaces,
                          template, freesurfer, name='anat_reports_wf'):
     """
     Set up a battery of datasinks to store reports in the right location
@@ -840,15 +835,12 @@ def init_anat_reports_wf(reportlets_dir, skull_strip_ants, output_spaces,
     workflow.connect([
         (inputnode, ds_t1_conform_report, [('source_file', 'source_file'),
                                            ('t1_conform_report', 'in_file')]),
+        (inputnode, ds_t1_skull_strip_report, [('source_file', 'source_file'),
+                                               ('t1_skull_strip_report', 'in_file')]),
         (inputnode, ds_t1_seg_report, [('source_file', 'source_file'),
                                        ('t1_seg_report', 'in_file')]),
     ])
 
-    if skull_strip_ants:
-        workflow.connect([
-            (inputnode, ds_t1_skull_strip_report, [('source_file', 'source_file'),
-                                                   ('t1_skull_strip_report', 'in_file')])
-        ])
     if freesurfer:
         workflow.connect([
             (inputnode, ds_recon_report, [('source_file', 'source_file'),
@@ -875,7 +867,7 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             fields=['source_file', 't1_preproc', 't1_mask', 't1_seg', 't1_tpms',
                     't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                     't1_2_mni', 'mni_mask', 'mni_seg', 'mni_tpms',
-                    't1_2_fsnative_reverse_transform', 'surfaces']),
+                    't1_2_fsnative_forward_transform', 'surfaces']),
         name='inputnode')
 
     ds_t1_preproc = pe.Node(
@@ -930,7 +922,7 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt(template, 'warp')),
         name='ds_t1_mni_warp', run_without_submitting=True)
 
-    lta_2_itk = pe.Node(fs.utils.LTAConvert(out_itk=True, invert=True), name='lta_2_itk')
+    lta_2_itk = pe.Node(fs.utils.LTAConvert(out_itk=True), name='lta_2_itk')
 
     ds_t1_fsnative = pe.Node(
         DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt('fsnative', 'affine')),
@@ -959,7 +951,7 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     if freesurfer:
         workflow.connect([
-            (inputnode, lta_2_itk, [('t1_2_fsnative_reverse_transform', 'in_lta')]),
+            (inputnode, lta_2_itk, [('t1_2_fsnative_forward_transform', 'in_lta')]),
             (inputnode, ds_t1_fsnative, [('source_file', 'source_file')]),
             (lta_2_itk, ds_t1_fsnative, [('out_itk', 'in_file')]),
             (inputnode, name_surfs, [('surfaces', 'in_file')]),

@@ -20,7 +20,6 @@ class TestBase(TestWorkflow):
                                          anat_only=False,
                                          longitudinal=False,
                                          omp_nthreads=1,
-                                         skull_strip_ants=False,
                                          skull_strip_template='OASIS',
                                          reportlets_dir='.',
                                          output_dir='.',

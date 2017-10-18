@@ -186,8 +186,10 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
+        t1_2_fsnative_forward_transform
+            LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
         t1_2_fsnative_reverse_transform
-            Affine transform from FreeSurfer subject space to T1w space
+            LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
 
 
     **Outputs**
@@ -279,7 +281,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_file', 't1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
-                'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform']),
+                'subjects_dir', 'subject_id', 't1_2_fsnative_forward_transform',
+                't1_2_fsnative_reverse_transform']),
         name='inputnode')
     inputnode.inputs.bold_file = bold_file
 
@@ -611,8 +614,11 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                          medial_surface_nan=medial_surface_nan,
                                          name='bold_surf_wf')
         workflow.connect([
-            (inputnode, bold_surf_wf, [('subjects_dir', 'inputnode.subjects_dir'),
-                                       ('subject_id', 'inputnode.subject_id')]),
+            (inputnode, bold_surf_wf, [
+                ('t1_preproc', 'inputnode.t1_preproc'),
+                ('subjects_dir', 'inputnode.subjects_dir'),
+                ('subject_id', 'inputnode.subject_id'),
+                ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
             (bold_reg_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])
@@ -1002,7 +1008,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_n
         subject_id
             FreeSurfer subject ID
         t1_2_fsnative_reverse_transform
-            Affine transform from FreeSurfer subject space to T1w space
+            LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
         fieldwarp
             a :abbr:`DFM (displacements field map)` in ITK format
 
@@ -1146,10 +1152,14 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
 
         source_file
             Motion-corrected BOLD series in T1 space
+        t1_preproc
+            Bias-corrected structural template image
         subjects_dir
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
+        t1_2_fsnative_forward_transform
+            LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
 
     **Outputs**
 
@@ -1159,7 +1169,8 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
     """
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['source_file', 'subject_id', 'subjects_dir']),
+        niu.IdentityInterface(fields=['source_file', 't1_preproc', 'subject_id', 'subjects_dir',
+                                      't1_2_fsnative_forward_transform']),
         name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['surfaces']), name='outputnode')
@@ -1181,11 +1192,14 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
                             mem_gb=DEFAULT_MEMORY_MIN_GB)
     rename_src.inputs.subject = spaces
 
+    resampling_xfm = pe.Node(fs.utils.LTAConvert(in_lta='identity.nofile', out_lta=True),
+                             name='resampling_xfm')
+    set_xfm_source = pe.Node(fs.ConcatenateLTA(out_type='RAS2RAS'), name='set_xfm_source')
+
     sampler = pe.MapNode(
         fs.SampleToSurface(sampling_method='average', sampling_range=(0, 1, 0.2),
-                           sampling_units='frac', reg_header=True,
-                           interp_method='trilinear', cortex_mask=True,
-                           out_type='gii'),
+                           sampling_units='frac', interp_method='trilinear', cortex_mask=True,
+                           override_reg_subj=True, out_type='gii'),
         iterfield=['source_file', 'target_subject'],
         iterables=('hemi', ['lh', 'rh']),
         name='sampler')
@@ -1226,8 +1240,13 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
     workflow.connect([
         (inputnode, targets, [('subject_id', 'subject_id')]),
         (inputnode, rename_src, [('source_file', 'in_file')]),
+        (inputnode, resampling_xfm, [('source_file', 'source_file'),
+                                     ('t1_preproc', 'target_file')]),
+        (inputnode, set_xfm_source, [('t1_2_fsnative_forward_transform', 'in_lta2')]),
+        (resampling_xfm, set_xfm_source, [('out_lta', 'in_lta1')]),
         (inputnode, sampler, [('subjects_dir', 'subjects_dir'),
                               ('subject_id', 'subject_id')]),
+        (set_xfm_source, sampler, [('out_file', 'reg_file')]),
         (targets, sampler, [('out', 'target_subject')]),
         (rename_src, sampler, [('out_file', 'source_file')]),
         (merger, update_metadata, [('out', 'in_file')]),
