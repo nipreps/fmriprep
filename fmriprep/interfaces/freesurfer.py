@@ -175,11 +175,10 @@ class PatchedConcatenateLTA(ConcatenateLTA):
     `here <https://github.com/poldracklab/fmriprep/issues/768>`_.
     """
 
-    def _run_interface(self, runtime, correct_return_codes=(0,)):
-        runtime = super(ConcatenateLTA, self)._run_interface(
-            runtime, correct_return_codes)
+    def _list_outputs(self):
+        outputs = super(ConcatenateLTA, self)._list_outputs()
 
-        with open(self.inputs.out_file, 'r') as f:
+        with open(outputs['out_file'], 'r') as f:
             lines = f.readlines()
 
         fixed = False
@@ -192,10 +191,9 @@ class PatchedConcatenateLTA(ConcatenateLTA):
                 newfile.append(line)
 
         if fixed:
-            with open(self.inputs.out_file, 'w') as f:
+            with open(outputs['out_file'], 'w') as f:
                 f.write(''.join(newfile))
-
-        return runtime
+        return outputs
 
 
 def inject_skullstripped(subjects_dir, subject_id, skullstripped):
