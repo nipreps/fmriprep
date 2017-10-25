@@ -63,6 +63,7 @@ from ..workflows.fieldmap.unwarp import init_pepolar_unwarp_wf
 from ..workflows.util import (
     init_enhance_and_skullstrip_bold_wf, init_skullstrip_bold_wf,
     init_bbreg_wf, init_fsl_bbr_wf)
+from ..due import due, Doi
 
 
 DEFAULT_MEMORY_MIN_GB = 0.01
@@ -1312,6 +1313,11 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
     return workflow
 
 
+@due.dcite(
+    Doi('10.1371/journal.pone.0152472'),
+    description="Susceptibility distortion correction warp estimation",
+    tags=['implementation']
+)
 def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
                           template, omp_nthreads, bold_pe='j',
                           atlas_threshold=3, name='nonlinear_sdc_wf'):
