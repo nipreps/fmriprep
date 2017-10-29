@@ -53,9 +53,14 @@ from niworkflows.interfaces import SimpleBeforeAfter, NormalizeMotionParams
 
 
 from ..interfaces import (
-    DerivativesDataSink, InvertT1w, ValidateImage, GiftiNameSource, GiftiSetAnatomicalStructure,
+    DerivativesDataSink, InvertT1w, ValidateImage,
+    GiftiNameSource, GiftiSetAnatomicalStructure,
     MCFLIRT2ITK, MultiApplyTransforms
 )
+
+# See https://github.com/poldracklab/fmriprep/issues/768
+from ..interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
+
 from ..interfaces.images import extract_wm
 from ..interfaces.nilearn import Merge
 from ..interfaces.reports import FunctionalSummary
@@ -387,7 +392,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
             ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform')
-            ]),
+        ]),
         (inputnode, bold_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
                                         ('t1_mask', 'inputnode.t1_mask')]),
         (bold_hmc_wf, bold_reg_wf, [('outputnode.bold_split', 'inputnode.bold_split'),
@@ -622,7 +627,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
         LOGGER.info('Creating BOLD surface-sampling workflow.')
-        bold_surf_wf = init_bold_surf_wf(output_spaces=output_spaces,
+        bold_surf_wf = init_bold_surf_wf(bold_file_size_gb=bold_file_size_gb,
+                                         output_spaces=output_spaces,
                                          medial_surface_nan=medial_surface_nan,
                                          name='bold_surf_wf')
         workflow.connect([
@@ -707,6 +713,7 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
 
     validate = pe.Node(ValidateImage(), name='validate', mem_gb=DEFAULT_MEMORY_MIN_GB,
                        run_without_submitting=True)
+
     gen_ref = pe.Node(EstimateReferenceImage(), name="gen_ref",
                       mem_gb=1)  # OE: 128x128x128x50 * 64 / 8 ~ 900MB.
     enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
@@ -724,7 +731,7 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
             ('outputnode.mask_file', 'bold_mask'),
             ('outputnode.out_report', 'bold_mask_report'),
             ('outputnode.skull_stripped_file', 'ref_image_brain')]),
-        ])
+    ])
 
     return workflow
 
@@ -856,7 +863,7 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
     mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True, save_plots=True),
                       name='mcflirt', mem_gb=bold_file_size_gb * 3)
 
-    fsl2itk = pe.Node(MCFLIRT2ITK(num_threads=omp_nthreads), name='fsl2itk',
+    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk',
                       mem_gb=0.05, n_procs=omp_nthreads)
 
     normalize_motion = pe.Node(NormalizeMotionParams(format='FSL'),
@@ -1026,7 +1033,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_n
 
     workflow.connect([
         (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
-                              ('t1_brain', 'fixed_image')]),
+                              ('t1_brain', 'fixed_image'),
+                              ('t1_mask', 'fov_mask')]),
         (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
         (bbr_wf, mask_t1w_tfm, [('outputnode.itk_bold_to_t1', 'transforms')]),
         (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
@@ -1046,10 +1054,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_n
             (inputnode, merge_xforms, [('fieldwarp', 'in2')])
         ])
 
-    bold_to_t1w_transform = pe.Node(MultiApplyTransforms(
-        interpolation="LanczosWindowedSinc", float=True, num_threads=omp_nthreads),
-        name='bold_to_t1w_transform', mem_gb=0.1, n_procs=omp_nthreads)
-    # bold_to_t1w_transform.terminal_output = 'file'  # OE: why this?
+    bold_to_t1w_transform = pe.Node(
+        MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
+        name='bold_to_t1w_transform', mem_gb=bold_file_size_gb * 3, n_procs=omp_nthreads)
+
     merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=bold_file_size_gb * 3)
 
     workflow.connect([
@@ -1065,7 +1073,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_n
     return workflow
 
 
-def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
+def init_bold_surf_wf(bold_file_size_gb, output_spaces, medial_surface_nan, name='bold_surf_wf'):
     """
     This workflow samples functional images to FreeSurfer surfaces
 
@@ -1079,7 +1087,8 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.bold import init_bold_surf_wf
-        wf = init_bold_surf_wf(output_spaces=['T1w', 'fsnative',
+        wf = init_bold_surf_wf(bold_file_size_gb=0.1,
+                               output_spaces=['T1w', 'fsnative',
                                              'template', 'fsaverage5'],
                                medial_surface_nan=False)
 
@@ -1140,7 +1149,7 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
 
     resampling_xfm = pe.Node(fs.utils.LTAConvert(in_lta='identity.nofile', out_lta=True),
                              name='resampling_xfm')
-    set_xfm_source = pe.Node(fs.ConcatenateLTA(out_type='RAS2RAS'), name='set_xfm_source')
+    set_xfm_source = pe.Node(ConcatenateLTA(out_type='RAS2RAS'), name='set_xfm_source')
 
     sampler = pe.MapNode(
         fs.SampleToSurface(sampling_method='average', sampling_range=(0, 1, 0.2),
@@ -1148,7 +1157,7 @@ def init_bold_surf_wf(output_spaces, medial_surface_nan, name='bold_surf_wf'):
                            override_reg_subj=True, out_type='gii'),
         iterfield=['source_file', 'target_subject'],
         iterables=('hemi', ['lh', 'rh']),
-        name='sampler')
+        name='sampler', mem_gb=bold_file_size_gb * 3)
 
     def medial_wall_to_nan(in_file, subjects_dir, target_subject):
         """ Convert values on medial wall to NaNs
@@ -1304,7 +1313,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
     mask_mni_tfm = pe.Node(
         ApplyTransforms(interpolation='NearestNeighbor', float=True),
         name='mask_mni_tfm',
-        mem_gb=0.1
+        mem_gb=bold_file_size_gb * 3
     )
 
     # Write corrected file in the designated output dir
@@ -1328,10 +1337,10 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
         (inputnode, mask_mni_tfm, [('bold_mask', 'input_image')])
     ])
 
-    bold_to_mni_transform = pe.Node(MultiApplyTransforms(
-        interpolation="LanczosWindowedSinc", float=True, num_threads=omp_nthreads),
-        name='bold_to_mni_transform', mem_gb=0.1, n_procs=omp_nthreads)
-    # bold_to_mni_transform.terminal_output = 'file'
+    bold_to_mni_transform = pe.Node(
+        MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
+        name='bold_to_mni_transform', mem_gb=bold_file_size_gb * 3, n_procs=omp_nthreads)
+
     merge = pe.Node(Merge(compress=use_compression), name='merge',
                     mem_gb=bold_file_size_gb * 3)
 
@@ -1450,9 +1459,9 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
     invert_t1w = pe.Node(InvertT1w(), name='invert_t1w',
                          mem_gb=0.3)
 
-    ref_2_t1 = pe.Node(Registration(from_file=affine_transform, num_threads=omp_nthreads),
+    ref_2_t1 = pe.Node(Registration(from_file=affine_transform),
                        name='ref_2_t1', n_procs=omp_nthreads)
-    t1_2_ref = pe.Node(ApplyTransforms(invert_transform_flags=[True], num_threads=omp_nthreads),
+    t1_2_ref = pe.Node(ApplyTransforms(invert_transform_flags=[True]),
                        name='t1_2_ref', n_procs=omp_nthreads)
 
     # 1) BOLD -> T1; 2) MNI -> T1; 3) ATLAS -> MNI
@@ -1464,8 +1473,7 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
     #
     # ATLAS -> MNI -> T1 -> BOLD
     atlas_2_ref = pe.Node(
-        ApplyTransforms(invert_transform_flags=[True, False, False],
-                        num_threads=omp_nthreads),
+        ApplyTransforms(invert_transform_flags=[True, False, False]),
         name='atlas_2_ref', n_procs=omp_nthreads,
         mem_gb=0.3)
     atlas_2_ref.inputs.input_image = atlas_img
@@ -1481,13 +1489,12 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
 
     restrict = [[int(bold_pe[0] == 'i'), int(bold_pe[0] == 'j'), 0]] * 2
     syn = pe.Node(
-        Registration(from_file=syn_transform, num_threads=omp_nthreads,
-                     restrict_deformation=restrict),
+        Registration(from_file=syn_transform, restrict_deformation=restrict),
         name='syn', n_procs=omp_nthreads)
 
     seg_2_ref = pe.Node(
         ApplyTransforms(interpolation='NearestNeighbor', float=True,
-                        invert_transform_flags=[True], num_threads=omp_nthreads),
+                        invert_transform_flags=[True]),
         name='seg_2_ref', n_procs=omp_nthreads, mem_gb=0.3)
     sel_wm = pe.Node(niu.Function(function=extract_wm), name='sel_wm',
                      mem_gb=DEFAULT_MEMORY_MIN_GB)

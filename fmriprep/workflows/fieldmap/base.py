@@ -54,10 +54,10 @@ def init_fmap_estimator_wf(fmap_bids, reportlets_dir, omp_nthreads,
         # set inputs
         phdiff_wf.inputs.inputnode.phasediff = fmap_bids['phasediff']
         phdiff_wf.inputs.inputnode.magnitude = [
-            fmap_bids['magnitude1'],
-            fmap_bids['magnitude2']
+            fmap_ for key, fmap_ in sorted(fmap_bids.items())
+            if key.startswith("magnitude")
         ]
         return phdiff_wf
 
-    if fmap_bids['type'] in ['phase1', 'phase2', 'epi']:
+    if fmap_bids['type'] in ['phase1', 'phase2']:
         raise NotImplementedError

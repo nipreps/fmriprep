@@ -16,6 +16,9 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
+import nibabel
+
+nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
 
 logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
 logger = logging.getLogger('cli')
@@ -248,7 +251,10 @@ def create_workflow(opts):
 
         if nthreads > 1:
             plugin_settings['plugin'] = 'MultiProc'
-            plugin_settings['plugin_args'] = {'n_procs': nthreads}
+            plugin_settings['plugin_args'] = {
+                'n_procs': nthreads,
+                'raise_insufficient': False,
+            }
             if opts.mem_mb:
                 plugin_settings['plugin_args']['memory_gb'] = opts.mem_mb / 1024
 

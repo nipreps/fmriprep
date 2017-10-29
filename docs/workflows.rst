@@ -354,7 +354,8 @@ EPI sampled to FreeSurfer surfaces
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_surf_wf
-    wf = init_bold_surf_wf(output_spaces=['T1w', 'fsnative',
+    wf = init_bold_surf_wf(bold_file_size_gb=0.1,
+                           output_spaces=['T1w', 'fsnative',
                                          'template', 'fsaverage5'],
                            medial_surface_nan=False)
 

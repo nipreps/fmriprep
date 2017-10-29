@@ -22,6 +22,8 @@ from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICore
 from niworkflows.interfaces.masks import SimpleShowMaskRPT
 
 from ..interfaces.images import extract_wm
+# See https://github.com/poldracklab/fmriprep/issues/768
+from ..interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 
@@ -110,9 +112,8 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
                                                        'bias_corrected_file',
                                                        'out_report']),
                          name='outputnode')
-    n4_correct = pe.Node(
-        ants.N4BiasFieldCorrection(dimension=3, copy_header=True, num_threads=omp_nthreads),
-        name='n4_correct', n_procs=omp_nthreads)
+    n4_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
+                         name='n4_correct', n_procs=omp_nthreads)
     skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
                                     name='skullstrip_first_pass')
     unifize = pe.Node(afni.Unifize(t2=True, outputtype='NIFTI_GZ',
@@ -296,10 +297,10 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
 
     mri_coreg = pe.Node(
         MRICoregRPT(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01,
-                    num_threads=omp_nthreads, generate_report=not use_bbr),
-        name='mri_coreg', n_procs=omp_nthreads)
+                    generate_report=not use_bbr),
+        name='mri_coreg', n_procs=omp_nthreads, mem_gb=32)
 
-    lta_concat = pe.Node(fs.ConcatenateLTA(out_file='out.lta'), name='lta_concat')
+    lta_concat = pe.Node(ConcatenateLTA(out_file='out.lta'), name='lta_concat')
     # XXX LTA-FSL-ITK may ultimately be able to be replaced with a straightforward
     # LTA-ITK transform, but right now the translation parameters are off.
     lta2fsl_fwd = pe.Node(fs.utils.LTAConvert(out_fsl=True), name='lta2fsl_fwd')
@@ -325,7 +326,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         (lta2fsl_inv, fsl2itk_inv, [('out_fsl', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use initial registration
     if use_bbr is False:
@@ -339,14 +340,14 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     bbregister = pe.Node(
         BBRegisterRPT(dof=bold2t1w_dof, contrast_type='t2', registered_file=True,
                       out_lta_file=True, generate_report=True),
-        name='bbregister')
+        name='bbregister', mem_gb=12)
 
     workflow.connect([
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
         (mri_coreg, bbregister, [('out_lta_file', 'init_reg_file')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
@@ -361,7 +362,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     reports = pe.Node(niu.Merge(2), run_without_submitting=True, name='reports')
 
     lta_ras2ras = pe.MapNode(fs.utils.LTAConvert(out_lta=True), iterfield=['in_lta'],
-                             name='lta_ras2ras')
+                             name='lta_ras2ras', mem_gb=2)
     compare_transforms = pe.Node(niu.Function(function=compare_xforms), name='compare_transforms')
 
     select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
@@ -384,7 +385,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         (reports, select_report, [('out', 'inlist')]),
         (compare_transforms, select_report, [('out', 'index')]),
         (select_report, outputnode, [('out', 'out_report')]),
-        ])
+    ])
 
     return workflow
 

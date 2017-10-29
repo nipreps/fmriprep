@@ -5,7 +5,6 @@
 
 .. include:: links.rst
 .. include:: ../README.rst
-.. include:: authors.rst
 
 
 Contents

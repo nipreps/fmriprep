@@ -31,6 +31,7 @@ from niworkflows.nipype.interfaces.base import (
 )
 from niworkflows.nipype.interfaces import freesurfer as fs
 from niworkflows.nipype.interfaces.base import SimpleInterface
+from niworkflows.nipype.interfaces.freesurfer.preprocess import ConcatenateLTA
 
 
 class StructuralReference(fs.RobustTemplate):
@@ -161,6 +162,38 @@ class FSDetectInputs(SimpleInterface):
             self._results['mris_inflate'] = mris_inflate
 
         return runtime
+
+
+class PatchedConcatenateLTA(ConcatenateLTA):
+    """
+    A temporarily patched version of ``fs.ConcatenateLTA`` to recover from
+    `this bug <https://www.mail-archive.com/freesurfer@nmr.mgh.harvard.edu/msg55520.html>`_
+    in FreeSurfer, that was
+    `fixed here <https://github.com/freesurfer/freesurfer/pull/180>`_.
+
+    The original FMRIPREP's issue is found
+    `here <https://github.com/poldracklab/fmriprep/issues/768>`_.
+    """
+
+    def _list_outputs(self):
+        outputs = super(ConcatenateLTA, self)._list_outputs()
+
+        with open(outputs['out_file'], 'r') as f:
+            lines = f.readlines()
+
+        fixed = False
+        newfile = []
+        for line in lines:
+            if line.startswith('filename = ') and len(line.strip("\n")) >= 255:
+                fixed = True
+                newfile.append('filename = path_too_long\n')
+            else:
+                newfile.append(line)
+
+        if fixed:
+            with open(outputs['out_file'], 'w') as f:
+                f.write(''.join(newfile))
+        return outputs
 
 
 def inject_skullstripped(subjects_dir, subject_id, skullstripped):
