@@ -41,6 +41,8 @@ from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import split_filename
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import afni, fsl, utility as niu, freesurfer as fs
+from niworkflows.nipype.workflows.fmri.fsl.preprocess import create_susan_smooth
+from niworkflows.nipype.interfaces.fsl.utils import FilterRegressor
 
 import niworkflows.data as nid
 from niworkflows.interfaces.registration import EstimateReferenceImage
@@ -275,6 +277,16 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     # Run SyN if forced or in the absence of fieldmap correction
     use_syn = force_syn or (use_syn and not fmaps)
+
+    # if smooth_fwhm is set, parse for special numbers 0 and 6
+    # 0 : means keep the unsmoothed file
+    # 6 : means don't recompute the mni space variant is use_aroma is also set
+    if smooth_fwhm:
+        if 0 in smooth_fwhm:
+            keep_unsmoothed=True
+            smooth_fwhm.remove(0)
+        if 6 in smooth_fwhm and use_aroma:
+            mni_
 
     # Build workflow
     workflow = pe.Workflow(name=name)
@@ -585,8 +597,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ])
 
         if smooth_fwhm:
-            smooth_bold_mni_wf = init_smooth_wf(
-                smooth_fwhm=smooth_fwhm, name='smooth_bold_mni_wf')
+            # don't do 6mm smoothing if use_aroma is specified
+            if use_aroma:
+            # create_susan_smooth
             workflow.connect([
                 (bold_mni_trans_wf, smooth_bold_mni_wf,
                     [('outputnode.bold_mni', 'inputnode.bold'),
@@ -598,8 +611,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     # do smoothing if --smooth-fwhm is specified
     # wf can't be initialized if smooth-fwhm is NoneType
     if smooth_fwhm:
-        smooth_bold_t1_wf = init_smooth_wf(
-            smooth_fwhm=smooth_fwhm, name='smooth_bold_t1_wf')
+        # create_susan_smooth
         workflow.connect([
             (bold_reg_wf, smooth_bold_t1_wf,
                 [('outputnode.bold_t1', 'inputnode.bold'),
@@ -622,72 +634,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (bold_reg_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])
-
-    return workflow
-
-
-def init_smooth_wf(smooth_fwhm, name='smooth_wf'):
-    """
-    This workflow uses FSL's SUSAN to smooth the bold series.
-
-    .. workflow::
-        :graph2use: orig
-        :simple_form: yes
-
-        from fmriprep.workflows.bold import init_smooth_wf
-        wf = init_smooth_wf(smooth_fwhm=6)
-
-    Parameters
-
-        smooth_fwhm : float or None
-            size of smoothing kernel (in mm) to apply to BOLD series
-
-    Inputs
-
-        bold
-            BOLD series NIfTI file
-        bold_mask
-            mask of BOLD series
-
-    Outputs
-
-        bold_smooth
-            smoothed BOLD series
-    """
-
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold', 'bold_mask']),
-        name='inputnode')
-
-    outputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold_smooth']),
-        name='outputnode')
-
-    calc_median_val = pe.Node(fsl.ImageStats(op_string='-k %s -p 50'), name='calc_median_val')
-    calc_bold_mean = pe.Node(fsl.MeanImage(), name='calc_bold_mean')
-
-    def getusans_func(image, thresh):
-        return [tuple([image, thresh])]
-
-    def _getbtthresh(medianval):
-        return 0.75 * medianval
-    getusans = pe.Node(niu.Function(function=getusans_func, output_names=['usans']),
-                       name='getusans', mem_gb=0.01)
-
-    smooth = pe.Node(fsl.SUSAN(fwhm=smooth_fwhm), name='smooth')
-
-    workflow.connect([
-        (inputnode, calc_median_val, [('bold', 'in_file'),
-                                      ('bold_mask', 'mask_file')]),
-        (inputnode, calc_bold_mean, [('bold', 'in_file')]),
-        (calc_bold_mean, getusans, [('out_file', 'image')]),
-        (calc_median_val, getusans, [('out_stat', 'thresh')]),
-        (inputnode, smooth, [('bold', 'in_file')]),
-        (getusans, smooth, [('usans', 'usans')]),
-        (calc_median_val, smooth, [(('out_stat', _getbtthresh), 'brightness_threshold')]),
-        (smooth, outputnode, [('smoothed_file', 'bold_smooth')]),
-    ])
 
     return workflow
 
@@ -1584,6 +1530,71 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
 
     return workflow
 
+def init_postprocess_wf(smooth_fwhm, use_aroma, name="postprocess_wf"):
+    """
+    This workflow generates optional outputs such as smoothed images, and
+    images with noise components from ICA-AROMA regressed out.
+    future: 3dDespike
+
+    .. workflow::
+        :graph2use: orig
+        :simple_form: yes
+
+        from fmriprep.workflows.bold import init_fmap_postprocess_wf
+
+    **Parameters**
+        smooth_fwhm: list
+        use_aroma
+    """
+    def csv2list(noise_ics_csv):
+        import csv
+        with open(noise_ics_csv, 'r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            mylst = [int(x) for x in list(reader)[0]]
+
+        return noise_ics
+
+    # if zero is in the list, add the input files to the output files
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_mask_mni', 'melodic_mix',
+                'aroma_noise_ics', 't1_smooth_fwhm', 'mni_smooth_fwhm']), name='inputnode')
+
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['bold_t1_post', 'bold_mni_post']), name='outputnode')
+
+    regfilt = pe.MapNode(FilterRegressor(), name='regfilt', iterfield=['in_file'])
+    # design_file
+    # filter_columns
+    # in_file
+    t1_smooth = create_susan_smooth(name='t1_susan_smooth')
+
+    mni_smooth = create_susan_smooth(name='mni_susan_smooth')
+
+    if smooth_fwhm:
+        if 0 in smooth_fwhm:
+            merge_unsmooth = pe.Node(Merge(2), name='merge_unsmooth')
+            smooth_fwhm_filt = [ x for x in smooth_fwhm if not 0]
+
+        if use_aroma:
+            mni_smooth_fwhm = [ x for x in smooth_fwhm_filt if not 6]
+            inputnode.inputs.mni_smooth_fwhm = mni_smooth_fwhm
+        else:
+            inputnode.inputs.mni_smooth_fwhm = smooth_fwhm
+
+        inputnode.inputs.t1_smooth_fwhm = smooth_fwhm
+        workflow.connect([
+            (inputnode, t1_smooth, [('bold_t1,', 'inputnode.in_files'),
+                                    ('t1_smooth_fwhm', 'inputnode.fwhm'),
+                                    ('bold_mask_t1', 'inputnode.mask_file')]),
+            (inputnode, t1_smooth, [('bold_t1,', 'inputnode.in_files'),
+                                    ('t1_smooth_fwhm', 'inputnode.fwhm'),
+                                    ('bold_mask_t1', 'inputnode.mask_file')]),
+        ])
+
+    return workflow
+
 
 def init_fmap_unwarp_report_wf(reportlets_dir, name='fmap_unwarp_report_wf'):
     """
@@ -1848,8 +1859,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     if 'T1w' in output_spaces:
         workflow.connect([
-            (inputnode, ds_bold_t1, [('source_file', 'source_file'),
-                                     ('bold_t1', 'in_file')]),
             (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
                                           ('bold_mask_t1', 'in_file')]),
         ])
@@ -1858,6 +1867,11 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             workflow.connect([
                 (inputnode, ds_bold_smooth_t1, [('source_file', 'source_file'),
                                                 ('bold_smooth_t1', 'in_file')]),
+            ])
+        else:
+            workflow.connect([
+                (inputnode, ds_bold_t1, [('source_file', 'source_file'),
+                                         ('bold_t1', 'in_file')]),
             ])
 
     if 'template' in output_spaces:
