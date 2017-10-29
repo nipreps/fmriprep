@@ -138,10 +138,15 @@ def get_parser():
         help='Replace medial wall values with NaNs on functional GIFTI files. Only '
         'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
 
-    # ICA_AROMA options
-    g_aroma = parser.add_argument_group('Specific options for running ICA_AROMA')
-    g_aroma.add_argument('--use-aroma', action='store_true', default=False,
-                         help='add ICA_AROMA to your preprocessing stream')
+    # BOLD Preprocessing options
+    g_bold = parser.add_argument_group('Specific options for preprocessing BOLD')
+    g_bold.add_argument('--smooth-fwhm', action='store', required=False,
+                        type=float, nargs='+' default=[],
+                        help="Specify FWHM kernel (in mm) for smoothing BOLD "
+                        "data. Uses FSL's SUSAN algorithm. Can be multiple values "
+                        "separated by spaces")
+    g_bold.add_argument('--use-aroma', action='store_true', default=False,
+                        help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
@@ -324,6 +329,7 @@ def create_workflow(opts):
         force_syn=opts.force_syn,
         use_aroma=opts.use_aroma,
         ignore_aroma_err=opts.ignore_aroma_denoising_errors,
+        smooth_fwhm=opts.smooth_fwhm,
     )
 
     if opts.write_graph:

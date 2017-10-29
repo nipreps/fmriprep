@@ -44,7 +44,8 @@ slice-timing information and no fieldmap acquisitions):
                                 force_syn=True,
                                 output_grid_ref=None,
                                 use_aroma=False,
-                                ignore_aroma_err=False)
+                                ignore_aroma_err=False,
+                                smooth_fwhm=6)
 
 
 T1w/T2w preprocessing
@@ -205,7 +206,8 @@ BOLD preprocessing
                               force_syn=True,
                               output_grid_ref=None,
                               use_aroma=False,
-                              ignore_aroma_err=False)
+                              ignore_aroma_err=False,
+                              smooth_fwhm=6)
 
 Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
@@ -417,6 +419,22 @@ A visualisation of the AROMA component classification is also included in the HT
     frequency spectrum (bottom in Hertz). Components classified as signal in
     green; noise in red.
 
+Smoothing
+~~~~~~~~~
+:mod:`fmriprep.workflows.bold.init_smooth_wf`
+
+.. workflow::
+    :graph2use: colored
+    :simple_form: yes
+
+    from fmriprep.workflows.bold import init_smooth_wf
+    wf = init_smooth_wf(name='smooth_wf',
+                        smooth_fwhm=6)
+
+This sub-workflow (optional; use with ``--smooth-fwhm``) uses FSL's SUSAN to smooth
+derivatives in whichever output space(s) were selected. This implementation of SUSAN
+replicates how FSL uses SUSAN in their processing pipeline.
+
 Reports
 -------
 
@@ -460,6 +478,7 @@ Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
 - ``*bold_space-<space>_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation) EPI file
 - ``*bold_space-<space>_variant-smoothAROMAnonaggr_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation),
   smoothed (6mm), and non-aggressively denoised (using AROMA) EPI file - currently produced only for the ``MNI152NLin2009cAsym`` space
+- ``*bold_space-<space>_variant-SUSAN<fwhm>mm_preproc.nii.gz`` Smoothed EPI file, calculated by FSL's SUSAN at the end of the workflow
 
 Surface output spaces include ``fsnative`` (full density subject-specific mesh),
 ``fsaverage`` and the down-sampled meshes ``fsaverage6`` (41k vertices) and
