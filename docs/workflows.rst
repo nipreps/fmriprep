@@ -26,7 +26,7 @@ slice-timing information and no fieldmap acquisitions):
                                 reportlets_dir='.',
                                 output_dir='.',
                                 bids_dir='.',
-                                skull_strip_ants=True,
+                                skull_strip_template='OASIS',
                                 template='MNI152NLin2009cAsym',
                                 output_spaces=['T1w', 'fsnative',
                                               'template', 'fsaverage5'],
@@ -36,6 +36,7 @@ slice-timing information and no fieldmap acquisitions):
                                 low_mem=False,
                                 anat_only=False,
                                 hires=True,
+                                use_bbr=True,
                                 bold2t1w_dof=9,
                                 fmap_bspline=False,
                                 fmap_demean=True,
@@ -61,7 +62,7 @@ T1w/T2w preprocessing
                               template='MNI152NLin2009cAsym',
                               output_spaces=['T1w', 'fsnative',
                                              'template', 'fsaverage5'],
-                              skull_strip_ants=True,
+                              skull_strip_template='OASIS',
                               freesurfer=True,
                               longitudinal=False,
                               debug=False,
@@ -102,6 +103,14 @@ can be a slowdown of an order of magnitude.
 Therefore, in the case of three or more images, ``fmriprep`` constructs
 templates aligned to the first image, unless passed the ``--longitudinal``
 flag, which forces the estimation of an unbiased template.
+
+.. note::
+
+    The preprocessed T1w image defines the ``T1w`` space.
+    In the case of multiple T1w images, this space may not be precisely aligned
+    with any of the original images.
+    Reconstructed surfaces and functional datasets will be registered to the
+    ``T1w`` space, and not to the input images.
 
 Surface preprocessing
 ~~~~~~~~~~~~~~~~~~~~~
@@ -188,6 +197,7 @@ BOLD preprocessing
                               medial_surface_nan=False,
                               debug=False,
                               low_mem=False,
+                              use_bbr=True,
                               bold2t1w_dof=9,
                               fmap_bspline=True,
                               fmap_demean=True,
@@ -286,13 +296,14 @@ EPI to T1w registration
 :mod:`fmriprep.workflows.bold.init_bold_reg_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_reg_wf
     wf = init_bold_reg_wf(freesurfer=True,
                           bold_file_size_gb=3,
                           omp_nthreads=1,
+                          use_bbr=True,
                           bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the
@@ -419,12 +430,12 @@ Derivatives
 There are additional files, called "Derivatives", outputted to ``<output dir>/fmriprep/sub-<subject_label>/``.
 See the `BIDS Derivatives`_ spec for more information.
 
-Derivatives related to t1w files are in the ``anat`` subfolder:
+Derivatives related to T1w files are in the ``anat`` subfolder:
 
 - ``*T1w_brainmask.nii.gz`` Brain mask derived using ANTS or AFNI, depending on the command flag ``--skull-strip-ants``
 - ``*T1w_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as above, but in MNI space.
 - ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
-- ``*T1w_preproc.nii.gz`` Bias field corrected t1w file, using ANTS' N4BiasFieldCorrection
+- ``*T1w_preproc.nii.gz`` Bias field corrected T1w file, using ANTS' N4BiasFieldCorrection
 - ``*T1w_smoothwm.[LR].surf.gii`` Smoothed GrayWhite surfaces
 - ``*T1w_pial.[LR].surf.gii`` Pial surfaces
 - ``*T1w_midthickness.[LR].surf.gii`` MidThickness surfaces
@@ -433,7 +444,8 @@ Derivatives related to t1w files are in the ``anat`` subfolder:
 - ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
 - ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
-- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform t1w into MNI space
+- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform T1w into MNI space
+- ``*T1w_target-fsnative_affine.txt`` Affine transform to transform T1w into ``fsnative`` space
 
 Derivatives related to EPI files are in the ``func`` subfolder.
 

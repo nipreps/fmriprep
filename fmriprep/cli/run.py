@@ -19,8 +19,14 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
+<<<<<<< HEAD
 from ..info import __version__
 import pdb
+=======
+import nibabel
+
+nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
+>>>>>>> upstream/master
 
 logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
 logger = logging.getLogger('cli')
@@ -126,6 +132,12 @@ def get_parser():
              ' - fsaverage*: FreeSurfer average meshes'
     )
     g_conf.add_argument(
+        '--force-bbr', action='store_true', dest='use_bbr', default=None,
+        help='Always use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
+        '--force-no-bbr', action='store_false', dest='use_bbr', default=None,
+        help='Do not use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
         '--template', required=False, action='store',
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
@@ -145,6 +157,7 @@ def get_parser():
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
                          help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
+<<<<<<< HEAD
 
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
@@ -155,6 +168,12 @@ def get_parser():
                         choices = ['oasis', 'scsnl'], default='scsnl',
                         help="template to use for skull stripping (default: scsnl)")
     g_ants.set_defaults(skull_strip_ants=False, skull_strip_template='scsnl')
+=======
+    g_ants = parser.add_argument_group('Specific options for ANTs registrations')
+    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
+                        choices=['OASIS', 'NKI'],
+                        help='select ANTs skull-stripping template (default: OASIS))')
+>>>>>>> upstream/master
 
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
@@ -330,7 +349,10 @@ def create_workflow(opts):
         dismiss_t1w=opts.dismiss_t1w,
         longitudinal=opts.longitudinal,
         omp_nthreads=omp_nthreads,
+<<<<<<< HEAD
         skull_strip_ants=opts.skull_strip_ants,
+=======
+>>>>>>> upstream/master
         skull_strip_template=opts.skull_strip_template,
         work_dir=work_dir,
         output_dir=output_dir,
@@ -341,6 +363,7 @@ def create_workflow(opts):
         medial_surface_nan=opts.medial_surface_nan,
         output_grid_ref=opts.output_grid_reference,
         hires=opts.hires,
+        use_bbr=opts.use_bbr,
         bold2t1w_dof=opts.bold2t1w_dof,
         fmap_bspline=opts.fmap_bspline,
         fmap_demean=opts.fmap_no_demean,

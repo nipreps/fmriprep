@@ -14,9 +14,8 @@ import time
 from collections import Counter
 from niworkflows.nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
-    File, Directory, InputMultiPath, Str, isdefined)
-from niworkflows.interfaces.base import SimpleInterface
-
+    File, Directory, InputMultiPath, Str, isdefined,
+    SimpleInterface)
 from niworkflows.nipype.interfaces import freesurfer as fs
 
 from .bids import BIDS_NAME
@@ -33,6 +32,7 @@ SUBJECT_TEMPLATE = """\t<ul class="elem-desc">
 
 FUNCTIONAL_TEMPLATE = """\t\t<h3 class="elem-title">Summary</h3>
 \t\t<ul class="elem-desc">
+\t\t\t<li>Phase-encoding (PE) direction: {pedir}</li>
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
@@ -141,8 +141,13 @@ class FunctionalSummaryInputSpec(BaseInterfaceInputSpec):
     distortion_correction = traits.Enum('epi', 'fieldmap', 'phasediff', 'SyN', 'None',
                                         desc='Susceptibility distortion correction method',
                                         mandatory=True)
-    registration = traits.Enum('FLIRT', 'bbregister', mandatory=True,
+    pe_direction = traits.Enum(None, 'i', 'i-', 'j', 'j-', mandatory=True,
+                               desc='Phase-encoding direction detected')
+    registration = traits.Enum('FSL', 'FreeSurfer', mandatory=True,
                                desc='Functional/anatomical registration method')
+    fallback = traits.Bool(desc='Boundary-based registration rejected')
+    registration_dof = traits.Enum(6, 9, 12, desc='Registration degrees of freedom',
+                                   mandatory=True)
     output_spaces = traits.List(desc='Target spaces')
     confounds = traits.List(desc='Confounds collected')
 
@@ -151,19 +156,27 @@ class FunctionalSummary(SummaryInterface):
     input_spec = FunctionalSummaryInputSpec
 
     def _generate_segment(self):
+        dof = self.inputs.registration_dof
         stc = {True: 'Applied',
                False: 'Not applied',
                'TooShort': 'Skipped (too few volumes)'}[self.inputs.slice_timing]
-        stc = "Applied" if self.inputs.slice_timing else "Not applied"
         sdc = {'epi': 'Phase-encoding polarity (pepolar)',
                'fieldmap': 'Direct fieldmapping',
                'phasediff': 'Phase difference',
                'SyN': 'Symmetric normalization (SyN) - no fieldmaps',
                'None': 'None'}[self.inputs.distortion_correction]
-        reg = {'FLIRT': 'FLIRT with boundary-based registration (BBR) metric',
-               'bbregister': 'FreeSurfer boundary-based registration (bbregister)'
-               }[self.inputs.registration]
-        return FUNCTIONAL_TEMPLATE.format(stc=stc, sdc=sdc, registration=reg,
+        reg = {'FSL': [
+                   'FLIRT with boundary-based registration (BBR) metric - %d dof' % dof,
+                   'FLIRT rigid registration - 6 dof'],
+               'FreeSurfer': [
+                   'FreeSurfer boundary-based registration (bbregister) - %d dof' % dof,
+                   'FreeSurfer mri_coreg - %d dof' % dof],
+               }[self.inputs.registration][self.inputs.fallback]
+        if self.inputs.pe_direction is None:
+            pedir = 'MISSING - Assuming Anterior-Posterior'
+        else:
+            pedir = {'i': 'Left-Right', 'j': 'Anterior-Posterior'}[self.inputs.pe_direction[0]]
+        return FUNCTIONAL_TEMPLATE.format(pedir=pedir, stc=stc, sdc=sdc, registration=reg,
                                           output_spaces=', '.join(self.inputs.output_spaces),
                                           confounds=', '.join(self.inputs.confounds))
 

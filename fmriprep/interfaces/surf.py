@@ -13,13 +13,15 @@ import re
 import numpy as np
 import nibabel as nb
 
-from niworkflows.nipype.interfaces.base import BaseInterfaceInputSpec, TraitedSpec, File, traits
-
-from niworkflows.interfaces.base import SimpleInterface
+from niworkflows.nipype.interfaces.base import (
+    BaseInterfaceInputSpec, TraitedSpec, File, traits, isdefined,
+    SimpleInterface
+)
 
 
 class NormalizeSurfInputSpec(BaseInterfaceInputSpec):
     in_file = File(mandatory=True, exists=True, desc='Freesurfer-generated GIFTI file')
+    transform_file = File(exists=True, desc='FSL or LTA affine transform file')
 
 
 class NormalizeSurfOutputSpec(TraitedSpec):
@@ -60,7 +62,10 @@ class NormalizeSurf(SimpleInterface):
     output_spec = NormalizeSurfOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['out_file'] = normalize_surfs(self.inputs.in_file)
+        transform_file = self.inputs.transform_file
+        if not isdefined(transform_file):
+            transform_file = None
+        self._results['out_file'] = normalize_surfs(self.inputs.in_file, transform_file)
         return runtime
 
 
@@ -176,7 +181,7 @@ class GiftiSetAnatomicalStructure(SimpleInterface):
         return runtime
 
 
-def normalize_surfs(in_file):
+def normalize_surfs(in_file, transform_file):
     """ Re-center GIFTI coordinates to fit align to native T1 space
 
     For midthickness surfaces, add MidThickness metadata
@@ -188,16 +193,17 @@ def normalize_surfs(in_file):
     """
 
     img = nb.load(in_file)
+    transform = load_transform(transform_file)
     pointset = img.get_arrays_from_intent('NIFTI_INTENT_POINTSET')[0]
-    coords = pointset.data
+    coords = pointset.data.T
     c_ras_keys = ('VolGeomC_R', 'VolGeomC_A', 'VolGeomC_S')
-    ras = np.array([float(pointset.metadata[key])
+    ras = np.array([[float(pointset.metadata[key])]
                     for key in c_ras_keys])
-    # Apply C_RAS translation to coordinates
-    pointset.data = (coords + ras).astype(coords.dtype)
+    ones = np.ones((1, coords.shape[1]), dtype=coords.dtype)
+    # Apply C_RAS translation to coordinates, then transform
+    pointset.data = transform.dot(np.vstack((coords + ras, ones)))[:3].T.astype(coords.dtype)
 
-    secondary = nb.gifti.GiftiNVPairs('AnatomicalStructureSecondary',
-                                      'MidThickness')
+    secondary = nb.gifti.GiftiNVPairs('AnatomicalStructureSecondary', 'MidThickness')
     geom_type = nb.gifti.GiftiNVPairs('GeometricType', 'Anatomical')
     has_ass = has_geo = False
     for nvpair in pointset.meta.data:
@@ -218,3 +224,32 @@ def normalize_surfs(in_file):
             pointset.meta.data.insert(2, geom_type)
     img.to_filename(fname)
     return os.path.abspath(fname)
+
+
+def load_transform(fname):
+    """Load affine transform from file
+
+    Parameters
+    ----------
+    fname : str or None
+        Filename of an LTA or FSL-style MAT transform file.
+        If ``None``, return an identity transform
+
+    Returns
+    -------
+    affine : (4, 4) numpy.ndarray
+    """
+    if fname is None:
+        return np.eye(4)
+
+    if fname.endswith('.mat'):
+        return np.loadtxt(fname)
+    elif fname.endswith('.lta'):
+        with open(fname, 'rb') as fobj:
+            for line in fobj:
+                if line.startswith(b'1 4 4'):
+                    break
+            lines = fobj.readlines()[:4]
+        return np.genfromtxt(lines)
+
+    raise ValueError("Unknown transform type; pass FSL (.mat) or LTA (.lta)")

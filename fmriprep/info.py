@@ -5,7 +5,7 @@
 Base module variables
 """
 
-__version__ = '1.0.0-rc5-dev'
+__version__ = '1.0.0-rc7-dev'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
@@ -67,14 +67,17 @@ REQUIRES = [
     'grabbit',
     'pybids>=0.3',
     'nitime',
-    'niworkflows>=0.1.7',
+    'niworkflows>=0.1.8',
     'statsmodels',
     'nipype',
     'seaborn',
-    'joblib',
+    'indexed_gzip>=0.6.1',
 ]
 
-LINKS_REQUIRES = []
+LINKS_REQUIRES = [
+    'git+https://github.com/poldracklab/niworkflows.git'
+    '@e77c3c103b76f6eddce94625ba6171c13248d7d5#egg=niworkflows-0.1.9-dev',
+]
 
 TESTS_REQUIRES = [
     "mock",
@@ -85,7 +88,8 @@ TESTS_REQUIRES = [
 EXTRA_REQUIRES = {
     'doc': ['sphinx>=1.5.3', 'pydotplus', 'pydot>=1.2.3', 'sphinx_rtd_theme', 'sphinx-argparse'],
     'tests': TESTS_REQUIRES,
-    'duecredit': ['duecredit']
+    'duecredit': ['duecredit'],
+    'datalad': ['datalad'],
 }
 
 # Enable a handle to install all extra dependencies at once

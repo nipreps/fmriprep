@@ -51,11 +51,11 @@ case ${CIRCLE_NODE_INDEX} in
     set -e
     [[ "$RET" -eq "1" ]]
     # Clean up
-    find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -type f -delete
+    find ~/ds054/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -not -name "*.mat" -not -name "*.lta" -type f -delete
     rm -r $HOME/ds054/out/fmriprep/sub-100185/log
     ;;
   1)
     fmriprep-docker -i poldracklab/fmriprep:latest --config $HOME/nipype.cfg -w $HOME/ds005/scratch $HOME/data/ds005 $HOME/ds005/out participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors
-    find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -type f -delete
+    find ~/ds005/scratch -not -name "*.svg" -not -name "*.html" -not -name "*.rst" -not -name "*.mat" -not -name "*.lta" -type f -delete
     ;;
 esac

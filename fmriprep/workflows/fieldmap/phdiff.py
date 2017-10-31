@@ -150,7 +150,7 @@ def phdiff2fmap(in_file, delta_te, out_file=None):
 
     .. [Hutton2002] Hutton et al., Image Distortion Correction in fMRI: A Quantitative
                     Evaluation, NeuroImage 16(1):217-240, 2002. doi:`10.1006/nimg.2001.1054
-                    <http://dx.doi.org/10.1006/nimg.2001.1054>`_.
+                    <https://doi.org/10.1006/nimg.2001.1054>`_.
 
     """
     import numpy as np
