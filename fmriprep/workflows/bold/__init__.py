@@ -18,7 +18,7 @@ Pre-processing fMRI - BOLD signal workflows
 
 """
 
-from .base import init_func_preproc_wf
+from .base import init_func_preproc_wf, init_onlyfunc_preproc_wf
 from .util import init_bold_reference_wf
 from .hmc import init_bold_hmc_wf
 from .stc import init_bold_stc_wf

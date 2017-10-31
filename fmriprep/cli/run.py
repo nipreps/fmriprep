@@ -16,6 +16,8 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
+from ..info import __version__
+import pdb
 import nibabel
 
 nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
@@ -89,6 +91,9 @@ def get_parser():
                          help='nipype plugin configuration file')
     g_perfm.add_argument('--anat-only', action='store_true',
                          help='run anatomical workflows only')
+    g_perfm.add_argument('--func-only', action='store_true',
+                         help='run functional workflows only '
+                              '(dismiss the anatomical images if present).')
     g_perfm.add_argument('--ignore-aroma-denoising-errors', action='store_true',
                          default=False,
                          help='ignores the errors ICA_AROMA returns when there '
@@ -144,9 +149,12 @@ def get_parser():
                          help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
-    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
-                        choices=['OASIS', 'NKI'],
-                        help='select ANTs skull-stripping template (default: OASIS))')
+    g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
+                        help='use ANTs-based skull-stripping (default, slow))')
+    g_ants.add_argument('--skull-strip-template', dest="skull_strip_template", action='store',
+                        choices = ['oasis', 'scsnl','NKI'], default='scsnl',
+                        help="template to use for skull stripping (default: scsnl)")
+    g_ants.set_defaults(skull_strip_ants=False, skull_strip_template='scsnl')
 
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
@@ -304,8 +312,10 @@ def create_workflow(opts):
         debug=opts.debug,
         low_mem=opts.low_mem,
         anat_only=opts.anat_only,
+        func_only=opts.func_only,
         longitudinal=opts.longitudinal,
         omp_nthreads=omp_nthreads,
+        skull_strip_ants=opts.skull_strip_ants,
         skull_strip_template=opts.skull_strip_template,
         work_dir=work_dir,
         output_dir=output_dir,
