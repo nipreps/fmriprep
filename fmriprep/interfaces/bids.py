@@ -6,7 +6,7 @@
 # @Author: oesteban
 # @Date:   2016-06-03 09:35:13
 # @Last Modified by:   oesteban
-# @Last Modified time: 2017-10-10 15:37:47
+# @Last Modified time: 2017-10-31 10:01:08
 """
 Interfaces for handling BIDS-like neuroimaging structures
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -130,13 +130,16 @@ class BIDSDataGrabber(SimpleInterface):
     """
     input_spec = BIDSDataGrabberInputSpec
     output_spec = BIDSDataGrabberOutputSpec
-    _require_funcs = True
+    _require_func = True
+    _require_anat = True
 
     def __init__(self, *args, **kwargs):
-        anat_only = kwargs.pop('anat_only')
+        anat_only = kwargs.pop('anat_only', False)
+        func_only = kwargs.pop('func_only', False)
         super(BIDSDataGrabber, self).__init__(*args, **kwargs)
-        if anat_only is not None:
-            self._require_funcs = not anat_only
+
+        self._require_func = anat_only is not True
+        self._require_anat = func_only is not True
 
     def _run_interface(self, runtime):
         bids_dict = self.inputs.subject_data
@@ -144,11 +147,11 @@ class BIDSDataGrabber(SimpleInterface):
         self._results['out_dict'] = bids_dict
         self._results.update(bids_dict)
 
-        if not bids_dict['t1w']:
+        if self._require_anat and not bids_dict['t1w']:
             raise FileNotFoundError('No T1w images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 
-        if self._require_funcs and not bids_dict['bold']:
+        if self._require_func and not bids_dict['bold']:
             raise FileNotFoundError('No functional images found for subject sub-{}'.format(
                 self.inputs.subject_id))
 

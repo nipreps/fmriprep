@@ -568,6 +568,216 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     return workflow
 
 
+def init_onlyfunc_preproc_wf(bold_file, ignore, reportlets_dir, output_dir,
+                             omp_nthreads, low_mem, fmap_bspline, fmap_demean,
+                             debug, use_aroma, ignore_aroma_err, layout=None):
+    """
+    This workflow controls the functional preprocessing stages of FMRIPREP,
+    when the flag ``--func-only`` was used (forcing T1-weighted images to be
+        dismissed)
+
+    .. workflow::
+        :graph2use: orig
+        :simple_form: yes
+
+        from fmriprep.workflows.bold import init_onlyfunc_preproc_wf
+        wf = init_onlyfunc_preproc_wf(
+            '/completely/made/up/path/sub-01_task-nback_bold.nii.gz',
+            omp_nthreads=1,
+            ignore=[],
+            reportlets_dir='.',
+            output_dir='.',
+            debug=False,
+            fmap_bspline=True,
+            fmap_demean=True,
+            low_mem=False,
+            use_aroma=False,
+            ignore_aroma_err=False)
+
+    **Parameters**
+
+        bold_file : str
+            BOLD series NIfTI file
+        ignore : list
+            Preprocessing steps to skip (may include "slicetiming", "fieldmaps")
+        reportlets_dir : str
+            Directory in which to save reportlets
+        output_dir : str
+            Directory in which to save derivatives
+        omp_nthreads : int
+            Maximum number of threads an individual process may use
+        fmap_bspline : bool
+            **Experimental**: Fit B-Spline field using least-squares
+        fmap_demean : bool
+            Demean voxel-shift map during unwarp
+        use_aroma : bool
+            Perform ICA-AROMA on MNI-resampled functional series
+        ignore_aroma_err : bool
+            Do not fail on ICA-AROMA errors
+        debug : bool
+            Enable debugging outputs
+        low_mem : bool
+            Write uncompressed .nii files in some cases to reduce memory usage
+        layout : BIDSLayout
+            BIDSLayout structure to enable metadata retrieval
+
+    **Inputs**
+
+        bold_file
+            BOLD series NIfTI file
+
+
+    **Outputs**
+
+        bold_preproc
+            BOLD series after preprocessing
+        bold_mask
+            BOLD series mask in native space
+        aroma_noise_ics
+            Noise components identified by ICA-AROMA
+        melodic_mix
+            FSL MELODIC mixing matrix
+
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.bold.util.init_bold_reference_wf`
+        * :py:func:`~fmriprep.workflows.bold.stc.init_bold_stc_wf`
+        * :py:func:`~fmriprep.workflows.bold.hmc.init_bold_hmc_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.unwarp.init_pepolar_unwarp_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.init_fmap_estimator_wf`
+        * :py:func:`~fmriprep.workflows.fieldmap.init_sdc_unwarp_wf`
+
+    """
+
+    if bold_file == '/completely/made/up/path/sub-01_task-nback_bold.nii.gz':
+        bold_file_size_gb = 1
+    else:
+        bold_file_size_gb = os.path.getsize(bold_file) / (1024**3)
+
+    LOGGER.info('Creating BOLD-only processing workflow for "%s".', bold_file)
+    fname = split_filename(bold_file)[1]
+    fname_nosub = '_'.join(fname.split("_")[1:])
+    name = "func_only_preproc_" + fname_nosub.replace(
+        ".", "_").replace(" ", "").replace("-", "_").replace("_bold", "_wf")
+
+    # For doc building purposes
+    if layout is None or bold_file == 'bold_preprocesing':
+
+        LOGGER.info('No valid layout: building empty workflow.')
+        metadata = {"RepetitionTime": 2.0,
+                    "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}
+        fmaps = [{
+            'type': 'phasediff',
+            'phasediff': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_phasediff.nii.gz',
+            'magnitude1': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude1.nii.gz',
+            'magnitude2': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude2.nii.gz'
+        }]
+        run_stc = True
+        bold_pe = 'j'
+    else:
+        metadata = layout.get_metadata(bold_file)
+        # Find fieldmaps. Options: (phase1|phase2|phasediff|epi|fieldmap)
+        fmaps = layout.get_fieldmap(bold_file, return_list=True) \
+            if 'fieldmaps' not in ignore else []
+
+        # Short circuits: (True and True and (False or 'TooShort')) == 'TooShort'
+        run_stc = ("SliceTiming" in metadata and
+                   'slicetiming' not in ignore and
+                   (_get_series_len(bold_file) > 4 or "TooShort"))
+        bold_pe = metadata.get("PhaseEncodingDirection")
+
+    # TODO: To be removed (supported fieldmaps):
+    if not set([fmap['type'] for fmap in fmaps]).intersection(['phasediff', 'fieldmap', 'epi']):
+        fmaps = None
+
+    # Build workflow
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['bold_file']), name='inputnode')
+    inputnode.inputs.bold_file = bold_file
+
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['bold_preproc', 'bold_mask',
+                'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file']),
+        name='outputnode')
+
+    # Calculate BOLD reference
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+
+    # HMC on the BOLD
+    bold_hmc_wf = init_bold_hmc_wf(name='bold_hmc_wf',
+                                   bold_file_size_gb=bold_file_size_gb,
+                                   omp_nthreads=omp_nthreads)
+
+    # Create and connect (if run_stc) STC workflow
+    if run_stc is True:
+        bold_stc_wf = init_bold_stc_wf(name='bold_stc_wf', metadata=metadata)
+
+    # Create and connect (if fmaps) SDC workflow
+    if fmaps:
+        # In case there are multiple fieldmaps prefer EPI
+        fmaps.sort(key=lambda fmap: {'epi': 0, 'fieldmap': 1, 'phasediff': 2}[fmap['type']])
+        fmap = fmaps[0]
+
+        LOGGER.info('Fieldmap estimation: type "%s" found', fmap['type'])
+        summary.inputs.distortion_correction = fmap['type']
+
+        if fmap['type'] == 'epi':
+            epi_fmaps = [fmap_['epi'] for fmap_ in fmaps if fmap_['type'] == 'epi']
+            sdc_unwarp_wf = init_pepolar_unwarp_wf(fmaps=epi_fmaps,
+                                                   layout=layout,
+                                                   bold_file=bold_file,
+                                                   omp_nthreads=omp_nthreads,
+                                                   name='pepolar_unwarp_wf')
+        else:
+            # Import specific workflows here, so we don't brake everything with one
+            # unused workflow.
+            from ..fieldmap import init_fmap_estimator_wf, init_sdc_unwarp_wf
+            fmap_estimator_wf = init_fmap_estimator_wf(fmap_bids=fmap,
+                                                       reportlets_dir=reportlets_dir,
+                                                       omp_nthreads=omp_nthreads,
+                                                       fmap_bspline=fmap_bspline)
+            sdc_unwarp_wf = init_sdc_unwarp_wf(reportlets_dir=reportlets_dir,
+                                               omp_nthreads=omp_nthreads,
+                                               fmap_bspline=fmap_bspline,
+                                               fmap_demean=fmap_demean,
+                                               debug=debug,
+                                               name='sdc_unwarp_wf')
+            workflow.connect([
+                (fmap_estimator_wf, sdc_unwarp_wf, [
+                    ('outputnode.fmap', 'inputnode.fmap'),
+                    ('outputnode.fmap_ref', 'inputnode.fmap_ref'),
+                    ('outputnode.fmap_mask', 'inputnode.fmap_mask')]),
+            ])
+
+        # Connections and workflows common for all types of fieldmaps
+        workflow.connect([
+            (inputnode, sdc_unwarp_wf, [('bold_file', 'inputnode.name_source')]),
+            (bold_reference_wf, sdc_unwarp_wf, [
+                ('outputnode.ref_image', 'inputnode.in_reference'),
+                ('outputnode.ref_image_brain', 'inputnode.in_reference_brain'),
+                ('outputnode.bold_mask', 'inputnode.in_mask')]),
+            (sdc_unwarp_wf, func_reports_wf, [
+                ('outputnode.out_mask_report', 'inputnode.bold_mask_report')])
+        ])
+
+        # Report on BOLD correction
+        fmap_unwarp_report_wf = init_fmap_unwarp_report_wf(reportlets_dir=reportlets_dir,
+                                                           name='fmap_unwarp_report_wf')
+        workflow.connect([
+            (inputnode, fmap_unwarp_report_wf, [
+                ('t1_seg', 'inputnode.in_seg'),
+                ('bold_file', 'inputnode.name_source')]),
+            (bold_reference_wf, fmap_unwarp_report_wf, [
+                ('outputnode.ref_image', 'inputnode.in_pre')]),
+            (sdc_unwarp_wf, fmap_unwarp_report_wf, [
+                ('outputnode.out_reference', 'inputnode.in_post')]),
+        ])
+
+    return workflow
+
+
 def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma, use_syn, name='func_reports_wf'):
     """
     Set up a battery of datasinks to store reports in the right location

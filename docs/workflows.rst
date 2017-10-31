@@ -35,6 +35,7 @@ slice-timing information and no fieldmap acquisitions):
                                 debug=False,
                                 low_mem=False,
                                 anat_only=False,
+                                func_only=False,
                                 hires=True,
                                 use_bbr=True,
                                 bold2t1w_dof=9,
