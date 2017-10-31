@@ -2,25 +2,23 @@
 # -*- coding: utf-8 -*-
 
 """
-fMRI run preprocessing workflow
+fMRI preprocessing workflow
 =====
 """
 
-import sys
-import os.path as op
-sys.path.append(op.dirname(__file__))
-import BIDSgenerator
-import glob
 import os
+import os.path as op
 import logging
+import sys
 import uuid
 import warnings
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
-from ..info import __version__
-import pdb
+import nibabel
+
+nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
 
 logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
 logger = logging.getLogger('cli')
@@ -39,6 +37,7 @@ def _warn_redirect(message, category, filename, lineno, file=None, line=None):
 
 def get_parser():
     """Build parser object"""
+    from ..info import __version__
 
     verstr = 'fmriprep v{}'.format(__version__)
 
@@ -58,10 +57,6 @@ def get_parser():
                         help='processing stage to be run, only "participant" in the case of '
                              'FMRIPREP (see BIDS-Apps specification).')
 
-    parser.add_argument('participant_num', action='store')
-    parser.add_argument('visit_num', action='store')
-    parser.add_argument('session_num', action='store')
-    
     # optional arguments
     parser.add_argument('-v', '--version', action='version', version=verstr)
 
@@ -75,7 +70,7 @@ def get_parser():
     # Re-enable when option is actually implemented
     # g_bids.add_argument('-r', '--run-id', action='store', default='single_run',
     #                     help='select a specific run to be processed')
-    g_bids.add_argument('-t', '--task-id', action='store', default = False,
+    g_bids.add_argument('-t', '--task-id', action='store',
                         help='select a specific task to be processed')
 
     g_perfm = parser.add_argument_group('Options to handle performance')
@@ -94,8 +89,9 @@ def get_parser():
                          help='nipype plugin configuration file')
     g_perfm.add_argument('--anat-only', action='store_true',
                          help='run anatomical workflows only')
-    g_perfm.add_argument('--dismiss-t1w', action='store_true',
-                         help='run functional workflows only')
+    g_perfm.add_argument('--func-only', action='store_true',
+                         help='run functional workflows only '
+                              '(dismiss the anatomical images if present).')
     g_perfm.add_argument('--ignore-aroma-denoising-errors', action='store_true',
                          default=False,
                          help='ignores the errors ICA_AROMA returns when there '
@@ -126,10 +122,15 @@ def get_parser():
              ' - fsaverage*: FreeSurfer average meshes'
     )
     g_conf.add_argument(
+        '--force-bbr', action='store_true', dest='use_bbr', default=None,
+        help='Always use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
+        '--force-no-bbr', action='store_false', dest='use_bbr', default=None,
+        help='Do not use boundary-based registration (no goodness-of-fit checks)')
+    g_conf.add_argument(
         '--template', required=False, action='store',
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
-
     g_conf.add_argument(
         '--output-grid-reference', required=False, action='store', default=None,
         help='Grid reference image for resampling BOLD files to volume template space. '
@@ -137,7 +138,7 @@ def get_parser():
              'but is not used in normalization.')
     g_conf.add_argument(
         '--medial-surface-nan', required=False, action='store', default=False,
-        help='Replace medial wall values with NaNs on functional FIFTI files. Only '
+        help='Replace medial wall values with NaNs on functional GIFTI files. Only '
         'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
 
     # ICA_AROMA options
@@ -145,16 +146,10 @@ def get_parser():
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
                          help='add ICA_AROMA to your preprocessing stream')
     #  ANTs options
-
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
-    g_ants.add_argument('--skull-strip-ants', dest="skull_strip_ants", action='store_true',
-                        help='use ANTs-based skull-stripping (default, slow))')
-    g_ants.add_argument('--no-skull-strip-ants', dest="skull_strip_ants", action='store_false',
-                        help="don't use ANTs-based skull-stripping (use  AFNI instead, fast)")
-    g_ants.add_argument('--skull-strip-template', dest="skull_strip_template", action='store',
-                        choices = ['oasis', 'scsnl'], default='scsnl',
-                        help="template to use for skull stripping (default: scsnl)")
-    g_ants.set_defaults(skull_strip_ants=False, skull_strip_template='scsnl')
+    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
+                        choices=['OASIS', 'NKI'],
+                        help='select ANTs skull-stripping template (default: OASIS))')
 
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
@@ -185,21 +180,13 @@ def get_parser():
         '--reports-only', action='store_true', default=False,
         help='only generate reports, don\'t run workflows. This will only rerun report '
              'aggregation, not reportlet generation for specific nodes.')
+    g_other.add_argument(
+        '--run-uuid', action='store', default=None,
+        help='Specify UUID of previous run, to include error logs in report. '
+             'No effect without --reports-only.')
     g_other.add_argument('--write-graph', action='store_true', default=False,
                          help='Write workflow graph.')
-    
-    # Smoothing options (MCS 10/6/17)
-    g_smoothing = parser.add_argument_group('Specific options for imaging smoothing after preprocessing')
-    g_smoothing.add_argument('--smoothing-kernel',  action='store',
-                        choices = ['4', '6','8','10'], default=6,
-                        help="smoothing width for already preprocessed imaged (default: 6)")
-    
-    
-    # Pipeline directory-naming options 
-    g_pipeline = parser.add_argument_group('Specific options for directory naming depending on preprocessing pipeline used')
-    g_pipeline.add_argument('--preprocessed-dirname', action='store', 
-                        choices = ['swar','swgcar'], default='swar',
-                        help="names the output directory for preprocessed files swar or swgcar")
+
     return parser
 
 
@@ -207,17 +194,6 @@ def main():
     """Entry point"""
     warnings.showwarning = _warn_redirect
     opts = get_parser().parse_args()
-    proj_dir = opts.bids_dir
-    smoothing_kernel = opts.smoothing_kernel
-    pipeline = opts.preprocessed_dirname
-    print("Project_dir "+ proj_dir) 
-    if opts.task_id:
-        bidsdir, subject = BIDSgenerator.createBIDS(opts.bids_dir, opts.participant_num, opts.visit_num, opts.session_num, opts.task_id)
-    else:
-        bidsdir, subject = BIDSgenerator.createBIDS(opts.bids_dir, opts.participant_num, opts.visit_num, opts.session_num)
-    opts.bids_dir = bidsdir
-    opts.participant_label = subject
-
     if opts.debug:
         logger.setLevel(logging.DEBUG)
 
@@ -238,10 +214,8 @@ def main():
             raise RuntimeError(msg)
         logger.warning(msg)
 
-    errno = create_workflow(opts)
-    BIDSgenerator.moveToProject(proj_dir, opts.participant_num, opts.visit_num, opts.session_num, opts.output_dir,pipeline)
-    BIDSgenerator.smooth_preprocessed_data(proj_dir,opts.participant_num, opts.visit_num, opts.session_num, smoothing_kernel)
-    sys.exit(int(errno > 0))
+    create_workflow(opts)
+
 
 def create_workflow(opts):
     """Build workflow"""
@@ -249,6 +223,7 @@ def create_workflow(opts):
     from ..viz.reports import run_reports
     from ..workflows.base import init_fmriprep_wf
     from ..utils.bids import collect_participants
+    from ..info import __version__
 
     # Set up some instrumental utilities
     errno = 0
@@ -274,7 +249,10 @@ def create_workflow(opts):
 
         if nthreads > 1:
             plugin_settings['plugin'] = 'MultiProc'
-            plugin_settings['plugin_args'] = {'n_procs': nthreads}
+            plugin_settings['plugin_args'] = {
+                'n_procs': nthreads,
+                'raise_insufficient': False,
+            }
             if opts.mem_mb:
                 plugin_settings['plugin_args']['memory_gb'] = opts.mem_mb / 1024
 
@@ -306,6 +284,8 @@ def create_workflow(opts):
     # Called with reports only
     if opts.reports_only:
         logger.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
+        if opts.run_uuid is not None:
+            run_uuid = opts.run_uuid
         report_errors = [
             run_reports(op.join(work_dir, 'reportlets'), output_dir, subject_label,
                         run_uuid=run_uuid)
@@ -327,10 +307,9 @@ def create_workflow(opts):
         debug=opts.debug,
         low_mem=opts.low_mem,
         anat_only=opts.anat_only,
-        dismiss_t1w=opts.dismiss_t1w,
+        func_only=opts.func_only,
         longitudinal=opts.longitudinal,
         omp_nthreads=omp_nthreads,
-        skull_strip_ants=opts.skull_strip_ants,
         skull_strip_template=opts.skull_strip_template,
         work_dir=work_dir,
         output_dir=output_dir,
@@ -341,6 +320,7 @@ def create_workflow(opts):
         medial_surface_nan=opts.medial_surface_nan,
         output_grid_ref=opts.output_grid_reference,
         hires=opts.hires,
+        use_bbr=opts.use_bbr,
         bold2t1w_dof=opts.bold2t1w_dof,
         fmap_bspline=opts.fmap_bspline,
         fmap_demean=opts.fmap_no_demean,
@@ -372,9 +352,9 @@ def create_workflow(opts):
                                   for subid, err in zip(subject_list, report_errors)]))
 
     errno += sum(report_errors)
-    return errno
-    
+    sys.exit(int(errno > 0))
 
 
 if __name__ == '__main__':
-    main()
+    raise RuntimeError("fmriprep/cli/run.py should not be run directly;\n"
+                       "Please `pip install` fmriprep and use the `fmriprep` command")

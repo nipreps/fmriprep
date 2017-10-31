@@ -55,9 +55,8 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
                       name='fmapmrg')
 
     # de-gradient the fields ("bias/illumination artifact")
-    n4_correct = pe.Node(ants.N4BiasFieldCorrection(
-        dimension=3, copy_header=True, num_threads=omp_nthreads),
-        n_procs=omp_nthreads, name='n4_correct')
+    n4_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
+                         name='n4_correct', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
     ds_fmap_mask = pe.Node(DerivativesDataSink(
@@ -77,9 +76,8 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
 
     if fmap_bspline:
         # despike_threshold=1.0, mask_erode=1),
-        fmapenh = pe.Node(FieldEnhance(
-            unwrap=False, despike=False, njobs=omp_nthreads),
-            name='fmapenh', mem_gb=4, n_procs=omp_nthreads)
+        fmapenh = pe.Node(FieldEnhance(unwrap=False, despike=False),
+                          name='fmapenh', mem_gb=4, n_procs=omp_nthreads)
 
         workflow.connect([
             (bet, fmapenh, [('mask_file', 'in_mask'),

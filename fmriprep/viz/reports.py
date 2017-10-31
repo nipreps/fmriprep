@@ -101,7 +101,8 @@ class Report(object):
         self._load_config(config)
 
     def _load_config(self, config):
-        config = json.load(open(config, 'r'))
+        with open(config, 'r') as configfh:
+            config = json.load(configfh)
 
         for e in config['sub_reports']:
             sub_report = SubReport(**e)

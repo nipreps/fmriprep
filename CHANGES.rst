@@ -1,3 +1,47 @@
+Next release
+============
+
+1.0.0-rc8 (27th of October 2017)
+================================
+
+* [FIX] Allow missing magnitude2 in phasediff-type fieldmaps (#802)
+* [FIX] Lower tolerance deciding t1_merge shapes (#798)
+* [FIX] Be robust to 4D T1w images (#797)
+* [ENH] Resource annotations (#746)
+* [ENH] Use indexed_gzip with nibabel (#788)
+* [FIX] Reduce FoV of outputs in T1w space (#785)
+
+
+1.0.0-rc7 (20th of October 2017)
+================================
+
+* [ENH] Update pinned version of nipype to latest master
+* [ENH] Added rX permissions to make life easier on Singularity users (#757)
+* [DOC] Citation boilerplate (#779)
+* [FIX] Patch to remove long filenames after mri_concatenate_lta (#778)
+* [FIX] Only use unbiased template with --longitudinal (#771)
+* [FIX] Use t1_2_fsnative registration when sampling to surface (#762)
+* [ENH] Remove --skull_strip_ants option (#761)
+* [DOC] Add reference to beginners guide (#763)
+
+
+1.0.0-rc6 (11th of October 2017)
+================================
+
+* [ENH] Add inverse normalization transform (MNI -> T1w) to derivatives (#754)
+* [ENH] Fall back to initial registration if BBR fails (#694)
+* [FIX] Header and affine transform updates to resolve intermittent
+  misalignments in reports (#743)
+* [FIX] Register FreeSurfer template to FMRIPREP template, handling pre-run
+  FreeSurfer subjects more robustly, saving affine to derivatives (#733)
+* [ENH] Add OpenFMRI participant sampler command-line tool (#704)
+* [ENH] For SyN-SDC, assume phase-encoding direction of A-P unless specified
+  L-R (#740, #744)
+* [ENH] Permit skull-stripping with NKI ANTs template (#729)
+* [ENH] Erode aCompCor masks to target volume proportions, instead of fixed
+  distances (#731, #732)
+* [DOC] Documentation updates (#748)
+
 1.0.0-rc5 (25th of September 2017)
 ==================================
 

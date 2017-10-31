@@ -16,19 +16,23 @@ from nilearn.image import resample_to_img
 
 from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
-    traits, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath
+    traits, isdefined, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath,
+    SimpleInterface
 )
-from niworkflows.interfaces.base import SimpleInterface
 
 
 class TPM2ROIInputSpec(BaseInterfaceInputSpec):
     t1_tpm = File(exists=True, mandatory=True, desc='Tissue probability map file in T1 space')
     t1_mask = File(exists=True, mandatory=True, desc='Binary mask of skull-stripped T1w image')
     bold_mask = File(exists=True, mandatory=True, desc='Binary mask of skull-stripped BOLD image')
-    mask_erode_mm = traits.Float(0.0, usedefault=True,
+    mask_erode_mm = traits.Float(xor=['mask_erode_prop'],
                                  desc='erode input mask (kernel width in mm)')
-    erode_mm = traits.Float(0.0, usedefault=True,
+    erode_mm = traits.Float(xor=['erode_prop'],
                             desc='erode output mask (kernel width in mm)')
+    mask_erode_prop = traits.Float(xor=['mask_erode_mm'],
+                                   desc='erode input mask (target volume ratio)')
+    erode_prop = traits.Float(xor=['erode_mm'],
+                              desc='erode output mask (target volume ratio)')
     prob_thresh = traits.Float(0.95, usedefault=True,
                                desc='threshold for the tissue probability maps')
 
@@ -56,12 +60,26 @@ class TPM2ROI(SimpleInterface):
     output_spec = TPM2ROIOutputSpec
 
     def _run_interface(self, runtime):
+        mask_erode_mm = self.inputs.mask_erode_mm
+        if not isdefined(mask_erode_mm):
+            mask_erode_mm = None
+        erode_mm = self.inputs.erode_mm
+        if not isdefined(erode_mm):
+            erode_mm = None
+        mask_erode_prop = self.inputs.mask_erode_prop
+        if not isdefined(mask_erode_prop):
+            mask_erode_prop = None
+        erode_prop = self.inputs.erode_prop
+        if not isdefined(erode_prop):
+            erode_prop = None
         roi_file, eroded_mask = _tpm2roi(
             self.inputs.t1_tpm,
             self.inputs.t1_mask,
             self.inputs.bold_mask,
-            self.inputs.mask_erode_mm,
-            self.inputs.erode_mm,
+            mask_erode_mm,
+            erode_mm,
+            mask_erode_prop,
+            erode_prop,
             self.inputs.prob_thresh
         )
         self._results['roi_file'] = roi_file
@@ -178,7 +196,8 @@ class AddTSVHeader(SimpleInterface):
         return runtime
 
 
-def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=0, erosion_mm=0, pthres=0.95):
+def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=None, erosion_mm=None,
+             mask_erosion_prop=None, erosion_prop=None, pthres=0.95):
     """
     Generate a mask from a tissue probability map
     """
@@ -188,12 +207,20 @@ def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=0, erosion_mm=0, pthres
     probability_map_data = (tpm_img.get_data() >= pthres).astype(np.uint8)
 
     eroded_mask_file = bold_mask
-    if mask_erosion_mm > 0:
+    erode_in = (mask_erosion_mm is not None and mask_erosion_mm > 0 or
+                mask_erosion_prop is not None and mask_erosion_prop < 1)
+    if erode_in:
         eroded_mask_file = os.path.abspath("eroded_mask.nii.gz")
 
         mask_img = nb.load(t1_mask)
-        iter_n = int(mask_erosion_mm / max(mask_img.header.get_zooms()))
-        mask_data = nd.binary_erosion(mask_img.get_data().astype(np.uint8), iterations=iter_n)
+        if mask_erosion_mm:
+            iter_n = max(int(mask_erosion_mm / max(mask_img.header.get_zooms())), 1)
+            mask_data = nd.binary_erosion(mask_img.get_data().astype(np.uint8), iterations=iter_n)
+        else:
+            mask_data = mask_img.get_data().astype(np.uint8)
+            orig_vol = np.sum(mask_data > 0)
+            while np.sum(mask_data > 0) / orig_vol > mask_erosion_prop:
+                mask_data = nd.binary_erosion(mask_data, iterations=1)
 
         # Resample to BOLD and save
         eroded_t1 = nb.Nifti1Image(mask_data, mask_img.affine, mask_img.header)
@@ -205,9 +232,17 @@ def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=0, erosion_mm=0, pthres
         probability_map_data[~mask_data] = 0
 
     # shrinking
-    if erosion_mm:
-        iter_n = int(erosion_mm / max(tpm_img.header.get_zooms()))
-        probability_map_data = nd.binary_erosion(probability_map_data, iterations=iter_n)
+    erode_out = (erosion_mm is not None and erosion_mm > 0 or
+                 erosion_prop is not None and erosion_prop < 1)
+    if erode_out:
+        if erosion_mm:
+            iter_n = max(int(erosion_mm / max(tpm_img.header.get_zooms())), 1)
+            iter_n = int(erosion_mm / max(tpm_img.header.get_zooms()))
+            probability_map_data = nd.binary_erosion(probability_map_data, iterations=iter_n)
+        else:
+            orig_vol = np.sum(probability_map_data > 0)
+            while np.sum(probability_map_data > 0) / orig_vol > erosion_prop:
+                probability_map_data = nd.binary_erosion(probability_map_data, iterations=1)
 
     # Create image to resample
     img_t1 = nb.Nifti1Image(probability_map_data, tpm_img.affine, tpm_img.header)

@@ -14,7 +14,11 @@
       "affiliation": "Department of Psychology, Stanford University",
       "orcid": "0000-0002-6533-164X"
     },
-	{
+    {
+      "name": "Madeleine Snyder",
+      "affiliation": "Harvard Medical School, Harvard University, Cambridge, Massachusetts"
+    },
+	  {
       "name": "Berleant, Shoshana L.",
       "affiliation": "Department of Psychology, Stanford University"
     },
@@ -23,7 +27,7 @@
       "affiliation": "Stanford University",
       "orcid": "0000-0003-0867-1469"
     },
-	{
+	  {
       "name": "Ma, Feilong",
       "affiliation": "Dartmouth College",
       "orcid": "0000-0002-6838-3971"
@@ -37,6 +41,11 @@
       "name": "Erramuzpe, Asier",
       "affiliation": "Computational Neuroimaging Lab, BioCruces Health Research Institute",
       "orcid": "0000-0002-9402-2184"
+    },
+    {
+      "name": "Kent, James D.",
+      "affiliation": "Neuroscience Program, University of Iowa",
+      "orcid": "0000-0002-4892-2659"
     },
     {
       "name": "Goncalves, Mathias",
