@@ -66,6 +66,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               output_spaces=['T1w', 'fsnative',
                                             'template', 'fsaverage5'],
                               template='MNI152NLin2009cAsym',
+                              medial_surface_nan=False,
                               hires=True,
                               use_bbr=True,
                               bold2t1w_dof=9,
@@ -123,6 +124,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
             Name of template targeted by `'template'` output space
+        medial_surface_nan : bool
+            Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
         use_bbr : bool or None
@@ -235,6 +238,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     bids_dir='.',
                                     skull_strip_template='OASIS',
                                     template='MNI152NLin2009cAsym',
+                                    medial_surface_nan=False,
                                     output_spaces=['T1w', 'fsnative',
                                                   'template', 'fsaverage5'],
                                     ignore=[],
@@ -298,6 +302,8 @@ def init_single_subject_wf(subject_id, task_id, name,
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
             Name of template targeted by `'template'` output space
+        medial_surface_nan : bool
+            Replace medial wall values with NaNs on functional GIFTI files
         hires : bool
             Enable sub-millimeter preprocessing in FreeSurfer
         use_bbr : bool or None
@@ -381,6 +387,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                skull_strip_template=skull_strip_template,
                                                output_spaces=output_spaces,
                                                template=template,
+                                               medial_surface_nan=medial_surface_nan,
                                                debug=debug,
                                                longitudinal=longitudinal,
                                                omp_nthreads=omp_nthreads,
