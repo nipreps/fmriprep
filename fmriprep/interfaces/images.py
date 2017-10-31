@@ -163,7 +163,7 @@ class TemplateDimensions(SimpleInterface):
         orig_imgs = np.vectorize(nb.load)(in_names)
         reoriented = np.vectorize(nb.as_closest_canonical)(orig_imgs)
         all_zooms = np.array([img.header.get_zooms()[:3] for img in reoriented])
-        all_shapes = np.array([img.shape for img in reoriented])
+        all_shapes = np.array([img.shape[:3] for img in reoriented])
 
         # Identify images that would require excessive up-sampling
         valid = np.ones(all_zooms.shape[0], dtype=bool)
@@ -232,7 +232,7 @@ class Conform(SimpleInterface):
         target_span = target_shape * target_zooms
 
         zooms = np.array(reoriented.header.get_zooms()[:3])
-        shape = np.array(reoriented.shape)
+        shape = np.array(reoriented.shape[:3])
 
         xyz_unit = reoriented.header.get_xyzt_units()[0]
         if xyz_unit == 'unknown':
@@ -240,7 +240,7 @@ class Conform(SimpleInterface):
             xyz_unit = 'mm'
 
         # Set a 0.05mm threshold to performing rescaling
-        atol = {'meter': 5e-5, 'mm': 0.05, 'micron': 50}[xyz_unit]
+        atol = {'meter': 1e-5, 'mm': 0.01, 'micron': 10}[xyz_unit]
 
         # Rescale => change zooms
         # Resize => update image dimensions

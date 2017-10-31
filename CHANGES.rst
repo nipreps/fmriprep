@@ -1,6 +1,17 @@
 Next release
 ============
 
+1.0.0-rc8 (27th of October 2017)
+================================
+
+* [FIX] Allow missing magnitude2 in phasediff-type fieldmaps (#802)
+* [FIX] Lower tolerance deciding t1_merge shapes (#798)
+* [FIX] Be robust to 4D T1w images (#797)
+* [ENH] Resource annotations (#746)
+* [ENH] Use indexed_gzip with nibabel (#788)
+* [FIX] Reduce FoV of outputs in T1w space (#785)
+
+
 1.0.0-rc7 (20th of October 2017)
 ================================
 

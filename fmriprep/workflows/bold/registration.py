@@ -3,11 +3,12 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Utility workflows
-^^^^^^^^^^^^^^^^^
+Registration workflows
+++++++++++++++++++++++
 
-.. autofunction:: init_enhance_and_skullstrip_bold_wf
-.. autofunction:: init_skullstrip_bold_wf
+.. autofunction:: init_bold_reg_wf
+.. autofunction:: init_bbreg_wf
+.. autofunction:: init_fsl_bbr_wf
 
 """
 
@@ -15,206 +16,202 @@ import os
 import os.path as op
 
 from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu
-from niworkflows.interfaces.utils import CopyXForm
-from niworkflows.nipype.interfaces import fsl, afni, c3, ants, freesurfer as fs
+from niworkflows.nipype.interfaces import utility as niu, fsl, c3, freesurfer as fs
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICoregRPT
-from niworkflows.interfaces.masks import SimpleShowMaskRPT
+from niworkflows.interfaces.utils import GenerateSamplingReference
+from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
-from ..interfaces.images import extract_wm
+from ...interfaces import MultiApplyTransforms
+
+from ...interfaces.nilearn import Merge
+from ...interfaces.images import extract_wm
 # See https://github.com/poldracklab/fmriprep/issues/768
-from ..interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
+from ...interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
+
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 
 
-def compare_xforms(lta_list, norm_threshold=15):
+def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, bold_file_size_gb, omp_nthreads,
+                     name='bold_reg_wf', use_compression=True,
+                     use_fieldwarp=False):
     """
-    Computes a normalized displacement between two affine transforms as the
-    maximum overall displacement of the midpoints of the faces of a cube, when
-    each transform is applied to the cube.
-    This combines displacement resulting from scaling, translation and rotation.
+    This workflow registers the reference BOLD image to T1-space, using a
+    boundary-based registration (BBR) cost function.
 
-    Although the norm is in mm, in a scaling context, it is not necessarily
-    equivalent to that distance in translation.
+    If FreeSurfer-based preprocessing is enabled, the ``bbregister`` utility
+    is used to align the BOLD images to the reconstructed subject, and the
+    resulting transform is adjusted to target the T1 space.
+    If FreeSurfer-based preprocessing is disabled, FSL FLIRT is used with the
+    BBR cost function to directly target the T1 space.
 
-    We choose a default threshold of 15mm as a rough heuristic.
-    Normalized displacement above 20mm showed clear signs of distortion, while
-    "good" BBR refinements were frequently below 10mm displaced from the rigid
-    transform.
-    The 10-20mm range was more ambiguous, and 15mm chosen as a compromise.
-    This is open to revisiting in either direction.
-
-    See discussion in
-    `GitHub issue #681`_ <https://github.com/poldracklab/fmriprep/issues/681>`_
-    and the `underlying implementation
-    <https://github.com/nipy/nipype/blob/56b7c81eedeeae884ba47c80096a5f66bd9f8116/nipype/algorithms/rapidart.py#L108-L159>`_.
-
-    Parameters
-    ----------
-
-      lta_list : list or tuple of str
-          the two given affines in LTA format
-      norm_threshold : float (default: 15)
-          the upper bound limit to the normalized displacement caused by the
-          second transform relative to the first
-
-    """
-    from fmriprep.interfaces.surf import load_transform
-    from niworkflows.nipype.algorithms.rapidart import _calc_norm_affine
-
-    bbr_affine = load_transform(lta_list[0])
-    fallback_affine = load_transform(lta_list[1])
-
-    norm, _ = _calc_norm_affine([fallback_affine, bbr_affine], use_differences=True)
-
-    return norm[1] > norm_threshold
-
-
-def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
-                                        omp_nthreads=1):
-    """
-    This workflow takes in a BOLD volume, and attempts to enhance the contrast
-    between gray and white matter, and skull-stripping the result.
-
-    .. workflow ::
+    .. workflow::
         :graph2use: orig
         :simple_form: yes
 
-        from fmriprep.workflows.util import init_enhance_and_skullstrip_bold_wf
-        wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=1)
+        from fmriprep.workflows.bold.registration import init_bold_reg_wf
+        wf = init_bold_reg_wf(freesurfer=True,
+                              bold_file_size_gb=3,
+                              omp_nthreads=1,
+                              use_bbr=True,
+                              bold2t1w_dof=9)
 
+    **Parameters**
 
-    Inputs
+        freesurfer : bool
+            Enable FreeSurfer functional registration (bbregister)
+        use_bbr : bool or None
+            Enable/disable boundary-based registration refinement.
+            If ``None``, test BBR result for distortion before accepting.
+        bold2t1w_dof : 6, 9 or 12
+            Degrees-of-freedom for BOLD-T1w registration
+        bold_file_size_gb : float
+            Size of BOLD file in GB
+        omp_nthreads : int
+            Maximum number of threads an individual process may use
+        name : str
+            Name of workflow (default: ``bold_reg_wf``)
+        use_compression : bool
+            Save registered BOLD series as ``.nii.gz``
+        use_fieldwarp : bool
+            Include SDC warp in single-shot transform from BOLD to T1
 
-        in_file
-            BOLD image (single volume)
+    **Inputs**
 
+        name_source
+            BOLD series NIfTI file
+            Used to recover original information lost during processing
+        ref_bold_brain
+            Reference image to which BOLD series is aligned
+            If ``fieldwarp == True``, ``ref_bold_brain`` should be unwarped
+        ref_bold_mask
+            Skull-stripping mask of reference image
+        t1_preproc
+            Bias-corrected structural template image
+        t1_brain
+            Skull-stripped ``t1_preproc``
+        t1_mask
+            Mask of the skull-stripped template image
+        t1_seg
+            Segmentation of preprocessed structural image, including
+            gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
+        bold_split
+            Individual 3D BOLD volumes, not motion corrected
+        hmc_xforms
+            List of affine transforms aligning each volume to ``ref_image`` in ITK format
+        subjects_dir
+            FreeSurfer SUBJECTS_DIR
+        subject_id
+            FreeSurfer subject ID
+        t1_2_fsnative_reverse_transform
+            LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+        fieldwarp
+            a :abbr:`DFM (displacements field map)` in ITK format
 
-    Outputs
+    **Outputs**
 
-        bias_corrected_file
-            the ``in_file`` after `N4BiasFieldCorrection`_
-        skull_stripped_file
-            the ``bias_corrected_file`` after skull-stripping
-        mask_file
-            mask of the skull-stripped input file
+        itk_bold_to_t1
+            Affine transform from ``ref_bold_brain`` to T1 space (ITK format)
+        itk_t1_to_bold
+            Affine transform from T1 space to BOLD space (ITK format)
+        bold_t1
+            Motion-corrected BOLD series in T1 space
+        bold_mask_t1
+            BOLD mask in T1 space
         out_report
-            reportlet for the skull-stripping
+            Reportlet visualizing quality of registration
+        fallback
+            Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
-    .. _N4BiasFieldCorrection: https://hdl.handle.net/10380/3053
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.util.init_bbreg_wf`
+        * :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`
+
     """
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
-                        name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['mask_file',
-                                                       'skull_stripped_file',
-                                                       'bias_corrected_file',
-                                                       'out_report']),
-                         name='outputnode')
-    n4_correct = pe.Node(
-        ants.N4BiasFieldCorrection(dimension=3, copy_header=True, num_threads=omp_nthreads),
-        name='n4_correct', n_procs=omp_nthreads)
-    skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
-                                    name='skullstrip_first_pass')
-    unifize = pe.Node(afni.Unifize(t2=True, outputtype='NIFTI_GZ',
-                                   args='-clfrac 0.4',
-                                   out_file="uni.nii.gz"), name='unifize')
-    skullstrip_second_pass = pe.Node(afni.Automask(dilate=1,
-                                                   outputtype='NIFTI_GZ'),
-                                     name='skullstrip_second_pass')
-    combine_masks = pe.Node(fsl.BinaryMaths(operation='mul'),
-                            name='combine_masks')
-    apply_mask = pe.Node(fsl.ApplyMask(),
-                         name='apply_mask')
-    copy_xform = pe.Node(CopyXForm(), name='copy_xform',
-                         mem_gb=0.1, run_without_submitting=True)
-    mask_reportlet = pe.Node(SimpleShowMaskRPT(), name='mask_reportlet')
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=['name_source', 'ref_bold_brain', 'ref_bold_mask',
+                    't1_preproc', 't1_brain', 't1_mask',
+                    't1_seg', 'bold_split', 'hmc_xforms',
+                    'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'fieldwarp']),
+        name='inputnode'
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold',
+                                      'bold_t1', 'bold_mask_t1',
+                                      'out_report', 'fallback']),
+        name='outputnode'
+    )
+
+    if freesurfer:
+        bbr_wf = init_bbreg_wf(use_bbr=use_bbr, bold2t1w_dof=bold2t1w_dof,
+                               omp_nthreads=omp_nthreads)
+    else:
+        bbr_wf = init_fsl_bbr_wf(use_bbr=use_bbr, bold2t1w_dof=bold2t1w_dof)
 
     workflow.connect([
-        (inputnode, n4_correct, [('in_file', 'input_image')]),
-        (inputnode, copy_xform, [('in_file', 'hdr_file')]),
-        (n4_correct, skullstrip_first_pass, [('output_image', 'in_file')]),
-        (skullstrip_first_pass, unifize, [('out_file', 'in_file')]),
-        (unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
-        (skullstrip_first_pass, combine_masks, [('mask_file', 'in_file')]),
-        (skullstrip_second_pass, combine_masks, [('out_file', 'operand_file')]),
-        (unifize, apply_mask, [('out_file', 'in_file')]),
-        (combine_masks, apply_mask, [('out_file', 'mask_file')]),
-        (n4_correct, mask_reportlet, [('output_image', 'background_file')]),
-        (combine_masks, mask_reportlet, [('out_file', 'mask_file')]),
-        (combine_masks, outputnode, [('out_file', 'mask_file')]),
-        (mask_reportlet, outputnode, [('out_report', 'out_report')]),
-        (apply_mask, copy_xform, [('out_file', 'in_file')]),
-        (copy_xform, outputnode, [('out_file', 'skull_stripped_file')]),
-        (n4_correct, outputnode, [('output_image', 'bias_corrected_file')]),
+        (inputnode, bbr_wf, [
+            ('ref_bold_brain', 'inputnode.in_file'),
+            ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform'),
+            ('subjects_dir', 'inputnode.subjects_dir'),
+            ('subject_id', 'inputnode.subject_id'),
+            ('t1_seg', 'inputnode.t1_seg'),
+            ('t1_brain', 'inputnode.t1_brain')]),
+        (bbr_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
+                              ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
+                              ('outputnode.out_report', 'out_report'),
+                              ('outputnode.fallback', 'fallback')]),
     ])
 
-    return workflow
+    gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
+                      mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
-
-def init_skullstrip_bold_wf(name='skullstrip_bold_wf'):
-    """
-    This workflow applies skull-stripping to a BOLD image.
-
-    It is intended to be used on an image that has previously been
-    bias-corrected with
-    :py:func:`~fmriprep.workflows.util.init_enhance_and_skullstrip_bold_wf`
-
-    .. workflow ::
-        :graph2use: orig
-        :simple_form: yes
-
-        from fmriprep.workflows.util import init_skullstrip_bold_wf
-        wf = init_skullstrip_bold_wf()
-
-
-    Inputs
-
-        in_file
-            BOLD image (single volume)
-
-
-    Outputs
-
-        skull_stripped_file
-            the ``in_file`` after skull-stripping
-        mask_file
-            mask of the skull-stripped input file
-        out_report
-            reportlet for the skull-stripping
-
-    """
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
-                        name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['mask_file',
-                                                       'skull_stripped_file',
-                                                       'out_report']),
-                         name='outputnode')
-    skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
-                                    name='skullstrip_first_pass')
-    skullstrip_second_pass = pe.Node(afni.Automask(dilate=1, outputtype='NIFTI_GZ'),
-                                     name='skullstrip_second_pass')
-    combine_masks = pe.Node(fsl.BinaryMaths(operation='mul'), name='combine_masks')
-    apply_mask = pe.Node(fsl.ApplyMask(), name='apply_mask')
-    mask_reportlet = pe.Node(SimpleShowMaskRPT(), name='mask_reportlet')
+    mask_t1w_tfm = pe.Node(
+        ApplyTransforms(interpolation='NearestNeighbor', float=True),
+        name='mask_t1w_tfm', mem_gb=0.1
+    )
 
     workflow.connect([
-        (inputnode, skullstrip_first_pass, [('in_file', 'in_file')]),
-        (skullstrip_first_pass, skullstrip_second_pass, [('out_file', 'in_file')]),
-        (skullstrip_first_pass, combine_masks, [('mask_file', 'in_file')]),
-        (skullstrip_second_pass, combine_masks, [('out_file', 'operand_file')]),
-        (combine_masks, outputnode, [('out_file', 'mask_file')]),
-        # Masked file
-        (inputnode, apply_mask, [('in_file', 'in_file')]),
-        (combine_masks, apply_mask, [('out_file', 'mask_file')]),
-        (apply_mask, outputnode, [('out_file', 'skull_stripped_file')]),
-        # Reportlet
-        (inputnode, mask_reportlet, [('in_file', 'background_file')]),
-        (combine_masks, mask_reportlet, [('out_file', 'mask_file')]),
-        (mask_reportlet, outputnode, [('out_report', 'out_report')]),
+        (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
+                              ('t1_brain', 'fixed_image'),
+                              ('t1_mask', 'fov_mask')]),
+        (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
+        (bbr_wf, mask_t1w_tfm, [('outputnode.itk_bold_to_t1', 'transforms')]),
+        (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
+        (mask_t1w_tfm, outputnode, [('output_image', 'bold_mask_t1')])
+    ])
+
+    # Merge transforms placing the head motion correction last
+    nforms = 3 if use_fieldwarp else 2
+    merge_xforms = pe.Node(niu.Merge(nforms), name='merge_xforms',
+                           run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+    workflow.connect([
+        (inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nforms)])
+    ])
+
+    if use_fieldwarp:
+        workflow.connect([
+            (inputnode, merge_xforms, [('fieldwarp', 'in2')])
         ])
+
+    bold_to_t1w_transform = pe.Node(
+        MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
+        name='bold_to_t1w_transform', mem_gb=bold_file_size_gb * 3, n_procs=omp_nthreads)
+
+    merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=bold_file_size_gb * 3)
+
+    workflow.connect([
+        (bbr_wf, merge_xforms, [('outputnode.itk_bold_to_t1', 'in1')]),
+        (merge_xforms, bold_to_t1w_transform, [('out', 'transforms')]),
+        (inputnode, merge, [('name_source', 'header_source')]),
+        (merge, outputnode, [('out_file', 'bold_t1')]),
+        (inputnode, bold_to_t1w_transform, [('bold_split', 'input_image')]),
+        (gen_ref, bold_to_t1w_transform, [('out_file', 'reference_image')]),
+        (bold_to_t1w_transform, merge, [('out_files', 'in_files')]),
+    ])
 
     return workflow
 
@@ -241,7 +238,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         :graph2use: orig
         :simple_form: yes
 
-        from fmriprep.workflows.util import init_bbreg_wf
+        from fmriprep.workflows.bold.registration import init_bbreg_wf
         wf = init_bbreg_wf(use_bbr=True, bold2t1w_dof=9, omp_nthreads=1)
 
 
@@ -298,8 +295,8 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
 
     mri_coreg = pe.Node(
         MRICoregRPT(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01,
-                    num_threads=omp_nthreads, generate_report=not use_bbr),
-        name='mri_coreg', n_procs=omp_nthreads)
+                    generate_report=not use_bbr),
+        name='mri_coreg', n_procs=omp_nthreads, mem_gb=32)
 
     lta_concat = pe.Node(ConcatenateLTA(out_file='out.lta'), name='lta_concat')
     # XXX LTA-FSL-ITK may ultimately be able to be replaced with a straightforward
@@ -327,7 +324,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         (lta2fsl_inv, fsl2itk_inv, [('out_fsl', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use initial registration
     if use_bbr is False:
@@ -341,14 +338,14 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     bbregister = pe.Node(
         BBRegisterRPT(dof=bold2t1w_dof, contrast_type='t2', registered_file=True,
                       out_lta_file=True, generate_report=True),
-        name='bbregister')
+        name='bbregister', mem_gb=12)
 
     workflow.connect([
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
         (mri_coreg, bbregister, [('out_lta_file', 'init_reg_file')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
@@ -363,7 +360,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     reports = pe.Node(niu.Merge(2), run_without_submitting=True, name='reports')
 
     lta_ras2ras = pe.MapNode(fs.utils.LTAConvert(out_lta=True), iterfield=['in_lta'],
-                             name='lta_ras2ras')
+                             name='lta_ras2ras', mem_gb=2)
     compare_transforms = pe.Node(niu.Function(function=compare_xforms), name='compare_transforms')
 
     select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
@@ -386,7 +383,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         (reports, select_report, [('out', 'inlist')]),
         (compare_transforms, select_report, [('out', 'index')]),
         (select_report, outputnode, [('out', 'out_report')]),
-        ])
+    ])
 
     return workflow
 
@@ -396,7 +393,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
     This workflow uses FSL FLIRT to register a BOLD image to a T1-weighted
     structural image, using a boundary-based registration (BBR) cost function.
 
-    It is a counterpart to :py:func:`~fmriprep.workflows.util.init_bbreg_wf`,
+    It is a counterpart to :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`,
     which performs the same task using FreeSurfer's ``bbregister``.
 
     The ``use_bbr`` option permits a high degree of control over registration.
@@ -412,7 +409,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
         :graph2use: orig
         :simple_form: yes
 
-        from fmriprep.workflows.util import init_fsl_bbr_wf
+        from fmriprep.workflows.bold.registration import init_fsl_bbr_wf
         wf = init_fsl_bbr_wf(use_bbr=True, bold2t1w_dof=9)
 
 
@@ -490,7 +487,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use rigid registration
     if use_bbr is False:
@@ -498,7 +495,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
             (flt_bbr_init, invt_bbr, [('out_matrix_file', 'in_file')]),
             (flt_bbr_init, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
             (flt_bbr_init, outputnode, [('out_report', 'out_report')]),
-            ])
+        ])
         outputnode.inputs.fallback = True
 
         return workflow
@@ -514,7 +511,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
                               ('t1_brain', 'reference')]),
         (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
         (wm_mask, flt_bbr, [('out', 'wm_seg')]),
-        ])
+    ])
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
@@ -522,7 +519,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
             (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
             (flt_bbr, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
             (flt_bbr, outputnode, [('out_report', 'out_report')]),
-            ])
+        ])
         outputnode.inputs.fallback = False
 
         return workflow
@@ -557,6 +554,49 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
         (reports, select_report, [('out', 'inlist')]),
         (compare_transforms, select_report, [('out', 'index')]),
         (select_report, outputnode, [('out', 'out_report')]),
-        ])
+    ])
 
     return workflow
+
+
+def compare_xforms(lta_list, norm_threshold=15):
+    """
+    Computes a normalized displacement between two affine transforms as the
+    maximum overall displacement of the midpoints of the faces of a cube, when
+    each transform is applied to the cube.
+    This combines displacement resulting from scaling, translation and rotation.
+
+    Although the norm is in mm, in a scaling context, it is not necessarily
+    equivalent to that distance in translation.
+
+    We choose a default threshold of 15mm as a rough heuristic.
+    Normalized displacement above 20mm showed clear signs of distortion, while
+    "good" BBR refinements were frequently below 10mm displaced from the rigid
+    transform.
+    The 10-20mm range was more ambiguous, and 15mm chosen as a compromise.
+    This is open to revisiting in either direction.
+
+    See discussion in
+    `GitHub issue #681`_ <https://github.com/poldracklab/fmriprep/issues/681>`_
+    and the `underlying implementation
+    <https://github.com/nipy/nipype/blob/56b7c81eedeeae884ba47c80096a5f66bd9f8116/nipype/algorithms/rapidart.py#L108-L159>`_.
+
+    Parameters
+    ----------
+
+      lta_list : list or tuple of str
+          the two given affines in LTA format
+      norm_threshold : float (default: 15)
+          the upper bound limit to the normalized displacement caused by the
+          second transform relative to the first
+
+    """
+    from fmriprep.interfaces.surf import load_transform
+    from niworkflows.nipype.algorithms.rapidart import _calc_norm_affine
+
+    bbr_affine = load_transform(lta_list[0])
+    fallback_affine = load_transform(lta_list[1])
+
+    norm, _ = _calc_norm_affine([fallback_affine, bbr_affine], use_differences=True)
+
+    return norm[1] > norm_threshold

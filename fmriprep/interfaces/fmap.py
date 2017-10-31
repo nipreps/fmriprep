@@ -27,7 +27,7 @@ class FieldEnhanceInputSpec(BaseInterfaceInputSpec):
     bspline_smooth = traits.Bool(True, usedefault=True, desc='run 3D bspline smoother')
     mask_erode = traits.Int(1, usedefault=True, desc='mask erosion iterations')
     despike_threshold = traits.Float(0.2, usedefault=True, desc='mask erosion iterations')
-    njobs = traits.Int(1, usedefault=True, nohash=True, desc='number of jobs')
+    num_threads = traits.Int(1, usedefault=True, nohash=True, desc='number of jobs')
 
 
 class FieldEnhanceOutputSpec(TraitedSpec):
@@ -86,7 +86,7 @@ class FieldEnhance(SimpleInterface):
 
             # Fit BSplines (coarse)
             bspobj = fbsp.BSplineFieldmap(datanii, weights=mask,
-                                          njobs=self.inputs.njobs)
+                                          njobs=self.inputs.num_threads)
             bspobj.fit()
             smoothed1 = bspobj.get_smoothed()
 
@@ -112,7 +112,7 @@ class FieldEnhance(SimpleInterface):
                     datanii.affine, datanii.header)
 
                 bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
-                                               njobs=self.inputs.njobs)
+                                               njobs=self.inputs.num_threads)
                 bspobj2.fit()
                 smoothed2 = bspobj2.get_smoothed().get_data()
 

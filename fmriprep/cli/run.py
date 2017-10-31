@@ -293,7 +293,10 @@ def create_workflow(opts):
 
         if nthreads > 1:
             plugin_settings['plugin'] = 'MultiProc'
-            plugin_settings['plugin_args'] = {'n_procs': nthreads}
+            plugin_settings['plugin_args'] = {
+                'n_procs': nthreads,
+                'raise_insufficient': False,
+            }
             if opts.mem_mb:
                 plugin_settings['plugin_args']['memory_gb'] = opts.mem_mb / 1024
 

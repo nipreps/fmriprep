@@ -68,13 +68,13 @@ def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
     # de-gradient the fields ("bias/illumination artifact")
-    n4 = pe.Node(ants.N4BiasFieldCorrection(
-        dimension=3, copy_header=True, num_threads=omp_nthreads), name='n4', n_procs=omp_nthreads)
+    n4 = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
+                 name='n4', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
     ds_fmap_mask = pe.Node(DerivativesDataSink(
-            base_directory=reportlets_dir, suffix='fmap_mask'), name='ds_fmap_mask',
-            mem_gb=0.01, run_without_submitting=True)
+        base_directory=reportlets_dir, suffix='fmap_mask'), name='ds_fmap_mask',
+        mem_gb=0.01, run_without_submitting=True)
     # uses mask from bet; outputs a mask
     # dilate = pe.Node(fsl.maths.MathsCommand(
     #     nan2zeros=True, args='-kernel sphere 5 -dilM'), name='MskDilate')
@@ -197,4 +197,4 @@ def _delta_te(in_values, te1=None, te2=None):
         raise RuntimeError(
             'No echo time information found')
 
-    return abs(float(te2)-float(te1))
+    return abs(float(te2) - float(te1))

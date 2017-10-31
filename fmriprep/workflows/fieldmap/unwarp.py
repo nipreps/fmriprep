@@ -26,7 +26,7 @@ from niworkflows.interfaces import CopyHeader
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT, ANTSRegistrationRPT
 
 from ...interfaces import itk, ReadSidecarJSON, StructuralReference, DerivativesDataSink
-from ...workflows.util import init_enhance_and_skullstrip_bold_wf
+from ..bold.util import init_enhance_and_skullstrip_bold_wf
 
 
 def init_sdc_unwarp_wf(reportlets_dir, omp_nthreads, fmap_bspline,
@@ -101,9 +101,8 @@ def init_sdc_unwarp_wf(reportlets_dir, omp_nthreads, fmap_bspline,
         ants_settings = pkgr.resource_filename(
             'fmriprep', 'data/fmap-any_registration_testing.json')
     fmap2ref_reg = pe.Node(
-        ANTSRegistrationRPT(
-            generate_report=True, from_file=ants_settings, output_inverse_warped_image=True,
-            output_warped_image=True, num_threads=omp_nthreads),
+        ANTSRegistrationRPT(generate_report=True, from_file=ants_settings,
+                            output_inverse_warped_image=True, output_warped_image=True),
         name='fmap2ref_reg', n_procs=omp_nthreads)
 
     ds_reg = pe.Node(DerivativesDataSink(
@@ -437,8 +436,7 @@ def init_prepare_epi_wf(omp_nthreads, name="prepare_epi_wf"):
     ants_settings = pkgr.resource_filename('fmriprep',
                                            'data/translation_rigid.json')
     fmap2ref_reg = pe.Node(ants.Registration(from_file=ants_settings,
-                                             output_warped_image=True,
-                                             num_threads=omp_nthreads),
+                                             output_warped_image=True),
                            name='fmap2ref_reg', n_procs=omp_nthreads)
 
     workflow = pe.Workflow(name=name)

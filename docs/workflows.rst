@@ -91,6 +91,7 @@ Finally, a non-linear registration to the MNI template space is estimated.
 
     Animation showing T1w to MNI normalization (ANTs)
 
+
 Longitudinal processing
 ~~~~~~~~~~~~~~~~~~~~~~~
 In the case of multiple sessions, T1w images are merged into a single template
@@ -111,6 +112,7 @@ flag, which forces the estimation of an unbiased template.
     with any of the original images.
     Reconstructed surfaces and functional datasets will be registered to the
     ``T1w`` space, and not to the input images.
+
 
 Surface preprocessing
 ~~~~~~~~~~~~~~~~~~~~~
@@ -352,7 +354,8 @@ EPI sampled to FreeSurfer surfaces
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_surf_wf
-    wf = init_bold_surf_wf(output_spaces=['T1w', 'fsnative',
+    wf = init_bold_surf_wf(bold_file_size_gb=0.1,
+                           output_spaces=['T1w', 'fsnative',
                                          'template', 'fsaverage5'],
                            medial_surface_nan=False)
 
@@ -368,13 +371,13 @@ All surface outputs are in GIFTI format.
 
 Confounds estimation
 ~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.confounds.init_bold_confs_wf`
+:mod:`fmriprep.workflows.bold.confounds.init_bold_confs_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
-    from fmriprep.workflows.confounds import init_bold_confs_wf
+    from fmriprep.workflows.bold.confounds import init_bold_confs_wf
     wf = init_bold_confs_wf(
         name="discover_wf",
         use_aroma=False, ignore_aroma_err=False, bold_file_size_gb=3,

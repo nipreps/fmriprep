@@ -1,11 +1,14 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-'''
-Workflow for discovering confounds.
-Calculates frame displacement, segment regressors, global regressor, dvars, aCompCor, tCompCor
-'''
+"""
+Calculate BOLD confounds
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: init_bold_confs_wf
+.. autofunction:: init_ica_aroma_wf
+
+"""
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu, fsl
 from niworkflows.nipype.interfaces.nilearn import SignalExtraction
@@ -14,7 +17,7 @@ from niworkflows.nipype.algorithms import confounds as nac
 from niworkflows.interfaces import segmentation as nws
 from niworkflows.interfaces.masks import ACompCorRPT, TCompCorRPT
 
-from ..interfaces import (
+from ...interfaces import (
     TPM2ROI, ConcatROIs, CombineROIs, AddTSVHeader, GatherConfounds, ICAConfounds
 )
 
@@ -47,9 +50,9 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
 
     .. workflow::
         :graph2use: orig
-        :simpleform: yes
+        :simple_form: yes
 
-        from fmriprep.workflows.confounds import init_bold_confs_wf
+        from fmriprep.workflows.bold.confounds import init_bold_confs_wf
         wf = init_bold_confs_wf(bold_file_size_gb=1,
                                 use_aroma=True,
                                 ignore_aroma_err=True,
@@ -104,7 +107,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
 
     **Subworkflows**
 
-        * :py:func:`~fmriprep.workflows.confounds.init_ica_aroma_wf`
+        * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
 
     """
 
@@ -263,9 +266,9 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
 
     .. workflow::
         :graph2use: orig
-        :simpleform: yes
+        :simple_form: yes
 
-        from fmriprep.workflows.confounds import init_ica_aroma_wf
+        from fmriprep.workflows.bold.confounds import init_ica_aroma_wf
         wf = init_ica_aroma_wf()
 
     **Parameters**

@@ -52,7 +52,7 @@ class MCFLIRT2ITK(SimpleInterface):
         if num_threads < 1:
             num_threads = None
 
-        with TemporaryDirectory() as tmp_folder:
+        with TemporaryDirectory(prefix='tmp-', dir=runtime.cwd) as tmp_folder:
             # Inputs are ready to run in parallel
             if num_threads is None or num_threads > 1:
                 from multiprocessing import Pool
@@ -123,7 +123,7 @@ class MultiApplyTransforms(SimpleInterface):
             ifargs.pop(key, None)
 
         # Get a temp folder ready
-        tmp_folder = TemporaryDirectory()
+        tmp_folder = TemporaryDirectory(prefix='tmp-', dir=runtime.cwd)
 
         xfms_list = _arrange_xfms(transforms, num_files, tmp_folder)
         assert len(xfms_list) == num_files
