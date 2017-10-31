@@ -32,17 +32,10 @@ from .bold import init_func_preproc_wf
 
 
 def init_fmriprep_wf(subject_list, task_id, run_uuid,
-<<<<<<< HEAD
-                     ignore, debug, low_mem, anat_only, dismiss_t1w, longitudinal, omp_nthreads,
-                     skull_strip_ants, skull_strip_template, work_dir, output_dir, bids_dir,
-                     freesurfer, output_spaces, template, medial_surface_nan,hires,
-                     bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-=======
                      ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                      skull_strip_template, work_dir, output_dir, bids_dir,
                      freesurfer, output_spaces, template, medial_surface_nan, hires,
                      use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
->>>>>>> upstream/master
                      use_aroma, ignore_aroma_err, output_grid_ref):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
@@ -176,10 +169,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    dismiss_t1w=dismiss_t1w,
                                                    longitudinal=longitudinal,
                                                    omp_nthreads=omp_nthreads,
-<<<<<<< HEAD
                                                    skull_strip_ants=skull_strip_ants,
-=======
->>>>>>> upstream/master
                                                    skull_strip_template=skull_strip_template,
                                                    reportlets_dir=reportlets_dir,
                                                    output_dir=output_dir,
@@ -214,19 +204,11 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
 
 
 def init_single_subject_wf(subject_id, task_id, name,
-<<<<<<< HEAD
-                           ignore, debug, low_mem, anat_only, dismiss_t1w, longitudinal, omp_nthreads,
-                           skull_strip_ants, skull_strip_template, reportlets_dir, output_dir, bids_dir,
-                           freesurfer, output_spaces, template, medial_surface_nan,hires,
-                           bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                           output_grid_ref, use_aroma, ignore_aroma_err):
-=======
                            ignore, debug, low_mem, anat_only, longitudinal, omp_nthreads,
                            skull_strip_template, reportlets_dir, output_dir,
                            bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
                            hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn,
                            force_syn, output_grid_ref, use_aroma, ignore_aroma_err):
->>>>>>> upstream/master
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -404,10 +386,7 @@ def init_single_subject_wf(subject_id, task_id, name,
     # if dismiss_t1w: skip anat_preproc_wf
     # Preprocessing of T1w (includes registration to MNI)
     anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
-<<<<<<< HEAD
                                            skull_strip_ants=skull_strip_ants,
-=======
->>>>>>> upstream/master
                                            skull_strip_template=skull_strip_template,
                                            output_spaces=output_spaces,
                                            template=template,
@@ -444,11 +423,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                layout=layout,
                                                ignore=ignore,
                                                freesurfer=freesurfer,
-<<<<<<< HEAD
-                                               dismiss_t1w=dismiss_t1w,
-=======
                                                use_bbr=use_bbr,
->>>>>>> upstream/master
                                                bold2t1w_dof=bold2t1w_dof,
                                                reportlets_dir=reportlets_dir,
                                                output_spaces=output_spaces,
