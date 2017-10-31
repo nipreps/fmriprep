@@ -16,9 +16,8 @@ from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterfaceInputSpec,
-    File, InputMultiPath
+    File, InputMultiPath, SimpleInterface
 )
-from niworkflows.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
 

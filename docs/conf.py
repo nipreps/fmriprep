@@ -308,3 +308,9 @@ texinfo_documents = [
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 suppress_warnings = ["image.nonlocal_uri"]
+
+
+def setup(app):
+    # We need this for the boilerplate script
+    app.add_javascript("https://cdn.rawgit.com/chrisfilo/zenodo.js/v0.1/zenodo.js")
+

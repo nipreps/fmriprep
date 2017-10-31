@@ -1,6 +1,6 @@
 ''' Testing module for fmriprep.workflows.confounds '''
 import logging
-from ..confounds import init_bold_confs_wf
+from ..bold.confounds import init_bold_confs_wf
 from ...utils.testing import TestWorkflow
 
 logging.disable(logging.INFO)  # don't print unnecessary msgs

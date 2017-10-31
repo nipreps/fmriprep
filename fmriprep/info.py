@@ -5,7 +5,7 @@
 Base module variables
 """
 
-__version__ = '1.0.0-rc5-dev'
+__version__ = '1.0.0-rc7-dev'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
@@ -65,16 +65,21 @@ REQUIRES = [
     'nibabel>=2.1.0',
     'pandas',
     'grabbit',
-    'pybids>=0.3',
+    'pybids',
     'nitime',
-    'niworkflows>=0.1.7',
+    'niworkflows>=0.1.8',
     'statsmodels',
     'nipype',
     'seaborn',
-    'joblib',
+    'indexed_gzip>=0.6.1',
 ]
 
-LINKS_REQUIRES = []
+LINKS_REQUIRES = [
+    'git+https://github.com/poldracklab/niworkflows.git'
+    '@66c0aed97a7694e9fdba58a4438f23f89f151606#egg=niworkflows-0.1.9-dev',
+    'git+https://github.com/oesteban/pybids.git'
+    '@448e926c6a2cbad4a9520fdd79c3f8c8893f1ac2#egg=pybids-0.3.1-dev',
+]
 
 TESTS_REQUIRES = [
     "mock",
@@ -85,7 +90,8 @@ TESTS_REQUIRES = [
 EXTRA_REQUIRES = {
     'doc': ['sphinx>=1.5.3', 'pydotplus', 'pydot>=1.2.3', 'sphinx_rtd_theme', 'sphinx-argparse'],
     'tests': TESTS_REQUIRES,
-    'duecredit': ['duecredit']
+    'duecredit': ['duecredit'],
+    'datalad': ['datalad'],
 }
 
 # Enable a handle to install all extra dependencies at once

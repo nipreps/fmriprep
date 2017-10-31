@@ -1,11 +1,14 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-'''
-Workflow for discovering confounds.
-Calculates frame displacement, segment regressors, global regressor, dvars, aCompCor, tCompCor
-'''
+"""
+Calculate BOLD confounds
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: init_bold_confs_wf
+.. autofunction:: init_ica_aroma_wf
+
+"""
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu, fsl
 from niworkflows.nipype.interfaces.nilearn import SignalExtraction
@@ -14,7 +17,7 @@ from niworkflows.nipype.algorithms import confounds as nac
 from niworkflows.interfaces import segmentation as nws
 from niworkflows.interfaces.masks import ACompCorRPT, TCompCorRPT
 
-from ..interfaces import (
+from ...interfaces import (
     TPM2ROI, ConcatROIs, CombineROIs, AddTSVHeader, GatherConfounds, ICAConfounds
 )
 
@@ -47,15 +50,15 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
 
     .. workflow::
         :graph2use: orig
-        :simpleform: yes
+        :simple_form: yes
 
-        from fmriprep.workflows.confounds import init_bold_confs_wf
+        from fmriprep.workflows.bold.confounds import init_bold_confs_wf
         wf = init_bold_confs_wf(bold_file_size_gb=1,
                                 use_aroma=True,
                                 ignore_aroma_err=True,
                                 metadata={})
 
-    Parameters
+    **Parameters**
 
         bold_file_size_gb : float
             Size of BOLD file in GB
@@ -66,7 +69,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         metadata : dict
             BIDS metadata for BOLD file
 
-    Inputs
+    **Inputs**
 
         bold_t1
             BOLD image, resampled in T1w space
@@ -83,7 +86,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         bold_mask_mni
             BOLD series mask in template space
 
-    Outputs
+    **Outputs**
 
         confounds_file
             TSV of all aggregated confounds
@@ -101,6 +104,11 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
             FSL MELODIC mixing matrix
         nonaggr_denoised_file
             BOLD series with non-aggressive ICA-AROMA denoising applied
+
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
+
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
@@ -141,7 +149,9 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
                        name="acompcor", mem_gb=bold_file_size_gb * 3)
 
     csf_roi = pe.Node(TPM2ROI(erode_mm=0, mask_erode_mm=30), name='csf_roi')
-    wm_roi = pe.Node(TPM2ROI(erode_mm=6, mask_erode_mm=10), name='wm_roi')
+    wm_roi = pe.Node(TPM2ROI(erode_prop=0.6,
+                             mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
+                     name='wm_roi')
     merge_rois = pe.Node(niu.Merge(2), name='merge_rois', run_without_submitting=True, mem_gb=0.01)
     combine_rois = pe.Node(CombineROIs(), name='combine_rois')
     concat_rois = pe.Node(ConcatROIs(), name='concat_rois')
@@ -256,17 +266,17 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
 
     .. workflow::
         :graph2use: orig
-        :simpleform: yes
+        :simple_form: yes
 
-        from fmriprep.workflows.confounds import init_ica_aroma_wf
+        from fmriprep.workflows.bold.confounds import init_ica_aroma_wf
         wf = init_ica_aroma_wf()
 
-    Parameters
+    **Parameters**
 
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
 
-    Inputs
+    **Inputs**
 
         bold_mni
             BOLD series, resampled to template space
@@ -275,7 +285,7 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         bold_mask_mni
             BOLD series mask in template space
 
-    Outputs
+    **Outputs**
 
         aroma_confounds
             TSV of confounds identified as noise by ICA-AROMA
