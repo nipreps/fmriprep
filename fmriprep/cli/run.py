@@ -17,6 +17,10 @@ from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
 import nibabel
+# [BIDS]
+# sys.path.append(op.dirname(__file__))
+# import glob
+# import BIDSgenerator
 
 nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
 
@@ -56,6 +60,11 @@ def get_parser():
     parser.add_argument('analysis_level', choices=['participant'],
                         help='processing stage to be run, only "participant" in the case of '
                              'FMRIPREP (see BIDS-Apps specification).')
+    
+    # [BIDS]
+    #parser.add_argument('participant_num', action='store')
+    #parser.add_argument('visit_num', action='store')
+    #parser.add_argument('session_num', action='store')    
 
     # optional arguments
     parser.add_argument('-v', '--version', action='version', version=verstr)
@@ -64,6 +73,7 @@ def get_parser():
     g_bids.add_argument('--participant_label', '--participant-label', action='store', nargs='+',
                         help='one or more participant identifiers (the sub- prefix can be '
                              'removed)')
+    
     # Re-enable when option is actually implemented
     # g_bids.add_argument('-s', '--session-id', action='store', default='single_session',
     #                     help='select a specific session to be processed')
@@ -191,6 +201,14 @@ def main():
     """Entry point"""
     warnings.showwarning = _warn_redirect
     opts = get_parser().parse_args()
+    # [BIDS]
+    #proj_dir = opts.bids_dir
+    #if opts.task_id:
+    #    bidsdir, subject = BIDSgenerator.createBIDS(opts.bids_dir, opts.participant_num, opts.visit_num, opts.session_num, opts.task_id)
+    #else:
+    #    bidsdir, subject = BIDSgenerator.createBIDS(opts.bids_dir, opts.participant_num, opts.visit_num, opts.session_num)
+    #opts.bids_dir = bidsdir
+    #opts.participant_label = subject
     if opts.debug:
         logger.setLevel(logging.DEBUG)
 
@@ -211,6 +229,11 @@ def main():
             raise RuntimeError(msg)
         logger.warning(msg)
 
+    # [BIDS]
+    #errno = create_workflow(opts)
+    #BIDSgenerator.moveToProject(proj_dir, opts.participant_num, opts.visit_num, opts.session_num, opts.output_dir,pipeline)
+    #BIDSgenerator.smooth_preprocessed_data(proj_dir,opts.participant_num, opts.visit_num, opts.session_num, smoothing_kernel)
+    #sys.exit(int(errno > 0))
     create_workflow(opts)
 
 
