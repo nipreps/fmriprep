@@ -87,17 +87,18 @@ def get_parser():
                               'in working directory)')
     g_perfm.add_argument('--use-plugin', action='store', default=None,
                          help='nipype plugin configuration file')
-    g_perfm.add_argument('--anat-only', action='store_true',
-                         help='run anatomical workflows only')
-    g_perfm.add_argument('--func-only', action='store_true',
-                         help='run functional workflows only '
-                              '(dismiss the anatomical images if present).')
+    
     g_perfm.add_argument('--ignore-aroma-denoising-errors', action='store_true',
                          default=False,
                          help='ignores the errors ICA_AROMA returns when there '
                               'are no components classified as either noise or '
                               'signal')
+    # Add mutually exclusive func_only and anat_only pipeline options
+    g_anatfunc = parser.add_mutually_exclusive_group()
+    g_anatfunc.add_argument('--anat-only', action='store_true')
+    g_anatfunc.add_argument('--func-only', action='store_true')
 
+    # Add workflow config arguments
     g_conf = parser.add_argument_group('Workflow configuration')
     g_conf.add_argument(
         '--ignore', required=False, action='store', nargs="+", default=[],
@@ -213,7 +214,7 @@ def main():
         if opts.force_syn:
             raise RuntimeError(msg)
         logger.warning(msg)
-
+    
     create_workflow(opts)
 
 
