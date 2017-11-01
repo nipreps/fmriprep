@@ -76,9 +76,9 @@ REQUIRES = [
 
 LINKS_REQUIRES = [
     'git+https://github.com/poldracklab/niworkflows.git'
-    '@66c0aed97a7694e9fdba58a4438f23f89f151606#egg=niworkflows-0.1.9-dev',
-    'git+https://github.com/oesteban/pybids.git'
-    '@448e926c6a2cbad4a9520fdd79c3f8c8893f1ac2#egg=pybids-0.3.1-dev',
+    '@a1c98e43c260caf13635f1c2477d6363814e8397#egg=niworkflows-0.1.9-dev',
+    'git+https://github.com/INCF/pybids.git'
+    '@3d780e7b2663e3ad88fa172eb5af04f4e81469ba#egg=pybids-0.3.1-dev',
 ]
 
 TESTS_REQUIRES = [
