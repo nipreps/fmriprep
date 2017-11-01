@@ -705,6 +705,7 @@ def init_onlyfunc_preproc_wf(bold_file, ignore, reportlets_dir, output_dir,
     # Calculate BOLD reference
     bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
 
+
     # HMC on the BOLD
     bold_hmc_wf = init_bold_hmc_wf(name='bold_hmc_wf',
                                    bold_file_size_gb=bold_file_size_gb,
@@ -773,6 +774,28 @@ def init_onlyfunc_preproc_wf(bold_file, ignore, reportlets_dir, output_dir,
                 ('outputnode.ref_image', 'inputnode.in_pre')]),
             (sdc_unwarp_wf, fmap_unwarp_report_wf, [
                 ('outputnode.out_reference', 'inputnode.in_post')]),
+        ])
+
+
+        # Other workflows
+        workflow.connect([
+        (inputnode, bold_reference_wf, [('bold_file', 'inputnode.bold_file')]),
+        (bold_reference_wf, bold_hmc_wf, [
+            ('outputnode.raw_ref_image', 'inputnode.raw_ref_image')]),
+        (bold_hmc_wf, bold_confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file')]), 
+        (bold_reference_wf, func_reports_wf, [
+            ('outputnode.validation_report', 'inputnode.validation_report')]),
+        (bold_confounds_wf, outputnode, [
+            ('outputnode.confounds_file', 'confounds'),
+            ('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
+            ('outputnode.melodic_mix', 'melodic_mix'),
+            ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+        (bold_confounds_wf, func_reports_wf, [
+            ('outputnode.acompcor_report', 'inputnode.acompcor_report'),
+            ('outputnode.tcompcor_report', 'inputnode.tcompcor_report'),
+            ('outputnode.ica_aroma_report', 'inputnode.ica_aroma_report')]),
+        (bold_confounds_wf, summary, [('outputnode.confounds_list', 'confounds')]),
+        (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')])
         ])
 
     return workflow
