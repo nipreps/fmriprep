@@ -382,6 +382,12 @@ def init_single_subject_wf(subject_id, task_id, name,
         name='ds_about_report', run_without_submitting=True)
 
     # Preprocessing of T1w (includes registration to MNI)
+    class LogicError(IOError):
+        pass
+    
+    if func_only and anat_only:
+        raise LogicError('Both func_only and anat_only pipelines specified. Please choose one.')    
+    
     if not func_only:
         anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
                                                skull_strip_template=skull_strip_template,
