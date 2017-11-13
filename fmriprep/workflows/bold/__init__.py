@@ -26,6 +26,7 @@ from .registration import init_bold_reg_wf
 from .resampling import (
     init_bold_mni_trans_wf,
     init_bold_surf_wf,
+    init_bold_preproc_trans_wf,
 )
 
 from .confounds import (

@@ -5,7 +5,7 @@
 Base module variables
 """
 
-__version__ = '1.0.0-rc7-dev'
+__version__ = '1.0.0-rc11-dev'
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
@@ -65,20 +65,16 @@ REQUIRES = [
     'nibabel>=2.1.0',
     'pandas',
     'grabbit',
-    'pybids',
+    'pybids>=0.4.0',
     'nitime',
-    'niworkflows>=0.1.8',
+    'niworkflows>=0.1.9',
     'statsmodels',
     'nipype',
     'seaborn',
-    'indexed_gzip>=0.6.1',
+    'indexed_gzip>=0.7.0',
 ]
 
 LINKS_REQUIRES = [
-    'git+https://github.com/poldracklab/niworkflows.git'
-    '@a1c98e43c260caf13635f1c2477d6363814e8397#egg=niworkflows-0.1.9-dev',
-    'git+https://github.com/INCF/pybids.git'
-    '@3d780e7b2663e3ad88fa172eb5af04f4e81469ba#egg=pybids-0.3.1-dev',
 ]
 
 TESTS_REQUIRES = [
@@ -92,6 +88,7 @@ EXTRA_REQUIRES = {
     'tests': TESTS_REQUIRES,
     'duecredit': ['duecredit'],
     'datalad': ['datalad'],
+    'resmon': ['psutil>=5.4.0'],
 }
 
 # Enable a handle to install all extra dependencies at once

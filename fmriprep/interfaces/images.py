@@ -198,7 +198,7 @@ class TemplateDimensions(SimpleInterface):
 
 
 class ConformInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True, desc='Input T1w image')
+    in_file = File(exists=True, mandatory=True, desc='Input image')
     target_zooms = traits.Tuple(traits.Float, traits.Float, traits.Float,
                                 desc='Target zoom information')
     target_shape = traits.Tuple(traits.Int, traits.Int, traits.Int,
@@ -206,7 +206,8 @@ class ConformInputSpec(BaseInterfaceInputSpec):
 
 
 class ConformOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='Conformed T1w image')
+    out_file = File(exists=True, desc='Conformed image')
+    transform = File(exists=True, desc='Conformation transform')
 
 
 class Conform(SimpleInterface):
@@ -234,6 +235,13 @@ class Conform(SimpleInterface):
         zooms = np.array(reoriented.header.get_zooms()[:3])
         shape = np.array(reoriented.shape[:3])
 
+        # Reconstruct transform from orig to reoriented image
+        ornt_xfm = nb.orientations.inv_ornt_aff(
+            nb.io_orientation(orig_img.affine), orig_img.shape)
+        # Identity unless proven otherwise
+        target_affine = reoriented.affine.copy()
+        conform_xfm = np.eye(4)
+
         xyz_unit = reoriented.header.get_xyzt_units()[0]
         if xyz_unit == 'unknown':
             # Common assumption; if we're wrong, unlikely to be the only thing that breaks
@@ -247,12 +255,9 @@ class Conform(SimpleInterface):
         rescale = not np.allclose(zooms, target_zooms, atol=atol)
         resize = not np.all(shape == target_shape)
         if rescale or resize:
-            target_affine = np.eye(4, dtype=reoriented.affine.dtype)
             if rescale:
                 scale_factor = target_zooms / zooms
                 target_affine[:3, :3] = reoriented.affine[:3, :3].dot(np.diag(scale_factor))
-            else:
-                target_affine[:3, :3] = reoriented.affine[:3, :3]
 
             if resize:
                 # The shift is applied after scaling.
@@ -261,10 +266,9 @@ class Conform(SimpleInterface):
                 # Use integer shifts to avoid unnecessary interpolation
                 offset = (reoriented.affine[:3, 3] * size_factor - reoriented.affine[:3, 3])
                 target_affine[:3, 3] = reoriented.affine[:3, 3] + offset.astype(int)
-            else:
-                target_affine[:3, 3] = reoriented.affine[:3, 3]
 
             data = nli.resample_img(reoriented, target_affine, target_shape).get_data()
+            conform_xfm = np.linalg.inv(reoriented.affine).dot(target_affine)
             reoriented = reoriented.__class__(data, target_affine, reoriented.header)
 
         # Image may be reoriented, rescaled, and/or resized
@@ -274,7 +278,14 @@ class Conform(SimpleInterface):
         else:
             out_name = fname
 
+        transform = ornt_xfm.dot(conform_xfm)
+        assert np.allclose(orig_img.affine.dot(transform), target_affine)
+
+        mat_name = fname_presuffix(fname, suffix='.mat', newpath=runtime.cwd, use_ext=False)
+        np.savetxt(mat_name, transform, fmt='%.08f')
+
         self._results['out_file'] = out_name
+        self._results['transform'] = mat_name
 
         return runtime
 
@@ -286,10 +297,14 @@ class ReorientInputSpec(BaseInterfaceInputSpec):
 
 class ReorientOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='Reoriented T1w image')
+    transform = File(exists=True, desc='Reorientation transform')
 
 
 class Reorient(SimpleInterface):
-    """Reorient a T1w image to RAS (left-right, posterior-anterior, inferior-superior)"""
+    """Reorient a T1w image to RAS (left-right, posterior-anterior, inferior-superior)
+
+    Syncs qform and sform codes for consistent treatment by all software
+    """
     input_spec = ReorientInputSpec
     output_spec = ReorientOutputSpec
 
@@ -299,14 +314,24 @@ class Reorient(SimpleInterface):
         orig_img = nb.load(fname)
         reoriented = nb.as_closest_canonical(orig_img)
 
+        # Reconstruct transform from orig to reoriented image
+        ornt_xfm = nb.orientations.inv_ornt_aff(
+            nb.io_orientation(orig_img.affine), orig_img.shape)
+
+        normalized = normalize_xform(reoriented)
+
         # Image may be reoriented
-        if reoriented is not orig_img:
+        if normalized is not orig_img:
             out_name = fname_presuffix(fname, suffix='_ras', newpath=runtime.cwd)
-            reoriented.to_filename(out_name)
+            normalized.to_filename(out_name)
         else:
             out_name = fname
 
+        mat_name = fname_presuffix(fname, suffix='.mat', newpath=runtime.cwd, use_ext=False)
+        np.savetxt(mat_name, ornt_xfm, fmt='%.08f')
+
         self._results['out_file'] = out_name
+        self._results['transform'] = mat_name
 
         return runtime
 
@@ -455,3 +480,37 @@ def extract_wm(in_seg, wm_label=3):
     hdr.set_data_dtype(np.uint8)
     nb.Nifti1Image(data, nii.affine, hdr).to_filename('wm.nii.gz')
     return op.abspath('wm.nii.gz')
+
+
+def normalize_xform(img):
+    """ Set identical, valid qform and sform matrices in an image
+
+    Selects the best available affine (sform > qform > shape-based), and
+    coerces it to be qform-compatible (no shears).
+
+    The resulting image represents this same affine as both qform and sform,
+    and is marked as NIFTI_XFORM_ALIGNED_ANAT, indicating that it is valid,
+    not aligned to template, and not necessarily preserving the original
+    coordinates.
+
+    If header would be unchanged, returns input image.
+    """
+    # Let nibabel convert from affine to quaternions, and recover xform
+    tmp_header = img.header.copy()
+    tmp_header.set_qform(img.affine)
+    xform = tmp_header.get_qform()
+    xform_code = 2
+
+    # Check desired codes
+    qform, qform_code = img.get_qform(coded=True)
+    sform, sform_code = img.get_sform(coded=True)
+    if all((qform is not None and np.allclose(qform, xform),
+            sform is not None and np.allclose(sform, xform),
+            int(qform_code) == xform_code, int(sform_code) == xform_code)):
+        return img
+
+    new_img = img.__class__(img.get_data(), xform, img.header)
+    # Unconditionally set sform/qform
+    new_img.set_sform(xform, xform_code)
+    new_img.set_qform(xform, xform_code)
+    return new_img

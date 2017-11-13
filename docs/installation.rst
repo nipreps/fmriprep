@@ -37,7 +37,7 @@ print it out for reporting purposes, and then run the command, e.g.::
     $ fmriprep-docker /path/to/data/dir /path/to/output/dir participant
     RUNNING: docker run --rm -it -v /path/to/data/dir:/data:ro \
         -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
-        /data /out participant
+        /data /out participant --no-freesurfer
     ...
 
 You may also invoke ``docker`` directly::
@@ -47,7 +47,7 @@ You may also invoke ``docker`` directly::
         -v filepath/to/output/dir:/out \
         poldracklab/fmriprep:latest \
         /data /out/out \
-        participant
+        participant --no-freesurfer
 
 For example: ::
 
@@ -57,10 +57,14 @@ For example: ::
         poldracklab/fmriprep:latest \
         /data /out/out \
         participant \
-        --ignore fieldmaps
+        --ignore fieldmaps --no-freesurfer
 
 See `External Dependencies`_ for more information (e.g., specific versions) on
 what is included in the latest Docker images.
+
+If the flag ``--no-freesurfer`` is not set, then FreeSurfer will require a proper
+license file (see :ref:`fs_license`).
+
 
 Singularity Container
 =====================
@@ -74,6 +78,17 @@ Use `docker2singularity <https://github.com/singularityware/docker2singularity>`
         -v D:\host\path\where\to\output\singularity\image:/output \
         singularityware/docker2singularity \
         poldracklab/fmriprep:latest
+
+
+Beware of the back slashes, expected for Windows systems.
+For \*nix users the command translates as follows: ::
+
+    $ docker run --privileged -t --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v /absolute/path/to/output/folder:/output \
+        singularityware/docker2singularity \
+        poldracklab/fmriprep:latest
+
 
 Transfer the resulting Singularity image to the HPC, for example, using ``scp``. ::
 
@@ -125,6 +140,60 @@ If you have your data on hand, you are ready to run fmriprep: ::
 
     $ fmriprep data/dir output/dir participant --participant-label label
 
+
+.. _fs_license:
+
+The FreeSurfer license
+======================
+
+FMRIPREP will run FreeSurfer unless the ``--no-freesurfer`` command-line argument is
+provided. Therefore, make sure there is a valid FreeSurfer available to FMRIPREP
+or opt-out otherwise.
+
+Getting a FreeSurfer license is free, register a new key at
+https://surfer.nmr.mgh.harvard.edu/registration.html.
+
+When using manually-prepared environments, FreeSurfer will search for a license key
+file first using the ``$FS_LICENSE`` environment variable and then in the default
+path to the license key file (``$FREESURFER_HOME/license.txt``).
+
+It is possible to run the docker container pointing the image to a local path
+where a valid license file is stored.
+For example, if the license is stored in the ``$HOME/.licenses/freesurfer/license.txt``
+file on the host system: ::
+
+    $ docker run -ti --rm \
+        -v $HOME/fullds005:/data:ro \
+        -v $HOME/dockerout:/out \
+        -v $HOME/.licenses/freesurfer/license.txt:/opt/freesurfer/license.txt \
+        poldracklab/fmriprep:latest \
+        /data /out/out \
+        participant \
+        --ignore fieldmaps
+
+Using FreeSurfer can also be enabled when using ``fmriprep-docker``: ::
+
+    $ fmriprep-docker --fs-license-file $HOME/.licenses/freesurfer/license.txt \
+        /path/to/data/dir /path/to/output/dir participant
+    RUNNING: docker run --rm -it -v /path/to/data/dir:/data:ro \
+        -v /home/user/.licenses/freesurfer/license.txt:/opt/freesurfer/license.txt \
+        -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
+        /data /out participant
+    ...
+
+If the environment variable ``$FS_LICENSE`` is set in the host system, then
+it will automatically used by ``fmriprep-docker``. For instance, the following
+would be equivalent to the latest example: ::
+
+    $ export FS_LICENSE=$HOME/.licenses/freesurfer/license.txt
+    $ fmriprep-docker /path/to/data/dir /path/to/output/dir participant
+    RUNNING: docker run --rm -it -v /path/to/data/dir:/data:ro \
+        -v /home/user/.licenses/freesurfer/license.txt:/opt/freesurfer/license.txt \
+        -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
+        /data /out participant
+    ...
+
+
 External Dependencies
 =====================
 
@@ -135,5 +204,5 @@ software tools:
 - ANTs_ (version 2.2.0 - NeuroDocker build)
 - AFNI_ (version Debian-16.2.07)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
-- FreeSurfer_ (version 6.0.0)
+- FreeSurfer_ (version 6.0.1)
 - `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)

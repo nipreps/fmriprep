@@ -55,14 +55,12 @@ class MCFLIRT2ITK(SimpleInterface):
         with TemporaryDirectory(prefix='tmp-', dir=runtime.cwd) as tmp_folder:
             # Inputs are ready to run in parallel
             if num_threads is None or num_threads > 1:
-                from multiprocessing import Pool
-                pool = Pool(processes=num_threads, maxtasksperchild=100)
-                itk_outs = pool.map(_mat2itk, [
-                    (in_mat, self.inputs.in_reference, self.inputs.in_source, i, tmp_folder)
-                    for i, in_mat in enumerate(self.inputs.in_files)]
-                )
-                pool.close()
-                pool.join()
+                from concurrent.futures import ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=num_threads) as pool:
+                    itk_outs = list(pool.map(_mat2itk, [
+                        (in_mat, self.inputs.in_reference, self.inputs.in_source, i, tmp_folder)
+                        for i, in_mat in enumerate(self.inputs.in_files)]
+                    ))
             else:
                 itk_outs = [_mat2itk((
                     in_mat, self.inputs.in_reference, self.inputs.in_source, i, tmp_folder))
@@ -138,14 +136,12 @@ class MultiApplyTransforms(SimpleInterface):
                 for i, (in_file, in_xfm) in enumerate(zip(in_files, xfms_list))
             ]
         else:
-            from multiprocessing import Pool
-            pool = Pool(processes=num_threads, maxtasksperchild=100)
-            out_files = pool.map(
-                _applytfms, [(in_file, in_xfm, ifargs, i, runtime.cwd)
-                             for i, (in_file, in_xfm) in enumerate(zip(in_files, xfms_list))]
-            )
-            pool.close()
-            pool.join()
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=num_threads) as pool:
+                out_files = list(pool.map(_applytfms, [
+                    (in_file, in_xfm, ifargs, i, runtime.cwd)
+                    for i, (in_file, in_xfm) in enumerate(zip(in_files, xfms_list))]
+                ))
         tmp_folder.cleanup()
 
         # Collect output file names, after sorting by index
@@ -236,7 +232,7 @@ def _mat2itk(args):
 
     # Run c3d_affine_tool
     C3dAffineTool(transform_file=in_file, reference_file=in_ref, source_file=in_src,
-                  fsl2ras=True, itk_transform=out_file).run()
+                  fsl2ras=True, itk_transform=out_file, resource_monitor=False).run()
     transform = '#Transform %d\n' % index
     with open(out_file) as itkfh:
         transform += ''.join(itkfh.readlines()[2:])
@@ -262,6 +258,7 @@ def _applytfms(args):
     xfm = ApplyTransforms(
         input_image=in_file, transforms=in_xform, output_image=out_file, **ifargs)
     xfm.terminal_output = 'allatonce'
+    xfm.resource_monitor = False
     runtime = xfm.run().runtime
 
     if copy_dtype:

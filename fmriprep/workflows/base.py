@@ -381,13 +381,6 @@ def init_single_subject_wf(subject_id, task_id, name,
                             suffix='about'),
         name='ds_about_report', run_without_submitting=True)
 
-    # Preprocessing of T1w (includes registration to MNI)
-    class LogicError(Exception):
-        pass
-    
-    if func_only and anat_only:
-        raise LogicError('Both func_only and anat_only pipelines specified. Please choose one.')    
-    
     if not func_only:
         anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
                                                skull_strip_template=skull_strip_template,
@@ -482,19 +475,22 @@ def init_single_subject_wf(subject_id, task_id, name,
                 use_aroma=use_aroma,
                 ignore_aroma_err=ignore_aroma_err,
             )
-         
+
             workflow.connect([
-            (inputnode, onlyfunc_preproc_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
-            (bidssrc, bids_info, [(('bold', fix_multi_bold_source_name), 'in_file')]),
-            (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-            (bidssrc, summary, [('bold', 'bold')]),
-            (bids_info, summary, [('subject_id', 'subject_id')]),
-            (bidssrc, onlyfunc_preproc_wf, [('bold', 'inputnode.bold')]),
-            (summary, onlyfunc_preproc_wf, [('subject_id', 'inputnode.subject_id')]),
-            (bidssrc, ds_summary_report, [(('bold', fix_multi_bold_source_name), 'source_file')]),
-            (summary, ds_summary_report, [('out_report', 'in_file')]),
-            (bidssrc, ds_about_report, [(('bold', fix_multi_bold_source_name), 'source_file')]),
-            (about, ds_about_report, [('out_report', 'in_file')]),
-        ])
+                (inputnode, func_preproc_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
+                (bidssrc, bids_info, [
+                    (('bold', fix_multi_bold_source_name), 'in_file')]),
+                (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
+                (bidssrc, summary, [('bold', 'bold')]),
+                (bids_info, summary, [('subject_id', 'subject_id')]),
+                (bidssrc, func_preproc_wf, [('bold', 'inputnode.bold')]),
+                (summary, func_preproc_wf, [('subject_id', 'inputnode.subject_id')]),
+                (bidssrc, ds_summary_report, [
+                    (('bold', fix_multi_bold_source_name), 'source_file')]),
+                (summary, ds_summary_report, [('out_report', 'in_file')]),
+                (bidssrc, ds_about_report, [
+                    (('bold', fix_multi_bold_source_name), 'source_file')]),
+                (about, ds_about_report, [('out_report', 'in_file')]),
+            ])
 
     return workflow

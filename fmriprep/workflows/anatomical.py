@@ -26,7 +26,7 @@ structural images.
 
 import os.path as op
 
-from niworkflows.nipype.interfaces import freesurfer as fs
+from niworkflows.nipype.interfaces import c3, freesurfer as fs
 from niworkflows.nipype.interfaces import utility as niu
 from niworkflows.nipype.interfaces import io as nio
 from niworkflows.nipype.pipeline import engine as pe
@@ -39,7 +39,8 @@ from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransf
 
 from ..interfaces import (
     DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
-    FSDetectInputs, NormalizeSurf, GiftiNameSource, TemplateDimensions, Conform, Reorient
+    FSDetectInputs, NormalizeSurf, GiftiNameSource, TemplateDimensions, Conform, Reorient,
+    ConcatAffines
 )
 from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 
@@ -174,33 +175,15 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
         fields=['t1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_2_mni', 't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                 'mni_mask', 'mni_seg', 'mni_tpms',
+                'template_transforms',
                 'subjects_dir', 'subject_id', 't1_2_fsnative_forward_transform',
                 't1_2_fsnative_reverse_transform', 'surfaces']),
         name='outputnode')
 
-    # 0. Reorient T1w image(s) to RAS and resample to common voxel space
-    t1_template_dimensions = pe.Node(TemplateDimensions(), name='t1_template_dimensions')
-    t1_conform = pe.MapNode(Conform(), iterfield='in_file', name='t1_conform')
-
-    # 1. Align and merge if several T1w images are provided
-    t1_merge = pe.Node(
-        # StructuralReference is fs.RobustTemplate if > 1 volume, copying otherwise
-        StructuralReference(auto_detect_sensitivity=True,
-                            initial_timepoint=1,      # For deterministic behavior
-                            intensity_scaling=True,   # 7-DOF (rigid + intensity)
-                            subsample_threshold=200,
-                            fixed_timepoint=not longitudinal,
-                            no_iteration=not longitudinal,
-                            ),
-        name='t1_merge')
-
-    # 1.5 Reorient template to RAS, if needed (mri_robust_template sets LIA)
-    t1_reorient = pe.Node(Reorient(), name='t1_reorient')
-
-    # 2. T1 Bias Field Correction
-    # Bias field correction is handled in skull strip workflows.
+    anat_template_wf = init_anat_template_wf(longitudinal=longitudinal, omp_nthreads=omp_nthreads)
 
     # 3. Skull-stripping
+    # Bias field correction is handled in skull strip workflows.
     skullstrip_ants_wf = init_skullstrip_ants_wf(name='skullstrip_ants_wf',
                                                  skull_strip_template=skull_strip_template,
                                                  debug=debug,
@@ -219,7 +202,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
             flavor='testing' if debug else 'precise',
         ),
         name='t1_2_mni',
-        n_procs=omp_nthreads
+        n_procs=omp_nthreads,
+        mem_gb=2
     )
 
     # Resample the brain mask and the tissue probability maps into mni space
@@ -242,27 +226,17 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
         name='mni_tpms'
     )
 
-    def set_threads(in_list, maximum):
-        return min(len(in_list), maximum)
-
     workflow.connect([
-        (inputnode, t1_template_dimensions, [('t1w', 't1w_list')]),
-        (t1_template_dimensions, t1_conform, [
-            ('t1w_valid_list', 'in_file'),
-            ('target_zooms', 'target_zooms'),
-            ('target_shape', 'target_shape')]),
-        (t1_conform, t1_merge, [
-            ('out_file', 'in_files'),
-            (('out_file', set_threads, omp_nthreads), 'num_threads'),
-            (('out_file', add_suffix, '_template'), 'out_file')]),
-        (t1_merge, t1_reorient, [('out_file', 'in_file')]),
-        (t1_reorient, skullstrip_ants_wf, [('out_file', 'inputnode.in_file')]),
+        (inputnode, anat_template_wf, [('t1w', 'inputnode.t1w')]),
+        (anat_template_wf, skullstrip_ants_wf, [('outputnode.t1_template', 'inputnode.in_file')]),
         (skullstrip_ants_wf, t1_seg, [('outputnode.out_file', 'in_files')]),
         (skullstrip_ants_wf, outputnode, [('outputnode.bias_corrected', 't1_preproc'),
                                           ('outputnode.out_file', 't1_brain'),
                                           ('outputnode.out_mask', 't1_mask')]),
         (t1_seg, outputnode, [('tissue_class_map', 't1_seg'),
                               ('probability_maps', 't1_tpms')]),
+        (anat_template_wf, outputnode, [
+            ('outputnode.template_transforms', 't1_template_transforms')]),
     ])
 
     if 'template' in output_spaces:
@@ -302,7 +276,7 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                 ('t2w', 'inputnode.t2w'),
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id')]),
-            (t1_reorient, surface_recon_wf, [('out_file', 'inputnode.t1w')]),
+            (anat_template_wf, surface_recon_wf, [('outputnode.t1_template', 'inputnode.t1w')]),
             (skullstrip_ants_wf, surface_recon_wf, [
                 ('outputnode.out_file', 'inputnode.skullstripped_t1')]),
             (surface_recon_wf, outputnode, [
@@ -319,8 +293,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
     workflow.connect([
         (inputnode, anat_reports_wf, [
             (('t1w', fix_multi_T1w_source_name), 'inputnode.source_file')]),
-        (t1_template_dimensions, anat_reports_wf, [
-            ('out_report', 'inputnode.t1_conform_report')]),
+        (anat_template_wf, anat_reports_wf, [
+            ('outputnode.out_report', 'inputnode.t1_conform_report')]),
         (skullstrip_ants_wf, anat_reports_wf, [
             ('outputnode.out_report', 'inputnode.t1_skull_strip_report')]),
         (t1_seg, anat_reports_wf, [('out_report', 'inputnode.t1_seg_report')]),
@@ -342,9 +316,9 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                                                    freesurfer=freesurfer)
 
     workflow.connect([
-        (inputnode, anat_derivatives_wf, [
-            (('t1w', fix_multi_T1w_source_name), 'inputnode.source_file')]),
+        (inputnode, anat_derivatives_wf, [('t1w', 'inputnode.source_files')]),
         (outputnode, anat_derivatives_wf, [
+            ('t1_template_transforms', 'inputnode.t1_template_transforms'),
             ('t1_preproc', 'inputnode.t1_preproc'),
             ('t1_mask', 'inputnode.t1_mask'),
             ('t1_seg', 'inputnode.t1_seg'),
@@ -358,6 +332,114 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
             ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform'),
             ('surfaces', 'inputnode.surfaces'),
         ]),
+    ])
+
+    return workflow
+
+
+def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
+    r"""
+    This workflow generates a canonically oriented structural template from
+    input T1w images.
+
+
+    .. workflow::
+        :graph2use: orig
+        :simple_form: yes
+
+        from fmriprep.workflows.anatomical import init_anat_template_wf
+        wf = init_anat_template_wf(longitudinal=False, omp_nthreads=1)
+
+    **Parameters**
+
+        longitudinal : bool
+            Create unbiased structural template, regardless of number of inputs
+            (may increase runtime)
+        omp_nthreads : int
+            Maximum number of threads an individual process may use
+        name : str, optional
+            Workflow name (default: anat_template_wf)
+
+
+    **Inputs**
+
+        t1w
+            List of T1-weighted structural images
+
+
+    **Outputs**
+
+        t1_template
+            Structural template, defining T1w space
+        template_transforms
+            List of affine transforms from ``t1_template`` to original T1w images
+        out_report
+            Conformation report
+    """
+
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(fields=['t1w']), name='inputnode')
+    outputnode = pe.Node(niu.IdentityInterface(
+        fields=['t1_template',  'template_transforms', 'out_report']),
+        name='outputnode')
+
+    # 0. Reorient T1w image(s) to RAS and resample to common voxel space
+    t1_template_dimensions = pe.Node(TemplateDimensions(), name='t1_template_dimensions')
+    t1_conform = pe.MapNode(Conform(), iterfield='in_file', name='t1_conform')
+
+    # 1. Align and merge if several T1w images are provided
+    t1_merge = pe.Node(
+        # StructuralReference is fs.RobustTemplate if > 1 volume, copying otherwise
+        StructuralReference(auto_detect_sensitivity=True,
+                            initial_timepoint=1,      # For deterministic behavior
+                            intensity_scaling=True,   # 7-DOF (rigid + intensity)
+                            subsample_threshold=200,
+                            fixed_timepoint=not longitudinal,
+                            no_iteration=not longitudinal,
+                            transform_outputs=True,
+                            ),
+        name='t1_merge')
+
+    # Reorient template to RAS, if needed (mri_robust_template may set to LIA)
+    t1_reorient = pe.Node(Reorient(), name='t1_reorient')
+
+    lta_to_fsl = pe.MapNode(fs.utils.LTAConvert(out_fsl=True), iterfield=['in_lta'],
+                            name='lta_to_fsl')
+
+    concat_affines = pe.MapNode(
+        ConcatAffines(3, invert=True), iterfield=['mat_AtoB', 'mat_BtoC'],
+        name='concat_affines', run_without_submitting=True)
+
+    fsl_to_itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
+                            iterfield=['transform_file', 'source_file'], name='fsl_to_itk')
+
+    def set_threads(in_list, maximum):
+        return min(len(in_list), maximum)
+
+    workflow.connect([
+        (inputnode, t1_template_dimensions, [('t1w', 't1w_list')]),
+        (t1_template_dimensions, t1_conform, [
+            ('t1w_valid_list', 'in_file'),
+            ('target_zooms', 'target_zooms'),
+            ('target_shape', 'target_shape')]),
+        (t1_conform, t1_merge, [
+            ('out_file', 'in_files'),
+            (('out_file', set_threads, omp_nthreads), 'num_threads'),
+            (('out_file', add_suffix, '_template'), 'out_file')]),
+        (t1_merge, t1_reorient, [('out_file', 'in_file')]),
+        # Combine orientation and template transforms
+        (t1_merge, lta_to_fsl, [('transform_outputs', 'in_lta')]),
+        (t1_conform, concat_affines, [('transform', 'mat_AtoB')]),
+        (lta_to_fsl, concat_affines, [('out_fsl', 'mat_BtoC')]),
+        (t1_reorient, concat_affines, [('transform', 'mat_CtoD')]),
+        (inputnode, fsl_to_itk, [('t1w', 'source_file')]),
+        (t1_reorient, fsl_to_itk, [('out_file', 'reference_file')]),
+        (concat_affines, fsl_to_itk, [('out_mat', 'transform_file')]),
+        # Output
+        (t1_template_dimensions, outputnode, [('out_report', 'out_report')]),
+        (t1_reorient, outputnode, [('out_file', 't1_template')]),
+        (fsl_to_itk, outputnode, [('itk_transform', 'template_transforms')]),
     ])
 
     return workflow
@@ -669,8 +751,7 @@ def init_autorecon_resume_wf(omp_nthreads, name='autorecon_resume_wf'):
 
     autorecon2_vol = pe.Node(
         fs.ReconAll(directive='autorecon2-volonly', openmp=omp_nthreads),
-        n_procs=omp_nthreads,
-        name='autorecon2_vol')
+        n_procs=omp_nthreads, mem_gb=5, name='autorecon2_vol')
 
     autorecon_surfs = pe.MapNode(
         fs.ReconAll(
@@ -865,11 +946,14 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     inputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['source_file', 't1_preproc', 't1_mask', 't1_seg', 't1_tpms',
+            fields=['source_files', 't1_template_transforms',
+                    't1_preproc', 't1_mask', 't1_seg', 't1_tpms',
                     't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
                     't1_2_mni', 'mni_mask', 'mni_seg', 'mni_tpms',
                     't1_2_fsnative_forward_transform', 'surfaces']),
         name='inputnode')
+
+    t1_name = pe.Node(niu.Function(function=fix_multi_T1w_source_name), name='t1_name')
 
     ds_t1_preproc = pe.Node(
         DerivativesDataSink(base_directory=output_dir, suffix='preproc'),
@@ -918,6 +1002,11 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                             suffix=suffix_fmt(template, 'T1w', 'warp')),
         name='ds_t1_mni_inv_warp', run_without_submitting=True)
 
+    ds_t1_template_transforms = pe.MapNode(
+        DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt('orig', 'T1w', 'affine')),
+        iterfield=['source_file', 'in_file'],
+        name='ds_t1_template_transforms', run_without_submitting=True)
+
     suffix_fmt = 'target-{}_{}'.format
     ds_t1_mni_warp = pe.Node(
         DerivativesDataSink(base_directory=output_dir, suffix=suffix_fmt(template, 'warp')),
@@ -940,40 +1029,43 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         iterfield=['in_file', 'suffix'], name='ds_surfs', run_without_submitting=True)
 
     workflow.connect([
-        (inputnode, ds_t1_preproc, [('source_file', 'source_file'),
-                                    ('t1_preproc', 'in_file')]),
-        (inputnode, ds_t1_mask, [('source_file', 'source_file'),
-                                 ('t1_mask', 'in_file')]),
-        (inputnode, ds_t1_seg, [('source_file', 'source_file'),
-                                ('t1_seg', 'in_file')]),
-        (inputnode, ds_t1_tpms, [('source_file', 'source_file'),
-                                 ('t1_tpms', 'in_file')]),
+        (inputnode, t1_name, [('source_files', 'in_files')]),
+        (inputnode, ds_t1_template_transforms, [('source_files', 'source_file'),
+                                                ('t1_template_transforms', 'in_file')]),
+        (inputnode, ds_t1_preproc, [('t1_preproc', 'in_file')]),
+        (inputnode, ds_t1_mask, [('t1_mask', 'in_file')]),
+        (inputnode, ds_t1_seg, [('t1_seg', 'in_file')]),
+        (inputnode, ds_t1_tpms, [('t1_tpms', 'in_file')]),
+        (t1_name, ds_t1_preproc, [('out', 'source_file')]),
+        (t1_name, ds_t1_mask, [('out', 'source_file')]),
+        (t1_name, ds_t1_seg, [('out', 'source_file')]),
+        (t1_name, ds_t1_tpms, [('out', 'source_file')]),
     ])
 
     if freesurfer:
         workflow.connect([
             (inputnode, lta_2_itk, [('t1_2_fsnative_forward_transform', 'in_lta')]),
-            (inputnode, ds_t1_fsnative, [('source_file', 'source_file')]),
+            (t1_name, ds_t1_fsnative, [('out', 'source_file')]),
             (lta_2_itk, ds_t1_fsnative, [('out_itk', 'in_file')]),
             (inputnode, name_surfs, [('surfaces', 'in_file')]),
-            (inputnode, ds_surfs, [('source_file', 'source_file'),
-                                   ('surfaces', 'in_file')]),
+            (inputnode, ds_surfs, [('surfaces', 'in_file')]),
+            (t1_name, ds_surfs, [('out', 'source_file')]),
             (name_surfs, ds_surfs, [('out_name', 'suffix')]),
         ])
     if 'template' in output_spaces:
         workflow.connect([
-            (inputnode, ds_t1_mni_warp, [('source_file', 'source_file'),
-                                         ('t1_2_mni_forward_transform', 'in_file')]),
-            (inputnode, ds_t1_mni_inv_warp, [('source_file', 'source_file'),
-                                             ('t1_2_mni_reverse_transform', 'in_file')]),
-            (inputnode, ds_t1_mni, [('source_file', 'source_file'),
-                                    ('t1_2_mni', 'in_file')]),
-            (inputnode, ds_mni_mask, [('source_file', 'source_file'),
-                                      ('mni_mask', 'in_file')]),
-            (inputnode, ds_mni_seg, [('source_file', 'source_file'),
-                                     ('mni_seg', 'in_file')]),
-            (inputnode, ds_mni_tpms, [('source_file', 'source_file'),
-                                      ('mni_tpms', 'in_file')]),
+            (inputnode, ds_t1_mni_warp, [('t1_2_mni_forward_transform', 'in_file')]),
+            (inputnode, ds_t1_mni_inv_warp, [('t1_2_mni_reverse_transform', 'in_file')]),
+            (inputnode, ds_t1_mni, [('t1_2_mni', 'in_file')]),
+            (inputnode, ds_mni_mask, [('mni_mask', 'in_file')]),
+            (inputnode, ds_mni_seg, [('mni_seg', 'in_file')]),
+            (inputnode, ds_mni_tpms, [('mni_tpms', 'in_file')]),
+            (t1_name, ds_t1_mni_warp, [('out', 'source_file')]),
+            (t1_name, ds_t1_mni_inv_warp, [('out', 'source_file')]),
+            (t1_name, ds_t1_mni, [('out', 'source_file')]),
+            (t1_name, ds_mni_mask, [('out', 'source_file')]),
+            (t1_name, ds_mni_seg, [('out', 'source_file')]),
+            (t1_name, ds_mni_tpms, [('out', 'source_file')]),
         ])
 
     return workflow

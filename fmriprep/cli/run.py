@@ -20,12 +20,13 @@ import nibabel
 
 nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
 
-logging.addLevelName(25, 'INFO')  # Add a new level between INFO and WARNING
+logging.addLevelName(25, 'IMPORTANT')  # Add a new level between INFO and WARNING
+logging.addLevelName(15, 'VERBOSE')  # Add a new level between INFO and DEBUG
 logger = logging.getLogger('cli')
-logger.setLevel(25)
 
 INIT_MSG = """
 Running fMRIPREP version {version}:
+  * BIDS dataset path: {bids_dir}.
   * Participant list: {subject_list}.
   * Run identifier: {uuid}.
 """.format
@@ -58,7 +59,7 @@ def get_parser():
                              'FMRIPREP (see BIDS-Apps specification).')
 
     # optional arguments
-    parser.add_argument('-v', '--version', action='version', version=verstr)
+    parser.add_argument('--version', action='version', version=verstr)
 
     g_bids = parser.add_argument_group('Options for filtering BIDS queries')
     g_bids.add_argument('--participant_label', '--participant-label', action='store', nargs='+',
@@ -87,12 +88,15 @@ def get_parser():
                               'in working directory)')
     g_perfm.add_argument('--use-plugin', action='store', default=None,
                          help='nipype plugin configuration file')
-    
+
     g_perfm.add_argument('--ignore-aroma-denoising-errors', action='store_true',
                          default=False,
                          help='ignores the errors ICA_AROMA returns when there '
                               'are no components classified as either noise or '
                               'signal')
+    g_perfm.add_argument("-v", "--verbose", dest="verbose_count", action="count", default=0,
+                         help="increases log verbosity for each occurence, debug level is -vvv")
+
     # Add mutually exclusive func_only and anat_only pipeline options
     g_anatfunc = parser.add_mutually_exclusive_group()
     g_anatfunc.add_argument('--anat-only', action='store_true')
@@ -173,6 +177,10 @@ def get_parser():
                       help='disable FreeSurfer preprocessing')
     g_fs.add_argument('--no-submm-recon', action='store_false', dest='hires',
                       help='disable sub-millimeter (hires) reconstruction')
+    g_fs.add_argument(
+        '--fs-license-file', metavar='PATH', type=os.path.abspath,
+        help='Path to FreeSurfer license key file. Get it (for free) by registering'
+             ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
 
     g_other = parser.add_argument_group('Other options')
     g_other.add_argument('-w', '--work-dir', action='store', default='work',
@@ -193,10 +201,32 @@ def get_parser():
 
 def main():
     """Entry point"""
+    from niworkflows.nipype import logging as nlogging
+
     warnings.showwarning = _warn_redirect
     opts = get_parser().parse_args()
+
+    # Retrieve logging level
+    log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     if opts.debug:
-        logger.setLevel(logging.DEBUG)
+        log_level = logging.DEBUG
+
+    # Set logging
+    logger.setLevel(log_level)
+    nlogging.getLogger('workflow').setLevel(log_level)
+    nlogging.getLogger('interface').setLevel(log_level)
+    nlogging.getLogger('utils').setLevel(log_level)
+
+    # FreeSurfer license
+    default_license = op.join(os.getenv('FREESURFER_HOME', ''), 'license.txt')
+    # Precedence: --fs-license-file, $FS_LICENSE, default_license
+    license_file = opts.fs_license_file or os.getenv('FS_LICENSE', default_license)
+    if opts.freesurfer:
+        if not os.path.exists(license_file):
+            raise RuntimeError('ERROR: when --no-freesurfer is not set, a valid '
+                               'license file is required for FreeSurfer to run.')
+        else:
+            os.environ['FS_LICENSE'] = license_file
 
     # Validity of some inputs - OE should be done in parse_args?
     # ERROR check if use_aroma was specified, but the correct template was not
@@ -214,7 +244,7 @@ def main():
         if opts.force_syn:
             raise RuntimeError(msg)
         logger.warning(msg)
-    
+
     create_workflow(opts)
 
 
@@ -296,6 +326,7 @@ def create_workflow(opts):
     # Build main workflow
     logger.log(25, INIT_MSG(
         version=__version__,
+        bids_dir=bids_dir,
         subject_list=subject_list,
         uuid=run_uuid)
     )

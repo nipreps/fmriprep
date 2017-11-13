@@ -8,6 +8,7 @@ machine:
     DS005_URL: "${OSF_PROJECT}/57f32a429ad5a101f977eb75"
     DS005_FS_URL: "${OSF_PROJECT}/58fe59eb594d900250960180"
     DS054_URL: "${OSF_PROJECT}/57f32c22594d9001ef91bf9e"
+    FS_LICENSE: /tmp/fslicense/license.txt
   services:
     - docker
 
@@ -20,6 +21,7 @@ dependencies:
     - mkdir -p $HOME/ds005/out && sudo setfacl -R -d -m group:ubuntu:rwx $HOME/ds005 && sudo setfacl -R -m group:ubuntu:rwx $HOME/ds005
     - mkdir -p $HOME/ds054 && sudo setfacl -d -m group:ubuntu:rwx $HOME/ds054 && sudo setfacl -m group:ubuntu:rwx $HOME/ds054
     - mkdir -p $HOME/docs && sudo setfacl -d -m group:ubuntu:rwx $HOME/docs && sudo setfacl -m group:ubuntu:rwx $HOME/docs
+    - mkdir -p /tmp/fslicense && cd /tmp/fslicense && echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IGxpY2Vuc2UudHh0Cg==" | base64 -d | sh
     # Download test data
     - if [[ ! -d $HOME/data/ds005 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds005_downsampled.tar.gz "${DS005_URL}" && tar xzf ds005_downsampled.tar.gz -C $HOME/data/; fi
     - if [[ ! -d $HOME/data/ds054 ]]; then wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q -O ds054_downsampled.tar.gz "${DS054_URL}" && tar xzf ds054_downsampled.tar.gz -C $HOME/data/; fi

@@ -16,13 +16,14 @@ from niworkflows.nipype.algorithms import confounds as nac
 
 from niworkflows.interfaces import segmentation as nws
 from niworkflows.interfaces.masks import ACompCorRPT, TCompCorRPT
+from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import (
-    TPM2ROI, ConcatROIs, CombineROIs, AddTSVHeader, GatherConfounds, ICAConfounds
+    TPM2ROI, AddTPMs, AddTSVHeader, GatherConfounds, ICAConfounds
 )
 
 
-def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
+def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
                        name="bold_confs_wf"):
     """
     This workflow calculates confounds for a BOLD series, and aggregates them
@@ -31,16 +32,20 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
 
     The following confounds are calculated, with column headings in parentheses:
 
-    #. White matter / global signals (WhiteMatter, GlobalSignal)
+    #. Region-wise average signal (``CSF``, ``WhiteMatter``, ``GlobalSignal``)
     #. DVARS - standard, nonstandard, and voxel-wise standard variants
-        (stdDVARS, non-stdDVARS, vx-wisestdDVARS)
-    #. Framewise displacement, based on MCFLIRT motion parameters (FramewiseDisplacement)
-    #. tCompCor
-    #. aCompCor
-    #. Cosine basis set for high-pass filtering w/ 0.008 Hz cut-off (CosineXX)
-    #. Non-steady-state volumes (NonSteadyStateXX)
-    #. MCFLIRT motion parameters, in mm and rad (X, Y, Z, RotX, RotY, RotZ)
-    #. ICA-AROMA-identified noise components, if enabled (AROMAAggrCompXX)
+       (``stdDVARS``, ``non-stdDVARS``, ``vx-wisestdDVARS``)
+    #. Framewise displacement, based on MCFLIRT motion parameters
+       (``FramewiseDisplacement``)
+    #. Temporal CompCor (``tCompCorXX``)
+    #. Anatomical CompCor (``aCompCorXX``)
+    #. Cosine basis set for high-pass filtering w/ 0.008 Hz cut-off
+       (``CosineXX``)
+    #. Non-steady-state volumes (``NonSteadyStateXX``)
+    #. Estimated head-motion parameters, in mm and rad
+       (``X``, ``Y``, ``Z``, ``RotX``, ``RotY``, ``RotZ``)
+    #. ICA-AROMA-identified noise components, if enabled
+       (``AROMAAggrCompXX``)
 
     Prior to estimating aCompCor and tCompCor, non-steady-state volumes are
     censored and high-pass filtered using a :abbr:`DCT (discrete cosine
@@ -53,15 +58,18 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         :simple_form: yes
 
         from fmriprep.workflows.bold.confounds import init_bold_confs_wf
-        wf = init_bold_confs_wf(bold_file_size_gb=1,
-                                use_aroma=True,
-                                ignore_aroma_err=True,
-                                metadata={})
+        wf = init_bold_confs_wf(
+            mem_gb=1,
+            use_aroma=True,
+            ignore_aroma_err=True,
+            metadata={})
 
     **Parameters**
 
-        bold_file_size_gb : float
-            Size of BOLD file in GB
+        mem_gb : float
+            Size of BOLD file in GB - please note that this size
+            should be calculated after resamplings that may extend
+            the FoV
         use_aroma : bool
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
@@ -71,20 +79,25 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
 
     **Inputs**
 
-        bold_t1
-            BOLD image, resampled in T1w space
+        bold
+            BOLD image, after the prescribed corrections (STC, HMC and SDC)
+            when available.
+        bold_mask
+            BOLD series mask
         movpar_file
             SPM-formatted motion parameters file
         t1_mask
             Mask of the skull-stripped template image
         t1_tpms
             List of tissue probability maps in T1w space
-        bold_mask_t1
-            BOLD series mask in T1w space
+        t1_bold_xform
+            Affine matrix that maps the T1w space into alignment with
+            the native BOLD space
         bold_mni
-            BOLD series, resampled to template space
+            BOLD image resampled in MNI space (only if ``use_aroma`` enabled)
         bold_mask_mni
-            BOLD series mask in template space
+            Brain mask corresponding to the BOLD image resampled in MNI space
+            (only if ``use_aroma`` enabled)
 
     **Outputs**
 
@@ -112,8 +125,8 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold_t1', 'movpar_file', 't1_mask', 't1_tpms',
-                'bold_mask_t1', 'bold_mni', 'bold_mask_mni']),
+        fields=['bold', 'bold_mask', 'movpar_file', 't1_mask', 't1_tpms',
+                't1_bold_xform', 'bold_mni', 'bold_mask_mni']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['confounds_file', 'confounds_list', 'acompcor_report', 'tcompcor_report',
@@ -121,18 +134,40 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
                 'nonaggr_denoised_file']),
         name='outputnode')
 
-    # ICA-AROMA
-    if use_aroma:
-        ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
-                                         ignore_aroma_err=ignore_aroma_err)
+    # Get masks ready in T1w space
+    acc_tpm = pe.Node(AddTPMs(indices=[0, 2]), name='tpms_add_csf_wm',
+                      run_without_submitting=True)  # acc stands for aCompCor
+    csf_roi = pe.Node(TPM2ROI(erode_mm=0, mask_erode_mm=30), name='csf_roi')
+    wm_roi = pe.Node(TPM2ROI(
+        erode_prop=0.6, mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
+        name='wm_roi')
+    acc_roi = pe.Node(TPM2ROI(
+        erode_prop=0.6, mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
+        name='acc_roi')
+
+    # Map ROIs in T1w space into BOLD space
+    csf_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+                      name='csf_tfm', mem_gb=0.1)
+    wm_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+                     name='wm_tfm', mem_gb=0.1)
+    acc_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+                      name='acc_tfm', mem_gb=0.1)
+    tcc_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+                      name='tcc_tfm', mem_gb=0.1)
+
+    # Ensure ROIs don't go off-limits (reduced FoV)
+    csf_msk = pe.Node(niu.Function(function=_maskroi), name='csf_msk', run_without_submitting=True)
+    wm_msk = pe.Node(niu.Function(function=_maskroi), name='wm_msk', run_without_submitting=True)
+    acc_msk = pe.Node(niu.Function(function=_maskroi), name='acc_msk', run_without_submitting=True)
+    tcc_msk = pe.Node(niu.Function(function=_maskroi), name='tcc_msk', run_without_submitting=True)
 
     # DVARS
     dvars = pe.Node(nac.ComputeDVARS(save_all=True, remove_zerovariance=True),
-                    name="dvars", mem_gb=bold_file_size_gb * 3)
+                    name="dvars", mem_gb=mem_gb)
 
     # Frame displacement
     fdisp = pe.Node(nac.FramewiseDisplacement(parameter_source="SPM"),
-                    name="fdisp", mem_gb=bold_file_size_gb * 3)
+                    name="fdisp", mem_gb=mem_gb)
 
     # CompCor
     non_steady_state = pe.Node(nac.NonSteadyStateDetector(), name='non_steady_state')
@@ -141,81 +176,93 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
                                    pre_filter='cosine',
                                    save_pre_filter=True,
                                    percentile_threshold=.05),
-                       name="tcompcor", mem_gb=bold_file_size_gb * 3)
+                       name="tcompcor", mem_gb=mem_gb)
     acompcor = pe.Node(ACompCorRPT(components_file='acompcor.tsv',
                                    pre_filter='cosine',
                                    save_pre_filter=True,
                                    generate_report=True),
-                       name="acompcor", mem_gb=bold_file_size_gb * 3)
-
-    csf_roi = pe.Node(TPM2ROI(erode_mm=0, mask_erode_mm=30), name='csf_roi')
-    wm_roi = pe.Node(TPM2ROI(erode_prop=0.6,
-                             mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
-                     name='wm_roi')
-    merge_rois = pe.Node(niu.Merge(2), name='merge_rois', run_without_submitting=True, mem_gb=0.01)
-    combine_rois = pe.Node(CombineROIs(), name='combine_rois')
-    concat_rois = pe.Node(ConcatROIs(), name='concat_rois')
-
-    # Global and segment regressors
-    signals = pe.Node(SignalExtraction(detrend=True,
-                                       class_labels=["WhiteMatter", "GlobalSignal"]),
-                      name="signals", mem_gb=bold_file_size_gb * 3)
-
-    # Arrange confounds
-    add_header = pe.Node(AddTSVHeader(columns=["X", "Y", "Z", "RotX", "RotY", "RotZ"]),
-                         name="add_header", mem_gb=0.01, run_without_submitting=True)
-    concat = pe.Node(GatherConfounds(), name="concat", mem_gb=0.01, run_without_submitting=True)
+                       name="acompcor", mem_gb=mem_gb)
 
     # Set TR if present
     if 'RepetitionTime' in metadata:
         tcompcor.inputs.repetition_time = metadata['RepetitionTime']
         acompcor.inputs.repetition_time = metadata['RepetitionTime']
 
+    # Global and segment regressors
+    mrg_lbl = pe.Node(niu.Merge(3), name='merge_rois', run_without_submitting=True)
+    signals = pe.Node(SignalExtraction(
+        detrend=True, class_labels=["CSF", "WhiteMatter", "GlobalSignal"]),
+        name="signals", mem_gb=mem_gb)
+
+    # Arrange confounds
+    add_header = pe.Node(AddTSVHeader(columns=["X", "Y", "Z", "RotX", "RotY", "RotZ"]),
+                         name="add_header", mem_gb=0.01, run_without_submitting=True)
+    concat = pe.Node(GatherConfounds(), name="concat", mem_gb=0.01, run_without_submitting=True)
+
     def _pick_csf(files):
         return files[0]
 
     def _pick_wm(files):
-        return files[2]
+        return files[-1]
 
     workflow = pe.Workflow(name=name)
     workflow.connect([
+        # Massage ROIs (in T1w space)
+        (inputnode, acc_tpm, [('t1_tpms', 'in_files')]),
+        (inputnode, csf_roi, [(('t1_tpms', _pick_csf), 'in_tpm'),
+                              ('t1_mask', 'in_mask')]),
+        (inputnode, wm_roi, [(('t1_tpms', _pick_wm), 'in_tpm'),
+                             ('t1_mask', 'in_mask')]),
+        (inputnode, acc_roi, [('t1_mask', 'in_mask')]),
+        (acc_tpm, acc_roi, [('out_file', 'in_tpm')]),
+        # Map ROIs to BOLD
+        (inputnode, csf_tfm, [('bold_mask', 'reference_image'),
+                              ('t1_bold_xform', 'transforms')]),
+        (csf_roi, csf_tfm, [('roi_file', 'input_image')]),
+        (inputnode, wm_tfm, [('bold_mask', 'reference_image'),
+                             ('t1_bold_xform', 'transforms')]),
+        (wm_roi, wm_tfm, [('roi_file', 'input_image')]),
+        (inputnode, acc_tfm, [('bold_mask', 'reference_image'),
+                              ('t1_bold_xform', 'transforms')]),
+        (acc_roi, acc_tfm, [('roi_file', 'input_image')]),
+        (inputnode, tcc_tfm, [('bold_mask', 'reference_image'),
+                              ('t1_bold_xform', 'transforms')]),
+        (csf_roi, tcc_tfm, [('eroded_mask', 'input_image')]),
+        # Mask ROIs with bold_mask
+        (inputnode, csf_msk, [('bold_mask', 'in_mask')]),
+        (inputnode, wm_msk, [('bold_mask', 'in_mask')]),
+        (inputnode, acc_msk, [('bold_mask', 'in_mask')]),
+        (inputnode, tcc_msk, [('bold_mask', 'in_mask')]),
         # connect inputnode to each non-anatomical confound node
-        (inputnode, dvars, [('bold_t1', 'in_file'),
-                            ('bold_mask_t1', 'in_mask')]),
+        (inputnode, dvars, [('bold', 'in_file'),
+                            ('bold_mask', 'in_mask')]),
         (inputnode, fdisp, [('movpar_file', 'in_file')]),
-        (inputnode, non_steady_state, [('bold_t1', 'in_file')]),
-        (inputnode, tcompcor, [('bold_t1', 'realigned_file')]),
 
+        # Calculate nonsteady state
+        (inputnode, non_steady_state, [('bold', 'in_file')]),
+
+        # tCompCor
+        (inputnode, tcompcor, [('bold', 'realigned_file')]),
         (non_steady_state, tcompcor, [('n_volumes_to_discard', 'ignore_initial_volumes')]),
+        (tcc_tfm, tcc_msk, [('output_image', 'roi_file')]),
+        (tcc_msk, tcompcor, [('out', 'mask_files')]),
+
+        # aCompCor
+        (inputnode, acompcor, [('bold', 'realigned_file')]),
         (non_steady_state, acompcor, [('n_volumes_to_discard', 'ignore_initial_volumes')]),
+        (acc_tfm, acc_msk, [('output_image', 'roi_file')]),
+        (acc_msk, acompcor, [('out', 'mask_files')]),
 
-        (inputnode, csf_roi, [(('t1_tpms', _pick_csf), 't1_tpm'),
-                              ('t1_mask', 't1_mask'),
-                              ('bold_mask_t1', 'bold_mask')]),
-        (csf_roi, tcompcor, [('eroded_mask', 'mask_files')]),
+        # Global signals extraction (constrained by anatomy)
+        (inputnode, signals, [('bold', 'in_file')]),
+        (csf_tfm, csf_msk, [('output_image', 'roi_file')]),
+        (csf_msk, mrg_lbl, [('out', 'in1')]),
+        (wm_tfm, wm_msk, [('output_image', 'roi_file')]),
+        (wm_msk, mrg_lbl, [('out', 'in2')]),
+        (inputnode, mrg_lbl, [('bold_mask', 'in3')]),
+        (mrg_lbl, signals, [('out', 'label_files')]),
 
-        (inputnode, wm_roi, [(('t1_tpms', _pick_wm), 't1_tpm'),
-                             ('t1_mask', 't1_mask'),
-                             ('bold_mask_t1', 'bold_mask')]),
-
-        (csf_roi, merge_rois, [('roi_file', 'in1')]),
-        (wm_roi, merge_rois, [('roi_file', 'in2')]),
-        (merge_rois, combine_rois, [('out', 'in_files')]),
-        (inputnode, combine_rois, [('bold_t1', 'ref_header')]),
-
-        # anatomical confound: aCompCor.
-        (inputnode, acompcor, [('bold_t1', 'realigned_file')]),
-        (combine_rois, acompcor, [('out_file', 'mask_files')]),
-
-        (wm_roi, concat_rois, [('roi_file', 'in_file')]),
-        (inputnode, concat_rois, [('bold_mask_t1', 'in_mask')]),
-        (inputnode, concat_rois, [('bold_t1', 'ref_header')]),
-
-        # anatomical confound: signal extraction
-        (concat_rois, signals, [('out_file', 'label_files')]),
-        (inputnode, signals, [('bold_t1', 'in_file')]),
-
-        # connect the confound nodes to the concatenate node
+        # Collate computed confounds together
         (inputnode, add_header, [('movpar_file', 'in_file')]),
         (signals, concat, [('out_file', 'signals')]),
         (dvars, concat, [('out_all', 'dvars')]),
@@ -225,6 +272,7 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
         (acompcor, concat, [('components_file', 'acompcor')]),
         (add_header, concat, [('out_file', 'motion')]),
 
+        # Set outputs
         (concat, outputnode, [('confounds_file', 'confounds_file'),
                               ('confounds_list', 'confounds_list')]),
         (acompcor, outputnode, [('out_report', 'acompcor_report')]),
@@ -232,6 +280,9 @@ def init_bold_confs_wf(bold_file_size_gb, use_aroma, ignore_aroma_err, metadata,
     ])
 
     if use_aroma:
+        # ICA-AROMA
+        ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
+                                         ignore_aroma_err=ignore_aroma_err)
         workflow.connect([
             (inputnode, ica_aroma_wf, [('bold_mni', 'inputnode.bold_mni'),
                                        ('bold_mask_mni', 'inputnode.bold_mask_mni'),
@@ -365,3 +416,19 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     ])
 
     return workflow
+
+
+def _maskroi(in_mask, roi_file):
+    import numpy as np
+    import nibabel as nb
+    from niworkflows.nipype.utils.filemanip import fname_presuffix
+
+    roi = nb.load(roi_file)
+    roidata = roi.get_data().astype(np.uint8)
+    msk = nb.load(in_mask).get_data().astype(bool)
+    roidata[~msk] = 0
+    roi.set_data_dtype(np.uint8)
+
+    out = fname_presuffix(roi_file, suffix='_boldmsk')
+    roi.__class__(roidata, roi.affine, roi.header).to_filename(out)
+    return out

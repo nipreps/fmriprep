@@ -94,6 +94,9 @@ def init_fmap_unwarp_report_wf(reportlets_dir, name='fmap_unwarp_report_wf'):
             gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
         in_xfm
             Affine transform from T1 space to BOLD space (ITK format)
+        name_source
+            BOLD series NIfTI file
+            Used to recover original information lost during processing
 
     """
 

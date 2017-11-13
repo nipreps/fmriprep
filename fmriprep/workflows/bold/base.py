@@ -13,6 +13,7 @@ Orchestrating the BOLD-preprocessing workflow
 
 import os
 
+import nibabel as nb
 from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import split_filename
 from niworkflows.nipype.pipeline import engine as pe
@@ -37,7 +38,12 @@ from .confounds import init_bold_confs_wf
 from .hmc import init_bold_hmc_wf
 from .stc import init_bold_stc_wf
 from .registration import init_bold_reg_wf
-from .resampling import init_bold_surf_wf, init_bold_mni_trans_wf
+from .resampling import (
+    init_bold_surf_wf,
+    init_bold_mni_trans_wf,
+    init_bold_preproc_trans_wf,
+    init_bold_preproc_report_wf,
+)
 from .util import init_bold_reference_wf
 
 DEFAULT_MEMORY_MIN_GB = 0.01
@@ -193,6 +199,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         * :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`
         * :py:func:`~fmriprep.workflows.bold.confounds.init_bold_confounds_wf`
         * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_mni_trans_wf`
+        * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_preproc_trans_wf`
         * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_surf_wf`
         * :py:func:`~fmriprep.workflows.fieldmap.unwarp.init_pepolar_unwarp_wf`
         * :py:func:`~fmriprep.workflows.fieldmap.init_fmap_estimator_wf`
@@ -202,11 +209,19 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     """
 
     if bold_file == '/completely/made/up/path/sub-01_task-nback_bold.nii.gz':
-        bold_file_size_gb = 1
+        mem_gb = {'filesize': 1, 'resampled': 1, 'largemem': 1}
+        bold_tlen = 10
     else:
-        bold_file_size_gb = os.path.getsize(bold_file) / (1024**3)
+        bold_size_gb = os.path.getsize(bold_file) / (1024**3)
+        bold_tlen = nb.load(bold_file).shape[-1]
+        mem_gb = {
+            'filesize': bold_size_gb,
+            'resampled': bold_size_gb * 4,
+            'largemem': (0.007 * max(bold_tlen, 100) + 1.5) * bold_size_gb,
+        }
 
-    LOGGER.info('Creating bold processing workflow for "%s".', bold_file)
+    LOGGER.log(25, 'Creating bold processing workflow for "%s" (%.2f GB / %d TRs).',
+               bold_file, mem_gb['filesize'], bold_tlen)
     fname = split_filename(bold_file)[1]
     fname_nosub = '_'.join(fname.split("_")[1:])
     name = "func_preproc_" + fname_nosub.replace(
@@ -215,7 +230,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     # For doc building purposes
     if layout is None or bold_file == 'bold_preprocesing':
 
-        LOGGER.info('No valid layout: building empty workflow.')
+        LOGGER.log(25, 'No valid layout: building empty workflow.')
         metadata = {"RepetitionTime": 2.0,
                     "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}
         fmaps = [{
@@ -304,7 +319,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     # HMC on the BOLD
     bold_hmc_wf = init_bold_hmc_wf(name='bold_hmc_wf',
-                                   bold_file_size_gb=bold_file_size_gb,
+                                   mem_gb=mem_gb['filesize'],
                                    omp_nthreads=omp_nthreads)
 
     # mean BOLD registration to T1w
@@ -312,14 +327,14 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                    freesurfer=freesurfer,
                                    use_bbr=use_bbr,
                                    bold2t1w_dof=bold2t1w_dof,
-                                   bold_file_size_gb=bold_file_size_gb,
+                                   mem_gb=mem_gb['largemem'],
                                    omp_nthreads=omp_nthreads,
                                    use_compression=not low_mem,
                                    use_fieldwarp=(fmaps is not None or use_syn))
 
     # get confounds
     bold_confounds_wf = init_bold_confs_wf(
-        bold_file_size_gb=bold_file_size_gb,
+        mem_gb=mem_gb['largemem'],
         use_aroma=use_aroma,
         ignore_aroma_err=ignore_aroma_err,
         metadata=metadata,
@@ -346,9 +361,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (bold_hmc_wf, bold_reg_wf, [('outputnode.bold_split', 'inputnode.bold_split'),
                                     ('outputnode.xforms', 'inputnode.hmc_xforms')]),
         (bold_hmc_wf, bold_confounds_wf, [('outputnode.movpar_file', 'inputnode.movpar_file')]),
-        (bold_reg_wf, bold_confounds_wf, [
-            ('outputnode.bold_t1', 'inputnode.bold_t1'),
-            ('outputnode.bold_mask_t1', 'inputnode.bold_mask_t1')]),
         (bold_reference_wf, func_reports_wf, [
             ('outputnode.validation_report', 'inputnode.validation_report')]),
         (bold_reg_wf, func_reports_wf, [
@@ -400,7 +412,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         fmaps.sort(key=lambda fmap: {'epi': 0, 'fieldmap': 1, 'phasediff': 2}[fmap['type']])
         fmap = fmaps[0]
 
-        LOGGER.info('Fieldmap estimation: type "%s" found', fmap['type'])
+        LOGGER.log(25, 'Fieldmap estimation: type "%s" found', fmap['type'])
         summary.inputs.distortion_correction = fmap['type']
 
         if fmap['type'] == 'epi':
@@ -507,7 +519,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         # Only use uncompressed output if AROMA is to be run
         bold_mni_trans_wf = init_bold_mni_trans_wf(
             template=template,
-            bold_file_size_gb=bold_file_size_gb,
+            mem_gb=mem_gb['resampled'],
             omp_nthreads=omp_nthreads,
             output_grid_ref=output_grid_ref,
             use_compression=not (low_mem and use_aroma),
@@ -549,9 +561,60 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                     ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             ])
 
+    # Apply transforms in 1 shot
+    # Only use uncompressed output if AROMA is to be run
+    bold_bold_trans_wf = init_bold_preproc_trans_wf(
+        mem_gb=mem_gb['resampled'],
+        omp_nthreads=omp_nthreads,
+        use_compression=not (low_mem and use_aroma),
+        use_fieldwarp=(fmaps is not None or use_syn),
+        name='bold_bold_trans_wf'
+    )
+
+    bold_bold_report_wf = init_bold_preproc_report_wf(
+        mem_gb=mem_gb['resampled'],
+        reportlets_dir=reportlets_dir
+    )
+
+    workflow.connect([
+        (inputnode, bold_bold_trans_wf, [
+            ('bold_file', 'inputnode.name_source')]),
+        (bold_hmc_wf, bold_bold_trans_wf, [
+            ('outputnode.bold_split', 'inputnode.bold_split'),   # This should be after STC
+            ('outputnode.xforms', 'inputnode.hmc_xforms')]),
+        (bold_reg_wf, bold_confounds_wf, [
+            ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
+        (bold_bold_trans_wf, bold_confounds_wf, [
+            ('outputnode.bold', 'inputnode.bold'),
+            ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+        (inputnode, bold_bold_report_wf, [
+            ('bold_file', 'inputnode.name_source'),
+            ('bold_file', 'inputnode.in_pre')]),  # This should be after STC
+        (bold_bold_trans_wf, bold_bold_report_wf, [
+            ('outputnode.bold', 'inputnode.in_post')]),
+    ])
+
+    if fmaps:
+        workflow.connect([
+            (sdc_unwarp_wf, bold_bold_trans_wf, [
+                ('outputnode.out_warp', 'inputnode.fieldwarp'),
+                ('outputnode.out_mask', 'inputnode.bold_mask')]),
+        ])
+    elif use_syn:
+        workflow.connect([
+            (nonlinear_sdc_wf, bold_bold_trans_wf, [
+                ('outputnode.out_warp', 'inputnode.fieldwarp'),
+                ('outputnode.out_mask', 'inputnode.bold_mask')]),
+        ])
+    else:
+        workflow.connect([
+            (bold_reference_wf, bold_bold_trans_wf, [
+                ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+        ])
+
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
-        LOGGER.info('Creating BOLD surface-sampling workflow.')
-        bold_surf_wf = init_bold_surf_wf(bold_file_size_gb=bold_file_size_gb,
+        LOGGER.log(25, 'Creating BOLD surface-sampling workflow.')
+        bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
                                          output_spaces=output_spaces,
                                          medial_surface_nan=medial_surface_nan,
                                          name='bold_surf_wf')

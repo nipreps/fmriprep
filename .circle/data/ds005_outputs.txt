@@ -24,6 +24,7 @@ ds005/out/fmriprep/sub-01/anat/sub-01_T1w_space-MNI152NLin2009cAsym_class-WM_pro
 ds005/out/fmriprep/sub-01/anat/sub-01_T1w_space-MNI152NLin2009cAsym_dtissue.nii.gz
 ds005/out/fmriprep/sub-01/anat/sub-01_T1w_space-MNI152NLin2009cAsym_preproc.nii.gz
 ds005/out/fmriprep/sub-01/anat/sub-01_T1w_space-MNI152NLin2009cAsym_target-T1w_warp.h5
+ds005/out/fmriprep/sub-01/anat/sub-01_T1w_space-orig_target-T1w_affine.txt
 ds005/out/fmriprep/sub-01/anat/sub-01_T1w_target-fsnative_affine.txt
 ds005/out/fmriprep/sub-01/anat/sub-01_T1w_target-MNI152NLin2009cAsym_warp.h5
 ds005/out/fmriprep/sub-01/func

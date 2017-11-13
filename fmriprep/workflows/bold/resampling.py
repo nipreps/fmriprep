@@ -7,6 +7,7 @@ Resampling workflows
 
 .. autofunction:: init_bold_surf_wf
 .. autofunction:: init_bold_mni_trans_wf
+.. autofunction:: init_bold_preproc_trans_wf
 
 """
 import os.path as op
@@ -24,10 +25,12 @@ from ...interfaces.nilearn import Merge
 # See https://github.com/poldracklab/fmriprep/issues/768
 from ...interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
 
+from .util import init_bold_reference_wf
+
 DEFAULT_MEMORY_MIN_GB = 0.01
 
 
-def init_bold_surf_wf(bold_file_size_gb, output_spaces, medial_surface_nan, name='bold_surf_wf'):
+def init_bold_surf_wf(mem_gb, output_spaces, medial_surface_nan, name='bold_surf_wf'):
     """
     This workflow samples functional images to FreeSurfer surfaces
 
@@ -41,7 +44,7 @@ def init_bold_surf_wf(bold_file_size_gb, output_spaces, medial_surface_nan, name
         :simple_form: yes
 
         from fmriprep.workflows.bold import init_bold_surf_wf
-        wf = init_bold_surf_wf(bold_file_size_gb=0.1,
+        wf = init_bold_surf_wf(mem_gb=0.1,
                                output_spaces=['T1w', 'fsnative',
                                              'template', 'fsaverage5'],
                                medial_surface_nan=False)
@@ -111,7 +114,7 @@ def init_bold_surf_wf(bold_file_size_gb, output_spaces, medial_surface_nan, name
                            override_reg_subj=True, out_type='gii'),
         iterfield=['source_file', 'target_subject'],
         iterables=('hemi', ['lh', 'rh']),
-        name='sampler', mem_gb=bold_file_size_gb * 3)
+        name='sampler', mem_gb=mem_gb * 3)
 
     def medial_wall_to_nan(in_file, subjects_dir, target_subject):
         """ Convert values on medial wall to NaNs
@@ -175,7 +178,7 @@ def init_bold_surf_wf(bold_file_size_gb, output_spaces, medial_surface_nan, name
     return workflow
 
 
-def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
+def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
                            name='bold_mni_trans_wf',
                            output_grid_ref=None, use_compression=True,
                            use_fieldwarp=False):
@@ -189,7 +192,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
 
         from fmriprep.workflows.bold import init_bold_mni_trans_wf
         wf = init_bold_mni_trans_wf(template='MNI152NLin2009cAsym',
-                                    bold_file_size_gb=3,
+                                    mem_gb=3,
                                     omp_nthreads=1,
                                     output_grid_ref=None)
 
@@ -197,7 +200,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
 
         template : str
             Name of template targeted by `'template'` output space
-        bold_file_size_gb : float
+        mem_gb : float
             Size of BOLD file in GB
         omp_nthreads : int
             Maximum number of threads an individual process may use
@@ -267,7 +270,7 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
     mask_mni_tfm = pe.Node(
         ApplyTransforms(interpolation='NearestNeighbor', float=True),
         name='mask_mni_tfm',
-        mem_gb=bold_file_size_gb * 3
+        mem_gb=1
     )
 
     # Write corrected file in the designated output dir
@@ -293,10 +296,10 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
 
     bold_to_mni_transform = pe.Node(
         MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
-        name='bold_to_mni_transform', mem_gb=bold_file_size_gb * 3, n_procs=omp_nthreads)
+        name='bold_to_mni_transform', mem_gb=mem_gb * 3 * omp_nthreads, n_procs=omp_nthreads)
 
     merge = pe.Node(Merge(compress=use_compression), name='merge',
-                    mem_gb=bold_file_size_gb * 3)
+                    mem_gb=mem_gb * 3)
 
     workflow.connect([
         (inputnode, merge_xforms, [('t1_2_mni_forward_transform', 'in1'),
@@ -317,3 +320,178 @@ def init_bold_mni_trans_wf(template, bold_file_size_gb, omp_nthreads,
         mask_mni_tfm.inputs.reference_image = output_grid_ref
         bold_to_mni_transform.inputs.reference_image = output_grid_ref
     return workflow
+
+
+def init_bold_preproc_trans_wf(mem_gb, omp_nthreads,
+                               name='bold_preproc_trans_wf',
+                               use_compression=True,
+                               use_fieldwarp=False):
+    """
+    This workflow resamples the input fMRI in its native (original)
+    space in a "single shot" from the original BOLD series.
+
+    .. workflow::
+        :graph2use: colored
+        :simple_form: yes
+
+        from fmriprep.workflows.bold import init_bold_preproc_trans_wf
+        wf = init_bold_preproc_trans_wf(mem_gb=3, omp_nthreads=1)
+
+    **Parameters**
+
+        mem_gb : float
+            Size of BOLD file in GB
+        omp_nthreads : int
+            Maximum number of threads an individual process may use
+        name : str
+            Name of workflow (default: ``bold_mni_trans_wf``)
+        use_compression : bool
+            Save registered BOLD series as ``.nii.gz``
+        use_fieldwarp : bool
+            Include SDC warp in single-shot transform from BOLD to MNI
+
+    **Inputs**
+
+        bold_split
+            Individual 3D volumes, not motion corrected
+        bold_mask
+            Skull-stripping mask of reference image
+        name_source
+            BOLD series NIfTI file
+            Used to recover original information lost during processing
+        hmc_xforms
+            List of affine transforms aligning each volume to ``ref_image`` in ITK format
+        fieldwarp
+            a :abbr:`DFM (displacements field map)` in ITK format
+
+    **Outputs**
+
+        bold
+            BOLD series, resampled in native space, including all preprocessing
+        bold_mask
+            BOLD series mask calculated with the new time-series
+        bold_ref
+            BOLD reference image: an average-like 3D image of the time-series
+        bold_ref_brain
+            Same as ``bold_ref``, but once the brain mask has been applied
+
+    """
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(niu.IdentityInterface(fields=[
+        'name_source', 'bold_split', 'bold_mask', 'hmc_xforms', 'fieldwarp']),
+        name='inputnode'
+    )
+
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['bold', 'bold_mask', 'bold_ref', 'bold_ref_brain']),
+        name='outputnode')
+
+    bold_transform = pe.Node(
+        MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
+        name='bold_transform', mem_gb=mem_gb * 3 * omp_nthreads, n_procs=omp_nthreads)
+
+    merge = pe.Node(Merge(compress=use_compression), name='merge',
+                    mem_gb=mem_gb * 3)
+
+    # Generate a new BOLD reference
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+
+    workflow.connect([
+        (inputnode, merge, [('name_source', 'header_source')]),
+        (inputnode, bold_transform, [('bold_split', 'input_image'),
+                                     (('bold_split', _first), 'reference_image')]),
+        (bold_transform, merge, [('out_files', 'in_files')]),
+        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
+        (merge, outputnode, [('out_file', 'bold')]),
+        (bold_reference_wf, outputnode, [
+            ('outputnode.ref_image', 'bold_ref'),
+            ('outputnode.ref_image_brain', 'bold_ref_brain'),
+            ('outputnode.bold_mask', 'bold_mask')]),
+    ])
+
+    if use_fieldwarp:
+        merge_xforms = pe.Node(niu.Merge(2), name='merge_xforms',
+                               run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+        workflow.connect([
+            (inputnode, merge_xforms, [('fieldwarp', 'in1'),
+                                       ('hmc_xforms', 'in2')]),
+            (merge_xforms, bold_transform, [('out', 'transforms')]),
+        ])
+    else:
+        def _aslist(val):
+            return [val]
+        workflow.connect([
+            (inputnode, bold_transform, [(('hmc_xforms', _aslist), 'transforms')]),
+        ])
+
+    return workflow
+
+
+def init_bold_preproc_report_wf(mem_gb, reportlets_dir, name='bold_preproc_report_wf'):
+    """
+    This workflow generates and saves a reportlet showing the effect of resampling
+    the BOLD signal using the standard deviation maps.
+
+    .. workflow::
+        :graph2use: orig
+        :simple_form: yes
+
+        from fmriprep.workflows.bold.resampling import init_bold_preproc_report_wf
+        wf = init_bold_preproc_report_wf(mem_gb=1, reportlets_dir='.')
+
+    **Parameters**
+
+        mem_gb : float
+            Size of BOLD file in GB
+        reportlets_dir : str
+            Directory in which to save reportlets
+        name : str, optional
+            Workflow name (default: bold_preproc_report_wf)
+
+    **Inputs**
+
+        in_pre
+            BOLD time-series, before resampling
+        in_post
+            BOLD time-series, after resampling
+        name_source
+            BOLD series NIfTI file
+            Used to recover original information lost during processing
+
+    """
+
+    from niworkflows.nipype.algorithms.confounds import TSNR
+    from niworkflows.interfaces import SimpleBeforeAfter
+    from ...interfaces import DerivativesDataSink
+
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['in_pre', 'in_post', 'name_source']), name='inputnode')
+
+    pre_tsnr = pe.Node(TSNR(), name='pre_tsnr', mem_gb=mem_gb * 4.5)
+    pos_tsnr = pe.Node(TSNR(), name='pos_tsnr', mem_gb=mem_gb * 4.5)
+
+    bold_rpt = pe.Node(SimpleBeforeAfter(), name='bold_rpt',
+                       mem_gb=0.1)
+    bold_rpt_ds = pe.Node(
+        DerivativesDataSink(base_directory=reportlets_dir,
+                            suffix='variant-preproc'), name='bold_rpt_ds',
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+        run_without_submitting=True
+    )
+
+    workflow.connect([
+        (inputnode, bold_rpt_ds, [('name_source', 'source_file')]),
+        (inputnode, pre_tsnr, [('in_pre', 'in_file')]),
+        (inputnode, pos_tsnr, [('in_post', 'in_file')]),
+        (pre_tsnr, bold_rpt, [('stddev_file', 'before')]),
+        (pos_tsnr, bold_rpt, [('stddev_file', 'after')]),
+        (bold_rpt, bold_rpt_ds, [('out_report', 'in_file')]),
+    ])
+
+    return workflow
+
+
+def _first(inlist):
+    return inlist[0]

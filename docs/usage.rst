@@ -19,14 +19,28 @@ The common parts of the command follow the `BIDS-Apps
 <https://github.com/BIDS-Apps>`_ definition.
 Example: ::
 
-    fmriprep data/bids_root/ out/ participant -w work/
+    fmriprep data/bids_root/ out/ participant -w work/ --no-freesurfer
+
+Please note the ``--no-freesurfer`` flag, which is necessary unless you 
+have a valid license file installed in your system. More information
+is found in :ref:`fs_license`.
 
 Command-Line Arguments
-~~~~~~~~~~~~~~~~~~~~~~
+======================
 
 .. argparse::
    :ref: fmriprep.cli.run.get_parser
    :prog: fmriprep
+   :nodefault:
+   :nodefaultconst:
+
+
+The docker wrapper CLI
+======================
+
+.. argparse::
+   :ref: fmriprep_docker.get_parser
+   :prog: fmriprep-docker
    :nodefault:
    :nodefaultconst:
 

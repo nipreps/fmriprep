@@ -162,33 +162,37 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
     unifize = pe.Node(afni.Unifize(t2=True, outputtype='NIFTI_GZ',
                                    args='-clfrac 0.4',
                                    out_file="uni.nii.gz"), name='unifize')
+    fixhdr_unifize = pe.Node(CopyXForm(), name='fixhdr_unifize',
+                             mem_gb=0.1, run_without_submitting=True)
     skullstrip_second_pass = pe.Node(afni.Automask(dilate=1,
                                                    outputtype='NIFTI_GZ'),
                                      name='skullstrip_second_pass')
+    fixhdr_skullstrip2 = pe.Node(CopyXForm(), name='fixhdr_skullstrip2',
+                                 mem_gb=0.1, run_without_submitting=True)
     combine_masks = pe.Node(fsl.BinaryMaths(operation='mul'),
                             name='combine_masks')
     apply_mask = pe.Node(fsl.ApplyMask(),
                          name='apply_mask')
-    copy_xform = pe.Node(CopyXForm(), name='copy_xform',
-                         mem_gb=0.1, run_without_submitting=True)
     mask_reportlet = pe.Node(SimpleShowMaskRPT(), name='mask_reportlet')
 
     workflow.connect([
         (inputnode, n4_correct, [('in_file', 'input_image')]),
-        (inputnode, copy_xform, [('in_file', 'hdr_file')]),
+        (inputnode, fixhdr_unifize, [('in_file', 'hdr_file')]),
+        (inputnode, fixhdr_skullstrip2, [('in_file', 'hdr_file')]),
         (n4_correct, skullstrip_first_pass, [('output_image', 'in_file')]),
         (skullstrip_first_pass, unifize, [('out_file', 'in_file')]),
-        (unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
+        (unifize, fixhdr_unifize, [('out_file', 'in_file')]),
+        (fixhdr_unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
         (skullstrip_first_pass, combine_masks, [('mask_file', 'in_file')]),
-        (skullstrip_second_pass, combine_masks, [('out_file', 'operand_file')]),
-        (unifize, apply_mask, [('out_file', 'in_file')]),
+        (skullstrip_second_pass, fixhdr_skullstrip2, [('out_file', 'in_file')]),
+        (fixhdr_skullstrip2, combine_masks, [('out_file', 'operand_file')]),
+        (fixhdr_unifize, apply_mask, [('out_file', 'in_file')]),
         (combine_masks, apply_mask, [('out_file', 'mask_file')]),
         (n4_correct, mask_reportlet, [('output_image', 'background_file')]),
         (combine_masks, mask_reportlet, [('out_file', 'mask_file')]),
         (combine_masks, outputnode, [('out_file', 'mask_file')]),
         (mask_reportlet, outputnode, [('out_report', 'out_report')]),
-        (apply_mask, copy_xform, [('out_file', 'in_file')]),
-        (copy_xform, outputnode, [('out_file', 'skull_stripped_file')]),
+        (apply_mask, outputnode, [('out_file', 'skull_stripped_file')]),
         (n4_correct, outputnode, [('output_image', 'bias_corrected_file')]),
     ])
 

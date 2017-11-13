@@ -48,19 +48,33 @@ class StructuralReference(fs.RobustTemplate):
         .../sub-01_ses-test_T1w.nii.gz --template mri_robust_template_out.mgz'
 
     """
-    @property
-    def cmdline(self):
-        cmd = super(StructuralReference, self).cmdline
-        if len(self.inputs.in_files) > 1:
-            return cmd
+
+    def _num_vols(self):
+        n_files = len(self.inputs.in_files)
+        if n_files != 1:
+            return n_files
 
         img = nb.load(self.inputs.in_files[0])
-        if len(img.shape) > 3 and img.shape[3] > 1:
-            return cmd
+        if len(img.shape) == 3:
+            return 1
 
-        out_file = self._list_outputs()['out_file']
-        copyfile(self.inputs.in_files[0], out_file)
-        return "echo Only one time point!"
+        return img.shape[3]
+
+    @property
+    def cmdline(self):
+        if self._num_vols() == 1:
+            return "echo Only one time point!"
+        return super(StructuralReference, self).cmdline
+
+    def _list_outputs(self):
+        outputs = super(StructuralReference, self)._list_outputs()
+        if self._num_vols() == 1:
+            in_file = self.inputs.in_files[0]
+            transform_file = outputs['transform_outputs'][0]
+            outputs['out_file'] = in_file
+            fs.utils.LTAConvert(in_lta='identity.nofile', source_file=in_file,
+                                target_file=in_file, out_lta=transform_file).run()
+        return outputs
 
 
 class MakeMidthicknessInputSpec(fs.utils.MRIsExpandInputSpec):

@@ -19,6 +19,7 @@ import sys
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.append(os.path.abspath('sphinxext'))
+sys.path.insert(0, os.path.abspath('../wrapper'))
 
 # -- General configuration ------------------------------------------------
 
@@ -62,8 +63,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'fmriprep'
-author = 'Craig A. Moodie, Krzysztof J. Gorgolewski, Oscar Esteban, ' \
-    'Ross Blair, Shoshana Berleant, Christopher J. Markiewicz'
+author = 'The FMRIPREP developers'
 copyright = '2017, ' + author
 
 # The version info for the project you're documenting, acts as replacement for

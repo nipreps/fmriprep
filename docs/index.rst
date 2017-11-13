@@ -17,6 +17,7 @@ Contents
    changes
    usage
    workflows
+   outputs
    contributors
    citing
    api/index.rst

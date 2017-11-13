@@ -11,6 +11,7 @@ Slice-Timing Correction (STC) of BOLD images
 from niworkflows.nipype import logging
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu, afni
+from niworkflows.interfaces.utils import CopyXForm
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('workflow')
@@ -56,7 +57,7 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file', 'skip_vols']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=['stc_file']), name='outputnode')
 
-    LOGGER.info('Slice-timing correction will be included.')
+    LOGGER.log(25, 'Slice-timing correction will be included.')
 
     def create_custom_slice_timing_file_func(metadata):
         import os
@@ -79,6 +80,8 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
         afni.TShift(outputtype='NIFTI_GZ', tr='{}s'.format(metadata["RepetitionTime"])),
         name='slice_timing_correction')
 
+    copy_xform = pe.Node(CopyXForm(), name='copy_xform', mem_gb=0.1, run_without_submitting=True)
+
     def _prefix_at(x):
         return "@" + x
 
@@ -87,7 +90,9 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
                                               ('skip_vols', 'ignore')]),
         (create_custom_slice_timing_file, slice_timing_correction, [
             (('out', _prefix_at), 'tpattern')]),
-        (slice_timing_correction, outputnode, [('out_file', 'stc_file')]),
+        (slice_timing_correction, copy_xform, [('out_file', 'in_file')]),
+        (inputnode, copy_xform, [('bold_file', 'hdr_file')]),
+        (copy_xform, outputnode, [('out_file', 'stc_file')]),
     ])
 
     return workflow

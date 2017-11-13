@@ -18,7 +18,7 @@ DEFAULT_MEMORY_MIN_GB = 0.01
 
 
 # pylint: disable=R0914
-def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
+def init_bold_hmc_wf(mem_gb, omp_nthreads, name='bold_hmc_wf'):
     """
     This workflow performs :abbr:`HMC (head motion correction)` over the input
     :abbr:`BOLD (blood-oxygen-level dependent)` image.
@@ -28,11 +28,13 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.bold import init_bold_hmc_wf
-        wf = init_bold_hmc_wf(bold_file_size_gb=3, omp_nthreads=1)
+        wf = init_bold_hmc_wf(
+            mem_gb=3,
+            omp_nthreads=1)
 
     **Parameters**
 
-        bold_file_size_gb : float
+        mem_gb : float
             Size of BOLD file in GB
         omp_nthreads : int
             Maximum number of threads an individual process may use
@@ -65,7 +67,7 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
 
     # Head motion correction (hmc)
     mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True, save_plots=True),
-                      name='mcflirt', mem_gb=bold_file_size_gb * 3)
+                      name='mcflirt', mem_gb=mem_gb * 3)
 
     fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk',
                       mem_gb=0.05, n_procs=omp_nthreads)
@@ -75,7 +77,7 @@ def init_bold_hmc_wf(bold_file_size_gb, omp_nthreads, name='bold_hmc_wf'):
                                mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     split = pe.Node(fsl.Split(dimension='t'), name='split',
-                    mem_gb=bold_file_size_gb * 3)
+                    mem_gb=mem_gb * 3)
 
     workflow.connect([
         (inputnode, split, [('bold_file', 'in_file')]),

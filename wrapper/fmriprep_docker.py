@@ -5,7 +5,6 @@ from future import standard_library
 import sys
 import os
 import re
-import argparse
 import subprocess
 
 standard_library.install_aliases()
@@ -149,12 +148,13 @@ def merge_help(wrapper_help, target_help):
     t_flags = sum(map(flag_re.findall, t_options), [])
 
     # The following code makes this assumption
-    assert w_flags[:2] == ['h', 'v']
+    assert w_flags[:2] == ['h', 'version']
     assert w_posargs.replace(']', '').replace('[', '') == t_posargs
 
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
-    expected_overlap = set(['h', 'v', 'w', 'output-grid-reference'])
+    expected_overlap = set(['h', 'version', 'w', 'output-grid-reference',
+                            'fs-license-file'])
     assert overlap == expected_overlap, "Clobbering options: {}".format(
         ', '.join(overlap - expected_overlap))
 
@@ -167,7 +167,7 @@ def merge_help(wrapper_help, target_help):
         w_options[:2],
         [opt for opt, flag in zip(t_options, t_flags) if flag not in overlap],
         w_options[2:]
-        ), [])
+    ), [])
     opt_line_length = 79 - len(start)
     length = 0
     opt_lines = [start]
@@ -194,11 +194,13 @@ def merge_help(wrapper_help, target_help):
     sections.append(w_groups[2])
 
     # All remaining sections, show target then wrapper (skipping duplicates)
-    sections.extend(t_groups[3:] + w_groups[5:])
+    sections.extend(t_groups[3:] + w_groups[6:])
     return '\n\n'.join(sections)
 
 
-def main():
+def get_parser():
+    """Defines the command line interface of the wrapper"""
+    import argparse
     parser = argparse.ArgumentParser(
         description='fMRI Preprocessing workflow',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -212,7 +214,7 @@ def main():
 
     parser.add_argument('-h', '--help', action='store_true',
                         help="show this help message and exit")
-    parser.add_argument('-v', '--version', action='store_true',
+    parser.add_argument('--version', action='store_true',
                         help="show program's version number and exit")
 
     # Allow alternative images (semi-developer)
@@ -231,6 +233,11 @@ def main():
                         type=os.path.abspath,
                         help='Grid reference image for resampling BOLD files to volume template '
                              'space.')
+    g_wrap.add_argument(
+        '--fs-license-file', metavar='PATH', type=os.path.abspath,
+        default=os.getenv('FS_LICENSE', None),
+        help='Path to FreeSurfer license key file. Get it (for free) by registering'
+             ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
 
     # Developer patch/shell options
     g_dev = parser.add_argument_group(
@@ -250,6 +257,13 @@ def main():
     g_dev.add_argument('--config', metavar='PATH', action='store',
                        type=os.path.abspath, help='Use custom nipype.cfg file')
 
+    return parser
+
+
+def main():
+    """Entry point"""
+
+    parser = get_parser()
     # Capture additional arguments to pass inside container
     opts, unknown_args = parser.parse_known_args()
 
@@ -315,6 +329,11 @@ def main():
         if repo_path is not None:
             command.extend(['-v', '{}:{}:ro'.format(repo_path, pkg_path)])
 
+    if opts.fs_license_file:
+        command.extend([
+            '-v', '{}:/opt/freesurfer/license.txt:ro'.format(
+                opts.fs_license_file)])
+
     main_args = []
     if opts.bids_dir:
         command.extend(['-v', ':'.join((opts.bids_dir, '/data', 'ro'))])
@@ -351,7 +370,7 @@ def main():
         return 0
     elif opts.version:
         # Get version to be run and exit
-        command.append('-v')
+        command.append('--version')
         ret = subprocess.run(command)
         return ret.returncode
 

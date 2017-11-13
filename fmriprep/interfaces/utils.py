@@ -12,19 +12,21 @@ import os
 import numpy as np
 import nibabel as nb
 import scipy.ndimage as nd
-from nilearn.image import resample_to_img
 
+from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
-    traits, isdefined, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath,
-    SimpleInterface
+    traits, isdefined, File, InputMultiPath,
+    TraitedSpec, DynamicTraitedSpec, BaseInterfaceInputSpec, SimpleInterface
 )
+from niworkflows.nipype.interfaces.io import add_traits
+
+IFLOGGER = logging.getLogger('interfaces')
 
 
 class TPM2ROIInputSpec(BaseInterfaceInputSpec):
-    t1_tpm = File(exists=True, mandatory=True, desc='Tissue probability map file in T1 space')
-    t1_mask = File(exists=True, mandatory=True, desc='Binary mask of skull-stripped T1w image')
-    bold_mask = File(exists=True, mandatory=True, desc='Binary mask of skull-stripped BOLD image')
+    in_tpm = File(exists=True, mandatory=True, desc='Tissue probability map file in T1 space')
+    in_mask = File(exists=True, mandatory=True, desc='Binary mask of skull-stripped T1w image')
     mask_erode_mm = traits.Float(xor=['mask_erode_prop'],
                                  desc='erode input mask (kernel width in mm)')
     erode_mm = traits.Float(xor=['erode_prop'],
@@ -47,12 +49,9 @@ class TPM2ROI(SimpleInterface):
 
     This interface follows the following logic:
 
-    #. Erode ``t1_mask`` by ``mask_erode_mm`` and apply to ``t1_tpm``
+    #. Erode ``in_mask`` by ``mask_erode_mm`` and apply to ``in_tpm``
     #. Threshold masked TPM at ``prob_thresh``
     #. Erode resulting mask by ``erode_mm``
-
-    Both the eroded brain mask and eroded ROI mask are then resampled to BOLD
-    resolution, and masked by ``bold_mask``.
 
     """
 
@@ -73,9 +72,8 @@ class TPM2ROI(SimpleInterface):
         if not isdefined(erode_prop):
             erode_prop = None
         roi_file, eroded_mask = _tpm2roi(
-            self.inputs.t1_tpm,
-            self.inputs.t1_mask,
-            self.inputs.bold_mask,
+            self.inputs.in_tpm,
+            self.inputs.in_mask,
             mask_erode_mm,
             erode_mm,
             mask_erode_prop,
@@ -87,49 +85,44 @@ class TPM2ROI(SimpleInterface):
         return runtime
 
 
-class CombineROIsInputSpec(BaseInterfaceInputSpec):
+class AddTPMsInputSpec(BaseInterfaceInputSpec):
     in_files = InputMultiPath(File(exists=True), mandatory=True, desc='input list of ROIs')
-    ref_header = File(exists=True, mandatory=True,
-                      desc='reference NIfTI file with desired output header/affine')
+    indices = traits.List(traits.Int, desc='select specific maps')
 
 
-class CombineROIsOutputSpec(TraitedSpec):
+class AddTPMsOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='union of binarized input files')
 
 
-class CombineROIs(SimpleInterface):
-    """Generate the union (logical or) of a series of ROI masks"""
-    input_spec = CombineROIsInputSpec
-    output_spec = CombineROIsOutputSpec
+class AddTPMs(SimpleInterface):
+    """Calculate the union of several :abbr:`TPMs (tissue-probability map)`"""
+    input_spec = AddTPMsInputSpec
+    output_spec = AddTPMsOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['out_file'] = _combine_rois(self.inputs.in_files, self.inputs.ref_header)
-        return runtime
+        in_files = self.inputs.in_files
 
+        indices = list(range(len(in_files)))
+        if isdefined(self.inputs.indices):
+            indices = self.inputs.indices
 
-class ConcatROIsInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True, desc='input file')
-    in_mask = File(exists=True, mandatory=True, desc='input mask')
-    ref_header = File(exists=True, mandatory=True,
-                      desc='reference NIfTI file with desired output header/affine')
+        if len(self.inputs.in_files) < 2:
+            self._results['out_file'] = in_files[0]
+            return runtime
 
+        first_fname = in_files[indices[0]]
+        if len(indices) == 1:
+            self._results['out_file'] = first_fname
+            return runtime
 
-class ConcatROIsOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='output average file')
+        im = nb.concat_images([in_files[i] for i in indices])
+        data = im.get_data().sum(axis=3)
+        data = np.clip(data, a_min=0.0, a_max=1.0)
 
+        out_file = fname_presuffix(first_fname, suffix='_tpmsum')
+        im.__class__(data, im.affine, im.header).to_filename(out_file)
+        self._results['out_file'] = out_file
 
-class ConcatROIs(SimpleInterface):
-    """Concatenate two ROI files along time axis
-
-    ``in_file`` is resampled to match ``in_mask``, and the two concatenated
-    datasets are saved with the affine and header of ``ref_header``.
-    """
-    input_spec = ConcatROIsInputSpec
-    output_spec = ConcatROIsOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_file'] = _concat_rois(
-            self.inputs.in_file, self.inputs.in_mask, self.inputs.ref_header)
         return runtime
 
 
@@ -196,40 +189,74 @@ class AddTSVHeader(SimpleInterface):
         return runtime
 
 
-def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=None, erosion_mm=None,
+class ConcatAffinesInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+    invert = traits.Bool(False, usedefault=True, desc='Invert output transform')
+
+
+class ConcatAffinesOutputSpec(TraitedSpec):
+    out_mat = File(exists=True, desc='Output transform')
+
+
+class ConcatAffines(SimpleInterface):
+    input_spec = ConcatAffinesInputSpec
+    output_spec = ConcatAffinesOutputSpec
+
+    def __init__(self, num_affines=0, *args, **kwargs):
+        super(ConcatAffines, self).__init__(*args, **kwargs)
+        self._num_affines = num_affines
+        trait_type = File(exists=True)
+        if num_affines == 0:
+            add_traits(self.inputs, ['mat_list'], trait_type)
+        elif num_affines < 26:
+            add_traits(self.inputs, self._get_names(num_affines), trait_type)
+
+    @staticmethod
+    def _get_names(num_affines):
+        A = ord('A') - 1
+        return ['mat_{}to{}'.format(chr(X), chr(X + 1))
+                for X in range(A + num_affines, A, -1)]
+
+    def _run_interface(self, runtime):
+        out_mat = os.path.join(runtime.cwd, 'concat.mat')
+        in_list = [self.inputs.get()[name] for name in self._get_names(self._num_affines)]
+
+        out_xfm = _concat_xfms(in_list, invert=self.inputs.invert)
+        np.savetxt(out_mat, out_xfm, fmt=str('%.12g'))
+
+        self._results['out_mat'] = out_mat
+        return runtime
+
+
+def _tpm2roi(in_tpm, in_mask, mask_erosion_mm=None, erosion_mm=None,
              mask_erosion_prop=None, erosion_prop=None, pthres=0.95):
     """
     Generate a mask from a tissue probability map
     """
-    tpm_img = nb.load(t1_tpm)
-    bold_mask_img = nb.load(bold_mask)
+    tpm_img = nb.load(in_tpm)
+    roi_mask = (tpm_img.get_data() >= pthres).astype(np.uint8)
 
-    probability_map_data = (tpm_img.get_data() >= pthres).astype(np.uint8)
-
-    eroded_mask_file = bold_mask
+    eroded_mask_file = None
     erode_in = (mask_erosion_mm is not None and mask_erosion_mm > 0 or
                 mask_erosion_prop is not None and mask_erosion_prop < 1)
     if erode_in:
-        eroded_mask_file = os.path.abspath("eroded_mask.nii.gz")
-
-        mask_img = nb.load(t1_mask)
+        eroded_mask_file = fname_presuffix(in_mask, suffix='_eroded')
+        mask_img = nb.load(in_mask)
+        mask_data = mask_img.get_data().astype(np.uint8)
         if mask_erosion_mm:
             iter_n = max(int(mask_erosion_mm / max(mask_img.header.get_zooms())), 1)
-            mask_data = nd.binary_erosion(mask_img.get_data().astype(np.uint8), iterations=iter_n)
+            mask_data = nd.binary_erosion(mask_data, iterations=iter_n)
         else:
-            mask_data = mask_img.get_data().astype(np.uint8)
             orig_vol = np.sum(mask_data > 0)
             while np.sum(mask_data > 0) / orig_vol > mask_erosion_prop:
                 mask_data = nd.binary_erosion(mask_data, iterations=1)
 
-        # Resample to BOLD and save
-        eroded_t1 = nb.Nifti1Image(mask_data, mask_img.affine, mask_img.header)
-        eroded_t1.set_data_dtype(np.uint8)
-        eroded_bold = _resample_and_mask(eroded_t1, bold_mask_img, interpolation='nearest')
-        eroded_bold.to_filename(eroded_mask_file)
+        # Store mask
+        eroded = nb.Nifti1Image(mask_data, mask_img.affine, mask_img.header)
+        eroded.set_data_dtype(np.uint8)
+        eroded.to_filename(eroded_mask_file)
 
         # Mask TPM data (no effect if not eroded)
-        probability_map_data[~mask_data] = 0
+        roi_mask[~mask_data] = 0
 
     # shrinking
     erode_out = (erosion_mm is not None and erosion_mm > 0 or
@@ -238,60 +265,27 @@ def _tpm2roi(t1_tpm, t1_mask, bold_mask, mask_erosion_mm=None, erosion_mm=None,
         if erosion_mm:
             iter_n = max(int(erosion_mm / max(tpm_img.header.get_zooms())), 1)
             iter_n = int(erosion_mm / max(tpm_img.header.get_zooms()))
-            probability_map_data = nd.binary_erosion(probability_map_data, iterations=iter_n)
+            roi_mask = nd.binary_erosion(roi_mask, iterations=iter_n)
         else:
-            orig_vol = np.sum(probability_map_data > 0)
-            while np.sum(probability_map_data > 0) / orig_vol > erosion_prop:
-                probability_map_data = nd.binary_erosion(probability_map_data, iterations=1)
+            orig_vol = np.sum(roi_mask > 0)
+            while np.sum(roi_mask > 0) / orig_vol > erosion_prop:
+                roi_mask = nd.binary_erosion(roi_mask, iterations=1)
 
     # Create image to resample
-    img_t1 = nb.Nifti1Image(probability_map_data, tpm_img.affine, tpm_img.header)
-    img_t1.set_data_dtype(np.uint8)
-    roi_img = _resample_and_mask(img_t1, bold_mask_img, interpolation='nearest')
-
-    roi_img.to_filename("roi.nii.gz")
-    return os.path.abspath("roi.nii.gz"), eroded_mask_file
-
-
-def _resample_and_mask(source_img, mask_img, interpolation='continuous'):
-    resampled_img = resample_to_img(source_img, mask_img, interpolation=interpolation)
-    masked_data = resampled_img.get_data() * mask_img.get_data().astype(bool)
-
-    out_img = mask_img.__class__(masked_data, mask_img.affine, mask_img.header)
-    out_img.set_data_dtype(source_img.get_data_dtype())
-    return out_img
+    roi_fname = fname_presuffix(in_tpm, suffix='_roi')
+    roi_img = nb.Nifti1Image(roi_mask, tpm_img.affine, tpm_img.header)
+    roi_img.set_data_dtype(np.uint8)
+    roi_img.to_filename(roi_fname)
+    return roi_fname, eroded_mask_file or in_mask
 
 
-def _combine_rois(in_files, ref_header):
-    if len(in_files) < 2:
-        raise RuntimeError('Combining ROIs requires at least two inputs')
+def _concat_xfms(in_list, invert):
+    transforms = [np.loadtxt(in_mat) for in_mat in in_list]
+    out_xfm = transforms.pop(0)
+    for xfm in transforms:
+        out_xfm = out_xfm.dot(xfm)
 
-    ref = nb.load(ref_header)
+    if invert:
+        out_xfm = np.linalg.inv(out_xfm)
 
-    nii = nb.concat_images([nb.load(f) for f in in_files])
-    combined = nii.get_data().any(3).astype(np.uint8)
-
-    # we have to do this explicitly because of potential differences in
-    # qform_code between the two files that prevent aCompCor to work
-    combined_nii = nb.Nifti1Image(combined, ref.affine, ref.header)
-    combined_nii.set_data_dtype(np.uint8)
-
-    combined_nii.to_filename("logical_or.nii.gz")
-    return os.path.abspath("logical_or.nii.gz")
-
-
-def _concat_rois(in_file, in_mask, ref_header):
-    nii = nb.load(in_file)
-    mask_nii = nb.load(in_mask)
-    ref = nb.load(ref_header)
-
-    # we have to do this explicitly because of potential differences in
-    # qform_code between the two files that prevent SignalExtraction to do
-    # the concatenation
-    concat_nii = nb.concat_images([resample_to_img(nii, mask_nii, interpolation='nearest'),
-                                   mask_nii])
-    concat_nii = nb.Nifti1Image(concat_nii.get_data().astype(np.uint8), ref.affine, ref.header)
-    concat_nii.set_data_dtype(np.uint8)
-
-    concat_nii.to_filename("concat.nii.gz")
-    return os.path.abspath("concat.nii.gz")
+    return out_xfm

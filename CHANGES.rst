@@ -1,6 +1,26 @@
 Next release
 ============
 
+
+1.0.0-rc10 (9th of November 2017)
+=================================
+
+* [FIX] Adopt new FreeSurfer (v6.0.1) license mechanism (#787)
+* [ENH] Output affine transforms from original T1w images to preprocessed anatomical (#726)
+* [FIX] Correct headers in AFNI-generated NIfTI files (#818)
+* [FIX] Normalize T1w image qform/sform matrices (#820)
+
+1.0.0-rc9 (2nd of November 2017)
+================================
+
+* [FIX] Fixed #776 (aCompCor - numpy.linalg.linalg.LinAlgError: SVD did not converge) via #807.
+* [ENH] Added `CSF` column to `_confounds.tsv` (included in #807)
+* [DOC] Add more details on the outputs of FMRIPREP and minor fixes (#811)
+* [ENH] Processing confounds in BOLD space (#807)
+* [ENH] Updated niworkflows and nipype, including the new feature to close all file descriptors (#810)
+* [REF] Refactored BOLD workflows module (#805)
+* [ENH] Improved memory annotations (#803, #807)
+
 1.0.0-rc8 (27th of October 2017)
 ================================
 

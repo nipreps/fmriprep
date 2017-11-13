@@ -133,7 +133,7 @@ If enabled, several steps in the ``fmriprep`` pipeline are added or replaced.
 All surface preprocessing may be disabled with the ``--no-freesurfer`` flag.
 
 If FreeSurfer reconstruction is performed, the reconstructed subject is placed in
-``<output dir>/freesurfer/sub-<subject_label>/`` (see `FreeSurfer Derivatives`_).
+``<output dir>/freesurfer/sub-<subject_label>/`` (see :ref:`fsderivs`).
 
 Surface reconstruction is performed in three phases.
 The first phase initializes the subject with T1w and T2w (if available)
@@ -181,7 +181,7 @@ packages, including FreeSurfer and the `Connectome Workbench`_.
 
 BOLD preprocessing
 ------------------
-:mod:`fmriprep.workflows.bold.init_func_preproc_wf`
+:mod:`fmriprep.workflows.bold.base.init_func_preproc_wf`
 
 .. workflow::
     :graph2use: orig
@@ -216,7 +216,7 @@ Preprocessing of BOLD files is split into multiple sub-workflows decribed below.
 
 BOLD reference image estimation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_reference_wf`
+:mod:`fmriprep.workflows.bold.util.init_bold_reference_wf`
 
 .. workflow::
     :graph2use: orig
@@ -244,7 +244,7 @@ Skullstripping of the reference image is performed using Nilearn.
 
 Slice time correction
 ~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_stc_wf`
+:mod:`fmriprep.workflows.bold.stc.init_bold_stc_wf`
 
 .. workflow::
     :graph2use: colored
@@ -271,14 +271,16 @@ correction will be disabled.
 
 Head-motion estimation
 ~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_hmc_wf`
+:mod:`fmriprep.workflows.bold.hmc.init_bold_hmc_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_hmc_wf
-    wf = init_bold_hmc_wf(bold_file_size_gb=3, omp_nthreads=1)
+    wf = init_bold_hmc_wf(
+        mem_gb=1,
+        omp_nthreads=1)
 
 FSL MCFLIRT is used to estimate motion transformations using an automatically
 estimated reference scan (see :ref:`bold_ref`).
@@ -292,22 +294,35 @@ Susceptibility Distortion Correction (SDC)
     :show-inheritance:
 
 
+Pre-processed BOLD in native space
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`fmriprep.workflows.bold.resampling.init_bold_preproc_trans_wf`
+
+.. workflow::
+    :graph2use: colored
+    :simple_form: yes
+
+    from fmriprep.workflows.bold import init_bold_preproc_trans_wf
+    wf = init_bold_preproc_trans_wf(mem_gb=3, omp_nthreads=1)
+
+
 .. _bold_reg:
 
 EPI to T1w registration
 ~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_reg_wf`
+:mod:`fmriprep.workflows.bold.registration.init_bold_reg_wf`
 
 .. workflow::
     :graph2use: orig
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_reg_wf
-    wf = init_bold_reg_wf(freesurfer=True,
-                          bold_file_size_gb=3,
-                          omp_nthreads=1,
-                          use_bbr=True,
-                          bold2t1w_dof=9)
+    wf = init_bold_reg_wf(
+        freesurfer=True,
+        mem_gb=1,
+        omp_nthreads=1,
+        use_bbr=True,
+        bold2t1w_dof=9)
 
 The reference EPI image of each run is aligned by the ``bbregister`` routine to the
 reconstructed subject using the gray/white matter boundary (FreeSurfer's
@@ -324,17 +339,18 @@ boundary.
 
 EPI to MNI transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_mni_trans_wf`
+:mod:`fmriprep.workflows.bold.resampling.init_bold_mni_trans_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_mni_trans_wf
-    wf = init_bold_mni_trans_wf(template='MNI152NLin2009cAsym',
-                                bold_file_size_gb=3,
-                                omp_nthreads=1,
-                                output_grid_ref=None)
+    wf = init_bold_mni_trans_wf(
+        template='MNI152NLin2009cAsym',
+        mem_gb=1,
+        omp_nthreads=1,
+        output_grid_ref=None)
 
 This sub-workflow concatenates the transforms calculated upstream (see
 `Head-motion estimation`_, `Susceptibility Distortion Correction (SDC)`_ (if
@@ -348,17 +364,18 @@ step, so as little information is lost as possible.
 
 EPI sampled to FreeSurfer surfaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:mod:`fmriprep.workflows.bold.init_bold_surf_wf`
+:mod:`fmriprep.workflows.bold.resampling.init_bold_surf_wf`
 
 .. workflow::
     :graph2use: colored
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_surf_wf
-    wf = init_bold_surf_wf(bold_file_size_gb=0.1,
-                           output_spaces=['T1w', 'fsnative',
-                                         'template', 'fsaverage5'],
-                           medial_surface_nan=False)
+    wf = init_bold_surf_wf(
+        mem_gb=1,
+        output_spaces=['T1w', 'fsnative',
+                       'template', 'fsaverage5'],
+        medial_surface_nan=False)
 
 If FreeSurfer processing is enabled, the motion-corrected functional series
 (after single shot resampling to T1w space) is sampled to the
@@ -381,7 +398,9 @@ Confounds estimation
     from fmriprep.workflows.bold.confounds import init_bold_confs_wf
     wf = init_bold_confs_wf(
         name="discover_wf",
-        use_aroma=False, ignore_aroma_err=False, bold_file_size_gb=3,
+        use_aroma=False,
+        ignore_aroma_err=False,
+        mem_gb=1,
         metadata={"RepetitionTime": 2.0,
                   "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]})
 
@@ -419,76 +438,3 @@ A visualisation of the AROMA component classification is also included in the HT
     brain outline. Right hand side of each map: time series (top in seconds),
     frequency spectrum (bottom in Hertz). Components classified as signal in
     green; noise in red.
-
-Reports
--------
-
-FMRIPREP outputs summary reports, outputted to ``<output dir>/fmriprep/sub-<subject_label>.html``.
-These reports provide a quick way to make visual inspection of the results easy.
-Each report is self contained and thus can be easily shared with collaborators (for example via email).
-`View a sample report. <_static/sample_report.html>`_
-
-Derivatives
------------
-
-There are additional files, called "Derivatives", outputted to ``<output dir>/fmriprep/sub-<subject_label>/``.
-See the `BIDS Derivatives`_ spec for more information.
-
-Derivatives related to T1w files are in the ``anat`` subfolder:
-
-- ``*T1w_brainmask.nii.gz`` Brain mask derived using ANTS or AFNI, depending on the command flag ``--skull-strip-ants``
-- ``*T1w_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as above, but in MNI space.
-- ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
-- ``*T1w_preproc.nii.gz`` Bias field corrected T1w file, using ANTS' N4BiasFieldCorrection
-- ``*T1w_smoothwm.[LR].surf.gii`` Smoothed GrayWhite surfaces
-- ``*T1w_pial.[LR].surf.gii`` Pial surfaces
-- ``*T1w_midthickness.[LR].surf.gii`` MidThickness surfaces
-- ``*T1w_inflated.[LR].surf.gii`` FreeSurfer inflated surfaces for visualization
-- ``*T1w_space-MNI152NLin2009cAsym_preproc.nii.gz`` Same as above, but in MNI space
-- ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
-- ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
-- ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
-- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform T1w into MNI space
-- ``*T1w_target-fsnative_affine.txt`` Affine transform to transform T1w into ``fsnative`` space
-
-Derivatives related to EPI files are in the ``func`` subfolder.
-
-- ``*bold_confounds.tsv`` A tab-separated value file with one column per calculated confound and one row per timepoint/volume
-- ``*bold_AROMAnoiseICs.csv`` A comma-separated value file listing each MELODIC component classified as noise
-- ``*bold_MELODICmix.tsv`` A tab-separated value file with one column per MELODIC component
-
-Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
-
-- ``*bold_space-<space>_brainmask.nii.gz`` Brain mask for EPI files, calculated by nilearn on the average EPI volume, post-motion correction
-- ``*bold_space-<space>_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation) EPI file
-- ``*bold_space-<space>_variant-smoothAROMAnonaggr_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation),
-  smoothed (6mm), and non-aggressively denoised (using AROMA) EPI file - currently produced only for the ``MNI152NLin2009cAsym`` space
-
-Surface output spaces include ``fsnative`` (full density subject-specific mesh),
-``fsaverage`` and the down-sampled meshes ``fsaverage6`` (41k vertices) and
-``fsaverage5`` (10k vertices, default).
-
-- ``*bold_space-<space>.[LR].func.gii`` Motion-corrected EPI file sampled to surface ``<space>``
-
-
-FreeSurfer Derivatives
-----------------------
-
-A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``.
-
-::
-
-    freesurfer/
-        fsaverage{,5,6}/
-            mri/
-            surf/
-            ...
-        sub-<subject_label>/
-            mri/
-            surf/
-            ...
-        ...
-
-Copies of the ``fsaverage`` subjects distributed with the running version of
-FreeSurfer are copied into this subjects directory, if any functional data are
-sampled to those subject spaces.
