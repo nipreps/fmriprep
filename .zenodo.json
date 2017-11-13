@@ -15,10 +15,6 @@
       "orcid": "0000-0002-6533-164X"
     },
     {
-      "name": "Madeleine Snyder",
-      "affiliation": "Harvard Medical School, Harvard University, Cambridge, Massachusetts"
-    },
-    {
       "name": "Berleant, Shoshana L.",
       "affiliation": "Department of Psychology, Stanford University"
     },
@@ -51,6 +47,10 @@
       "name": "Goncalves, Mathias",
       "affiliation": "MIT",
       "orcid": "0000-0002-7252-7771"
+    },
+    {
+      "name": "Madeleine Snyder",
+      "affiliation": "Harvard Medical School, Harvard University, Cambridge, Massachusetts"
     },
     {
       "name": "Poldrack, Russell A.",
