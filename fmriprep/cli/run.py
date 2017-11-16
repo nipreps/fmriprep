@@ -218,7 +218,6 @@ def main():
     nlogging.getLogger('interface').addFilter(logfilter)
     nlogging.getLogger('utils').addFilter(logfilter)
 
-
     # FreeSurfer license
     default_license = op.join(os.getenv('FREESURFER_HOME', ''), 'license.txt')
     # Precedence: --fs-license-file, $FS_LICENSE, default_license
@@ -374,7 +373,9 @@ def create_workflow(opts):
         else:
             raise(e)
 
-    logger.log(25, 'Captured warnings:\n\n%s', logfilter.get_summary())
+    filter_summary = logfilter.get_summary()
+    if filter_summary:
+        logger.log(25, 'Some log messages were captured:\n\n%s', filter_summary)
 
     # Generate reports phase
     report_errors = [run_reports(
