@@ -15,8 +15,8 @@ class DuplicateLevelFilter(object):
 
     def filter(self, record):
         """The filter body"""
-        if record.levelno <= self._level:
-            return record
+        if record.levelno < self._level:
+            return True
 
         rvnum = self._msgs.get(record.msg, 0)
         self._msgs[record.msg] = rvnum + 1
