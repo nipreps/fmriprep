@@ -26,5 +26,5 @@ class DuplicateLevelFilter(object):
         """Return the number of times a message was captured"""
         from textwrap import indent
         body = ['* [%d times] %s' % (ntimes, msg)
-                for msg, ntimes in self._msgs]
+                for msg, ntimes in self._msgs.items()]
         return indent('\n'.join(body), ' ' * indentation)
