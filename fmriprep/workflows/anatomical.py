@@ -422,7 +422,8 @@ def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
         (t1_template_dimensions, t1_conform, [
             ('t1w_valid_list', 'in_file'),
             ('target_zooms', 'target_zooms'),
-            ('target_shape', 'target_shape')]),
+            ('target_shape', 'target_shape'),
+            ('target_offset', 'target_offset')]),
         (t1_conform, t1_merge, [
             ('out_file', 'in_files'),
             (('out_file', set_threads, omp_nthreads), 'num_threads'),

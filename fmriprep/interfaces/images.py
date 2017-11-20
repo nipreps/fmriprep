@@ -13,6 +13,7 @@ import os
 import numpy as np
 import nibabel as nb
 import nilearn.image as nli
+from scipy import ndimage
 
 from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import fname_presuffix
@@ -125,6 +126,8 @@ class TemplateDimensionsOutputSpec(TraitedSpec):
                                 desc='Target zoom information')
     target_shape = traits.Tuple(traits.Int, traits.Int, traits.Int,
                                 desc='Target shape information')
+    target_offset = traits.Tuple(traits.Float, traits.Float, traits.Float,
+                                 desc='Offset of origin in mm RAS from center-of-mass')
     out_report = File(exists=True, desc='conformation report')
 
 
@@ -185,6 +188,11 @@ class TemplateDimensions(SimpleInterface):
         self._results['target_zooms'] = tuple(target_zooms.tolist())
         self._results['target_shape'] = tuple(target_shape.tolist())
 
+        first_img = nb.load(valid_fnames[0])
+        com_xyz = ndimage.center_of_mass(first_img.get_data())
+        com_ras = first_img.affine[:3, :3].dot(com_xyz) + first_img.affine[:3, 3]
+        self._results['target_offset'] = tuple(com_ras.tolist())
+
         # Create report
         dropped_images = in_names[~valid]
         segment = self._generate_segment(dropped_images, target_shape, target_zooms)
@@ -200,9 +208,12 @@ class TemplateDimensions(SimpleInterface):
 class ConformInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='Input image')
     target_zooms = traits.Tuple(traits.Float, traits.Float, traits.Float,
-                                desc='Target zoom information')
+                                mandatory=True, desc='Target zoom information')
     target_shape = traits.Tuple(traits.Int, traits.Int, traits.Int,
-                                desc='Target shape information')
+                                mandatory=True, desc='Target shape information')
+    target_offset = traits.Tuple(traits.Float, traits.Float, traits.Float,
+                                 mandatory=True,
+                                 desc='Target offset of origin from center-of-mass')
 
 
 class ConformOutputSpec(TraitedSpec):
@@ -213,10 +224,11 @@ class ConformOutputSpec(TraitedSpec):
 class Conform(SimpleInterface):
     """Conform a series of T1w images to enable merging.
 
-    Performs two basic functions:
+    Performs three basic functions:
 
     #. Orient to RAS (left-right, posterior-anterior, inferior-superior)
     #. Resample to target zooms (voxel sizes) and shape (number of voxels)
+    #. Reset origin to a specific offset from the image center of mass
     """
     input_spec = ConformInputSpec
     output_spec = ConformOutputSpec
@@ -235,7 +247,7 @@ class Conform(SimpleInterface):
         zooms = np.array(reoriented.header.get_zooms()[:3])
         shape = np.array(reoriented.shape[:3])
 
-        # Reconstruct transform from orig to reoriented image
+        # Transform from reoriented XYZ to original XYZ
         ornt_xfm = nb.orientations.inv_ornt_aff(
             nb.io_orientation(orig_img.affine), orig_img.shape)
         # Identity unless proven otherwise
@@ -268,8 +280,20 @@ class Conform(SimpleInterface):
                 target_affine[:3, 3] = reoriented.affine[:3, 3] + offset.astype(int)
 
             data = nli.resample_img(reoriented, target_affine, target_shape).get_data()
+            # Transform from resliced XYZ to reoriented XYZ
             conform_xfm = np.linalg.inv(reoriented.affine).dot(target_affine)
             reoriented = reoriented.__class__(data, target_affine, reoriented.header)
+
+        # Re-center after resampling - simply moves origin
+        com_xyz = ndimage.center_of_mass(reoriented.get_data())
+        com_ras = reoriented.affine[:3, :3].dot(com_xyz) + reoriented.affine[:3, 3]
+        translation = np.array(self.inputs.target_offset) - com_ras
+        shift_xfm = np.eye(4)
+        if not np.allclose(translation, 0):
+            target_affine[:3, 3] += translation
+            # Transform from original RAS to recentered RAS
+            shift_xfm[:3, 3] = translation
+            reoriented = reoriented.__class__(reoriented.dataobj, target_affine, reoriented.header)
 
         # Image may be reoriented, rescaled, and/or resized
         if reoriented is not orig_img:
@@ -278,8 +302,16 @@ class Conform(SimpleInterface):
         else:
             out_name = fname
 
-        transform = ornt_xfm.dot(conform_xfm)
-        assert np.allclose(orig_img.affine.dot(transform), target_affine)
+        # New affine: resliced XYZ -> recentered RAS
+        #  1) conform_xfm:      resliced XYZ -> reoriented XYZ
+        #  2) ornt_xfm:         reoriented XYZ -> original XYZ
+        #  3) orig_img.affine:  original XYZ -> original RAS
+        #  4) shift_xfm:        original RAS -> recentered RAS
+        assert np.allclose(shift_xfm.dot(orig_img.affine).dot(ornt_xfm).dot(conform_xfm),
+                           target_affine)
+        # Transform: resliced XYZ -> original XYZ
+        # Implicitly includes recentered RAS -> original RAS
+        transform = np.linalg.inv(orig_img.affine).dot(target_affine)
 
         mat_name = fname_presuffix(fname, suffix='.mat', newpath=runtime.cwd, use_ext=False)
         np.savetxt(mat_name, transform, fmt='%.08f')
