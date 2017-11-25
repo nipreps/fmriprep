@@ -17,7 +17,9 @@ from argparse import RawTextHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
 import nibabel
+from ..utils.logging import DuplicateLevelFilter
 
+logfilter = DuplicateLevelFilter()
 nibabel.arrayproxy.KEEP_FILE_OPEN_DEFAULT = 'auto'
 
 logging.addLevelName(25, 'IMPORTANT')  # Add a new level between INFO and WARNING
@@ -208,9 +210,13 @@ def main():
 
     # Set logging
     logger.setLevel(log_level)
+    logger.addFilter(logfilter)
     nlogging.getLogger('workflow').setLevel(log_level)
     nlogging.getLogger('interface').setLevel(log_level)
     nlogging.getLogger('utils').setLevel(log_level)
+    nlogging.getLogger('workflow').addFilter(logfilter)
+    nlogging.getLogger('interface').addFilter(logfilter)
+    nlogging.getLogger('utils').addFilter(logfilter)
 
     # FreeSurfer license
     default_license = op.join(os.getenv('FREESURFER_HOME', ''), 'license.txt')
@@ -366,6 +372,10 @@ def create_workflow(opts):
             errno = 1
         else:
             raise(e)
+
+    filter_summary = logfilter.get_summary()
+    if filter_summary:
+        logger.log(25, 'Some log messages were captured:\n\n%s', filter_summary)
 
     # Generate reports phase
     report_errors = [run_reports(
