@@ -14,8 +14,8 @@ from niworkflows.nipype.interfaces import utility as niu, fsl
 from niworkflows.nipype.interfaces.nilearn import SignalExtraction
 from niworkflows.nipype.algorithms import confounds as nac
 
-from niworkflows.interfaces import segmentation as nws
-from niworkflows.interfaces.masks import ACompCorRPT, TCompCorRPT
+from niworkflows.interfaces.segmentation import ICA_AROMARPT
+from niworkflows.interfaces.masks import ROIsPlot
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import (
@@ -129,14 +129,12 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
                 't1_bold_xform', 'bold_mni', 'bold_mask_mni']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['confounds_file', 'confounds_list', 'acompcor_report', 'tcompcor_report',
-                'ica_aroma_report', 'aroma_noise_ics', 'melodic_mix',
-                'nonaggr_denoised_file']),
+        fields=['confounds_file', 'confounds_list', 'rois_report', 'ica_aroma_report',
+                'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file']),
         name='outputnode')
 
     # Get masks ready in T1w space
-    acc_tpm = pe.Node(AddTPMs(indices=[0, 2]), name='tpms_add_csf_wm',
-                      run_without_submitting=True)  # acc stands for aCompCor
+    acc_tpm = pe.Node(AddTPMs(indices=[0, 2]), name='tpms_add_csf_wm')  # acc stands for aCompCor
     csf_roi = pe.Node(TPM2ROI(erode_mm=0, mask_erode_mm=30), name='csf_roi')
     wm_roi = pe.Node(TPM2ROI(
         erode_prop=0.6, mask_erode_prop=0.6**3),  # 0.6 = radius; 0.6^3 = volume
@@ -156,10 +154,10 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
                       name='tcc_tfm', mem_gb=0.1)
 
     # Ensure ROIs don't go off-limits (reduced FoV)
-    csf_msk = pe.Node(niu.Function(function=_maskroi), name='csf_msk', run_without_submitting=True)
-    wm_msk = pe.Node(niu.Function(function=_maskroi), name='wm_msk', run_without_submitting=True)
-    acc_msk = pe.Node(niu.Function(function=_maskroi), name='acc_msk', run_without_submitting=True)
-    tcc_msk = pe.Node(niu.Function(function=_maskroi), name='tcc_msk', run_without_submitting=True)
+    csf_msk = pe.Node(niu.Function(function=_maskroi), name='csf_msk')
+    wm_msk = pe.Node(niu.Function(function=_maskroi), name='wm_msk')
+    acc_msk = pe.Node(niu.Function(function=_maskroi), name='acc_msk')
+    tcc_msk = pe.Node(niu.Function(function=_maskroi), name='tcc_msk')
 
     # DVARS
     dvars = pe.Node(nac.ComputeDVARS(save_all=True, remove_zerovariance=True),
@@ -169,19 +167,15 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
     fdisp = pe.Node(nac.FramewiseDisplacement(parameter_source="SPM"),
                     name="fdisp", mem_gb=mem_gb)
 
-    # CompCor
+    # a/t-CompCor
     non_steady_state = pe.Node(nac.NonSteadyStateDetector(), name='non_steady_state')
-    tcompcor = pe.Node(TCompCorRPT(components_file='tcompcor.tsv',
-                                   generate_report=True,
-                                   pre_filter='cosine',
-                                   save_pre_filter=True,
-                                   percentile_threshold=.05),
-                       name="tcompcor", mem_gb=mem_gb)
-    acompcor = pe.Node(ACompCorRPT(components_file='acompcor.tsv',
-                                   pre_filter='cosine',
-                                   save_pre_filter=True,
-                                   generate_report=True),
-                       name="acompcor", mem_gb=mem_gb)
+    tcompcor = pe.Node(nac.TCompCor(
+        components_file='tcompcor.tsv', pre_filter='cosine', save_pre_filter=True,
+        percentile_threshold=.05), name="tcompcor", mem_gb=mem_gb)
+
+    acompcor = pe.Node(nac.ACompCor(
+        components_file='acompcor.tsv', pre_filter='cosine', save_pre_filter=True),
+        name="acompcor", mem_gb=mem_gb)
 
     # Set TR if present
     if 'RepetitionTime' in metadata:
@@ -198,6 +192,11 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
     add_header = pe.Node(AddTSVHeader(columns=["X", "Y", "Z", "RotX", "RotY", "RotZ"]),
                          name="add_header", mem_gb=0.01, run_without_submitting=True)
     concat = pe.Node(GatherConfounds(), name="concat", mem_gb=0.01, run_without_submitting=True)
+
+    # Generate reportlet
+    mrg_compcor = pe.Node(niu.Merge(2), name='merge_compcor', run_without_submitting=True)
+    rois_plot = pe.Node(ROIsPlot(compress_report=True, colors=['r', 'b', 'magenta'],
+                        generate_report=True), name='rois_plot')
 
     def _pick_csf(files):
         return files[0]
@@ -275,8 +274,12 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         # Set outputs
         (concat, outputnode, [('confounds_file', 'confounds_file'),
                               ('confounds_list', 'confounds_list')]),
-        (acompcor, outputnode, [('out_report', 'acompcor_report')]),
-        (tcompcor, outputnode, [('out_report', 'tcompcor_report')]),
+        (inputnode, rois_plot, [('bold', 'in_file'),
+                                ('bold_mask', 'in_mask')]),
+        (tcompcor, mrg_compcor, [('high_variance_masks', 'in1')]),
+        (acc_msk, mrg_compcor, [('out', 'in2')]),
+        (mrg_compcor, rois_plot, [('out', 'in_rois')]),
+        (rois_plot, outputnode, [('out_report', 'rois_report')]),
     ])
 
     if use_aroma:
@@ -375,7 +378,7 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     melodic = pe.Node(fsl.MELODIC(no_bet=True, no_mm=True), name="melodic")
 
     # ica_aroma node
-    ica_aroma = pe.Node(nws.ICA_AROMARPT(denoise_type='nonaggr', generate_report=True),
+    ica_aroma = pe.Node(ICA_AROMARPT(denoise_type='nonaggr', generate_report=True),
                         name='ica_aroma')
 
     # extract the confound ICs from the results

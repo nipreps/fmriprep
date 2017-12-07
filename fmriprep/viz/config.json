@@ -22,28 +22,22 @@
                 "raw": true
             },
             {
-                "name": "skullstrip_ants/t1_skull_strip",
-                "file_pattern": "anat/.*skull_strip",
-                "title": "Skull stripped T1",
-                "description": "Stripped T1 placed over an image of the unstripped T1"
-            },
-            {
-                "name": "anat_preproc/t1_seg",
-                "file_pattern": "anat/.*t1_seg",
-                "title": "T1 segmentation",
-                "description": " "
+                "name": "anat_preproc/t1_brain_seg",
+                "file_pattern": "anat/.*seg_brainmask",
+                "title": "Brain mask and brain tissue segmentation of the T1w",
+                "description": "This panel shows the template T1-weighted image (if several T1w images were found), with contours delineating the detected brain mask and brain tissue segmentations."
             },
             {
                 "name": "anat_preproc/t1_2_mni",
                 "file_pattern": "anat/.*t1_2_mni",
                 "title": "T1 to MNI registration",
-                "description": "Corrected anatomical T1 image registered into MNI space"
+                "description": "Nonlinear mapping of the T1w image into MNI space. Hover on the panel with the mouse to transition between both spaces."
             },
             {
                 "name": "anat_preproc/reconall",
                 "file_pattern": "anat/.*reconall",
                 "title": "Surface reconstruction",
-                "description": "White and pial surfaces overlaid on T1 image"
+                "description": "Surfaces (white and pial) reconstructed with FreeSurfer (<code>recon-all</code>) overlaid on the participant's T1w template."
             }
 
         ]
@@ -99,10 +93,10 @@
                 "description": "Results of performing SyN-based SDC on the EPI"
             },
             {
-                "name": "epi_hmc/bold_mask",
-                "file_pattern": "func/.*bold_mask",
-                "title" : "Skull stripped EPI",
-                "description": "Skull stripped EPI"
+                "name": "epi/rois",
+                "file_pattern": "func/.*bold_rois",
+                "title": "ROIs in BOLD space",
+                "description": "Brain mask calculated on the BOLD signal (red contour), along with the masks used for a/tCompCor.<br />The aCompCor mask (magenta contour) is a conservative CSF and white-matter mask for extracting physiological and movement confounds. <br />The fCompCor mask (blue contour) contains the top 5% most variable voxels within a heavily-eroded brain-mask."
             },
             {
                 "name": "epi_mean_t1_registration/flirt",
@@ -133,18 +127,6 @@
                 "file_pattern": "func/.*ica_aroma",
                 "title": "ICA AROMA",
                 "description": "Maps created with maximum intensity projection (glass brain) with a black brain outline. Right hand side of each map: time series (top in seconds), frequency spectrum (bottom in Hertz). Components classified as signal in green; noise in red."
-            },
-            {
-                "name": "epi/acompcor",
-                "file_pattern": "func/.*_acompcor",
-                "title": "aCompCor ROI",
-                "description": "Conservative CSF and white matter mask for extracting physiological and movement confounds."
-            },
-            {
-                "name": "epi/tcompcor",
-                "file_pattern": "func/.*_tcompcor",
-                "title": "tCompCor high variance map",
-                "description": "Top 5% most variable voxels within heavily eroded brain mask."
             }
         ]
     },

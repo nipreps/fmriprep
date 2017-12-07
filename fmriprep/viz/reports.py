@@ -13,6 +13,7 @@ import json
 import re
 import os
 import html
+import shutil
 
 import jinja2
 from niworkflows.nipype.utils.filemanip import loadcrash
@@ -111,21 +112,33 @@ class Report(object):
         self.index()
 
     def index(self):
+        fig_dir = 'figures'
+        subject_dir = self.root.split('/')[-1]
+        subject = re.search('^(?P<subject_id>sub-[a-zA-Z0-9]+)$', subject_dir).group()
+        svg_dir = os.path.join(self.out_dir, 'fmriprep', subject, fig_dir)
+        os.makedirs(svg_dir, exist_ok=True)
+
         for root, directories, filenames in os.walk(self.root):
             for f in filenames:
                 f = os.path.join(root, f)
                 for sub_report in self.sub_reports:
                     for element in sub_report.elements:
                         ext = f.split('.')[-1]
-                        if element.file_pattern.search(f) and (ext == 'svg' or ext == 'html'):
-                            with open(f) as fp:
-                                content = fp.read()
-                                element.files_contents.append((f, content))
+                        if element.file_pattern.search(f) and ext in ('svg', 'html'):
+                            if ext == 'html':
+                                with open(f) as fp:
+                                    content = fp.read()
+                            else:
+                                fbase = os.path.basename(f)
+                                newf = os.path.join(svg_dir, fbase)
+                                shutil.copy(f, newf)
+                                content = """\
+<object type="image/svg+xml" data="./{0}" class="reportlet">filename:{0}</object>\
+""".format(os.path.join(subject, fig_dir, fbase))
+                            element.files_contents.append((f, content))
         for sub_report in self.sub_reports:
             sub_report.order_by_run()
 
-        subject_dir = self.root.split('/')[-1]
-        subject = re.search('^(?P<subject_id>sub-[a-zA-Z0-9]+)$', subject_dir).group()
         error_dir = os.path.join(self.out_dir, "fmriprep", subject, 'log', self.run_uuid)
         if os.path.isdir(error_dir):
             self.index_error_dir(error_dir)
@@ -223,3 +236,24 @@ def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
     out_filename = 'sub-{}.html'.format(subject_label)
     report = Report(reportlet_path, config, out_dir, run_uuid, out_filename)
     return report.generate_report()
+
+
+def generate_reports(subject_list, output_dir, work_dir, run_uuid):
+    """
+    A wrapper to run_reports on a given ``subject_list``
+    """
+    reports_dir = os.path.join(work_dir, 'reportlets')
+    report_errors = [
+        run_reports(reports_dir, output_dir, subject_label, run_uuid=run_uuid)
+        for subject_label in subject_list
+    ]
+
+    errno = sum(report_errors)
+    if errno:
+        import logging
+        logger = logging.getLogger('cli')
+        logger.warning(
+            'Errors occurred while generating reports for participants: %s.',
+            ', '.join(['%s (%d)' % (subid, err)
+                       for subid, err in zip(subject_list, report_errors)]))
+    return errno

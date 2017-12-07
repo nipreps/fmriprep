@@ -2,8 +2,42 @@ Next release
 ============
 
 
+1.0.0 (6th of December 2017)
+============================
+
+* [ENH] Add ``--resource-monitor`` flag (#883)
+* [FIX] Collision between Multi-T1w and ``--no-freesurfer`` (#880)
+* [FIX] Setting ``use_compression`` on resampling workflows (#882)
+* [ENH] Estimate motion parameters before STC (#876)
+* [ENH] Add ``--stop-on-first-crash`` option (#865)
+* [FIX] Correctly handling xforms (#874)
+* [FIX] Combined ROI reportlets (#872)
+* [ENH] Strip reportlets out of full report (#867)
+
+1.0.0-rc13 (1st of December 2017)
+---------------------------------
+
+* [FIX] Broken ``--fs-license-file`` argument (#869)
+
+1.0.0-rc12 (29th of November 2017)
+----------------------------------
+
+* [ENH] Use Nipype MultiProc even for sequential execution (#856)
+* [REF] More memory annotations and considerations (#816)
+* [FIX] Controlling memory explosion (#854)
+* [WRAPPER] Mount nipype repositories as niworkflows submodule (#834)
+* [FIX] Reduce image loads in local memory (#839)
+* [ENH] Always sync qforms, refactor error messaging (#851)
+
+1.0.0-rc11 (24th of November 2017)
+----------------------------------
+
+* [ENH] Check for invalid qforms in validation (#847)
+* [FIX] Update pybids to include latest bugfixes (#838)
+* [FIX] MultiApplyTransforms failed with nthreads=1 (#835)
+
 1.0.0-rc10 (9th of November 2017)
-=================================
+---------------------------------
 
 * [FIX] Adopt new FreeSurfer (v6.0.1) license mechanism (#787)
 * [ENH] Output affine transforms from original T1w images to preprocessed anatomical (#726)
@@ -11,10 +45,10 @@ Next release
 * [FIX] Normalize T1w image qform/sform matrices (#820)
 
 1.0.0-rc9 (2nd of November 2017)
-================================
+--------------------------------
 
 * [FIX] Fixed #776 (aCompCor - numpy.linalg.linalg.LinAlgError: SVD did not converge) via #807.
-* [ENH] Added `CSF` column to `_confounds.tsv` (included in #807)
+* [ENH] Added ``CSF`` column to ``_confounds.tsv`` (included in #807)
 * [DOC] Add more details on the outputs of FMRIPREP and minor fixes (#811)
 * [ENH] Processing confounds in BOLD space (#807)
 * [ENH] Updated niworkflows and nipype, including the new feature to close all file descriptors (#810)
@@ -22,7 +56,7 @@ Next release
 * [ENH] Improved memory annotations (#803, #807)
 
 1.0.0-rc8 (27th of October 2017)
-================================
+--------------------------------
 
 * [FIX] Allow missing magnitude2 in phasediff-type fieldmaps (#802)
 * [FIX] Lower tolerance deciding t1_merge shapes (#798)
@@ -33,20 +67,20 @@ Next release
 
 
 1.0.0-rc7 (20th of October 2017)
-================================
+--------------------------------
 
 * [ENH] Update pinned version of nipype to latest master
 * [ENH] Added rX permissions to make life easier on Singularity users (#757)
 * [DOC] Citation boilerplate (#779)
 * [FIX] Patch to remove long filenames after mri_concatenate_lta (#778)
-* [FIX] Only use unbiased template with --longitudinal (#771)
+* [FIX] Only use unbiased template with ``--longitudinal`` (#771)
 * [FIX] Use t1_2_fsnative registration when sampling to surface (#762)
-* [ENH] Remove --skull_strip_ants option (#761)
+* [ENH] Remove ``--skull_strip_ants`` option (#761)
 * [DOC] Add reference to beginners guide (#763)
 
 
 1.0.0-rc6 (11th of October 2017)
-================================
+--------------------------------
 
 * [ENH] Add inverse normalization transform (MNI -> T1w) to derivatives (#754)
 * [ENH] Fall back to initial registration if BBR fails (#694)
@@ -63,14 +97,14 @@ Next release
 * [DOC] Documentation updates (#748)
 
 1.0.0-rc5 (25th of September 2017)
-==================================
+----------------------------------
 
 * [FIX] Skip slice time correction on BOLD series < 5 volumes (#711)
 * [FIX] Skip AFNI check for new versions (#723)
 * [DOC] Documentation clarification and updates (#698, #711)
 
 1.0.0-rc4 (12th of September 2017)
-==================================
+----------------------------------
 
 With thanks to Mathias Goncalves for contributions.
 
@@ -80,26 +114,26 @@ With thanks to Mathias Goncalves for contributions.
 * [ENH] Replace medial wall values with NaNs (#687)
 
 1.0.0-rc3 (28th of August 2017)
-===============================
+-------------------------------
 
 With thanks to Anibal Sólon for contributions.
 
-* [ENH] Add --low-mem option to reduce memory usage for large BOLD series (#663)
+* [ENH] Add ``--low-mem`` option to reduce memory usage for large BOLD series (#663)
 * [ENH] Parallelize anatomical conformation step (#666)
 * [FIX] Handle missing functional data in SubjectSummary node (#670)
-* [FIX] Disable --no-skull-strip-ants (AFNI skull-stripping) (#674)
+* [FIX] Disable ``--no-skull-strip-ants`` (AFNI skull-stripping) (#674)
 * [FIX] Initialize SyN SDC more robustly (#680)
 * [DOC] Add comprehensive documentation of workflow API (#638)
 
 1.0.0-rc2 (12th of August 2017)
-===============================
+-------------------------------
 
 * [ENH] Increased support for partial field-of-view BOLD datasets (#659)
 * [FIX] Slice time correction is now being applied to output data (not only to intermediate file used for motion estimation - #662)
 * [FIX] Fieldmap unwarping is now being applied to MNI space outputs (not only to T1w space outputs - #662)
 
 1.0.0-rc1 (8th of August 2017)
-==============================
+------------------------------
 
 * [ENH] Include ICA-AROMA confounds in report (#646)
 * [ENH] Save non-aggressively denoised BOLD series (#648)
@@ -266,7 +300,7 @@ With thanks to Asier Erramuzpe for contributions.
 
 * [FIX] Downloads from OSF, remove data downloader (now in niworkflows)
 * [FIX] pybids was missing in the install_requires
-* [DEP] Deprecated -S/--subject-id tag
+* [DEP] Deprecated ``-S``/``--subject-id`` tag
 * [ENH] Accept subjects with several T1w images (#114)
 * [ENH] Documentation updates (#130, #131)
 * [TST] Re-enabled CircleCI tests on one subject from ds054 of OpenfMRI

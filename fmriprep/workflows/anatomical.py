@@ -29,12 +29,15 @@ import os.path as op
 from niworkflows.nipype.interfaces import c3, freesurfer as fs
 from niworkflows.nipype.interfaces import utility as niu
 from niworkflows.nipype.interfaces import io as nio
+from niworkflows.nipype.interfaces import fsl
+from niworkflows.nipype.interfaces.ants import BrainExtraction
 from niworkflows.nipype.pipeline import engine as pe
 
 from niworkflows.interfaces.registration import RobustMNINormalizationRPT
 import niworkflows.data as nid
-from niworkflows.interfaces.masks import BrainExtractionRPT
-from niworkflows.interfaces.segmentation import FASTRPT, ReconAllRPT
+from niworkflows.interfaces.masks import ROIsPlot
+
+from niworkflows.interfaces.segmentation import ReconAllRPT
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ..interfaces import (
@@ -47,7 +50,8 @@ from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 
 #  pylint: disable=R0914
 def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
-                         freesurfer, longitudinal, omp_nthreads, hires, reportlets_dir, output_dir,
+                         freesurfer, longitudinal, omp_nthreads, hires, reportlets_dir,
+                         output_dir, num_t1w,
                          name='anat_preproc_wf'):
     r"""
     This workflow controls the anatomical preprocessing stages of FMRIPREP.
@@ -75,7 +79,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                                   freesurfer=True,
                                   longitudinal=False,
                                   debug=False,
-                                  hires=True)
+                                  hires=True,
+                                  num_t1w=1)
 
     **Parameters**
 
@@ -180,7 +185,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                 't1_2_fsnative_reverse_transform', 'surfaces']),
         name='outputnode')
 
-    anat_template_wf = init_anat_template_wf(longitudinal=longitudinal, omp_nthreads=omp_nthreads)
+    anat_template_wf = init_anat_template_wf(longitudinal=longitudinal, omp_nthreads=omp_nthreads,
+                                             num_t1w=num_t1w)
 
     # 3. Skull-stripping
     # Bias field correction is handled in skull strip workflows.
@@ -190,8 +196,7 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                                                  omp_nthreads=omp_nthreads)
 
     # 4. Segmentation
-    t1_seg = pe.Node(FASTRPT(generate_report=True, segments=True,
-                             no_bias=True, probability_maps=True),
+    t1_seg = pe.Node(fsl.FAST(segments=True, no_bias=True, probability_maps=True),
                      name='t1_seg', mem_gb=3)
 
     # 5. Spatial normalization (T1w to MNI registration)
@@ -287,6 +292,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                 ('outputnode.surfaces', 'surfaces')]),
         ])
 
+    seg2msks = pe.Node(niu.Function(function=_seg2msks), name='seg2msks')
+    seg_rpt = pe.Node(ROIsPlot(colors=['r', 'magenta', 'b', 'g']), name='seg_rpt')
     anat_reports_wf = init_anat_reports_wf(
         reportlets_dir=reportlets_dir, output_spaces=output_spaces, template=template,
         freesurfer=freesurfer)
@@ -295,9 +302,12 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
             (('t1w', fix_multi_T1w_source_name), 'inputnode.source_file')]),
         (anat_template_wf, anat_reports_wf, [
             ('outputnode.out_report', 'inputnode.t1_conform_report')]),
-        (skullstrip_ants_wf, anat_reports_wf, [
-            ('outputnode.out_report', 'inputnode.t1_skull_strip_report')]),
-        (t1_seg, anat_reports_wf, [('out_report', 'inputnode.t1_seg_report')]),
+        (anat_template_wf, seg_rpt, [
+            ('outputnode.t1_template', 'in_file')]),
+        (t1_seg, seg2msks, [('tissue_class_map', 'in_file')]),
+        (seg2msks, seg_rpt, [('out', 'in_rois')]),
+        (outputnode, seg_rpt, [('t1_mask', 'in_mask')]),
+        (seg_rpt, anat_reports_wf, [('out_report', 'inputnode.seg_report')]),
     ])
 
     if freesurfer:
@@ -316,7 +326,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                                                    freesurfer=freesurfer)
 
     workflow.connect([
-        (inputnode, anat_derivatives_wf, [('t1w', 'inputnode.source_files')]),
+        (anat_template_wf, anat_derivatives_wf, [
+            ('outputnode.t1w_valid_list', 'inputnode.source_files')]),
         (outputnode, anat_derivatives_wf, [
             ('t1_template_transforms', 'inputnode.t1_template_transforms'),
             ('t1_preproc', 'inputnode.t1_preproc'),
@@ -337,7 +348,7 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
     return workflow
 
 
-def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
+def init_anat_template_wf(longitudinal, omp_nthreads, num_t1w, name='anat_template_wf'):
     r"""
     This workflow generates a canonically oriented structural template from
     input T1w images.
@@ -348,7 +359,7 @@ def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.anatomical import init_anat_template_wf
-        wf = init_anat_template_wf(longitudinal=False, omp_nthreads=1)
+        wf = init_anat_template_wf(longitudinal=False, omp_nthreads=1, num_t1w=1)
 
     **Parameters**
 
@@ -381,7 +392,7 @@ def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['t1w']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['t1_template',  'template_transforms', 'out_report']),
+        fields=['t1_template', 't1w_valid_list', 'template_transforms', 'out_report']),
         name='outputnode')
 
     # 0. Reorient T1w image(s) to RAS and resample to common voxel space
@@ -399,6 +410,7 @@ def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
                             no_iteration=not longitudinal,
                             transform_outputs=True,
                             ),
+        mem_gb=2 * num_t1w - 1,
         name='t1_merge')
 
     # Reorient template to RAS, if needed (mri_robust_template may set to LIA)
@@ -433,11 +445,12 @@ def init_anat_template_wf(longitudinal, omp_nthreads, name='anat_template_wf'):
         (t1_conform, concat_affines, [('transform', 'mat_AtoB')]),
         (lta_to_fsl, concat_affines, [('out_fsl', 'mat_BtoC')]),
         (t1_reorient, concat_affines, [('transform', 'mat_CtoD')]),
-        (inputnode, fsl_to_itk, [('t1w', 'source_file')]),
+        (t1_template_dimensions, fsl_to_itk, [('t1w_valid_list', 'source_file')]),
         (t1_reorient, fsl_to_itk, [('out_file', 'reference_file')]),
         (concat_affines, fsl_to_itk, [('out_mat', 'transform_file')]),
         # Output
-        (t1_template_dimensions, outputnode, [('out_report', 'out_report')]),
+        (t1_template_dimensions, outputnode, [('out_report', 'out_report'),
+                                              ('t1w_valid_list', 't1w_valid_list')]),
         (t1_reorient, outputnode, [('out_file', 't1_template')]),
         (fsl_to_itk, outputnode, [('itk_transform', 'template_transforms')]),
     ])
@@ -509,8 +522,8 @@ def init_skullstrip_ants_wf(skull_strip_template, debug, omp_nthreads, name='sku
         fields=['bias_corrected', 'out_file', 'out_mask', 'out_report']), name='outputnode')
 
     t1_skull_strip = pe.Node(
-        BrainExtractionRPT(dimension=3, use_floatingpoint_precision=1, debug=debug,
-                           generate_report=True, keep_temporary_files=1),
+        BrainExtraction(dimension=3, use_floatingpoint_precision=1, debug=debug,
+                        keep_temporary_files=1),
         name='t1_skull_strip', n_procs=omp_nthreads)
 
     t1_skull_strip.inputs.brain_template = brain_template
@@ -521,8 +534,7 @@ def init_skullstrip_ants_wf(skull_strip_template, debug, omp_nthreads, name='sku
         (inputnode, t1_skull_strip, [('in_file', 'anatomical_image')]),
         (t1_skull_strip, outputnode, [('BrainExtractionMask', 'out_mask'),
                                       ('BrainExtractionBrain', 'out_file'),
-                                      ('N4Corrected0', 'bias_corrected'),
-                                      ('out_report', 'out_report')])
+                                      ('N4Corrected0', 'bias_corrected')])
     ])
 
     return workflow
@@ -620,16 +632,14 @@ def init_surface_recon_wf(omp_nthreads, hires, name='surface_recon_wf'):
                     'out_report']),
         name='outputnode')
 
-    recon_config = pe.Node(FSDetectInputs(hires_enabled=hires), name='recon_config',
-                           run_without_submitting=True)
+    recon_config = pe.Node(FSDetectInputs(hires_enabled=hires), name='recon_config')
 
     autorecon1 = pe.Node(
         fs.ReconAll(directive='autorecon1', flags='-noskullstrip', openmp=omp_nthreads),
         name='autorecon1', n_procs=omp_nthreads, mem_gb=5)
     autorecon1.interface._can_resume = False
 
-    skull_strip_extern = pe.Node(FSInjectBrainExtracted(), name='skull_strip_extern',
-                                 run_without_submitting=True)
+    skull_strip_extern = pe.Node(FSInjectBrainExtracted(), name='skull_strip_extern')
 
     fsnative_2_t1_xfm = pe.Node(fs.RobustRegister(auto_sens=True, est_int_scale=True),
                                 name='fsnative_2_t1_xfm')
@@ -890,25 +900,21 @@ def init_anat_reports_wf(reportlets_dir, output_spaces,
 
     inputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['source_file', 't1_conform_report', 't1_seg_report',
-                    't1_2_mni_report', 't1_skull_strip_report', 'recon_report']),
+            fields=['source_file', 't1_conform_report', 'seg_report',
+                    't1_2_mni_report', 'recon_report']),
         name='inputnode')
 
     ds_t1_conform_report = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir, suffix='conform'),
         name='ds_t1_conform_report', run_without_submitting=True)
 
-    ds_t1_seg_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir, suffix='t1_seg'),
-        name='ds_t1_seg_report', run_without_submitting=True)
-
     ds_t1_2_mni_report = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir, suffix='t1_2_mni'),
         name='ds_t1_2_mni_report', run_without_submitting=True)
 
-    ds_t1_skull_strip_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir, suffix='t1_skull_strip'),
-        name='ds_t1_skull_strip_report', run_without_submitting=True)
+    ds_t1_seg_mask_report = pe.Node(
+        DerivativesDataSink(base_directory=reportlets_dir, suffix='seg_brainmask'),
+        name='ds_t1_seg_mask_report', run_without_submitting=True)
 
     ds_recon_report = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir, suffix='reconall'),
@@ -917,10 +923,8 @@ def init_anat_reports_wf(reportlets_dir, output_spaces,
     workflow.connect([
         (inputnode, ds_t1_conform_report, [('source_file', 'source_file'),
                                            ('t1_conform_report', 'in_file')]),
-        (inputnode, ds_t1_skull_strip_report, [('source_file', 'source_file'),
-                                               ('t1_skull_strip_report', 'in_file')]),
-        (inputnode, ds_t1_seg_report, [('source_file', 'source_file'),
-                                       ('t1_seg_report', 'in_file')]),
+        (inputnode, ds_t1_seg_mask_report, [('source_file', 'source_file'),
+                                            ('seg_report', 'in_file')]),
     ])
 
     if freesurfer:
@@ -1069,3 +1073,22 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         ])
 
     return workflow
+
+
+def _seg2msks(in_file):
+    """Converts labels to masks"""
+    import nibabel as nb
+    import numpy as np
+    from os import path as op
+
+    nii = nb.load(in_file)
+    labels = nii.get_data()
+
+    out_files = []
+    for i in range(1, 4):
+        ldata = np.zeros_like(labels)
+        ldata[labels == i] = 1
+        out_files.append(op.abspath('label%d.nii.gz' % i))
+        nii.__class__(ldata, nii.affine, nii.header).to_filename(out_files[-1])
+
+    return out_files

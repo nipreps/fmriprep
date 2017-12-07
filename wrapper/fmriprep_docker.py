@@ -325,9 +325,12 @@ def main():
     # Patch working repositories into installed package directories
     for pkg in ('fmriprep', 'niworkflows', 'nipype'):
         repo_path = getattr(opts, 'patch_' + pkg)
-        pkg_path = '{}/{}'.format(PKG_PATH, pkg)  # Always POSIX path
         if repo_path is not None:
-            command.extend(['-v', '{}:{}:ro'.format(repo_path, pkg_path)])
+            # nipype is now a submodule of niworkflows
+            if pkg == 'nipype':
+                pkg = 'niworkflows/nipype'
+            command.extend(['-v',
+                            '{}:{}/{}:ro'.format(repo_path, PKG_PATH, pkg)])
 
     if opts.fs_license_file:
         command.extend([

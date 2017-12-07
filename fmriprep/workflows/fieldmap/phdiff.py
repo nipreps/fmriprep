@@ -3,6 +3,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
+.. _sdc_phasediff :
 
 Phase-difference B0 estimation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -146,11 +147,6 @@ def phdiff2fmap(in_file, delta_te, out_file=None):
     .. math::
 
         \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
-
-
-    .. [Hutton2002] Hutton et al., Image Distortion Correction in fMRI: A Quantitative
-                    Evaluation, NeuroImage 16(1):217-240, 2002. doi:`10.1006/nimg.2001.1054
-                    <https://doi.org/10.1006/nimg.2001.1054>`_.
 
     """
     import numpy as np

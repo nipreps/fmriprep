@@ -116,11 +116,18 @@ class AddTPMs(SimpleInterface):
             return runtime
 
         im = nb.concat_images([in_files[i] for i in indices])
-        data = im.get_data().sum(axis=3)
+        data = im.get_data().astype(float).sum(axis=3)
         data = np.clip(data, a_min=0.0, a_max=1.0)
 
-        out_file = fname_presuffix(first_fname, suffix='_tpmsum')
-        im.__class__(data, im.affine, im.header).to_filename(out_file)
+        out_file = fname_presuffix(first_fname, suffix='_tpmsum',
+                                   newpath=runtime.cwd)
+        newnii = im.__class__(data, im.affine, im.header)
+        newnii.set_data_dtype(np.float32)
+
+        # Set visualization thresholds
+        newnii.header['cal_max'] = 1.0
+        newnii.header['cal_min'] = 0.0
+        newnii.to_filename(out_file)
         self._results['out_file'] = out_file
 
         return runtime
@@ -239,7 +246,8 @@ def _tpm2roi(in_tpm, in_mask, mask_erosion_mm=None, erosion_mm=None,
     erode_in = (mask_erosion_mm is not None and mask_erosion_mm > 0 or
                 mask_erosion_prop is not None and mask_erosion_prop < 1)
     if erode_in:
-        eroded_mask_file = fname_presuffix(in_mask, suffix='_eroded')
+        eroded_mask_file = fname_presuffix(in_mask, suffix='_eroded',
+                                           newpath=os.getcwd())
         mask_img = nb.load(in_mask)
         mask_data = mask_img.get_data().astype(np.uint8)
         if mask_erosion_mm:
@@ -272,7 +280,8 @@ def _tpm2roi(in_tpm, in_mask, mask_erosion_mm=None, erosion_mm=None,
                 roi_mask = nd.binary_erosion(roi_mask, iterations=1)
 
     # Create image to resample
-    roi_fname = fname_presuffix(in_tpm, suffix='_roi')
+    roi_fname = fname_presuffix(in_tpm, suffix='_roi',
+                                newpath=os.getcwd())
     roi_img = nb.Nifti1Image(roi_mask, tpm_img.affine, tpm_img.header)
     roi_img.set_data_dtype(np.uint8)
     roi_img.to_filename(roi_fname)

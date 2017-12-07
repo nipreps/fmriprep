@@ -382,6 +382,7 @@ def init_single_subject_wf(subject_id, task_id, name,
         name='ds_about_report', run_without_submitting=True)
 
     if not func_only:
+        # Preprocessing of T1w (includes registration to MNI)
         anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
                                                skull_strip_template=skull_strip_template,
                                                output_spaces=output_spaces,
@@ -392,7 +393,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                freesurfer=freesurfer,
                                                hires=hires,
                                                reportlets_dir=reportlets_dir,
-                                               output_dir=output_dir)
+                                               output_dir=output_dir,
+                                               num_t1w=len(subject_data['t1w']))
 
         workflow.connect([
             (inputnode, anat_preproc_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
@@ -421,7 +423,6 @@ def init_single_subject_wf(subject_id, task_id, name,
                 layout=layout,
                 ignore=ignore,
                 freesurfer=freesurfer,
-                func_only=func_only,
                 use_bbr=use_bbr,
                 bold2t1w_dof=bold2t1w_dof,
                 reportlets_dir=reportlets_dir,
@@ -440,7 +441,6 @@ def init_single_subject_wf(subject_id, task_id, name,
                 use_aroma=use_aroma,
                 ignore_aroma_err=ignore_aroma_err,
             )
-
             workflow.connect([
                 (anat_preproc_wf, func_preproc_wf,
                  [('outputnode.t1_preproc', 'inputnode.t1_preproc'),
@@ -460,6 +460,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                   ('outputnode.t1_2_fsnative_reverse_transform',
                    'inputnode.t1_2_fsnative_reverse_transform')]),
             ])
+
         else:
             func_preproc_wf = init_onlyfunc_preproc_wf(
                 bold_file=bold_file,

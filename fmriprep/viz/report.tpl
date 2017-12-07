@@ -45,6 +45,15 @@ body {
             {% endif %}
         {% endfor %}
         <li><a class="dropdown-item" href="#errors">Errors</a></li>
+        <li class="dropdown">
+            <a class="nav-item  nav-link dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" href="">
+            About<span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="http://fmriprep.readthedocs.io/en/latest/citing.html">Citing FMRIPREP</a></li>
+                <li><a class="dropdown-item" href="http://fmriprep.org">About fMRIprep</a></li>
+            </ul>
+        </li>
     </ul>
 <div>
 </nav>

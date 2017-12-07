@@ -70,10 +70,11 @@ class StructuralReference(fs.RobustTemplate):
         outputs = super(StructuralReference, self)._list_outputs()
         if self._num_vols() == 1:
             in_file = self.inputs.in_files[0]
-            transform_file = outputs['transform_outputs'][0]
             outputs['out_file'] = in_file
-            fs.utils.LTAConvert(in_lta='identity.nofile', source_file=in_file,
-                                target_file=in_file, out_lta=transform_file).run()
+            if isdefined(outputs['transform_outputs']):
+                transform_file = outputs['transform_outputs'][0]
+                fs.utils.LTAConvert(in_lta='identity.nofile', source_file=in_file,
+                                    target_file=in_file, out_lta=transform_file).run()
         return outputs
 
 

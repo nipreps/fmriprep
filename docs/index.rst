@@ -17,6 +17,7 @@ Contents
    changes
    usage
    workflows
+   sdc
    outputs
    contributors
    citing

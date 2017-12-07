@@ -65,8 +65,6 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
             Skull-stripped reference image
         bold_mask
             Skull-stripping mask of reference image
-        bold_mask_report
-            Reportlet showing quality of masking
         validation_report
             HTML reportlet indicating whether ``bold_file`` had a valid affine
 
@@ -81,16 +79,14 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file']), name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['bold_file', 'raw_ref_image', 'skip_vols', 'ref_image',
-                                      'ref_image_brain', 'bold_mask', 'bold_mask_report',
-                                      'validation_report']),
+                                      'ref_image_brain', 'bold_mask', 'validation_report']),
         name='outputnode')
 
     # Simplify manually setting input image
     if bold_file is not None:
         inputnode.inputs.bold_file = bold_file
 
-    validate = pe.Node(ValidateImage(), name='validate', mem_gb=DEFAULT_MEMORY_MIN_GB,
-                       run_without_submitting=True)
+    validate = pe.Node(ValidateImage(), name='validate', mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     gen_ref = pe.Node(EstimateReferenceImage(), name="gen_ref",
                       mem_gb=1)  # OE: 128x128x128x50 * 64 / 8 ~ 900MB.
@@ -107,7 +103,6 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
         (enhance_and_skullstrip_bold_wf, outputnode, [
             ('outputnode.bias_corrected_file', 'ref_image'),
             ('outputnode.mask_file', 'bold_mask'),
-            ('outputnode.out_report', 'bold_mask_report'),
             ('outputnode.skull_stripped_file', 'ref_image_brain')]),
     ])
 
@@ -150,11 +145,8 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
                         name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['mask_file',
-                                                       'skull_stripped_file',
-                                                       'bias_corrected_file',
-                                                       'out_report']),
-                         name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=[
+        'mask_file', 'skull_stripped_file', 'bias_corrected_file']), name='outputnode')
     n4_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
                          name='n4_correct', n_procs=omp_nthreads)
     skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
@@ -162,18 +154,15 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
     unifize = pe.Node(afni.Unifize(t2=True, outputtype='NIFTI_GZ',
                                    args='-clfrac 0.4',
                                    out_file="uni.nii.gz"), name='unifize')
-    fixhdr_unifize = pe.Node(CopyXForm(), name='fixhdr_unifize',
-                             mem_gb=0.1, run_without_submitting=True)
+    fixhdr_unifize = pe.Node(CopyXForm(), name='fixhdr_unifize', mem_gb=0.1)
     skullstrip_second_pass = pe.Node(afni.Automask(dilate=1,
                                                    outputtype='NIFTI_GZ'),
                                      name='skullstrip_second_pass')
-    fixhdr_skullstrip2 = pe.Node(CopyXForm(), name='fixhdr_skullstrip2',
-                                 mem_gb=0.1, run_without_submitting=True)
+    fixhdr_skullstrip2 = pe.Node(CopyXForm(), name='fixhdr_skullstrip2', mem_gb=0.1)
     combine_masks = pe.Node(fsl.BinaryMaths(operation='mul'),
                             name='combine_masks')
     apply_mask = pe.Node(fsl.ApplyMask(),
                          name='apply_mask')
-    mask_reportlet = pe.Node(SimpleShowMaskRPT(), name='mask_reportlet')
 
     workflow.connect([
         (inputnode, n4_correct, [('in_file', 'input_image')]),
@@ -188,10 +177,7 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
         (fixhdr_skullstrip2, combine_masks, [('out_file', 'operand_file')]),
         (fixhdr_unifize, apply_mask, [('out_file', 'in_file')]),
         (combine_masks, apply_mask, [('out_file', 'mask_file')]),
-        (n4_correct, mask_reportlet, [('output_image', 'background_file')]),
-        (combine_masks, mask_reportlet, [('out_file', 'mask_file')]),
         (combine_masks, outputnode, [('out_file', 'mask_file')]),
-        (mask_reportlet, outputnode, [('out_report', 'out_report')]),
         (apply_mask, outputnode, [('out_file', 'skull_stripped_file')]),
         (n4_correct, outputnode, [('output_image', 'bias_corrected_file')]),
     ])

@@ -132,7 +132,7 @@ class MultiApplyTransforms(SimpleInterface):
 
         if num_threads == 1:
             out_files = [_applytfms((
-                in_file, in_xfm, ifargs, runtime.cwd))
+                in_file, in_xfm, ifargs, i, runtime.cwd))
                 for i, (in_file, in_xfm) in enumerate(zip(in_files, xfms_list))
             ]
         else:

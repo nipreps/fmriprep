@@ -61,13 +61,11 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
 
     def create_custom_slice_timing_file_func(metadata):
         import os
-        slice_timings = metadata["SliceTiming"]
-        slice_timings_ms = [str(t) for t in slice_timings]
-        out_file = "timings.1D"
-        with open("timings.1D", "w") as fp:
-            fp.write("\t".join(slice_timings_ms))
-
-        return os.path.abspath(out_file)
+        slice_timings_sec = ["%f" % t for t in metadata["SliceTiming"]]
+        out_file = os.path.abspath("timings.1D")
+        with open(out_file, "w") as fp:
+            fp.write("\t".join(slice_timings_sec))
+        return out_file
 
     create_custom_slice_timing_file = pe.Node(
         niu.Function(function=create_custom_slice_timing_file_func),
@@ -80,10 +78,10 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
         afni.TShift(outputtype='NIFTI_GZ', tr='{}s'.format(metadata["RepetitionTime"])),
         name='slice_timing_correction')
 
-    copy_xform = pe.Node(CopyXForm(), name='copy_xform', mem_gb=0.1, run_without_submitting=True)
+    copy_xform = pe.Node(CopyXForm(), name='copy_xform', mem_gb=0.1)
 
     def _prefix_at(x):
-        return "@" + x
+        return "@%s" % x
 
     workflow.connect([
         (inputnode, slice_timing_correction, [('bold_file', 'in_file'),

@@ -13,6 +13,7 @@ import os
 import numpy as np
 import nibabel as nb
 import nilearn.image as nli
+from textwrap import indent
 
 from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import fname_presuffix
@@ -346,6 +347,43 @@ class ValidateImageOutputSpec(TraitedSpec):
 
 
 class ValidateImage(SimpleInterface):
+    """
+    Check the correctness of x-form headers (matrix and code)
+
+    This interface implements the `following logic
+    <https://github.com/poldracklab/fmriprep/issues/873#issuecomment-349394544>`_:
+
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | valid quaternions | `qform_code > 0` | `sform_code > 0` | `qform == sform` \
+| actions                                        |
+    +===================+==================+==================+==================\
++================================================+
+    | True              | True             | True             | True             \
+| None                                           |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | True              | True             | False            | *                \
+| sform, scode <- qform, qcode                   |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | *                 | *                | True             | False            \
+| qform, qcode <- sform, scode                   |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | *                 | False            | True             | *                \
+| qform, qcode <- sform, scode                   |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | *                 | False            | False            | *                \
+| sform, qform <- best affine; scode, qcode <- 1 |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    | False             | *                | False            | *                \
+| sform, qform <- best affine; scode, qcode <- 1 |
+    +-------------------+------------------+------------------+------------------\
++------------------------------------------------+
+    """
     input_spec = ValidateImageInputSpec
     output_spec = ValidateImageOutputSpec
 
@@ -353,34 +391,75 @@ class ValidateImage(SimpleInterface):
         img = nb.load(self.inputs.in_file)
         out_report = os.path.abspath('report.html')
 
-        qform_code = img.header._structarr['qform_code']
-        sform_code = img.header._structarr['sform_code']
+        # Retrieve xform codes
+        sform_code = int(img.header._structarr['sform_code'])
+        qform_code = int(img.header._structarr['qform_code'])
 
-        # Valid affine information
-        if (qform_code, sform_code) != (0, 0):
+        # Check qform is valid
+        valid_qform = False
+        try:
+            img.get_qform()
+            valid_qform = True
+        except ValueError:
+            pass
+
+        # Matching affines
+        matching_affines = valid_qform and np.allclose(img.get_qform(), img.get_sform())
+
+        # Both match, qform valid (implicit with match), codes okay -> do nothing, empty report
+        if matching_affines and qform_code > 0 and sform_code > 0:
             self._results['out_file'] = self.inputs.in_file
             open(out_report, 'w').close()
             self._results['out_report'] = out_report
             return runtime
 
+        # A new file will be written
         out_fname = fname_presuffix(self.inputs.in_file, suffix='_valid', newpath=runtime.cwd)
-
-        # Nibabel derives a default LAS affine from the shape and zooms
-        # Use scanner xform code to indicate no alignment has been done
-        img.set_sform(img.affine, nb.nifti1.xform_codes['scanner'])
-
-        img.to_filename(out_fname)
         self._results['out_file'] = out_fname
 
-        snippet = (r'<h3 class="elem-title">WARNING - Invalid header</h3>',
-                   r'<p class="elem-desc">Input file does not have valid qform or sform matrix.',
-                   r'A default, LAS-oriented affine has been constructed.',
-                   r'A left-right flip may have occurred.',
-                   r'Analyses of this dataset MAY BE INVALID.</p>')
-
+        # Row 2:
+        if valid_qform and qform_code > 0 and sform_code == 0:
+            img.set_sform(img.get_qform(), qform_code)
+            warning_txt = 'Note on orientation: sform matrix set'
+            description = """\
+<p class="elem-desc">The sform has been copied from qform.</p>
+"""
+        # Rows 3-4:
+        # Note: if qform is not valid, matching_affines is False
+        elif sform_code > 0 and (not matching_affines or qform_code == 0):
+            img.set_qform(img.get_sform(), sform_code)
+            warning_txt = 'Note on orientation: qform matrix overwritten'
+            description = """\
+<p class="elem-desc">The qform has been copied from sform.</p>
+"""
+            if not valid_qform and qform_code > 0:
+                warning_txt = 'WARNING - Invalid qform information'
+                description = """\
+<p class="elem-desc">
+    The qform matrix found in the file header is invalid.
+    The qform has been copied from sform.
+    Checking the original qform information from the data produced
+    by the scanner is advised.
+</p>
+"""
+        # Rows 5-6:
+        else:
+            affine = img.affine
+            img.set_sform(affine, nb.nifti1.xform_codes['scanner'])
+            img.set_qform(affine, nb.nifti1.xform_codes['scanner'])
+            warning_txt = 'WARNING - Missing orientation information'
+            description = """\
+<p class="elem-desc">
+    FMRIPREP could not retrieve orientation information from the image header.
+    The qform and sform matrices have been set to a default, LAS-oriented affine.
+    Analyses of this dataset MAY BE INVALID.
+</p>
+"""
+        snippet = '<h3 class="elem-title">%s</h3>\n%s\n' % (warning_txt, description)
+        # Store new file and report
+        img.to_filename(out_fname)
         with open(out_report, 'w') as fobj:
-            fobj.write('\n'.join('\t' * 3 + line for line in snippet))
-            fobj.write('\n')
+            fobj.write(indent(snippet, '\t' * 3))
 
         self._results['out_report'] = out_report
         return runtime
@@ -427,45 +506,6 @@ def reorient(in_file, out_file=None):
         out_file = fname_presuffix(in_file, suffix='_ras', newpath=os.getcwd())
     nb.as_closest_canonical(nb.load(in_file)).to_filename(out_file)
     return out_file
-
-
-def _flatten_split_merge(in_files):
-    if isinstance(in_files, str):
-        in_files = [in_files]
-
-    nfiles = len(in_files)
-
-    all_nii = []
-    for fname in in_files:
-        nii = nb.squeeze_image(nb.load(fname))
-
-        if nii.get_data().ndim > 3:
-            all_nii += nb.four_to_three(nii)
-        else:
-            all_nii.append(nii)
-
-    if len(all_nii) == 1:
-        LOGGER.warning('File %s cannot be split', all_nii[0])
-        return in_files[0], in_files
-
-    if len(all_nii) == nfiles:
-        flat_split = in_files
-    else:
-        splitname = fname_presuffix(in_files[0], suffix='_split%04d', newpath=os.getcwd())
-        flat_split = []
-        for i, nii in enumerate(all_nii):
-            flat_split.append(splitname % i)
-            nii.to_filename(flat_split[-1])
-
-    # Only one 4D file was supplied
-    if nfiles == 1:
-        merged = in_files[0]
-    else:
-        # More that one in_files - need merge
-        merged = fname_presuffix(in_files[0], suffix='_merged', newpath=os.getcwd())
-        nb.concat_images(all_nii).to_filename(merged)
-
-    return merged, flat_split
 
 
 def extract_wm(in_seg, wm_label=3):
