@@ -212,18 +212,19 @@ def main():
     opts = get_parser().parse_args()
 
     # FreeSurfer license
-    default_license = op.join(os.getenv('FREESURFER_HOME', ''), 'license.txt')
-    # Precedence: --fs-license-file, $FS_LICENSE, default_license
-    license_file = opts.fs_license_file or os.getenv('FS_LICENSE', default_license)
-    if not os.path.exists(license_file):
-        raise RuntimeError(
-            'ERROR: a valid license file is required for FreeSurfer to run. '
-            'FMRIPREP looked for an existing license file at several paths, in this '
-            'order: 1) command line argument ``--fs-license-file``; 2) ``$FS_LICENSE`` '
-            'environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. '
-            'Get it (for free) by registering at https://'
-            'surfer.nmr.mgh.harvard.edu/registration.html')
-    os.environ['FS_LICENSE'] = license_file
+    if opts.run_reconall:
+        default_license = op.join(os.getenv('FREESURFER_HOME', ''), 'license.txt')
+        # Precedence: --fs-license-file, $FS_LICENSE, default_license
+        license_file = opts.fs_license_file or os.getenv('FS_LICENSE', default_license)
+        if not os.path.exists(license_file):
+            raise RuntimeError(
+                'ERROR: a valid license file is required for FreeSurfer to run. '
+                'FMRIPREP looked for an existing license file at several paths, in this '
+                'order: 1) command line argument ``--fs-license-file``; 2) ``$FS_LICENSE`` '
+                'environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. '
+                'Get it (for free) by registering at https://'
+                'surfer.nmr.mgh.harvard.edu/registration.html')
+        os.environ['FS_LICENSE'] = license_file
 
     # Retrieve logging level
     log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
