@@ -343,6 +343,9 @@ def init_single_subject_wf(subject_id, task_id, name,
     else:
         subject_data, layout = collect_data(bids_dir, subject_id, task_id)
 
+    # Make sure the bold runs are flattened (#914)
+    subject_data['bold'] = [run for bold in subject_data['bold'] for run in bold]
+
     # Make sure we always go through these two checks
     if not anat_only and subject_data['bold'] == []:
         raise Exception("No BOLD images found for participant {} and task {}. "
