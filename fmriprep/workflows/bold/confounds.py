@@ -428,10 +428,24 @@ def _maskroi(in_mask, roi_file):
 
     roi = nb.load(roi_file)
     roidata = roi.get_data().astype(np.uint8)
-    msk = nb.load(in_mask).get_data().astype(bool)
-    roidata[~msk] = 0
-    roi.set_data_dtype(np.uint8)
+    roidata[roidata > 0] = 1
+    roidata[roidata < 1] = 0
+    if not roidata.sum():
+        raise RuntimeError(
+            'ROI file "%s" contains an empty mask.' % roi_file)
 
-    out = fname_presuffix(roi_file, suffix='_boldmsk')
-    roi.__class__(roidata, roi.affine, roi.header).to_filename(out)
+    msk = nb.load(in_mask).get_data().astype(bool)
+    if not np.any(msk):
+        raise RuntimeError(
+            'Brainmask file "%s" contains an empty mask.' % in_mask)
+
+    roidata[~msk] = 0
+    if not roidata.sum():
+        raise RuntimeError(
+            'The intersection of ROI and brain masks is empty.')
+
+    out = fname_presuffix(roi_file, suffix='_roimsk')
+    roi.__class__(roidata, roi.affine, roi.header)
+    roi.set_data_dtype(np.uint8)
+    roi.to_filename(out)
     return out
