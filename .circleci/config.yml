@@ -5,8 +5,8 @@ jobs:
     # environment:
     #   TZ: "/usr/share/zoneinfo/America/Los_Angeles"
     #   SCRATCH: "/scratch"
-    # docker:
-    #   image: circleci/classic:201711-01
+    docker:
+      image: circleci/classic:201711-01
     working_directory: /home/circleci/fmriprep
     steps:
       - checkout:
