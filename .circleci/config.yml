@@ -1,0 +1,117 @@
+version: 2
+jobs:
+
+  build_images:
+    machine:
+      image: docker:17.11.0-ce-git
+    working_directory: /home/circleci/fmriprep
+    steps:
+      - checkout:
+          path: /home/circleci/fmriprep
+
+      - restore_cache:
+          keys:
+            - v4-docker-{{ .Branch }}-{{ epoch }}
+            - v4-docker-{{ .Branch }}-
+            - v4-docker-
+          paths:
+            - /tmp/cache/docker.tar.gz
+
+      - run:
+          name: Update fMRIPrep version
+          command: |
+            if [ "${CIRCLE_TAG}" != "" ]; then
+              sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" fmriprep/info.py
+              sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" wrapper/fmriprep_docker.py
+              sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" docs/citing.rst
+            fi
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - run:
+          name: Pull ubuntu:xenial-20161213
+          no_output_timeout: 60m
+          command: docker pull ubuntu:xenial-20161213 || true
+      - run:
+          name: Build Docker image
+          no_output_timeout: 60m
+          command: |
+            e=1 && for i in {1..5}; do
+              docker build \
+                --cache-from=poldracklab/fmriprep:latest \
+                --rm=false \
+                -t poldracklab/fmriprep:latest \
+                --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
+                --build-arg VCS_REF=`git rev-parse --short HEAD` \
+                --build-arg VERSION=${CIRCLE_TAG:-latest} . \
+              && e=0 && break || sleep 15
+            done && [ "$e" -eq "0" ]
+
+      - run:
+          name: Docker save
+          command: |
+            mkdir -p /tmp/cache
+            docker save ubuntu:xenial-20161213 poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
+
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - cache/docker.tar.gz
+
+  update_cache:
+    machine:
+      # Ubuntu 14.04 with Docker 17.10.0-ce
+      image: circleci/classic:201710-02
+    working_directory: /home/circleci/fmriprep
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - save_cache:
+         key: v4-docker-{{ .Branch }}-{{ epoch }}
+         paths:
+            - /tmp/cache/docker.tar.gz
+
+  test_pytest:
+    machine:
+      image: docker:17.11.0-ce-git
+    working_directory: /home/circleci/fmriprep
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - checkout:
+          path: /home/circleci/fmriprep
+      - run:
+          name: Run fMRIPrep tests
+          no_output_timeout: 2h
+          environment:
+            WORKDIR: /home/circleci/work
+          command: |
+            docker run -ti --rm=false \
+              --entrypoint="/usr/local/miniconda/bin/py.test" \
+              poldracklab/fmriprep:latest . \
+              --doctest-modules --ignore=docs --ignore=setup.py
+      - store_artifacts:
+          path: /home/circleci/out/tests
+
+
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+      - build_images
+      - update_cache:
+          requires:
+            - build_images
+      - test_pytest:
+          update-cache:
+            - build_images
