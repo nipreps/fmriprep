@@ -2,17 +2,17 @@ version: 2
 jobs:
 
   build_images:
-    # environment:
-    #   TZ: "/usr/share/zoneinfo/America/Los_Angeles"
-    #   SCRATCH: "/scratch"
+    environment:
+      TZ: "/usr/share/zoneinfo/America/Los_Angeles"
+      SCRATCH: "/scratch"
     docker:
-      image: circleci/classic:201711-01
+      - image: circleci/classic:201711-01
     working_directory: /home/circleci/fmriprep
     steps:
       - checkout:
           path: /home/circleci/fmriprep
 
-      # - setup_remote_docker
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v4-docker-{{ .Branch }}-{{ epoch }}
