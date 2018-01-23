@@ -6,7 +6,7 @@ jobs:
       TZ: "/usr/share/zoneinfo/America/Los_Angeles"
       SCRATCH: "/scratch"
     docker:
-      - image: 18.01.0-ce-git
+      - image: 17.09.1-ce-git
     working_directory: /home/circleci/fmriprep
     steps:
       - checkout:
