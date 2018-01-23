@@ -12,7 +12,7 @@ jobs:
       - checkout:
           path: /home/circleci/fmriprep
 
-      - setup_remote_docker
+      # - setup_remote_docker
       - restore_cache:
           keys:
             - v4-docker-{{ .Branch }}-{{ epoch }}
