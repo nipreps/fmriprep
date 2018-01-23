@@ -113,5 +113,5 @@ workflows:
           requires:
             - build_images
       - test_pytest:
-          update-cache:
+          requires:
             - build_images
