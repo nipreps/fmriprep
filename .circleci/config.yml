@@ -2,7 +2,11 @@ version: 2
 jobs:
 
   build_images:
-    machine:
+    environment:
+      TZ: "/usr/share/zoneinfo/America/Los_Angeles"
+      SCRATCH: "/scratch"
+
+    docker:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/fmriprep
     steps:
@@ -25,23 +29,25 @@ jobs:
               sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" wrapper/fmriprep_docker.py
               sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" docs/citing.rst
             fi
+      - setup_remote_docker
       - run:
           name: Load Docker image layer cache
           command: |
             set +o pipefail
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
-      - run:
-          name: Pull ubuntu:xenial-20161213
-          no_output_timeout: 60m
-          command: docker pull ubuntu:xenial-20161213 || true
+      # - run:
+      #     name: Pull ubuntu:xenial-20161213
+      #     no_output_timeout: 60m
+      #     command: docker pull ubuntu:xenial-20161213 || true
+
       - run:
           name: Build Docker image
           no_output_timeout: 60m
           command: |
             e=1 && for i in {1..5}; do
               docker build \
-                --cache-from=poldracklab/fmriprep:latest \
+                --cache-from=poldracklab/fmriprep \
                 --rm=false \
                 -t poldracklab/fmriprep:latest \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
@@ -54,7 +60,7 @@ jobs:
           name: Docker save
           command: |
             mkdir -p /tmp/cache
-            docker save ubuntu:xenial-20161213 poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
+            docker save poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
