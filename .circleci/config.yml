@@ -103,6 +103,38 @@ jobs:
       - store_artifacts:
           path: /home/circleci/out/tests
 
+  build_docs:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /home/circleci/fmriprep
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - checkout:
+          path: /home/circleci/fmriprep
+      - run:
+          name: Run fMRIPrep tests
+          no_output_timeout: 2h
+          environment:
+            WORKDIR: /home/circleci/work
+          command: |
+            mkdir -p /home/circleci/out/docs
+            docker run -ti --rm=false -v $HOME/docs:/_build_html \
+              --entrypoint=sphinx-build poldracklab/fmriprep:latest \
+              -T -E -b html -d _build/doctrees-readthedocs -W -D \
+              language=en docs/ /_build_html 2>&1 \
+              | tee /home/circleci/out/docs/builddocs.log
+            cat /home/circleci/out/docs/builddocs.log
+            if grep -q "ERROR" /home/circleci/out/docs/builddocs.log; then false; else true; fi
+      - store_artifacts:
+          path: /home/circleci/out/docs
 
 workflows:
   version: 2
@@ -113,5 +145,8 @@ workflows:
           requires:
             - build_images
       - test_pytest:
+          requires:
+            - build_images
+      - build_docs:
           requires:
             - build_images
