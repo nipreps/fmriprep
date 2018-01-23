@@ -5,7 +5,6 @@ jobs:
     environment:
       TZ: "/usr/share/zoneinfo/America/Los_Angeles"
       SCRATCH: "/scratch"
-
     docker:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/fmriprep
@@ -13,6 +12,7 @@ jobs:
       - checkout:
           path: /home/circleci/fmriprep
 
+      - setup_remote_docker
       - restore_cache:
           keys:
             - v4-docker-{{ .Branch }}-{{ epoch }}
@@ -29,7 +29,6 @@ jobs:
               sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" wrapper/fmriprep_docker.py
               sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" docs/citing.rst
             fi
-      - setup_remote_docker
       - run:
           name: Load Docker image layer cache
           command: |
