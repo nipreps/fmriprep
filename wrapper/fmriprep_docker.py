@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""\
+"""
 The fMRIPrep on Docker wrapper
-------------------------------
+
 
 This is a lightweight Python wrapper to run fMRIPrep.
 Docker must be installed and running. This can be checked
@@ -227,10 +227,9 @@ def get_parser():
     parser.add_argument('analysis_level', nargs='?', choices=['participant'],
                         default='participant')
 
-    # parser.add_argument('-h', '--help', action='store_true',
-    #                     help="show this help message and exit")
-    parser.add_argument('--version', action='version',
-                        version='fmriprep-wrapper {!s}'.format(__version__),
+    parser.add_argument('-h', '--help', action='store_true',
+                        help="show this help message and exit")
+    parser.add_argument('--version', action='store_true',
                         help="show program's version number and exit")
 
     # Allow alternative images (semi-developer)
@@ -284,14 +283,15 @@ def main():
     opts, unknown_args = parser.parse_known_args()
 
     # Set help if no directories set
-    helpset = (opts.bids_dir, opts.output_dir, opts.version) == ('', '', False)
+    if (opts.bids_dir, opts.output_dir, opts.version) == ('', '', False):
+        opts.help = True
 
     # Stop if no docker / docker fails to run
     check = check_docker()
     if check < 1:
         if opts.version:
             print('fmriprep wrapper {!s}'.format(__version__))
-        if helpset:
+        if opts.help:
             parser.print_help()
         print("fmriprep: ", end='')
         if check == -1:
@@ -305,9 +305,9 @@ def main():
         resp = 'Y'
         if opts.version:
             print('fmriprep wrapper {!s}'.format(__version__))
-        if helpset:
+        if opts.help:
             parser.print_help()
-        if opts.version or helpset:
+        if opts.version or opts.help:
             try:
                 resp = input(MISSING.format(opts.image))
             except KeyboardInterrupt:
@@ -319,22 +319,21 @@ def main():
 
     # Warn on low memory allocation
     mem_total = check_memory(opts.image)
-    if not opts.mem_mb:
-        if mem_total == -1:
-            print('Could not detect memory capacity of Docker container.\n'
-                  'Do you have permission to run docker?')
+    if mem_total == -1:
+        print('Could not detect memory capacity of Docker container.\n'
+              'Do you have permission to run docker?')
+        return 1
+    if not(opts.help or opts.version or opts.mem_mb) and mem_total < 84000:
+        print('Warning: <8GB of RAM is available within your Docker '
+              'environment.\nSome parts of fMRIprep may fail to complete.')
+        resp = 'N'
+        try:
+            resp = input('Continue anyway? [y/N]')
+        except KeyboardInterrupt:
+            print()
             return 1
-        if mem_total < 8000:
-            print('Warning: <8GB of RAM is available within your Docker '
-                  'environment.\nSome parts of fMRIprep may fail to complete.')
-            resp = 'N'
-            try:
-                resp = input('Continue anyway? [y/N]')
-            except KeyboardInterrupt:
-                print()
-                return 1
-            if resp not in ('y', 'Y', ''):
-                return 0
+        if resp not in ('y', 'Y', ''):
+            return 0
 
     command = ['docker', 'run', '--rm', '-it']
 
@@ -382,7 +381,7 @@ def main():
 
     # Override help and version to describe underlying program
     # Respects '-i' flag, so will retrieve information from any image
-    if helpset:
+    if opts.help:
         command.append('-h')
         targethelp = subprocess.check_output(command).decode()
         print(merge_help(parser.format_help(), targethelp))
