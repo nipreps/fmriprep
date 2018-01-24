@@ -107,14 +107,14 @@ RUN mkdir -p /opt/ICA-AROMA && \
 
 ENV PATH=/opt/ICA-AROMA:$PATH
 
-# # Installing and setting up miniconda
-# RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
-#     bash Miniconda3-4.3.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-#     rm Miniconda3-4.3.11-Linux-x86_64.sh
+# Installing and setting up miniconda
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
+    bash Miniconda3-4.3.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-4.3.11-Linux-x86_64.sh
 
-# ENV PATH=/usr/local/miniconda/bin:$PATH \
-#     LANG=C.UTF-8 \
-#     LC_ALL=C.UTF-8
+ENV PATH=/usr/local/miniconda/bin:$PATH \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
 
 # # Installing precomputed python packages
 # RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
