@@ -204,9 +204,9 @@ jobs:
     machine:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/ds005
-    - checkout:
-      path: /home/circleci/fmriprep
     steps:
+      - checkout:
+        path: /home/circleci/fmriprep
       - attach_workspace:
           at: /tmp
       - run:
