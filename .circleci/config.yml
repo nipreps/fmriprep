@@ -11,9 +11,9 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - v4-docker-{{ .Branch }}-{{ epoch }}
-            - v4-docker-{{ .Branch }}-
-            - v4-docker-
+            - docker-v1-{{ .Branch }}-{{ epoch }}
+            - docker-v1-{{ .Branch }}-
+            - docker-v1-
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
@@ -62,7 +62,8 @@ jobs:
           command: |
             mkdir -p /tmp/cache
             docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
-            docker save poldracklab/fmriprep:latest $(docker history -q poldracklab/fmriprep:latest | grep -v missing ) | gzip -1 > /tmp/cache/docker.tar.gz
+            docker save poldracklab/fmriprep:latest \
+            | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
@@ -79,7 +80,7 @@ jobs:
       - attach_workspace:
           at: /tmp
       - save_cache:
-         key: v4-docker-{{ .Branch }}-{{ epoch }}
+         key: docker-v1-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
