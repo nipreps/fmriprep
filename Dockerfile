@@ -116,55 +116,55 @@ ENV PATH=/usr/local/miniconda/bin:$PATH \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
-# # Installing precomputed python packages
-# RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
-#     conda install -y numpy=1.12.0 \
-#                      scipy=0.18.1 \
-#                      scikit-learn=0.18.1 \
-#                      matplotlib=2.0.0 \
-#                      pandas=0.19.2 \
-#                      libxml2=2.9.4 \
-#                      libxslt=1.1.29\
-#                      traits=4.6.0; sync &&  \
-#     chmod -R a+rX /usr/local/miniconda; sync && \
-#     chmod +x /usr/local/miniconda/bin/*; sync && \
-#     conda clean --all -y; sync && \
-#     conda clean -tipsy && sync
+# Installing precomputed python packages
+RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
+    conda install -y numpy=1.12.0 \
+                     scipy=0.18.1 \
+                     scikit-learn=0.18.1 \
+                     matplotlib=2.0.0 \
+                     pandas=0.19.2 \
+                     libxml2=2.9.4 \
+                     libxslt=1.1.29\
+                     traits=4.6.0; sync &&  \
+    chmod -R a+rX /usr/local/miniconda; sync && \
+    chmod +x /usr/local/miniconda/bin/*; sync && \
+    conda clean --all -y; sync && \
+    conda clean -tipsy && sync
 
-# # Precaching fonts
-# RUN python -c "from matplotlib import font_manager"
+# Precaching fonts
+RUN python -c "from matplotlib import font_manager"
 
-# # Installing Ubuntu packages and cleaning up
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#                     git=1:2.7.4-0ubuntu1 \
-#                     graphviz=2.38.0-12ubuntu2 && \
-#     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Installing Ubuntu packages and cleaning up
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    git=1:2.7.4-0ubuntu1 \
+                    graphviz=2.38.0-12ubuntu2 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# # Unless otherwise specified each process should only use one thread - nipype
-# # will handle parallelization
-# ENV MKL_NUM_THREADS=1 \
-#     OMP_NUM_THREADS=1
+# Unless otherwise specified each process should only use one thread - nipype
+# will handle parallelization
+ENV MKL_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1
 
-# WORKDIR /root/
+WORKDIR /root/
 
-# # Precaching atlases
-# ENV CRN_SHARED_DATA /niworkflows_data
-# ADD docker/scripts/get_templates.sh get_templates.sh
-# RUN mkdir $CRN_SHARED_DATA && \
-#     /root/get_templates.sh && \
-#     chmod -R a+rX $CRN_SHARED_DATA
+# Precaching atlases
+ENV CRN_SHARED_DATA /niworkflows_data
+ADD docker/scripts/get_templates.sh get_templates.sh
+RUN mkdir $CRN_SHARED_DATA && \
+    /root/get_templates.sh && \
+    chmod -R a+rX $CRN_SHARED_DATA
 
-# # Installing dev requirements (packages that are not in pypi)
-# ADD requirements.txt requirements.txt
-# RUN pip install -r requirements.txt && \
-#     rm -rf ~/.cache/pip
+# Installing dev requirements (packages that are not in pypi)
+ADD requirements.txt requirements.txt
+RUN pip install -r requirements.txt && \
+    rm -rf ~/.cache/pip
 
-# # Installing FMRIPREP
-# COPY . /root/src/fmriprep
-# RUN cd /root/src/fmriprep && \
-#     pip install .[all] && \
-#     rm -rf ~/.cache/pip
+# Installing FMRIPREP
+COPY . /root/src/fmriprep
+RUN cd /root/src/fmriprep && \
+    pip install .[all] && \
+    rm -rf ~/.cache/pip
 
 RUN ldconfig
 
