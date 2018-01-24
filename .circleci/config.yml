@@ -69,9 +69,9 @@ jobs:
       - persist_to_workspace:
           root: /
           paths:
-            - /tmp/cache/ubuntu.tar.gz
-            - /tmp/cache/docker.tar.gz
-            - /var/lib/docker/aufs
+            - tmp/cache/ubuntu.tar.gz
+            - tmp/cache/docker.tar.gz
+            - var/lib/docker/aufs
 
   update_cache:
     machine:
