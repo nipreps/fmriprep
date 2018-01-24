@@ -210,7 +210,7 @@ jobs:
           name: Setting up test
           command: |
             mkdir -p /home/circleci/ds005/derivatives
-            cp -al /tmp/cache/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
+            cp -al /tmp/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
             printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
             pip install future numpy
             pip install --upgrade wrapper/
@@ -227,7 +227,7 @@ jobs:
           no_output_timeout: 2h
           command: |
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $HOME/nipype.cfg -w work /tmp/cache/data/ds005 $PWD/derivatives participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors --mem_mb 4096 --nthreads 2 --anat-only
+                --config $HOME/nipype.cfg -w work /tmp/data/ds005 $PWD/derivatives participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors --mem_mb 4096 --nthreads 2 --anat-only
       - store_artifacts:
           path: /home/circleci/ds005/derivatives
 workflows:
