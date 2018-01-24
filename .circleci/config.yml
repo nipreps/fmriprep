@@ -71,6 +71,51 @@ jobs:
             - cache/ubuntu.tar.gz
             - cache/docker.tar.gz
 
+  get_data:
+    machine:
+      # Ubuntu 14.04 with Docker 17.10.0-ce
+      image: circleci/classic:201711-01
+    working_directory: /home/circleci/data
+    steps:
+      - restore_cache:
+          keys:
+            - data-v1-{{ .Branch }}-{{ epoch }}
+            - data-v1-{{ .Branch }}-
+            - data-v1-
+      - run:
+        name: Get test data from ds000005
+        command: |
+          mkdir -p /tmp/data
+          if [[ ! -d /tmp/data/ds005 ]]; then
+            wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+              -O ds005_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32a429ad5a101f977eb75"
+            tar xzf ds005_downsampled.tar.gz -C /tmp/data/
+          fi
+      - run:
+        name: Get test data from ds000054
+        command: |
+          if [[ ! -d /tmp/data/ds054 ]]; then
+            wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+              -O ds054_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32c22594d9001ef91bf9e"
+            tar xzf ds054_downsampled.tar.gz -C /tmp/data/
+          fi
+      - run:
+        name: Get FreeSurfer derivatives for ds000005
+        command: |
+          if [[ ! -d /tmp/data/freesurfer ]]; then
+            wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+              -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
+            tar xzf ds005_derivatives_freesurfer.tar.gz -C /tmp/data/
+          fi
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - data/*
+      - save_cache:
+         key: data-v1-{{ .Branch }}-{{ epoch }}
+         paths:
+            - /tmp/data/*
+
   update_cache:
     machine:
       # Ubuntu 14.04 with Docker 17.10.0-ce
@@ -153,6 +198,7 @@ workflows:
   version: 2
   build_test_deploy:
     jobs:
+      - get_data
       - build_images
       - update_cache:
           requires:
