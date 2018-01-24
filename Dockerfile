@@ -166,11 +166,11 @@ COPY docker/files/neurodebian.gpg /root/.neurodebian.gpg
 #     pip install .[all] && \
 #     rm -rf ~/.cache/pip
 
-# RUN ldconfig
+RUN ldconfig
 
-# WORKDIR /root/src/fmriprep
+WORKDIR /root/src/fmriprep
 
-# ENTRYPOINT ["/usr/local/miniconda/bin/fmriprep"]
+ENTRYPOINT ["/usr/local/miniconda/bin/fmriprep"]
 
 ARG BUILD_DATE
 ARG VCS_REF
