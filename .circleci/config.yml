@@ -20,6 +20,7 @@ jobs:
             - v4-docker-
           paths:
             - /tmp/cache/docker.tar.gz
+            - /tmp/cache/ubuntu.tar.gz
 
       - run:
           name: Update fMRIPrep version
@@ -33,6 +34,7 @@ jobs:
           name: Load Docker image layer cache
           command: |
             set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       # - run:
@@ -59,11 +61,13 @@ jobs:
           name: Docker save
           command: |
             mkdir -p /tmp/cache
+            docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
             docker save poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
           paths:
+            - cache/ubuntu.tar.gz
             - cache/docker.tar.gz
 
   update_cache:
@@ -78,6 +82,7 @@ jobs:
          key: v4-docker-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/cache/docker.tar.gz
+            - /tmp/cache/ubuntu.tar.gz
 
   test_pytest:
     machine:
@@ -91,6 +96,7 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - checkout:
@@ -120,6 +126,7 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - checkout:
