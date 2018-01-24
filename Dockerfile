@@ -54,25 +54,25 @@ ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
     MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
     PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
 
-# # Installing Neurodebian packages (FSL, AFNI, git)
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#                     fsl-core=5.0.9-4~nd16.04+1 \
-#                     fsl-mni152-templates=5.0.7-2 \
-#                     afni=16.2.07~dfsg.1-5~nd16.04+1
+# Installing Neurodebian packages (FSL, AFNI, git)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    fsl-core=5.0.9-4~nd16.04+1 \
+                    fsl-mni152-templates=5.0.7-2 \
+                    afni=16.2.07~dfsg.1-5~nd16.04+1
 
-# ENV FSLDIR=/usr/share/fsl/5.0 \
-#     FSLOUTPUTTYPE=NIFTI_GZ \
-#     FSLMULTIFILEQUIT=TRUE \
-#     POSSUMDIR=/usr/share/fsl/5.0 \
-#     LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH \
-#     FSLTCLSH=/usr/bin/tclsh \
-#     FSLWISH=/usr/bin/wish \
-#     AFNI_MODELPATH=/usr/lib/afni/models \
-#     AFNI_IMSAVE_WARNINGS=NO \
-#     AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
-#     AFNI_PLUGINPATH=/usr/lib/afni/plugins
-# ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
+ENV FSLDIR=/usr/share/fsl/5.0 \
+    FSLOUTPUTTYPE=NIFTI_GZ \
+    FSLMULTIFILEQUIT=TRUE \
+    POSSUMDIR=/usr/share/fsl/5.0 \
+    LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH \
+    FSLTCLSH=/usr/bin/tclsh \
+    FSLWISH=/usr/bin/wish \
+    AFNI_MODELPATH=/usr/lib/afni/models \
+    AFNI_IMSAVE_WARNINGS=NO \
+    AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
+    AFNI_PLUGINPATH=/usr/lib/afni/plugins
+ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
 
 # # Installing ANTs 2.2.0 (NeuroDocker build)
 # ENV ANTSPATH=/usr/lib/ants
