@@ -245,3 +245,7 @@ workflows:
       - build_docs:
           requires:
             - build_images
+      - ds005:
+          requires:
+            - get_data
+            - build_images
