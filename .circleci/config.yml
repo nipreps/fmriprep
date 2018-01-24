@@ -60,16 +60,18 @@ jobs:
 
       - run:
           name: Docker save
+          no_output_timeout: 20m
           command: |
             mkdir -p /tmp/cache
             docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
             docker save poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
-          root: /tmp
+          root: /
           paths:
-            - cache/ubuntu.tar.gz
-            - cache/docker.tar.gz
+            - /tmp/cache/ubuntu.tar.gz
+            - /tmp/cache/docker.tar.gz
+            - /var/lib/docker/aufs
 
   update_cache:
     machine:
@@ -79,10 +81,6 @@ jobs:
     steps:
       - attach_workspace:
           at: /tmp
-      - run:
-          name: Check docker images
-          command: |
-            docker images
       - save_cache:
          key: v4-docker-{{ .Branch }}-{{ epoch }}
          paths:
@@ -94,6 +92,12 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/fmriprep
     steps:
+      - attach_workspace:
+          at: /var/lib/docker/aufs
+      - run:
+          name: Check docker images
+          command: |
+            docker images
       - attach_workspace:
           at: /tmp
       - run:
