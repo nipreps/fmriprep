@@ -203,6 +203,8 @@ jobs:
     machine:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/ds005
+    - checkout:
+      path: /home/circleci/fmriprep
     steps:
       - attach_workspace:
           at: /tmp
@@ -212,6 +214,7 @@ jobs:
             mkdir -p /home/circleci/ds005/derivatives
             cp -al /tmp/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
             printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
+            cd /home/circleci/fmriprep
             pip install future numpy
             pip install --upgrade wrapper/
       - run:
