@@ -74,38 +74,38 @@ ENV FSLDIR=/usr/share/fsl/5.0 \
     AFNI_PLUGINPATH=/usr/lib/afni/plugins
 ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
 
-# # Installing ANTs 2.2.0 (NeuroDocker build)
-# ENV ANTSPATH=/usr/lib/ants
-# RUN mkdir -p $ANTSPATH && \
-#     curl -sSL "https://dl.dropbox.com/s/2f4sui1z6lcgyek/ANTs-Linux-centos5_x86_64-v2.2.0-0740f91.tar.gz" \
-#     | tar -xzC $ANTSPATH --strip-components 1
-# ENV PATH=$ANTSPATH:$PATH
+# Installing ANTs 2.2.0 (NeuroDocker build)
+ENV ANTSPATH=/usr/lib/ants
+RUN mkdir -p $ANTSPATH && \
+    curl -sSL "https://dl.dropbox.com/s/2f4sui1z6lcgyek/ANTs-Linux-centos5_x86_64-v2.2.0-0740f91.tar.gz" \
+    | tar -xzC $ANTSPATH --strip-components 1
+ENV PATH=$ANTSPATH:$PATH
 
-# # Installing and setting up c3d
-# RUN mkdir -p /opt/c3d && \
-#     curl -sSL "http://downloads.sourceforge.net/project/c3d/c3d/1.0.0/c3d-1.0.0-Linux-x86_64.tar.gz" \
-#     | tar -xzC /opt/c3d --strip-components 1
+# Installing and setting up c3d
+RUN mkdir -p /opt/c3d && \
+    curl -sSL "http://downloads.sourceforge.net/project/c3d/c3d/1.0.0/c3d-1.0.0-Linux-x86_64.tar.gz" \
+    | tar -xzC /opt/c3d --strip-components 1
 
-# ENV C3DPATH /opt/c3d/
-# ENV PATH $C3DPATH/bin:$PATH
+ENV C3DPATH /opt/c3d/
+ENV PATH $C3DPATH/bin:$PATH
 
-# # Installing WEBP tools
-# RUN curl -sSLO "http://downloads.webmproject.org/releases/webp/libwebp-0.5.2-linux-x86-64.tar.gz" && \
-#   tar -xf libwebp-0.5.2-linux-x86-64.tar.gz && cd libwebp-0.5.2-linux-x86-64/bin && \
-#   mv cwebp /usr/local/bin/ && rm -rf libwebp-0.5.2-linux-x86-64
+# Installing WEBP tools
+RUN curl -sSLO "http://downloads.webmproject.org/releases/webp/libwebp-0.5.2-linux-x86-64.tar.gz" && \
+  tar -xf libwebp-0.5.2-linux-x86-64.tar.gz && cd libwebp-0.5.2-linux-x86-64/bin && \
+  mv cwebp /usr/local/bin/ && rm -rf libwebp-0.5.2-linux-x86-64
 
-# # Installing SVGO
-# RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
-# RUN apt-get install -y nodejs
-# RUN npm install -g svgo
+# Installing SVGO
+RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
+RUN apt-get install -y nodejs
+RUN npm install -g svgo
 
-# # Installing and setting up ICA_AROMA
-# RUN mkdir -p /opt/ICA-AROMA && \
-#   curl -sSL "https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4.1-beta.tar.gz" \
-#   | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
-#   chmod +x /opt/ICA-AROMA/ICA_AROMA.py
+# Installing and setting up ICA_AROMA
+RUN mkdir -p /opt/ICA-AROMA && \
+  curl -sSL "https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4.1-beta.tar.gz" \
+  | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
+  chmod +x /opt/ICA-AROMA/ICA_AROMA.py
 
-# ENV PATH=/opt/ICA-AROMA:$PATH
+ENV PATH=/opt/ICA-AROMA:$PATH
 
 # # Installing and setting up miniconda
 # RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
