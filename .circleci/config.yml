@@ -165,6 +165,7 @@ jobs:
           command: |
             pip install future numpy
             pip install --upgrade wrapper/
+            fmriprep-docker --version
             fmriprep-docker -i poldracklab/fmriprep:latest --help
       - store_artifacts:
           path: /home/circleci/out/tests
@@ -214,9 +215,8 @@ jobs:
             mkdir -p /home/circleci/ds005/derivatives
             cp -al /tmp/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
             printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
-            cd /home/circleci/fmriprep
             pip install future numpy
-            pip install --upgrade wrapper/
+            pip install --upgrade /home/circleci/fmriprep/wrapper/
       - run:
           name: Load saved Docker images.
           no_output_timeout: 60m
