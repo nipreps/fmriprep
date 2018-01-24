@@ -22,18 +22,18 @@ RUN apt-get update && \
     apt-get update
 
 # # Installing freesurfer
-# RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
-#     --exclude='freesurfer/trctrain' \
-#     --exclude='freesurfer/subjects/fsaverage_sym' \
-#     --exclude='freesurfer/subjects/fsaverage3' \
-#     --exclude='freesurfer/subjects/fsaverage4' \
-#     --exclude='freesurfer/subjects/cvs_avg35' \
-#     --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
-#     --exclude='freesurfer/subjects/bert' \
-#     --exclude='freesurfer/subjects/V1_average' \
-#     --exclude='freesurfer/average/mult-comp-cor' \
-#     --exclude='freesurfer/lib/cuda' \
-#     --exclude='freesurfer/lib/qt'
+RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
+    --exclude='freesurfer/trctrain' \
+    --exclude='freesurfer/subjects/fsaverage_sym' \
+    --exclude='freesurfer/subjects/fsaverage3' \
+    --exclude='freesurfer/subjects/fsaverage4' \
+    --exclude='freesurfer/subjects/cvs_avg35' \
+    --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
+    --exclude='freesurfer/subjects/bert' \
+    --exclude='freesurfer/subjects/V1_average' \
+    --exclude='freesurfer/average/mult-comp-cor' \
+    --exclude='freesurfer/lib/cuda' \
+    --exclude='freesurfer/lib/qt'
 
 # ENV FSL_DIR=/usr/share/fsl/5.0 \
 #     OS=Linux \
