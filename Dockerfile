@@ -35,24 +35,24 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/frees
     --exclude='freesurfer/lib/cuda' \
     --exclude='freesurfer/lib/qt'
 
-# ENV FSL_DIR=/usr/share/fsl/5.0 \
-#     OS=Linux \
-#     FS_OVERRIDE=0 \
-#     FIX_VERTEX_AREA= \
-#     FSF_OUTPUT_FORMAT=nii.gz \
-#     FREESURFER_HOME=/opt/freesurfer
-# ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
-#     FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
-#     MNI_DIR=$FREESURFER_HOME/mni \
-#     LOCAL_DIR=$FREESURFER_HOME/local \
-#     FSFAST_HOME=$FREESURFER_HOME/fsfast \
-#     MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
-#     MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
-#     MNI_DATAPATH=$FREESURFER_HOME/mni/data \
-#     FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
-# ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-#     MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-#     PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
+ENV FSL_DIR=/usr/share/fsl/5.0 \
+    OS=Linux \
+    FS_OVERRIDE=0 \
+    FIX_VERTEX_AREA= \
+    FSF_OUTPUT_FORMAT=nii.gz \
+    FREESURFER_HOME=/opt/freesurfer
+ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
+    FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
+    MNI_DIR=$FREESURFER_HOME/mni \
+    LOCAL_DIR=$FREESURFER_HOME/local \
+    FSFAST_HOME=$FREESURFER_HOME/fsfast \
+    MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
+    MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
+    MNI_DATAPATH=$FREESURFER_HOME/mni/data \
+    FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
+ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
 
 # # Installing Neurodebian packages (FSL, AFNI, git)
 # RUN apt-get update && \
