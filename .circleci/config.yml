@@ -9,10 +9,6 @@ jobs:
       - image: docker:18.01.0-ce-git
     working_directory: /home/circleci/fmriprep
     steps:
-      - checkout:
-          path: /home/circleci/fmriprep
-
-      - setup_remote_docker
       - restore_cache:
           keys:
             - v4-docker-{{ .Branch }}-{{ epoch }}
@@ -21,7 +17,8 @@ jobs:
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
-
+      - checkout:
+          path: /home/circleci/fmriprep
       - run:
           name: Update fMRIPrep version
           command: |
@@ -30,6 +27,7 @@ jobs:
               sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" wrapper/fmriprep_docker.py
               sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG}'/" docs/citing.rst
             fi
+      - setup_remote_docker
       - run:
           name: Load Docker image layer cache
           command: |
@@ -67,10 +65,10 @@ jobs:
             docker save poldracklab/fmriprep:latest $(docker history -q poldracklab/fmriprep:latest | grep -v missing ) | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
-          root: /
+          root: /tmp
           paths:
-            - tmp/cache/ubuntu.tar.gz
-            - tmp/cache/docker.tar.gz
+            - cache/ubuntu.tar.gz
+            - cache/docker.tar.gz
 
   update_cache:
     machine:
