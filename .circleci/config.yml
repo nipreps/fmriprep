@@ -64,7 +64,7 @@ jobs:
           command: |
             mkdir -p /tmp/cache
             docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
-            docker save poldracklab/fmriprep:latest | gzip -1 > /tmp/cache/docker.tar.gz
+            docker save poldracklab/fmriprep:latest $(docker history -q poldracklab/fmriprep:latest) | gzip -1 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /
