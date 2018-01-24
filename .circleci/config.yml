@@ -202,7 +202,7 @@ jobs:
   ds005:
     machine:
       image: circleci/classic:201711-01
-    working_directory: /home/circleci/out/ds005
+    working_directory: /home/circleci/ds005
     steps:
       - attach_workspace:
           at: /tmp
@@ -212,6 +212,8 @@ jobs:
             mkdir -p /home/circleci/ds005/derivatives
             cp -al /tmp/cache/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
             printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
+            pip install future numpy
+            pip install --upgrade wrapper/
       - run:
           name: Load saved Docker images.
           no_output_timeout: 60m
