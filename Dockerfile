@@ -5,54 +5,54 @@ FROM ubuntu:xenial-20161213
 COPY docker/files/neurodebian.gpg /root/.neurodebian.gpg
 
 # Prepare environment
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#                     curl \
-#                     bzip2 \
-#                     ca-certificates \
-#                     xvfb \
-#                     cython3 \
-#                     build-essential \
-#                     autoconf \
-#                     libtool \
-#                     pkg-config && \
-#     curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-#     apt-key add /root/.neurodebian.gpg && \
-#     (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
-#     apt-get update
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    curl \
+                    bzip2 \
+                    ca-certificates \
+                    xvfb \
+                    cython3 \
+                    build-essential \
+                    autoconf \
+                    libtool \
+                    pkg-config && \
+    curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
+    apt-key add /root/.neurodebian.gpg && \
+    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
+    apt-get update
 
-# # # Installing freesurfer
-# RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
-#     --exclude='freesurfer/trctrain' \
-#     --exclude='freesurfer/subjects/fsaverage_sym' \
-#     --exclude='freesurfer/subjects/fsaverage3' \
-#     --exclude='freesurfer/subjects/fsaverage4' \
-#     --exclude='freesurfer/subjects/cvs_avg35' \
-#     --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
-#     --exclude='freesurfer/subjects/bert' \
-#     --exclude='freesurfer/subjects/V1_average' \
-#     --exclude='freesurfer/average/mult-comp-cor' \
-#     --exclude='freesurfer/lib/cuda' \
-#     --exclude='freesurfer/lib/qt'
+# Installing freesurfer
+RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
+    --exclude='freesurfer/trctrain' \
+    --exclude='freesurfer/subjects/fsaverage_sym' \
+    --exclude='freesurfer/subjects/fsaverage3' \
+    --exclude='freesurfer/subjects/fsaverage4' \
+    --exclude='freesurfer/subjects/cvs_avg35' \
+    --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
+    --exclude='freesurfer/subjects/bert' \
+    --exclude='freesurfer/subjects/V1_average' \
+    --exclude='freesurfer/average/mult-comp-cor' \
+    --exclude='freesurfer/lib/cuda' \
+    --exclude='freesurfer/lib/qt'
 
-# ENV FSL_DIR=/usr/share/fsl/5.0 \
-#     OS=Linux \
-#     FS_OVERRIDE=0 \
-#     FIX_VERTEX_AREA= \
-#     FSF_OUTPUT_FORMAT=nii.gz \
-#     FREESURFER_HOME=/opt/freesurfer
-# ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
-#     FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
-#     MNI_DIR=$FREESURFER_HOME/mni \
-#     LOCAL_DIR=$FREESURFER_HOME/local \
-#     FSFAST_HOME=$FREESURFER_HOME/fsfast \
-#     MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
-#     MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
-#     MNI_DATAPATH=$FREESURFER_HOME/mni/data \
-#     FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
-# ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-#     MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-#     PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
+ENV FSL_DIR=/usr/share/fsl/5.0 \
+    OS=Linux \
+    FS_OVERRIDE=0 \
+    FIX_VERTEX_AREA= \
+    FSF_OUTPUT_FORMAT=nii.gz \
+    FREESURFER_HOME=/opt/freesurfer
+ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
+    FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
+    MNI_DIR=$FREESURFER_HOME/mni \
+    LOCAL_DIR=$FREESURFER_HOME/local \
+    FSFAST_HOME=$FREESURFER_HOME/fsfast \
+    MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
+    MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
+    MNI_DATAPATH=$FREESURFER_HOME/mni/data \
+    FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
+ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
 
 # # Installing Neurodebian packages (FSL, AFNI, git)
 # RUN apt-get update && \
