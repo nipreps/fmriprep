@@ -107,6 +107,12 @@ jobs:
                 -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
               tar xzf ds005_derivatives_freesurfer.tar.gz -C /tmp/data/
             fi
+      - run:
+          name: Store FreeSurfer license file
+          command: |
+            mkdir -p /tmp/data/fslicense
+            cd /tmp/data/fslicense
+            echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IGxpY2Vuc2UudHh0Cg==" | base64 -d | sh
       - persist_to_workspace:
           root: /tmp
           paths:
@@ -145,25 +151,29 @@ jobs:
             docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
-      - checkout:
-          path: /home/circleci/fmriprep
       - run:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
-          environment:
-            WORKDIR: /home/circleci/work
           command: |
             docker run -ti --rm=false \
               --entrypoint="/usr/local/miniconda/bin/py.test" \
               poldracklab/fmriprep:latest . \
               --doctest-modules --ignore=docs --ignore=setup.py
+      - checkout
+      - run:
+          name: Test fmriprep-wrapper
+          command: |
+            pip install future numpy
+            pip install --upgrade wrapper/
+            fmriprep-docker -i poldracklab/fmriprep:latest --help
       - store_artifacts:
           path: /home/circleci/out/tests
+
 
   build_docs:
     machine:
       image: circleci/classic:201711-01
-    working_directory: /home/circleci/fmriprep
+    working_directory: /home/circleci/out/docs
     steps:
       - attach_workspace:
           at: /tmp
@@ -175,25 +185,49 @@ jobs:
             docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
-      - checkout:
-          path: /home/circleci/fmriprep
       - run:
-          name: Run fMRIPrep tests
+          name: Build fMRIPrep documentation
           no_output_timeout: 2h
-          environment:
-            WORKDIR: /home/circleci/work
           command: |
-            mkdir -p /home/circleci/out/docs
-            docker run -ti --rm=false -v $HOME/docs:/_build_html \
+            docker run -ti --rm=false -v $PWD:/_build_html \
               --entrypoint=sphinx-build poldracklab/fmriprep:latest \
               -T -E -b html -d _build/doctrees-readthedocs -W -D \
               language=en docs/ /_build_html 2>&1 \
-              | tee /home/circleci/out/docs/builddocs.log
-            cat /home/circleci/out/docs/builddocs.log
-            if grep -q "ERROR" /home/circleci/out/docs/builddocs.log; then false; else true; fi
+              | tee $PWD/builddocs.log
+            cat $PWD/builddocs.log
+            grep -qv "ERROR" $PWD/builddocs.log
       - store_artifacts:
           path: /home/circleci/out/docs
 
+  ds005:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /home/circleci/out/ds005
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Setting up test
+          command: |
+            mkdir -p /home/circleci/ds005/derivatives
+            cp -al /tmp/cache/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
+            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - run:
+          name: Build fMRIPrep documentation
+          no_output_timeout: 2h
+          command: |
+            fmriprep-docker -i poldracklab/fmriprep:latest \
+                --config $HOME/nipype.cfg -w work /tmp/cache/data/ds005 $PWD/derivatives participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors --mem_mb 4096 --nthreads 2 --anat-only
+      - store_artifacts:
+          path: /home/circleci/ds005/derivatives
 workflows:
   version: 2
   build_test_deploy:
