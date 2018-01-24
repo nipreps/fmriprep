@@ -33,6 +33,7 @@ jobs:
       - run:
           name: Load Docker image layer cache
           command: |
+            docker info
             set +o pipefail
             docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
@@ -78,6 +79,10 @@ jobs:
     steps:
       - attach_workspace:
           at: /tmp
+      - run:
+          name: Check docker images
+          command: |
+            docker images
       - save_cache:
          key: v4-docker-{{ .Branch }}-{{ epoch }}
          paths:
