@@ -229,9 +229,6 @@ def main():
 
     # Retrieve logging level
     log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
-    if opts.debug:
-        log_level = logging.DEBUG
-
     # Set logging
     logger.setLevel(log_level)
     nlogging.getLogger('workflow').setLevel(log_level)

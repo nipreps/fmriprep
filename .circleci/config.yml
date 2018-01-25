@@ -206,7 +206,7 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /tmp/ds005
     environment:
-      - FS_LICENSE: /tmp/data/fslicense
+      - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
       - checkout:
           path: /home/circleci/fmriprep
@@ -242,7 +242,7 @@ jobs:
                 /tmp/data/ds005 /home/circleci/ds005/derivatives participant \
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
-                --nthreads 2 --anat-only
+                --nthreads 2 --anat-only -vv
       - persist_to_workspace:
           root: /tmp
           paths:
