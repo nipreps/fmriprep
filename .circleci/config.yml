@@ -36,11 +36,6 @@ jobs:
             docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
-      # - run:
-      #     name: Pull ubuntu:xenial-20161213
-      #     no_output_timeout: 60m
-      #     command: docker pull ubuntu:xenial-20161213 || true
-
       - run:
           name: Build Docker image
           no_output_timeout: 60m
@@ -79,9 +74,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v1-{{ .Branch }}-{{ epoch }}
-            - data-v1-{{ .Branch }}-
-            - data-v1-
+            - data-v2-{{ epoch }}
+            - data-v2-
       - run:
           name: Get test data from ds000005
           command: |
@@ -118,7 +112,7 @@ jobs:
           paths:
             - data/*
       - save_cache:
-         key: data-v1-{{ .Branch }}-{{ epoch }}
+         key: data-v2-{{ epoch }}
          paths:
             - /tmp/data/*
 
