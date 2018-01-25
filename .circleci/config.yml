@@ -166,7 +166,7 @@ jobs:
             pip install future numpy
             pip install --upgrade wrapper/
             fmriprep-docker -i poldracklab/fmriprep:latest --help
-            fmriprep-docker --version
+            fmriprep-docker -i poldracklab/fmriprep:latest --version
       - store_artifacts:
           path: /home/circleci/out/tests
 
@@ -206,7 +206,7 @@ jobs:
     working_directory: /home/circleci/ds005
     steps:
       - checkout:
-        path: /home/circleci/fmriprep
+          path: /home/circleci/fmriprep
       - attach_workspace:
           at: /tmp
       - run:
