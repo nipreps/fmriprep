@@ -110,13 +110,14 @@ jobs:
       - run:
           name: Store FreeSurfer license file
           command: |
-            mkdir -p /tmp/data/fslicense
-            cd /tmp/data/fslicense
+            mkdir -p /tmp/fslicense
+            cd /tmp/fslicense
             echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IGxpY2Vuc2UudHh0Cg==" | base64 -d | sh
       - persist_to_workspace:
           root: /tmp
           paths:
             - data
+            - fslicense
       - save_cache:
          key: data-v2-{{ epoch }}
          paths:
