@@ -74,8 +74,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v2-{{ epoch }}
-            - data-v2-
+            - data-v3-{{ epoch }}
+            - data-v3-
       - run:
           name: Get test data from ds000005
           command: |
@@ -119,7 +119,7 @@ jobs:
             - data
             - fslicense
       - save_cache:
-         key: data-v2-{{ epoch }}
+         key: data-v3-{{ epoch }}
          paths:
             - /tmp/data
 
