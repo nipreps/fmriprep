@@ -323,17 +323,18 @@ def main():
         print('Could not detect memory capacity of Docker container.\n'
               'Do you have permission to run docker?')
         return 1
-    if not(opts.help or opts.version or opts.mem_mb) and mem_total < 84000:
+    if not (opts.help or opts.version) and mem_total < 84000:
         print('Warning: <8GB of RAM is available within your Docker '
               'environment.\nSome parts of fMRIprep may fail to complete.')
-        resp = 'N'
-        try:
-            resp = input('Continue anyway? [y/N]')
-        except KeyboardInterrupt:
-            print()
-            return 1
-        if resp not in ('y', 'Y', ''):
-            return 0
+        if '--mem_mb' not in unknown_args:
+            resp = 'N'
+            try:
+                resp = input('Continue anyway? [y/N]')
+            except KeyboardInterrupt:
+                print()
+                return 1
+            if resp not in ('y', 'Y', ''):
+                return 0
 
     command = ['docker', 'run', '--rm', '-it']
 
