@@ -53,7 +53,7 @@ jobs:
 
       - run:
           name: Docker save
-          no_output_timeout: 20m
+          no_output_timeout: 40m
           command: |
             mkdir -p /tmp/cache
             docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
