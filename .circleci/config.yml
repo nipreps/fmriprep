@@ -83,7 +83,9 @@ jobs:
             if [[ ! -d /tmp/data/ds005 ]]; then
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds005_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32a429ad5a101f977eb75"
-              tar xzf ds005_downsampled.tar.gz -C /tmp/data/
+              tar xvzf ds005_downsampled.tar.gz -C /tmp/data/
+            else
+              echo "Dataset ds000005 was cached"
             fi
       - run:
           name: Get test data from ds000054
@@ -91,7 +93,9 @@ jobs:
             if [[ ! -d /tmp/data/ds054 ]]; then
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds054_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32c22594d9001ef91bf9e"
-              tar xzf ds054_downsampled.tar.gz -C /tmp/data/
+              tar xvzf ds054_downsampled.tar.gz -C /tmp/data/
+            else
+              echo "Dataset ds000054 was cached"
             fi
       - run:
           name: Get FreeSurfer derivatives for ds000005
@@ -99,7 +103,9 @@ jobs:
             if [[ ! -d /tmp/data/freesurfer ]]; then
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xzf ds005_derivatives_freesurfer.tar.gz -C /tmp/data/
+              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/data/
+            else
+              echo "FreeSurfer derivatives of ds000005 were cached"
             fi
       - run:
           name: Store FreeSurfer license file
@@ -197,18 +203,23 @@ jobs:
   ds005:
     machine:
       image: circleci/classic:201711-01
-    working_directory: /home/circleci/ds005
+    working_directory: /tmp/ds005
+    environment:
+      - FS_LICENSE: /tmp/data/fslicense
     steps:
       - checkout:
           path: /home/circleci/fmriprep
       - attach_workspace:
           at: /tmp
+      - restore_cache:
+          keys:
+            - ds005-anat-v1-{{ epoch }}
+            - ds005-anat-v1-
       - run:
           name: Setting up test
           command: |
             mkdir -p /home/circleci/ds005/derivatives
             cp -al /tmp/data/freesurfer /home/circleci/ds005/derivatives/freesurfer
-            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
             pip install future numpy
             pip install --upgrade /home/circleci/fmriprep/wrapper/
       - run:
@@ -220,11 +231,26 @@ jobs:
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - run:
-          name: Build fMRIPrep documentation
+          name: Run anatomical workflow on ds005
           no_output_timeout: 2h
           command: |
+            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false" > nipype.cfg
+            echo "poll_sleep_duration = 0.2" >> nipype.cfg
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $HOME/nipype.cfg -w work /tmp/data/ds005 $PWD/derivatives participant --debug --write-graph --use-syn-sdc --use-aroma --ignore-aroma-denoising-errors --mem_mb 4096 --nthreads 2 --anat-only
+                --config $PWD/nipype.cfg -w work \
+                /tmp/data/ds005 /home/circleci/ds005/derivatives participant \
+                --debug --write-graph --use-syn-sdc --use-aroma \
+                --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --nthreads 2 --anat-only
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - ds005/*
+      - save_cache:
+         key: ds005-anat-v1-{{ epoch }}
+         paths:
+            - /tmp/ds005/*
+
       - store_artifacts:
           path: /home/circleci/ds005/derivatives
 workflows:
