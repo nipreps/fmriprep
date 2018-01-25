@@ -116,11 +116,11 @@ jobs:
       - persist_to_workspace:
           root: /tmp
           paths:
-            - data/*
+            - data
       - save_cache:
          key: data-v2-{{ epoch }}
          paths:
-            - /tmp/data/*
+            - /tmp/data
 
   update_cache:
     machine:
@@ -245,11 +245,11 @@ jobs:
       - persist_to_workspace:
           root: /tmp
           paths:
-            - ds005/*
+            - ds005
       - save_cache:
          key: ds005-anat-v1-{{ epoch }}
          paths:
-            - /tmp/ds005/*
+            - /tmp/ds005
 
       - store_artifacts:
           path: /home/circleci/ds005/derivatives
