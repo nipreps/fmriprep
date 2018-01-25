@@ -235,10 +235,11 @@ jobs:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
           command: |
-            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false\n" > nipype.cfg
-            echo "poll_sleep_duration = 0.2" >> nipype.cfg
+            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false\n" > /tmp/ds005/nipype.cfg
+            echo "poll_sleep_duration = 0.2" >> /tmp/ds005/nipype.cfg
+            mkdir -p /tmp/ds005/work && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $PWD/nipype.cfg -w work \
+                --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /home/circleci/ds005/derivatives participant \
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
