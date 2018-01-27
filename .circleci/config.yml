@@ -100,10 +100,11 @@ jobs:
       - run:
           name: Get FreeSurfer derivatives for ds000005
           command: |
-            if [[ ! -d /tmp/data/freesurfer ]]; then
+            if [[ ! -d /tmp/ds005/derivatives/freesurfer ]]; then
+              mkdir -p /tmp/ds005/derivatives
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/data/
+              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005/derivatives
             else
               echo "FreeSurfer derivatives of ds000005 were cached"
             fi
@@ -113,15 +114,27 @@ jobs:
             mkdir -p /tmp/fslicense
             cd /tmp/fslicense
             echo "cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IGxpY2Vuc2UudHh0Cg==" | base64 -d | sh
+      - run:
+          name: Create Nipype config files
+          command: |
+            mkdir -p /tmp/ds005 /tmp/ds054
+            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false\n" > /tmp/ds005/nipype.cfg
+            echo "poll_sleep_duration = 0.2" >> /tmp/ds005/nipype.cfg
+            echo "hash_method = content" >> /tmp/ds005/nipype.cfg
+            cp /tmp/ds005/nipype.cfg /tmp/ds054/nipype.cfg
       - persist_to_workspace:
           root: /tmp
           paths:
             - data
             - fslicense
+            - ds005/nipype.cfg
+            - ds005/derivatives
+            - ds054/nipype.cfg
       - save_cache:
          key: data-v3-{{ epoch }}
          paths:
             - /tmp/data
+            - /tmp/ds005/derivatives/freesurfer
 
   update_cache:
     machine:
@@ -220,7 +233,6 @@ jobs:
           name: Setting up test
           command: |
             mkdir -p /tmp/ds005/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
-            cp -al /tmp/data/freesurfer /tmp/ds005/derivatives/freesurfer
             pip install future numpy
             pip install --upgrade /home/circleci/fmriprep/wrapper/
       - run:
@@ -235,8 +247,6 @@ jobs:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
           command: |
-            printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false\n" > /tmp/ds005/nipype.cfg
-            echo "poll_sleep_duration = 0.2" >> /tmp/ds005/nipype.cfg
             mkdir -p /tmp/ds005/work && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
