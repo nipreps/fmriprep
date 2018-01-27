@@ -37,8 +37,8 @@ jobs:
           command: |
             docker info
             set +o pipefail
-            pigz -d -p 3 /tmp/cache/ubuntu.tar.gz | docker load
-            pigz -d -p 3 /tmp/cache/docker.tar.gz | docker load
+            pigz -d /tmp/cache/ubuntu.tar.gz | docker load
+            pigz -d /tmp/cache/docker.tar.gz | docker load
             docker images
       - run:
           name: Build Docker image
