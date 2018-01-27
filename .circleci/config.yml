@@ -299,7 +299,7 @@ jobs:
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
                 --nthreads 2 -vv
-            find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            sudo find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
       - run:
           name: Checking outputs of fMRIPrep
@@ -398,9 +398,9 @@ jobs:
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph --force-syn \
                 --mem_mb 4096 --nthreads 2 -vv
-            find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
-            rm -r /tmp/ds054/derivatives/fmriprep/sub-100185/log
+            sudo rm -r /tmp/ds054/derivatives/fmriprep/sub-100185/log
       - run:
           name: Generate report with one artificial error
           command: |
