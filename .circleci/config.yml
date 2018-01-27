@@ -7,7 +7,7 @@ jobs:
       SCRATCH: "/scratch"
     docker:
       - image: docker:18.01.0-ce-git
-    working_directory: /home/circleci/fmriprep
+    working_directory: /tmp/src/fmriprep
     steps:
       - restore_cache:
           keys:
@@ -17,8 +17,8 @@ jobs:
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
-      - checkout:
-          path: /home/circleci/fmriprep
+      - checkout
+
       - run:
           name: Update fMRIPrep version
           command: |
@@ -65,6 +65,7 @@ jobs:
           paths:
             - cache/ubuntu.tar.gz
             - cache/docker.tar.gz
+            - src/fmriprep
 
   get_data:
     machine:
@@ -140,7 +141,7 @@ jobs:
     machine:
       # Ubuntu 14.04 with Docker 17.10.0-ce
       image: circleci/classic:201711-01
-    working_directory: /home/circleci/fmriprep
+    working_directory: /tmp/src/fmriprep
     steps:
       - attach_workspace:
           at: /tmp
@@ -153,7 +154,7 @@ jobs:
   test_pytest:
     machine:
       image: circleci/classic:201711-01
-    working_directory: /home/circleci/fmriprep
+    working_directory: /tmp/src/fmriprep
     steps:
       - attach_workspace:
           at: /tmp
@@ -173,7 +174,6 @@ jobs:
               --entrypoint="/usr/local/miniconda/bin/py.test" \
               poldracklab/fmriprep:latest . \
               --doctest-modules --ignore=docs --ignore=setup.py
-      - checkout
       - run:
           name: Test fmriprep-wrapper
           command: |
@@ -221,8 +221,6 @@ jobs:
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
-      - checkout:
-          path: /home/circleci/fmriprep
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -234,7 +232,7 @@ jobs:
           command: |
             mkdir -p /tmp/ds005/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
             pip install future numpy
-            pip install --upgrade /home/circleci/fmriprep/wrapper/
+            pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
           name: Load saved Docker images.
           no_output_timeout: 60m
@@ -276,15 +274,13 @@ jobs:
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
-      - checkout:
-          path: /home/circleci/fmriprep
       - attach_workspace:
           at: /tmp
       - run:
           name: Setting up test
           command: |
             pip install future numpy
-            pip install --upgrade /home/circleci/fmriprep/wrapper/
+            pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
           name: Load saved Docker images.
           no_output_timeout: 60m
@@ -303,9 +299,152 @@ jobs:
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
                 --nthreads 2 -vv
+            find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+                -not -name "*.mat" -not -name "*.lta" -type f -delete
+      - run:
+          name: Checking outputs of fMRIPrep
+          command: |
+            mkdir -p /tmp/ds005/test
+            find /tmp/ds005/derivatives  | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
+            diff /tmp/src/fmriprep/.circle/data/ds005_outputs.txt /tmp/ds005/test/outputs.out
+            exit $?
 
       - store_artifacts:
           path: /tmp/ds005/derivatives
+          path: /tmp/ds005/work
+          path: /tmp/ds005/test/outputs.out
+
+  ds054_anat:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /tmp/ds054
+    environment:
+      - FS_LICENSE: /tmp/fslicense/license.txt
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - restore_cache:
+          keys:
+            - ds054-anat-v1-{{ epoch }}
+            - ds054-anat-v1-
+      - run:
+          name: Setting up test
+          command: |
+            mkdir -p /tmp/ds054/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
+            pip install future numpy
+            pip install --upgrade /tmp/src/fmriprep/wrapper/
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - run:
+          name: Run anatomical workflow on ds054
+          no_output_timeout: 2h
+          command: |
+            mkdir -p /tmp/ds054/work && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
+            fmriprep-docker -i poldracklab/fmriprep:latest \
+                --config $PWD/nipype.cfg -w /tmp/ds054/work \
+                /tmp/data/ds054 /tmp/ds054/derivatives participant \
+                --fs-no-reconall --debug --write-graph --force-syn \
+                --mem_mb 4096 --nthreads 2 --anat-only -vv
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - ds054/nipype.cfg
+            - ds054/work
+            - ds054/derivatives/fmriprep
+      - save_cache:
+         key: ds054-anat-v1-{{ epoch }}
+         paths:
+            - /tmp/ds054/nipype.cfg
+            - /tmp/ds054/work
+            - /tmp/ds054/derivatives/fmriprep
+
+      - store_artifacts:
+          path: /tmp/ds054/derivatives
+
+  ds054:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /tmp/ds054
+    environment:
+      - FS_LICENSE: /tmp/fslicense/license.txt
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Setting up test
+          command: |
+            pip install future numpy
+            pip install --upgrade /tmp/src/fmriprep/wrapper/
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
+      - run:
+          name: Run fMRIPrep on ds054
+          no_output_timeout: 2h
+          command: |
+            fmriprep-docker -i poldracklab/fmriprep:latest \
+                --config $PWD/nipype.cfg -w /tmp/ds054/work \
+                /tmp/data/ds054 /tmp/ds054/derivatives participant \
+                --fs-no-reconall --debug --write-graph --force-syn \
+                --mem_mb 4096 --nthreads 2 -vv
+            find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+                -not -name "*.mat" -not -name "*.lta" -type f -delete
+            rm -r /tmp/ds054/derivatives/fmriprep/sub-100185/log
+      - run:
+          name: Generate report with one artificial error
+          command: |
+            UUID="$(date '+%Y%m%d-%H%M%S_')$(uuidgen)"
+            mkdir -p /tmp/ds054/derivatives/fmriprep/sub-100185/log/$UUID/
+            cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
+                /tmp/ds054/derivatives/fmriprep/sub-100185/log/$UUID/
+            set +e
+            fmriprep-docker -i poldracklab/fmriprep:latest \
+                --config $PWD/nipype.cfg -w /tmp/ds054/scratch \
+                /tmp/data/ds054 /tmp/ds054/derivatives participant \
+                --fs-no-reconall --debug --write-graph --force-syn \
+                --reports-only --run-uuid $UUID
+            RET=$?
+            set -e
+            [[ "$RET" -eq "1" ]]
+      - run:
+          name: Checking outputs of fMRIPrep
+          command: |
+            mkdir -p /tmp/ds054/test
+            find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
+            diff /tmp/src/fmriprep/.circle/data/ds054_outputs.txt /tmp/ds054/test/outputs.out
+            exit $?
+
+      - store_artifacts:
+          path: /tmp/ds054/derivatives
+          path: /tmp/ds054/work
+          path: /tmp/ds054/test/outputs.out
+
+  deploy:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /tmp/src/fmriprep
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - run:
+          name: Load saved Docker images.
+          no_output_timeout: 60m
+          command: |
+            set +o pipefail
+            docker load -i /tmp/cache/ubuntu.tar.gz | true
+            docker load -i /tmp/cache/docker.tar.gz | true
+            docker images
 
 workflows:
   version: 2
@@ -329,3 +468,23 @@ workflows:
       - ds005:
           requires:
             - ds005_anat
+      - ds054_anat:
+          requires:
+            - get_data
+            - build_images
+      - ds054:
+          requires:
+            - ds054_anat
+
+      - deploy:
+          requires:
+            - build_images
+            - test_pytest
+            - build_docs
+            - ds005
+            - ds054
+          filters:
+            tags:
+              ignore: /^\d+\.\d+\.\d+\.-dev.*/
+            branches:
+              ignore: /.*/
