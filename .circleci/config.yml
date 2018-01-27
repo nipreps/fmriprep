@@ -9,6 +9,10 @@ jobs:
       - image: docker:18.01.0-ce-git
     working_directory: /tmp/src/fmriprep
     steps:
+      - run:
+          name: Install parallel gzip
+          command: |
+            apk add --no-cache pigz
       - restore_cache:
           keys:
             - docker-v1-{{ .Branch }}-{{ epoch }}
@@ -33,8 +37,8 @@ jobs:
           command: |
             docker info
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
-            docker load -i /tmp/cache/docker.tar.gz | true
+            pigz -d -p 3 /tmp/cache/ubuntu.tar.gz | docker load
+            pigz -d -p 3 /tmp/cache/docker.tar.gz | docker load
             docker images
       - run:
           name: Build Docker image
@@ -56,9 +60,9 @@ jobs:
           no_output_timeout: 40m
           command: |
             mkdir -p /tmp/cache
-            docker save ubuntu:xenial-20161213 | gzip -1 > /tmp/cache/ubuntu.tar.gz
+            docker save ubuntu:xenial-20161213 | pigz -4 -p 3 > /tmp/cache/ubuntu.tar.gz
             docker save poldracklab/fmriprep:latest \
-            | gzip -1 > /tmp/cache/docker.tar.gz
+            | pigz -4 -p 3 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
