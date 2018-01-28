@@ -388,6 +388,22 @@ jobs:
             docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
+      - run:
+          name: Deploy to Docker Hub
+          no_output_timeout: 40m
+          command: |
+            if [[ -n "$DOCKER_PASS" ]]; then
+              docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+              docker push poldracklab/fmriprep:latest
+              docker tag poldracklab/fmriprep poldracklab/fmriprep:$CIRCLE_TAG
+              docker push poldracklab/fmriprep:$CIRCLE_TAG
+            fi
+      - run:
+          name: Deploy to PyPi
+          command: |
+            printf "[distutils]\nindex-servers =\n    pypi\n\n[pypi]\nusername:$PYPI_USER\npassword:$PYPI_PASS\n" > ~/.pypirc
+            python setup.py sdist upload -r pypi
+            cd wrapper && python setup.py sdist upload -r pypi
 
 workflows:
   version: 2
