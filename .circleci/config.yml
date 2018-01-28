@@ -60,9 +60,9 @@ jobs:
           no_output_timeout: 40m
           command: |
             mkdir -p /tmp/cache
-            docker save ubuntu:xenial-20161213 | pigz -4 -p 3 > /tmp/cache/ubuntu.tar.gz
+            docker save ubuntu:xenial-20161213 | pigz -7 -p 3 > /tmp/cache/ubuntu.tar.gz
             docker save poldracklab/fmriprep:latest \
-            | pigz -4 -p 3 > /tmp/cache/docker.tar.gz
+            | pigz -7 -p 3 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
@@ -286,9 +286,7 @@ jobs:
             exit $?
 
       - store_artifacts:
-          path: /tmp/ds005/derivatives
-          path: /tmp/ds005/work
-          path: /tmp/ds005/test/outputs.out
+          path: /tmp/ds005
 
   ds054:
     machine:
@@ -373,9 +371,7 @@ jobs:
             [[ "$RET" -eq "1" ]]
 
       - store_artifacts:
-          path: /tmp/ds054/derivatives
-          path: /tmp/ds054/work
-          path: /tmp/ds054/test/outputs.out
+          path: /tmp/ds054
 
   deploy:
     machine:
