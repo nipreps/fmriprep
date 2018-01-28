@@ -297,6 +297,10 @@ jobs:
           name: Run fMRIPrep on ds005
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
@@ -309,7 +313,7 @@ jobs:
           name: Checking outputs of fMRIPrep
           command: |
             mkdir -p /tmp/ds005/test
-            find /tmp/ds005/derivatives  | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
+            find /tmp/ds005/derivatives | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds005_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
 
@@ -397,6 +401,10 @@ jobs:
           name: Run fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
@@ -404,6 +412,13 @@ jobs:
                 --mem_mb 4096 --nthreads 2 -vv
             sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+      - run:
+          name: Checking outputs of fMRIPrep
+          command: |
+            mkdir -p /tmp/ds054/test
+            find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
+            diff /tmp/src/fmriprep/.circleci/ds054_outputs.txt /tmp/ds054/test/outputs.out
+            exit $?
       - run:
           name: Generate report with one artificial error
           command: |
@@ -420,13 +435,6 @@ jobs:
             RET=$?
             set -e
             [[ "$RET" -eq "1" ]]
-      - run:
-          name: Checking outputs of fMRIPrep
-          command: |
-            mkdir -p /tmp/ds054/test
-            find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/ds054_outputs.txt /tmp/ds054/test/outputs.out
-            exit $?
 
       - store_artifacts:
           path: /tmp/ds054/derivatives
