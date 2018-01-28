@@ -34,12 +34,14 @@ jobs:
       - setup_remote_docker
       - run:
           name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
             docker info
             set +o pipefail
-            pigz -d --stdout /tmp/cache/ubuntu.tar.gz | docker load
-            pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Build Docker image
           no_output_timeout: 60m
@@ -160,12 +162,15 @@ jobs:
       - attach_workspace:
           at: /tmp
       - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
+          name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
+            docker info
             set +o pipefail
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
@@ -193,12 +198,15 @@ jobs:
       - attach_workspace:
           at: /tmp
       - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
+          name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
+            docker info
             set +o pipefail
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Build fMRIPrep documentation
           no_output_timeout: 2h
@@ -233,12 +241,15 @@ jobs:
             pip install future numpy
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
+          name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
+            docker info
             set +o pipefail
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
@@ -302,12 +313,15 @@ jobs:
             pip install future numpy
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
+          name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
+            docker info
             set +o pipefail
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Run anatomical workflow on ds054
           no_output_timeout: 2h
@@ -378,13 +392,15 @@ jobs:
       - attach_workspace:
           at: /tmp
       - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
+          name: Load Docker image layer cache
+          no_output_timeout: 30m
           command: |
+            docker info
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
+            if [ -f /tmp/cache/docker.tar.gz ]; then
+              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
+              docker images
+            fi
       - run:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
