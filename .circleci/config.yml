@@ -1,7 +1,7 @@
 version: 2
 jobs:
 
-  build_images:
+  build:
     environment:
       TZ: "/usr/share/zoneinfo/America/Los_Angeles"
       SCRATCH: "/scratch"
@@ -168,6 +168,7 @@ jobs:
             docker info
             set +o pipefail
             if [ -f /tmp/cache/docker.tar.gz ]; then
+              sudo apt update && apt -y install pigz
               pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
               docker images
             fi
@@ -247,6 +248,7 @@ jobs:
             docker info
             set +o pipefail
             if [ -f /tmp/cache/docker.tar.gz ]; then
+              sudo apt update && apt -y install pigz
               pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
               docker images
             fi
@@ -319,6 +321,7 @@ jobs:
             docker info
             set +o pipefail
             if [ -f /tmp/cache/docker.tar.gz ]; then
+              sudo apt update && apt -y install pigz
               pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
               docker images
             fi
@@ -398,6 +401,7 @@ jobs:
             docker info
             set +o pipefail
             if [ -f /tmp/cache/docker.tar.gz ]; then
+              sudo apt update && apt -y install pigz
               pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
               docker images
             fi
@@ -423,28 +427,28 @@ workflows:
   build_test_deploy:
     jobs:
       - get_data
-      - build_images
+      - build
       - update_cache:
           requires:
-            - build_images
+            - build
       - test_pytest:
           requires:
-            - build_images
+            - build
       - build_docs:
           requires:
-            - build_images
+            - build
       - ds005:
           requires:
             - get_data
-            - build_images
+            - build
       - ds054:
           requires:
             - get_data
-            - build_images
+            - build
 
       - deploy:
           requires:
-            - build_images
+            - build
             - test_pytest
             - build_docs
             - ds005
