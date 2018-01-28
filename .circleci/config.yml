@@ -310,7 +310,7 @@ jobs:
           command: |
             mkdir -p /tmp/ds005/test
             find /tmp/ds005/derivatives  | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
-            diff /tmp/src/fmriprep/.circle/data/ds005_outputs.txt /tmp/ds005/test/outputs.out
+            diff /tmp/src/fmriprep/.circleci/ds005_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
 
       - store_artifacts:
@@ -404,7 +404,6 @@ jobs:
                 --mem_mb 4096 --nthreads 2 -vv
             sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
-            sudo rm -r /tmp/ds054/derivatives/fmriprep/sub-100185/log
       - run:
           name: Generate report with one artificial error
           command: |
@@ -426,7 +425,7 @@ jobs:
           command: |
             mkdir -p /tmp/ds054/test
             find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
-            diff /tmp/src/fmriprep/.circle/data/ds054_outputs.txt /tmp/ds054/test/outputs.out
+            diff /tmp/src/fmriprep/.circleci/ds054_outputs.txt /tmp/ds054/test/outputs.out
             exit $?
 
       - store_artifacts:
