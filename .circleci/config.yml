@@ -205,6 +205,7 @@ jobs:
             docker info
             set +o pipefail
             if [ -f /tmp/cache/docker.tar.gz ]; then
+              sudo apt update && sudo apt -y install pigz
               pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
               docker images
             fi
