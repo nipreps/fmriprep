@@ -218,7 +218,7 @@ jobs:
       - store_artifacts:
           path: /home/circleci/out/docs
 
-  ds005_anat:
+  ds005:
     machine:
       image: circleci/classic:201711-01
     working_directory: /tmp/ds005
@@ -249,58 +249,26 @@ jobs:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/ds005/work && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
+            mkdir -p /tmp/ds005/work /tmp/ds005/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
-      - persist_to_workspace:
-          root: /tmp
-          paths:
-            - ds005/nipype.cfg
-            - ds005/work
-            - ds005/derivatives/fmriprep
       - save_cache:
          key: ds005-anat-v1-{{ epoch }}
          paths:
-            - /tmp/ds005/nipype.cfg
             - /tmp/ds005/work
             - /tmp/ds005/derivatives/fmriprep
 
-      - store_artifacts:
-          path: /tmp/ds005/derivatives
-
-  ds005:
-    machine:
-      image: circleci/classic:201711-01
-    working_directory: /tmp/ds005
-    environment:
-      - FS_LICENSE: /tmp/fslicense/license.txt
-    steps:
-      - attach_workspace:
-          at: /tmp
       - run:
-          name: Setting up test
-          command: |
-            pip install future numpy
-            pip install --upgrade /tmp/src/fmriprep/wrapper/
-      - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
-          command: |
-            set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
-      - run:
-          name: Run fMRIPrep on ds005
+          name: Run full fMRIPrep on ds005
           no_output_timeout: 2h
           command: |
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
@@ -322,7 +290,7 @@ jobs:
           path: /tmp/ds005/work
           path: /tmp/ds005/test/outputs.out
 
-  ds054_anat:
+  ds054:
     machine:
       image: circleci/classic:201711-01
     working_directory: /tmp/ds054
@@ -353,58 +321,26 @@ jobs:
           name: Run anatomical workflow on ds054
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/ds054/work && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
+            mkdir -p /tmp/ds054/work /tmp/ds054/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph --force-syn \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
-      - persist_to_workspace:
-          root: /tmp
-          paths:
-            - ds054/nipype.cfg
-            - ds054/work
-            - ds054/derivatives/fmriprep
       - save_cache:
          key: ds054-anat-v1-{{ epoch }}
          paths:
-            - /tmp/ds054/nipype.cfg
             - /tmp/ds054/work
             - /tmp/ds054/derivatives/fmriprep
 
-      - store_artifacts:
-          path: /tmp/ds054/derivatives
-
-  ds054:
-    machine:
-      image: circleci/classic:201711-01
-    working_directory: /tmp/ds054
-    environment:
-      - FS_LICENSE: /tmp/fslicense/license.txt
-    steps:
-      - attach_workspace:
-          at: /tmp
       - run:
-          name: Setting up test
-          command: |
-            pip install future numpy
-            pip install --upgrade /tmp/src/fmriprep/wrapper/
-      - run:
-          name: Load saved Docker images.
-          no_output_timeout: 60m
-          command: |
-            set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
-            docker load -i /tmp/cache/docker.tar.gz | true
-            docker images
-      - run:
-          name: Run fMRIPrep on ds054
+          name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
@@ -472,20 +408,14 @@ workflows:
       - build_docs:
           requires:
             - build_images
-      - ds005_anat:
-          requires:
-            - get_data
-            - build_images
       - ds005:
-          requires:
-            - ds005_anat
-      - ds054_anat:
           requires:
             - get_data
             - build_images
       - ds054:
           requires:
-            - ds054_anat
+            - get_data
+            - build_images
 
       - deploy:
           requires:
