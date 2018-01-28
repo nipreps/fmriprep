@@ -15,9 +15,9 @@ jobs:
             apk add --no-cache pigz
       - restore_cache:
           keys:
-            - docker-v1-{{ .Branch }}-{{ epoch }}
-            - docker-v1-{{ .Branch }}-
-            - docker-v1-
+            - docker-v2-{{ .Branch }}-{{ epoch }}
+            - docker-v2-{{ .Branch }}-
+            - docker-v2-
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
@@ -60,14 +60,12 @@ jobs:
           no_output_timeout: 40m
           command: |
             mkdir -p /tmp/cache
-            docker save ubuntu:xenial-20161213 | pigz -7 -p 3 > /tmp/cache/ubuntu.tar.gz
-            docker save poldracklab/fmriprep:latest \
-            | pigz -7 -p 3 > /tmp/cache/docker.tar.gz
+            docker save ubuntu:xenial-20161213 poldracklab/fmriprep:latest \
+            | pigz -8 -p 3 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
           paths:
-            - cache/ubuntu.tar.gz
             - cache/docker.tar.gz
             - src/fmriprep
 
@@ -79,8 +77,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v3-{{ epoch }}
-            - data-v3-
+            - data-v4-{{ epoch }}
+            - data-v4-
       - run:
           name: Get test data from ds000005
           command: |
@@ -136,7 +134,7 @@ jobs:
             - ds005/derivatives
             - ds054/nipype.cfg
       - save_cache:
-         key: data-v3-{{ epoch }}
+         key: data-v4-{{ epoch }}
          paths:
             - /tmp/data
             - /tmp/ds005/derivatives/freesurfer
@@ -150,10 +148,9 @@ jobs:
       - attach_workspace:
           at: /tmp
       - save_cache:
-         key: docker-v1-{{ .Branch }}-{{ epoch }}
+         key: docker-v2-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/cache/docker.tar.gz
-            - /tmp/cache/ubuntu.tar.gz
 
   test_pytest:
     machine:
@@ -167,7 +164,6 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - run:
@@ -201,7 +197,6 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - run:
@@ -229,8 +224,8 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v1-{{ epoch }}
-            - ds005-anat-v1-
+            - ds005-anat-v2-{{ epoch }}
+            - ds005-anat-v2-
       - run:
           name: Setting up test
           command: |
@@ -242,7 +237,6 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - run:
@@ -260,7 +254,7 @@ jobs:
                 --debug --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds005-anat-v1-{{ epoch }}
+         key: ds005-anat-v2-{{ epoch }}
          paths:
             - /tmp/ds005/work
             - /tmp/ds005/derivatives/fmriprep
@@ -299,8 +293,8 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v1-{{ epoch }}
-            - ds054-anat-v1-
+            - ds054-anat-v2-{{ epoch }}
+            - ds054-anat-v2-
       - run:
           name: Setting up test
           command: |
@@ -312,7 +306,6 @@ jobs:
           no_output_timeout: 60m
           command: |
             set +o pipefail
-            docker load -i /tmp/cache/ubuntu.tar.gz | true
             docker load -i /tmp/cache/docker.tar.gz | true
             docker images
       - run:
@@ -330,10 +323,10 @@ jobs:
                 --fs-no-reconall --debug --write-graph --force-syn \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds054-anat-v1-{{ epoch }}
+         key: ds054-anat-v2-{{ epoch }}
          paths:
             - /tmp/ds054/work
-            - /tmp/ds054/derivatives/fmriprep
+            - /tmp/ds054/derivatives
 
       - run:
           name: Run full fMRIPrep on ds054
@@ -344,8 +337,6 @@ jobs:
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph --force-syn \
                 --mem_mb 4096 --nthreads 2 -vv
-            sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
-                -not -name "*.mat" -not -name "*.lta" -type f -delete
       - run:
           name: Checking outputs of fMRIPrep
           command: |
@@ -356,6 +347,8 @@ jobs:
       - run:
           name: Generate report with one artificial error
           command: |
+            sudo mv /tmp/ds054/derivatives/fmriprep/sub-100185.html \
+                 mv /tmp/ds054/derivatives/fmriprep/sub-100185_noerror.html
             UUID="$(date '+%Y%m%d-%H%M%S_')$(uuidgen)"
             mkdir -p /tmp/ds054/derivatives/fmriprep/sub-100185/log/$UUID/
             cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
@@ -369,7 +362,11 @@ jobs:
             RET=$?
             set -e
             [[ "$RET" -eq "1" ]]
-
+      - run:
+          name: Clean-up work work directory
+          command: |
+            sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+                -not -name "*.mat" -not -name "*.lta" -type f -delete
       - store_artifacts:
           path: /tmp/ds054
 
