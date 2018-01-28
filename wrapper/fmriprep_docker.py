@@ -323,9 +323,9 @@ def main():
         print('Could not detect memory capacity of Docker container.\n'
               'Do you have permission to run docker?')
         return 1
-    if not (opts.help or opts.version) and mem_total < 84000:
+    if not (opts.help or opts.version or '--reports-only' in unknown_args) and mem_total < 84000:
         print('Warning: <8GB of RAM is available within your Docker '
-              'environment.\nSome parts of fMRIprep may fail to complete.')
+              'environment.\nSome parts of fMRIPrep may fail to complete.')
         if '--mem_mb' not in unknown_args:
             resp = 'N'
             try:
@@ -400,7 +400,7 @@ def main():
     print("RUNNING: " + ' '.join(command))
     ret = subprocess.run(command)
     if ret.returncode:
-        print("fmriprep: Please report errors to {}".format(__bugreports__))
+        print("fMRIPrep: Please report errors to {}".format(__bugreports__))
     return ret.returncode
 
 
