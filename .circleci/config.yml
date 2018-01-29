@@ -366,7 +366,7 @@ jobs:
           name: Generate report with one artificial error
           command: |
             sudo mv /tmp/ds054/derivatives/fmriprep/sub-100185.html \
-                 mv /tmp/ds054/derivatives/fmriprep/sub-100185_noerror.html
+                    /tmp/ds054/derivatives/fmriprep/sub-100185_noerror.html
             UUID="$(date '+%Y%m%d-%H%M%S_')$(uuidgen)"
             mkdir -p /tmp/ds054/derivatives/fmriprep/sub-100185/log/$UUID/
             cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
