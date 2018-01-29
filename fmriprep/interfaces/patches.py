@@ -35,3 +35,26 @@ class RobustACompCor(nac.ACompCor):
                 sleep(randint(start + 4, start + 10))
 
         return runtime
+
+
+class RobustTCompCor(nac.TCompCor):
+    """
+    Runs tCompCor several times if it suddenly fails with
+    https://github.com/poldracklab/fmriprep/issues/940
+
+    """
+
+    def _run_interface(self, runtime):
+        failures = 0
+        while True:
+            try:
+                runtime = super(RobustTCompCor, self)._run_interface(runtime)
+                break
+            except LinAlgError:
+                failures += 1
+                if failures > 10:
+                    raise
+                start = (failures - 1) * 10
+                sleep(randint(start + 4, start + 10))
+
+        return runtime
