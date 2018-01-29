@@ -373,7 +373,7 @@ jobs:
                 /tmp/ds054/derivatives/fmriprep/sub-100185/log/$UUID/
             set +e
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $PWD/nipype.cfg -w /tmp/ds054/scratch \
+                --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph --force-syn \
                 --reports-only --run-uuid $UUID
@@ -427,25 +427,46 @@ workflows:
   version: 2
   build_test_deploy:
     jobs:
-      - get_data
       - build
-      - update_cache:
-          requires:
-            - build
-      - test_pytest:
-          requires:
-            - build
+
+      - get_data:
+          filters:
+            branches:
+              ignore: /docs+\/.*/
+
       - build_docs:
           requires:
             - build
+
+      - update_cache:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /docs+\/.*/
+
+      - test_pytest:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /docs+\/.*/
+
       - ds005:
           requires:
             - get_data
             - build
+          filters:
+            branches:
+              ignore: /docs+\/.*/
+
       - ds054:
           requires:
             - get_data
             - build
+          filters:
+            branches:
+              ignore: /docs+\/.*/
 
       - deploy:
           requires:
