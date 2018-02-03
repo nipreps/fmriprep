@@ -290,10 +290,23 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         # ICA-AROMA
         ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
                                          ignore_aroma_err=ignore_aroma_err)
+        # performs partial regression
+        reg_filt = pe.Node(fsl.FilterRegressor(), name='reg_filt')
+
+        # load csv as list for reg_filt's 'filter_columns'
+        def loadcsv(csv):
+            import numpy as np
+            return list(np.loadtxt(csv, delimiter=",", dtype='int'))
+
         workflow.connect([
             (inputnode, ica_aroma_wf, [('bold_mni', 'inputnode.bold_mni'),
                                        ('bold_mask_mni', 'inputnode.bold_mask_mni'),
                                        ('movpar_file', 'inputnode.movpar_file')]),
+            (ica_aroma_wf, reg_filt, [('outputnode.melodic_mix', 'design_file'),
+                                      (('outputnode.aroma_noise_ics', loadcsv),
+                                      'filter_columns')]),
+            (inputnode, reg_filt, [('bold', 'in_file'),
+                                   ('bold_mask', 'mask')]),
             (ica_aroma_wf, concat,
                 [('outputnode.aroma_confounds', 'aroma')]),
             (ica_aroma_wf, outputnode,
@@ -301,6 +314,38 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
                  ('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
                  ('outputnode.melodic_mix', 'melodic_mix'),
                  ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')])
+        ])
+
+        # replace inputnode.bold with reg_filt's out_file
+        workflow.disconnect([
+            # dvars
+            (inputnode, dvars, [('bold', 'in_file')]),
+            # Calculate nonsteady state
+            (inputnode, non_steady_state, [('bold', 'in_file')]),
+            # tCompCor
+            (inputnode, tcompcor, [('bold', 'realigned_file')]),
+            # aCompCor
+            (inputnode, acompcor, [('bold', 'realigned_file')]),
+            # Global signals extraction (constrained by anatomy)
+            (inputnode, signals, [('bold', 'in_file')]),
+            # Set outputs
+            (inputnode, rois_plot, [('bold', 'in_file')]),
+        ])
+
+        # reconnect with reg_filt out_file
+        workflow.connect([
+            # dvars
+            (reg_filt, dvars, [('out_file', 'in_file')]),
+            # Calculate nonsteady state
+            (reg_filt, non_steady_state, [('out_file', 'in_file')]),
+            # tCompCor
+            (reg_filt, tcompcor, [('out_file', 'realigned_file')]),
+            # aCompCor
+            (reg_filt, acompcor, [('out_file', 'realigned_file')]),
+            # Global signals extraction (constrained by anatomy)
+            (reg_filt, signals, [('out_file', 'in_file')]),
+            # Set outputs
+            (reg_filt, rois_plot, [('out_file', 'in_file')]),
         ])
     return workflow
 
