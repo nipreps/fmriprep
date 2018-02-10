@@ -344,7 +344,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
          key: ds054-anat-v3-{{ .Branch }}-{{ epoch }}
@@ -359,7 +359,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --force-syn \
                 --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
