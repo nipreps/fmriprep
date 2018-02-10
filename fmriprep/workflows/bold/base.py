@@ -325,7 +325,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         ]),
     ])
 
-    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+    # The first reference uses T2 contrast enhancement
+    bold_reference_wf = init_bold_reference_wf(
+        omp_nthreads=omp_nthreads, enhance_t2=True)
 
     # STC on the BOLD
     # bool('TooShort') == True, so check True explicitly

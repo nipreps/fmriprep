@@ -9,6 +9,10 @@ Image tools interfaces
 
 """
 import nibabel as nb
+import numpy as np
+from skimage import morphology as sim
+from scipy.ndimage.morphology import binary_fill_holes
+
 from nilearn.masking import compute_epi_mask
 from nilearn.image import concat_imgs
 
@@ -28,7 +32,11 @@ class MaskEPIInputSpec(BaseInterfaceInputSpec):
     lower_cutoff = traits.Float(0.2, usedefault=True)
     upper_cutoff = traits.Float(0.85, usedefault=True)
     connected = traits.Bool(True, usedefault=True)
+    enhance_t2 = traits.Bool(False, usedefault=True,
+                             desc='enhance T2 contrast on image')
     opening = traits.Int(2, usedefault=True)
+    closing = traits.Bool(True, usedefault=True)
+    fill_holes = traits.Bool(True, usedefault=True)
     exclude_zeros = traits.Bool(False, usedefault=True)
     ensure_finite = traits.Bool(True, usedefault=True)
     target_affine = traits.Either(None, traits.File(exists=True),
@@ -47,8 +55,15 @@ class MaskEPI(SimpleInterface):
     output_spec = MaskEPIOutputSpec
 
     def _run_interface(self, runtime):
+
+        in_files = self.inputs.in_files
+
+        if self.inputs.enhance_t2:
+            in_files = [_enhance_t2_contrast(f, newpath=runtime.cwd)
+                        for f in in_files]
+
         masknii = compute_epi_mask(
-            self.inputs.in_files,
+            in_files,
             lower_cutoff=self.inputs.lower_cutoff,
             upper_cutoff=self.inputs.upper_cutoff,
             connected=self.inputs.connected,
@@ -58,6 +73,18 @@ class MaskEPI(SimpleInterface):
             target_affine=self.inputs.target_affine,
             target_shape=self.inputs.target_shape
         )
+
+        if self.inputs.closing:
+            closed = sim.binary_closing(masknii.get_data().astype(
+                np.uint8), sim.ball(1)).astype(np.uint8)
+            masknii = masknii.__class__(closed, masknii.affine,
+                                        masknii.header)
+
+        if self.inputs.fill_holes:
+            filled = binary_fill_holes(masknii.get_data().astype(
+                np.uint8), sim.ball(6)).astype(np.uint8)
+            masknii = masknii.__class__(filled, masknii.affine,
+                                        masknii.header)
 
         if self.inputs.no_sanitize:
             in_file = self.inputs.in_files
@@ -107,3 +134,22 @@ class Merge(SimpleInterface):
         new_nii.to_filename(self._results['out_file'])
 
         return runtime
+
+
+def _enhance_t2_contrast(in_file, newpath=None, offset=0.5):
+    """
+    Performs a logarithmic transformation of intensity that
+    effectively splits brain and background and makes the
+    overall distribution more Gaussian.
+    """
+    out_file = fname_presuffix(in_file, suffix='_t1enh',
+                               newpath=newpath)
+    nii = nb.load(in_file)
+    data = nii.get_data()
+    maxd = data.max()
+    newdata = np.log(offset + data / maxd)
+    newdata -= newdata.min()
+    newdata *= maxd / newdata.max()
+    nii = nii.__class__(newdata, nii.affine, nii.header)
+    nii.to_filename(out_file)
+    return out_file
