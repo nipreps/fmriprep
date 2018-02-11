@@ -90,6 +90,10 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             BOLD series mask
         movpar_file
             SPM-formatted motion parameters file
+        bold_t1
+            Motion-corrected BOLD series in T1 space
+        bold_mask_t1
+            BOLD series mask in T1w space
         t1_mask
             Mask of the skull-stripped template image
         t1_tpms
@@ -119,7 +123,14 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             CSV of noise components identified by ICA-AROMA
         melodic_mix
             FSL MELODIC mixing matrix
-        nonaggr_denoised_file
+        bold_smooth_nonaggr_denoised_mni
+            BOLD series with smoothing and non-aggressive ICA-AROMA denoising applied
+            (for backwards compatibility purposes)
+        bold_nonaggr_denoised_t1
+            BOLD series (in t1w space) with non-aggressive ICA-AROMA denoising applied
+        bold_nonaggr_denoised_mni
+            BOLD series (in mni space) with non-aggressive ICA-AROMA denoising applied
+        bold_nonaggr_denoised
             BOLD series with non-aggressive ICA-AROMA denoising applied
 
     **Subworkflows**
@@ -129,12 +140,14 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold', 'bold_mask', 'movpar_file', 't1_mask', 't1_tpms',
-                't1_bold_xform', 'bold_mni', 'bold_mask_mni']),
+        fields=['bold', 'bold_mask', 'movpar_file', 'bold_t1', 'bold_mask_t1',
+                't1_mask', 't1_tpms', 't1_bold_xform', 'bold_mni', 'bold_mask_mni']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['confounds_file', 'confounds_list', 'rois_report', 'ica_aroma_report',
-                'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file']),
+                'aroma_noise_ics', 'melodic_mix', 'bold_smooth_nonaggr_denoised_mni',
+                'bold_nonaggr_denoised_mni', 'bold_nonaggr_denoised_t1',
+                'bold_nonaggr_denoised']),
         name='outputnode')
 
     # Get masks ready in T1w space
@@ -291,7 +304,9 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
                                          ignore_aroma_err=ignore_aroma_err)
         # performs partial regression
-        reg_filt = pe.Node(fsl.FilterRegressor(), name='reg_filt')
+        reg_filt_bold = pe.Node(fsl.FilterRegressor(), name='reg_filt_bold')
+        reg_filt_t1 = pe.Node(fsl.FilterRegressor(), name='reg_filt_t1')
+        reg_filt_mni = pe.Node(fsl.FilterRegressor(), name='reg_filt_mni')
 
         # load csv as list for reg_filt's 'filter_columns'
         def loadcsv(csv):
@@ -302,18 +317,35 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             (inputnode, ica_aroma_wf, [('bold_mni', 'inputnode.bold_mni'),
                                        ('bold_mask_mni', 'inputnode.bold_mask_mni'),
                                        ('movpar_file', 'inputnode.movpar_file')]),
-            (ica_aroma_wf, reg_filt, [('outputnode.melodic_mix', 'design_file'),
-                                      (('outputnode.aroma_noise_ics', loadcsv),
-                                      'filter_columns')]),
-            (inputnode, reg_filt, [('bold', 'in_file'),
-                                   ('bold_mask', 'mask')]),
+            # native space
+            (ica_aroma_wf, reg_filt_bold, [('outputnode.melodic_mix', 'design_file'),
+                                           (('outputnode.aroma_noise_ics', loadcsv),
+                                           'filter_columns')]),
+            (inputnode, reg_filt_bold, [('bold', 'in_file'),
+                                        ('bold_mask', 'mask')]),
+            (reg_filt_bold, outputnode, [('out_file', 'bold_nonaggr_denoised')]),
+            # t1w space
+            (ica_aroma_wf, reg_filt_t1, [('outputnode.melodic_mix', 'design_file'),
+                                         (('outputnode.aroma_noise_ics', loadcsv),
+                                         'filter_columns')]),
+            (inputnode, reg_filt_t1, [('bold', 'in_file'),
+                                      ('bold_mask', 'mask')]),
+            (reg_filt_t1, outputnode, [('out_file', 'bold_nonaggr_denoised_t1')]),
+            # mni space
+            (ica_aroma_wf, reg_filt_mni, [('outputnode.melodic_mix', 'design_file'),
+                                          (('outputnode.aroma_noise_ics', loadcsv),
+                                          'filter_columns')]),
+            (inputnode, reg_filt_mni, [('bold', 'in_file'),
+                                       ('bold_mask', 'mask')]),
+            (reg_filt_mni, outputnode, [('out_file', 'bold_nonaggr_denoised_mni')]),
             (ica_aroma_wf, concat,
                 [('outputnode.aroma_confounds', 'aroma')]),
             (ica_aroma_wf, outputnode,
                 [('outputnode.out_report', 'ica_aroma_report'),
                  ('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
                  ('outputnode.melodic_mix', 'melodic_mix'),
-                 ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')])
+                 ('outputnode.bold_smooth_nonaggr_denoised_mni',
+                 'bold_smooth_nonaggr_denoised_mni')]),
         ])
 
         # replace inputnode.bold with reg_filt's out_file
@@ -332,20 +364,20 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             (inputnode, rois_plot, [('bold', 'in_file')]),
         ])
 
-        # reconnect with reg_filt out_file
+        # reconnect with reg_filt's out_file
         workflow.connect([
             # dvars
-            (reg_filt, dvars, [('out_file', 'in_file')]),
+            (reg_filt_bold, dvars, [('out_file', 'in_file')]),
             # Calculate nonsteady state
-            (reg_filt, non_steady_state, [('out_file', 'in_file')]),
+            (reg_filt_bold, non_steady_state, [('out_file', 'in_file')]),
             # tCompCor
-            (reg_filt, tcompcor, [('out_file', 'realigned_file')]),
+            (reg_filt_bold, tcompcor, [('out_file', 'realigned_file')]),
             # aCompCor
-            (reg_filt, acompcor, [('out_file', 'realigned_file')]),
+            (reg_filt_bold, acompcor, [('out_file', 'realigned_file')]),
             # Global signals extraction (constrained by anatomy)
-            (reg_filt, signals, [('out_file', 'in_file')]),
+            (reg_filt_bold, signals, [('out_file', 'in_file')]),
             # Set outputs
-            (reg_filt, rois_plot, [('out_file', 'in_file')]),
+            (reg_filt_bold, rois_plot, [('out_file', 'in_file')]),
         ])
     return workflow
 
@@ -396,8 +428,8 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
             CSV of noise components identified by ICA-AROMA
         melodic_mix
             FSL MELODIC mixing matrix
-        nonaggr_denoised_file
-            BOLD series with non-aggressive ICA-AROMA denoising applied
+        bold_smooth_nonaggr_denoised_mni
+            Smoothed BOLD series with non-aggressive ICA-AROMA denoising applied
         out_report
             Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
 
@@ -411,7 +443,7 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['aroma_confounds', 'out_report',
                 'aroma_noise_ics', 'melodic_mix',
-                'nonaggr_denoised_file']), name='outputnode')
+                'bold_smooth_nonaggr_denoised_mni']), name='outputnode')
 
     calc_median_val = pe.Node(fsl.ImageStats(op_string='-k %s -p 50'), name='calc_median_val')
     calc_bold_mean = pe.Node(fsl.MeanImage(), name='calc_bold_mean')
@@ -447,24 +479,29 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         (calc_median_val, getusans, [('out_stat', 'thresh')]),
         (inputnode, smooth, [('bold_mni', 'in_file')]),
         (getusans, smooth, [('usans', 'usans')]),
-        (calc_median_val, smooth, [(('out_stat', _getbtthresh), 'brightness_threshold')]),
+        (calc_median_val, smooth, [
+            (('out_stat', _getbtthresh), 'brightness_threshold')]),
         # connect smooth to melodic
         (smooth, melodic, [('smoothed_file', 'in_files')]),
         (inputnode, melodic, [('bold_mask_mni', 'mask')]),
         # connect nodes to ICA-AROMA
         (smooth, ica_aroma, [('smoothed_file', 'in_file')]),
-        (inputnode, ica_aroma, [('bold_mask_mni', 'report_mask'),
-                                ('movpar_file', 'motion_parameters')]),
-        (melodic, ica_aroma, [('out_dir', 'melodic_dir')]),
+        (inputnode, ica_aroma, [
+            ('bold_mask_mni', 'report_mask'),
+            ('movpar_file', 'motion_parameters')]),
+        (melodic, ica_aroma, [
+            ('out_dir', 'melodic_dir')]),
         # generate tsvs from ICA-AROMA
-        (ica_aroma, ica_aroma_confound_extraction, [('out_dir', 'in_directory')]),
+        (ica_aroma, ica_aroma_confound_extraction, [
+            ('out_dir', 'in_directory')]),
         # output for processing and reporting
-        (ica_aroma_confound_extraction, outputnode, [('aroma_confounds', 'aroma_confounds'),
-                                                     ('aroma_noise_ics', 'aroma_noise_ics'),
-                                                     ('melodic_mix', 'melodic_mix')]),
-        # TODO change melodic report to reflect noise and non-noise components
-        (ica_aroma, outputnode, [('out_report', 'out_report'),
-                                 ('nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+        (ica_aroma_confound_extraction, outputnode, [
+            ('aroma_confounds', 'aroma_confounds'),
+            ('aroma_noise_ics', 'aroma_noise_ics'),
+            ('melodic_mix', 'melodic_mix')]),
+        (ica_aroma, outputnode, [
+            ('out_report', 'out_report'),
+            ('nonaggr_denoised_file', 'bold_smooth_nonaggr_denoised_mni')]),
     ])
 
     return workflow
