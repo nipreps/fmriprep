@@ -304,13 +304,9 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
                                          ignore_aroma_err=ignore_aroma_err)
         # performs partial regression
-<<<<<<< HEAD
-        reg_filt = pe.Node(fsl.FilterRegressor(), name='reg_filt')
-=======
         reg_filt_bold = pe.Node(fsl.FilterRegressor(), name='reg_filt_bold')
         reg_filt_t1 = pe.Node(fsl.FilterRegressor(), name='reg_filt_t1')
         reg_filt_mni = pe.Node(fsl.FilterRegressor(), name='reg_filt_mni')
->>>>>>> tmp_branch
 
         # load csv as list for reg_filt's 'filter_columns'
         def loadcsv(csv):
@@ -400,21 +396,6 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             (inputnode, rois_plot, [('bold', 'in_file')]),
         ])
 
-        # reconnect with reg_filt out_file
-        workflow.connect([
-            # dvars
-            (reg_filt, dvars, [('out_file', 'in_file')]),
-            # Calculate nonsteady state
-            (reg_filt, non_steady_state, [('out_file', 'in_file')]),
-            # tCompCor
-            (reg_filt, tcompcor, [('out_file', 'realigned_file')]),
-            # aCompCor
-            (reg_filt, acompcor, [('out_file', 'realigned_file')]),
-            # Global signals extraction (constrained by anatomy)
-            (reg_filt, signals, [('out_file', 'in_file')]),
-            # Set outputs
-            (reg_filt, rois_plot, [('out_file', 'in_file')]),
-        ])
     return workflow
 
 
