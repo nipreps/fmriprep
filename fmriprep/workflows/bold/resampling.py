@@ -18,7 +18,6 @@ from niworkflows.nipype.interfaces import utility as niu, freesurfer as fs
 
 from niworkflows import data as nid
 from niworkflows.interfaces.utils import GenerateSamplingReference
-from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import GiftiSetAnatomicalStructure, MultiApplyTransforms
 from ...interfaces.nilearn import Merge
