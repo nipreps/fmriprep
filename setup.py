@@ -56,6 +56,7 @@ def main():
                                    'viz/*.tpl', 'viz/*.json']},
         entry_points={'console_scripts': [
             'fmriprep=fmriprep.cli.run:main',
+            'fmriprep-boldmask=fmriprep.cli.fmriprep_bold_mask:main',
             'sample_openfmri=fmriprep.cli.sample_openfmri:main'
         ]},
         packages=find_packages(exclude=("tests",)),

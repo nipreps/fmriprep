@@ -334,7 +334,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         ]),
     ])
 
-    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+    # The first reference uses T2 contrast enhancement
+    bold_reference_wf = init_bold_reference_wf(
+        omp_nthreads=omp_nthreads, enhance_t2=True)
 
     # STC on the BOLD
     # bool('TooShort') == True, so check True explicitly
@@ -538,7 +540,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 (bold_t2s_wf, bold_reg_wf, [
                     ('outputnode.t2s_map', 'inputnode.ref_bold_brain'),
                     ('outputnode.t2s_mask', 'inputnode.ref_bold_mask')])
-                ])
+            ])
         else:
             LOGGER.warn('No fieldmaps found or they were ignored, building base workflow '
                         'for dataset %s.', ref_file)
