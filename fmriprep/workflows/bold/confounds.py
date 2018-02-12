@@ -380,22 +380,6 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             (reg_filt_bold, rois_plot, [('out_file', 'in_file')]),
         ])
 
-        # replace inputnode.bold with reg_filt's out_file
-        workflow.disconnect([
-            # dvars
-            (inputnode, dvars, [('bold', 'in_file')]),
-            # Calculate nonsteady state
-            (inputnode, non_steady_state, [('bold', 'in_file')]),
-            # tCompCor
-            (inputnode, tcompcor, [('bold', 'realigned_file')]),
-            # aCompCor
-            (inputnode, acompcor, [('bold', 'realigned_file')]),
-            # Global signals extraction (constrained by anatomy)
-            (inputnode, signals, [('bold', 'in_file')]),
-            # Set outputs
-            (inputnode, rois_plot, [('bold', 'in_file')]),
-        ])
-
     return workflow
 
 
