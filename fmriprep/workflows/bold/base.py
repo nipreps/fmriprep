@@ -688,6 +688,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])
 
+        # Use the denoised bold derived from ICA-AROMA
         if use_aroma:
             workflow.connect([
                 (bold_confounds_wf, bold_surf_wf, [
@@ -889,6 +890,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                           ('bold_mask_t1', 'in_file')]),
         ])
 
+        # Output the denoised bold in t1w space
         if use_aroma:
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
@@ -904,6 +906,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                            ('bold_mask_mni', 'in_file')]),
         ])
 
+        # Output the denoised bold in MNI space
         if use_aroma:
             workflow.connect([
                 (inputnode, ds_aroma_mni, [
