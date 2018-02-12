@@ -34,7 +34,3 @@ out/
 .zenodo.json
 .travis.yml
 .readthedocs.yml
-
-# docker wrapper
-wrapper
-wrapper/*
