@@ -361,6 +361,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --force-syn \
+                --output-space T1w template \
                 --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
