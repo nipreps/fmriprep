@@ -28,4 +28,4 @@ dependencies:
     - svgutils
     - nitime
     - nilearn
-    - git+https://github.com/poldracklab/niworkflows.git@06483c9954c003c10ff7038d931afee301a70c32#egg=niworkflows-0.3.1-dev
+    - niworkflows>=0.3.1 
