@@ -248,7 +248,7 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
     gen_ref.inputs.fixed_image = op.join(nid.get_dataset(template_str), '1mm_T1.nii.gz')
 
     mask_mni_tfm = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True),
+        ApplyTransforms(interpolation='MultiLabel', float=True),
         name='mask_mni_tfm',
         mem_gb=1
     )

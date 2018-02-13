@@ -148,13 +148,13 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         name='acc_roi')
 
     # Map ROIs in T1w space into BOLD space
-    csf_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+    csf_tfm = pe.Node(ApplyTransforms(interpolation='MultiLabel', float=True),
                       name='csf_tfm', mem_gb=0.1)
-    wm_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+    wm_tfm = pe.Node(ApplyTransforms(interpolation='MultiLabel', float=True),
                      name='wm_tfm', mem_gb=0.1)
-    acc_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+    acc_tfm = pe.Node(ApplyTransforms(interpolation='MultiLabel', float=True),
                       name='acc_tfm', mem_gb=0.1)
-    tcc_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
+    tcc_tfm = pe.Node(ApplyTransforms(interpolation='MultiLabel', float=True),
                       name='tcc_tfm', mem_gb=0.1)
 
     # Ensure ROIs don't go off-limits (reduced FoV)

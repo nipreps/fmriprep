@@ -170,7 +170,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
     mask_t1w_tfm = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True),
+        ApplyTransforms(interpolation='MultiLabel', float=True),
         name='mask_t1w_tfm', mem_gb=0.1
     )
 

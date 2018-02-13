@@ -151,7 +151,7 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
         name='syn', n_procs=omp_nthreads)
 
     seg_2_ref = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True,
+        ApplyTransforms(interpolation='MultiLabel', float=True,
                         invert_transform_flags=[True]),
         name='seg_2_ref', n_procs=omp_nthreads, mem_gb=0.3)
     sel_wm = pe.Node(niu.Function(function=extract_wm), name='sel_wm',
