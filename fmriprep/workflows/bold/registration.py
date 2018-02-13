@@ -19,7 +19,6 @@ from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu, fsl, c3, freesurfer as fs
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICoregRPT
 from niworkflows.interfaces.utils import GenerateSamplingReference
-from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import MultiApplyTransforms
 
