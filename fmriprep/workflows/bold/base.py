@@ -19,9 +19,6 @@ from niworkflows.nipype import logging
 from niworkflows.nipype.interfaces.fsl import Split as FSLSplit
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu
-from niworkflows.interfaces.fixes import (
-    FixHeaderApplyTransforms as ApplyTransforms
-)
 
 from ...interfaces import (
     DerivativesDataSink,
@@ -379,10 +376,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         name='bold_bold_trans_wf'
     )
 
-    # Map new BOLD mask (from ``bold_bold_transf_wf``) into T1w space
-    boldmsk_tfm = pe.Node(ApplyTransforms(interpolation='NearestNeighbor', float=True),
-                          name='boldmsk_tfm', mem_gb=0.1)
-
     workflow.connect([
         (inputnode, bold_reference_wf, [('bold_file', 'inputnode.bold_file')]),
         (bold_reference_wf, bold_hmc_wf, [
@@ -415,7 +408,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.melodic_mix', 'melodic_mix'),
             ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file'),
         ]),
-        (bold_reg_wf, outputnode, [('outputnode.bold_t1', 'bold_t1')]),
+        (bold_reg_wf, outputnode, [('outputnode.bold_t1', 'bold_t1'),
+                                   ('outputnode.bold_mask_t1', 'bold_mask_t1')]),
         (bold_confounds_wf, func_reports_wf, [
             ('outputnode.rois_report', 'inputnode.bold_rois_report'),
             ('outputnode.ica_aroma_report', 'inputnode.ica_aroma_report')]),
@@ -424,12 +418,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
         (bold_split, bold_bold_trans_wf, [
             ('out_files', 'inputnode.bold_split')]),
-        (bold_bold_trans_wf, boldmsk_tfm, [
-            ('outputnode.bold_mask', 'input_image')]),
-        (bold_reg_wf, boldmsk_tfm, [
-            ('outputnode.bold_mask_t1', 'reference_image'),
-            ('outputnode.itk_bold_to_t1', 'transforms')]),
-        (boldmsk_tfm, outputnode, [('output_image', 'bold_mask_t1')])
     ])
 
     # bool('TooShort') == True, so check True explicitly

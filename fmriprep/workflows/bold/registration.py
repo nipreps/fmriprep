@@ -116,6 +116,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             Affine transform from T1 space to BOLD space (ITK format)
         bold_t1
             Motion-corrected BOLD series in T1 space
+        bold_ref_t1
+            BOLD ref in T1 space
         bold_mask_t1
             BOLD mask in T1 space
         out_report
@@ -140,9 +142,9 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         name='inputnode'
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold',
-                                      'bold_t1', 'bold_mask_t1',
-                                      'out_report', 'fallback']),
+        niu.IdentityInterface(fields=[
+            'itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback',
+            'bold_t1', 'bold_mask_t1', 'bold_ref_t1']),
         name='outputnode'
     )
 
@@ -203,6 +205,9 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
 
     merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=mem_gb)
 
+    # Generate a new BOLD reference & mask
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+
     workflow.connect([
         (bbr_wf, merge_xforms, [('outputnode.itk_bold_to_t1', 'in1')]),
         (merge_xforms, bold_to_t1w_transform, [('out', 'transforms')]),
@@ -211,6 +216,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         (inputnode, bold_to_t1w_transform, [('bold_split', 'input_image')]),
         (gen_ref, bold_to_t1w_transform, [('out_file', 'reference_image')]),
         (bold_to_t1w_transform, merge, [('out_files', 'in_files')]),
+        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
+        (bold_reference_wf, outputnode, [
+            ('outputnode.ref_image', 'bold_ref_t1'),
+            ('outputnode.bold_mask', 'bold_mask_t1')]),
     ])
 
     return workflow
