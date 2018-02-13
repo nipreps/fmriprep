@@ -37,8 +37,12 @@ fmriprep/sub-100185/func
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_confounds.tsv
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_space-MNI152NLin2009cAsym_preproc.nii.gz
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_space-T1w_brainmask.nii.gz
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_bold_space-T1w_preproc.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_bold_confounds.tsv
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_bold_space-MNI152NLin2009cAsym_preproc.nii.gz
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_bold_space-T1w_brainmask.nii.gz
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_bold_space-T1w_preproc.nii.gz
 fmriprep/sub-100185.html
 /tmp/ds054/derivatives

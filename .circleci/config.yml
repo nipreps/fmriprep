@@ -269,7 +269,6 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --mem_mb 4096 \
-                --output-space T1w template fsaverage5 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
          key: ds005-anat-v4-{{ .Branch }}-{{ epoch }}
@@ -286,6 +285,7 @@ jobs:
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --output-space T1w template fsaverage5 \
                 --nthreads 2 -vv
             sudo find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
