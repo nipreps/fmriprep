@@ -173,28 +173,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
-    mask_t1w_tfm = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True),
-        name='mask_t1w_tfm', mem_gb=0.1
-    )
-
-    workflow.connect([
-        (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
-                              ('t1_brain', 'fixed_image'),
-                              ('t1_mask', 'fov_mask')]),
-        (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
-        (bbr_wf, mask_t1w_tfm, [('outputnode.itk_bold_to_t1', 'transforms')]),
-        (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
-        (mask_t1w_tfm, outputnode, [('output_image', 'bold_mask_t1')])
-    ])
-
     # Merge transforms placing the head motion correction last
     nforms = 3 if use_fieldwarp else 2
     merge_xforms = pe.Node(niu.Merge(nforms), name='merge_xforms',
                            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([
-        (inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nforms)])
-    ])
 
     if use_fieldwarp:
         workflow.connect([
@@ -211,6 +193,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
 
     workflow.connect([
+        (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
+                              ('t1_brain', 'fixed_image'),
+                              ('t1_mask', 'fov_mask')]),
+        (inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nforms)]),
         (bbr_wf, merge_xforms, [('outputnode.itk_bold_to_t1', 'in1')]),
         (merge_xforms, bold_to_t1w_transform, [('out', 'transforms')]),
         (inputnode, merge, [('name_source', 'header_source')]),
