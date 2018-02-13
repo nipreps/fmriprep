@@ -70,7 +70,7 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
     LOGGER.log(25, 'Generating T2* map.')
 
     apply_hmc = pe.Node(
-        MultiApplyTransforms(interpolation='NearestNeighbor', float=True, copy_dtype=True),
+        MultiApplyTransforms(interpolation='MultiLabel', float=True, copy_dtype=True),
         mem_gb=(mem_gb * 3 * omp_nthreads), n_procs=omp_nthreads, name='apply_hmc')
 
     merge = pe.Node(Merge(compress=True), name='merge', mem_gb=mem_gb)
