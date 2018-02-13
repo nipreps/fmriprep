@@ -28,6 +28,8 @@ from ...interfaces.images import extract_wm
 # See https://github.com/poldracklab/fmriprep/issues/768
 from ...interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
 
+from .util import init_bold_reference_wf
+
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 
