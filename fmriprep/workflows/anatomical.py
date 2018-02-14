@@ -271,13 +271,13 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
     # Resample the brain mask and the tissue probability maps into mni space
     mni_mask = pe.Node(
         ApplyTransforms(dimension=3, default_value=0, float=True,
-                        interpolation='NearestNeighbor'),
+                        interpolation='MultiLabel'),
         name='mni_mask'
     )
 
     mni_seg = pe.Node(
         ApplyTransforms(dimension=3, default_value=0, float=True,
-                        interpolation='NearestNeighbor'),
+                        interpolation='MultiLabel'),
         name='mni_seg'
     )
 

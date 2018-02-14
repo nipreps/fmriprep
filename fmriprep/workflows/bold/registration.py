@@ -173,7 +173,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
     # Merge transforms placing the head motion correction last
-    nforms = 3 if use_fieldwarp else 2
+    nforms = 2 + int(use_fieldwarp)
     merge_xforms = pe.Node(niu.Merge(nforms), name='merge_xforms',
                            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
 
