@@ -18,7 +18,6 @@ from niworkflows.nipype.interfaces import utility as niu, freesurfer as fs
 
 from niworkflows import data as nid
 from niworkflows.interfaces.utils import GenerateSamplingReference
-from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import GiftiSetAnatomicalStructure, MultiApplyTransforms
 from ...interfaces.nilearn import Merge
@@ -226,7 +225,6 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
             't1_2_mni_forward_transform',
             'name_source',
             'bold_split',
-            'bold_mask',
             'hmc_xforms',
             'fieldwarp'
         ]),
@@ -234,7 +232,7 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_mni', 'bold_mask_mni']),
+        niu.IdentityInterface(fields=['bold_mni', 'bold_mask_mni', 'bold_ref_mni']),
         name='outputnode')
 
     def _aslist(in_value):
@@ -242,37 +240,17 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
             return in_value
         return [in_value]
 
+    def _first(inlist):
+        return inlist[0]
+
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB)
     template_str = nid.TEMPLATE_MAP[template]
     gen_ref.inputs.fixed_image = op.join(nid.get_dataset(template_str), '1mm_T1.nii.gz')
 
-    mask_mni_tfm = pe.Node(
-        ApplyTransforms(interpolation='MultiLabel', float=True),
-        name='mask_mni_tfm',
-        mem_gb=1
-    )
-
-    # Write corrected file in the designated output dir
-    mask_merge_tfms = pe.Node(niu.Merge(2), name='mask_merge_tfms', run_without_submitting=True,
-                              mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    nxforms = 4 if use_fieldwarp else 3
+    nxforms = 3 + int(use_fieldwarp)
     merge_xforms = pe.Node(niu.Merge(nxforms), name='merge_xforms',
                            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([(inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nxforms)])])
-
-    if use_fieldwarp:
-        workflow.connect([(inputnode, merge_xforms, [('fieldwarp', 'in3')])])
-
-    workflow.connect([
-        (inputnode, gen_ref, [('bold_mask', 'moving_image')]),
-        (inputnode, mask_merge_tfms, [('t1_2_mni_forward_transform', 'in1'),
-                                      (('itk_bold_to_t1', _aslist), 'in2')]),
-        (mask_merge_tfms, mask_mni_tfm, [('out', 'transforms')]),
-        (mask_mni_tfm, outputnode, [('output_image', 'bold_mask_mni')]),
-        (inputnode, mask_mni_tfm, [('bold_mask', 'input_image')])
-    ])
 
     bold_to_mni_transform = pe.Node(
         MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
@@ -281,23 +259,34 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
     merge = pe.Node(Merge(compress=use_compression), name='merge',
                     mem_gb=mem_gb * 3)
 
+    # Generate a new BOLD reference & mask
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+
     workflow.connect([
-        (inputnode, merge_xforms, [('t1_2_mni_forward_transform', 'in1'),
-                                   (('itk_bold_to_t1', _aslist), 'in2')]),
+        (inputnode, gen_ref, [(('bold_split', _first), 'moving_image')]),
+        (inputnode, merge_xforms, [
+            ('t1_2_mni_forward_transform', 'in1'),
+            (('itk_bold_to_t1', _aslist), 'in2'),
+            ('hmc_xforms', 'in%d' % nxforms)]),
         (merge_xforms, bold_to_mni_transform, [('out', 'transforms')]),
         (inputnode, merge, [('name_source', 'header_source')]),
         (inputnode, bold_to_mni_transform, [('bold_split', 'input_image')]),
         (bold_to_mni_transform, merge, [('out_files', 'in_files')]),
         (merge, outputnode, [('out_file', 'bold_mni')]),
+        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
+        (bold_reference_wf, outputnode, [
+            ('outputnode.ref_image', 'bold_ref_mni'),
+            ('outputnode.bold_mask', 'bold_mask_mni')]),
     ])
+
+    if use_fieldwarp:
+        workflow.connect([(inputnode, merge_xforms, [('fieldwarp', 'in3')])])
 
     if output_grid_ref is None:
         workflow.connect([
-            (gen_ref, mask_mni_tfm, [('out_file', 'reference_image')]),
             (gen_ref, bold_to_mni_transform, [('out_file', 'reference_image')]),
         ])
     else:
-        mask_mni_tfm.inputs.reference_image = output_grid_ref
         bold_to_mni_transform.inputs.reference_image = output_grid_ref
     return workflow
 
@@ -381,8 +370,8 @@ def init_bold_preproc_trans_wf(mem_gb, omp_nthreads,
         (inputnode, bold_transform, [('bold_split', 'input_image'),
                                      (('bold_split', _first), 'reference_image')]),
         (bold_transform, merge, [('out_files', 'in_files')]),
-        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
         (merge, outputnode, [('out_file', 'bold')]),
+        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
         (bold_reference_wf, outputnode, [
             ('outputnode.ref_image', 'bold_ref'),
             ('outputnode.ref_image_brain', 'bold_ref_brain'),

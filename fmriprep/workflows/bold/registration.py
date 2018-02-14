@@ -19,7 +19,6 @@ from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu, fsl, c3, freesurfer as fs
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICoregRPT
 from niworkflows.interfaces.utils import GenerateSamplingReference
-from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import MultiApplyTransforms
 
@@ -27,6 +26,8 @@ from ...interfaces.nilearn import Merge
 from ...interfaces.images import extract_wm
 # See https://github.com/poldracklab/fmriprep/issues/768
 from ...interfaces.freesurfer import PatchedConcatenateLTA as ConcatenateLTA
+
+from .util import init_bold_reference_wf
 
 
 DEFAULT_MEMORY_MIN_GB = 0.01
@@ -116,6 +117,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             Affine transform from T1 space to BOLD space (ITK format)
         bold_t1
             Motion-corrected BOLD series in T1 space
+        bold_ref_t1
+            BOLD ref in T1 space
         bold_mask_t1
             BOLD mask in T1 space
         out_report
@@ -140,9 +143,9 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         name='inputnode'
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold',
-                                      'bold_t1', 'bold_mask_t1',
-                                      'out_report', 'fallback']),
+        niu.IdentityInterface(fields=[
+            'itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback',
+            'bold_t1', 'bold_mask_t1', 'bold_ref_t1']),
         name='outputnode'
     )
 
@@ -169,28 +172,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
-    mask_t1w_tfm = pe.Node(
-        ApplyTransforms(interpolation='MultiLabel', float=True),
-        name='mask_t1w_tfm', mem_gb=0.1
-    )
-
-    workflow.connect([
-        (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
-                              ('t1_brain', 'fixed_image'),
-                              ('t1_mask', 'fov_mask')]),
-        (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
-        (bbr_wf, mask_t1w_tfm, [('outputnode.itk_bold_to_t1', 'transforms')]),
-        (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
-        (mask_t1w_tfm, outputnode, [('output_image', 'bold_mask_t1')])
-    ])
-
     # Merge transforms placing the head motion correction last
-    nforms = 3 if use_fieldwarp else 2
+    nforms = 2 + int(use_fieldwarp)
     merge_xforms = pe.Node(niu.Merge(nforms), name='merge_xforms',
                            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([
-        (inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nforms)])
-    ])
 
     if use_fieldwarp:
         workflow.connect([
@@ -203,7 +188,14 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
 
     merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=mem_gb)
 
+    # Generate a new BOLD reference & mask
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+
     workflow.connect([
+        (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
+                              ('t1_brain', 'fixed_image'),
+                              ('t1_mask', 'fov_mask')]),
+        (inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nforms)]),
         (bbr_wf, merge_xforms, [('outputnode.itk_bold_to_t1', 'in1')]),
         (merge_xforms, bold_to_t1w_transform, [('out', 'transforms')]),
         (inputnode, merge, [('name_source', 'header_source')]),
@@ -211,6 +203,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         (inputnode, bold_to_t1w_transform, [('bold_split', 'input_image')]),
         (gen_ref, bold_to_t1w_transform, [('out_file', 'reference_image')]),
         (bold_to_t1w_transform, merge, [('out_files', 'in_files')]),
+        (merge, bold_reference_wf, [('out_file', 'inputnode.bold_file')]),
+        (bold_reference_wf, outputnode, [
+            ('outputnode.ref_image', 'bold_ref_t1'),
+            ('outputnode.bold_mask', 'bold_mask_t1')]),
     ])
 
     return workflow

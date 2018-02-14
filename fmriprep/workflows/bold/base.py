@@ -592,19 +592,12 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         if fmaps:
             workflow.connect([
                 (sdc_unwarp_wf, bold_mni_trans_wf, [
-                    ('outputnode.out_warp', 'inputnode.fieldwarp'),
-                    ('outputnode.out_mask', 'inputnode.bold_mask')]),
+                    ('outputnode.out_warp', 'inputnode.fieldwarp')]),
             ])
         elif use_syn:
             workflow.connect([
                 (nonlinear_sdc_wf, bold_mni_trans_wf, [
-                    ('outputnode.out_warp', 'inputnode.fieldwarp'),
-                    ('outputnode.out_mask', 'inputnode.bold_mask')]),
-            ])
-        else:
-            workflow.connect([
-                (bold_reference_wf, bold_mni_trans_wf, [
-                    ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+                    ('outputnode.out_warp', 'inputnode.fieldwarp')]),
             ])
 
     # REPORTING ############################################################
