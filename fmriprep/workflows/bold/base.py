@@ -376,6 +376,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     bold_confounds_wf = init_bold_confs_wf(
         mem_gb=mem_gb['largemem'],
         metadata=metadata,
+        use_aroma=use_aroma,
+        ignore_aroma_err=ignore_aroma_err,
         name='bold_confounds_wf')
     bold_confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
 
