@@ -881,13 +881,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                   name='ds_aroma_smooth_mni', run_without_submitting=True,
                                   mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_aroma_mni = pe.Node(DerivativesDataSink(base_directory=output_dir,
-                                               suffix=variant_suffix_fmt(template,
-                                                                         'AROMAnonaggr',
-                                                                         'preproc')),
-                           name='ds_aroma_mni', run_without_submitting=True,
-                           mem_gb=DEFAULT_MEMORY_MIN_GB)
-
     ds_aroma_t1 = pe.Node(DerivativesDataSink(base_directory=output_dir,
                                               suffix=variant_suffix_fmt('T1w',
                                                                         'AROMAnonaggr',
@@ -967,14 +960,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                            ('bold_mask_mni', 'in_file')]),
         ])
 
-        # Output the denoised bold in MNI space
-        if use_aroma:
-            workflow.connect([
-                (inputnode, ds_aroma_mni, [
-                    ('source_file', 'source_file'),
-                    ('bold_nonaggr_denoised_mni', 'in_file')]),
-            ])
-
     if freesurfer:
         ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix='space-T1w_label-aseg_roi'),
@@ -1017,10 +1002,10 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             base_directory=output_dir, suffix='MELODICmix'),
             name="ds_melodic_mix", run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_aroma_mni = pe.Node(DerivativesDataSink(
+        ds_aroma_smooth_mni = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=variant_suffix_fmt(
                 template, 'smoothAROMAnonaggr', 'preproc')),
-            name='ds_aroma_mni', run_without_submitting=True,
+            name='ds_aroma_smooth_mni', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
 
         workflow.connect([
@@ -1028,8 +1013,8 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                              ('aroma_noise_ics', 'in_file')]),
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
-            (inputnode, ds_aroma_mni, [('source_file', 'source_file'),
-                                       ('nonaggr_denoised_file', 'in_file')]),
+            (inputnode, ds_aroma_smooth_mni, [('source_file', 'source_file'),
+                                              ('nonaggr_denoised_file', 'in_file')]),
         ])
 
     return workflow
