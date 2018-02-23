@@ -904,25 +904,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                            name="ds_confounds", run_without_submitting=True,
                            mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_aroma_noise_ics = pe.Node(DerivativesDataSink(base_directory=output_dir,
-                                                     suffix='AROMAnoiseICs'),
-                                 name="ds_aroma_noise_ics", run_without_submitting=True,
-                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    ds_melodic_mix = pe.Node(DerivativesDataSink(base_directory=output_dir, suffix='MELODICmix'),
-                             name="ds_melodic_mix", run_without_submitting=True,
-                             mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    if use_aroma:
-        workflow.connect([
-            (inputnode, ds_aroma_noise_ics, [('source_file', 'source_file'),
-                                             ('aroma_noise_ics', 'in_file')]),
-            (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
-                                         ('melodic_mix', 'in_file')]),
-            (inputnode, ds_aroma_smooth_mni, [('source_file', 'source_file'),
-                                              ('bold_smooth_nonaggr_denoised_mni', 'in_file')]),
-        ])
-
     name_surfs = pe.MapNode(GiftiNameSource(pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii',
                                             template='space-{space}.{LR}.func'),
                             iterfield='in_file',
