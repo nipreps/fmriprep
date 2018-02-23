@@ -120,7 +120,7 @@ def init_sdc_unwarp_wf(reportlets_dir, omp_nthreads, fmap_bspline,
         name='fmap2ref_apply')
 
     fmap_mask2ref_apply = pe.Node(ANTSApplyTransformsRPT(
-        generate_report=False, dimension=3, interpolation='NearestNeighbor',
+        generate_report=False, dimension=3, interpolation='MultiLabel',
         float=True),
         name='fmap_mask2ref_apply')
 
@@ -275,7 +275,7 @@ def init_fmap_unwarp_report_wf(reportlets_dir, name='fmap_unwarp_report_wf'):
                 'name_source']), name='inputnode')
 
     map_seg = pe.Node(ApplyTransforms(
-        dimension=3, float=True, interpolation='NearestNeighbor'),
+        dimension=3, float=True, interpolation='MultiLabel'),
         name='map_seg', mem_gb=0.3)
 
     sel_wm = pe.Node(niu.Function(function=extract_wm), name='sel_wm',

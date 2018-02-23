@@ -285,6 +285,7 @@ jobs:
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --use-syn-sdc --use-aroma \
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --output-space T1w template fsaverage5 \
                 --nthreads 2 -vv
             sudo find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
@@ -344,7 +345,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
          key: ds054-anat-v3-{{ .Branch }}-{{ epoch }}
@@ -359,7 +360,8 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --force-syn \
+                --output-space T1w template \
                 --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
@@ -382,6 +384,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph --force-syn \
+                --output-space T1w template \
                 --reports-only --run-uuid $UUID
             RET=$?
             set -e

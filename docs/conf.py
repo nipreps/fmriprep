@@ -14,6 +14,9 @@
 
 import os
 import sys
+from datetime import datetime
+from sphinx import __version__ as sphinxversion
+from packaging import version as pver  # Avoid distutils.LooseVersion which is deprecated
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -24,7 +27,7 @@ sys.path.insert(0, os.path.abspath('../wrapper'))
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.5'
+needs_sphinx = '1.5.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -47,6 +50,13 @@ autodoc_mock_imports = [
     'matplotlib',
 ]
 
+if pver.parse(sphinxversion) >= pver.parse('1.7.0'):
+    autodoc_mock_imports+=[
+        'pandas',
+        'nilearn',
+        'seaborn',
+    ]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -64,7 +74,7 @@ master_doc = 'index'
 # General information about the project.
 project = 'fmriprep'
 author = 'The FMRIPREP developers'
-copyright = '2017, ' + author
+copyright = '2016-%s, %s' % (datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

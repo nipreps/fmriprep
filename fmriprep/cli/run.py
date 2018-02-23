@@ -137,7 +137,7 @@ def get_parser():
              'It determines the field of view and resolution of the output images, '
              'but is not used in normalization.')
     g_conf.add_argument(
-        '--medial-surface-nan', required=False, action='store', default=False,
+        '--medial-surface-nan', required=False, action='store_true', default=False,
         help='Replace medial wall values with NaNs on functional GIFTI files. Only '
         'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
 

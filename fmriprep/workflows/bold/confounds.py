@@ -27,8 +27,7 @@ from ...interfaces.patches import (
 )
 
 
-def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
-                       name="bold_confs_wf"):
+def init_bold_confs_wf(mem_gb, metadata, use_aroma, ignore_aroma_err, name="bold_confs_wf"):
     """
     This workflow calculates confounds for a BOLD series, and aggregates them
     into a :abbr:`TSV (tab-separated value)` file, for use as nuisance
@@ -48,8 +47,7 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
     #. Non-steady-state volumes (``NonSteadyStateXX``)
     #. Estimated head-motion parameters, in mm and rad
        (``X``, ``Y``, ``Z``, ``RotX``, ``RotY``, ``RotZ``)
-    #. ICA-AROMA-identified noise components, if enabled
-       (``AROMAAggrCompXX``)
+
 
     Prior to estimating aCompCor and tCompCor, non-steady-state volumes are
     censored and high-pass filtered using a :abbr:`DCT (discrete cosine
@@ -64,8 +62,6 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         from fmriprep.workflows.bold.confounds import init_bold_confs_wf
         wf = init_bold_confs_wf(
             mem_gb=1,
-            use_aroma=True,
-            ignore_aroma_err=True,
             metadata={})
 
     **Parameters**
@@ -74,10 +70,6 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             Size of BOLD file in GB - please note that this size
             should be calculated after resamplings that may extend
             the FoV
-        use_aroma : bool
-            Perform ICA-AROMA on MNI-resampled functional series
-        ignore_aroma_err : bool
-            Do not fail on ICA-AROMA errors
         metadata : dict
             BIDS metadata for BOLD file
 
@@ -101,11 +93,6 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         t1_bold_xform
             Affine matrix that maps the T1w space into alignment with
             the native BOLD space
-        bold_mni
-            BOLD image resampled in MNI space (only if ``use_aroma`` enabled)
-        bold_mask_mni
-            Brain mask corresponding to the BOLD image resampled in MNI space
-            (only if ``use_aroma`` enabled)
 
     **Outputs**
 
@@ -132,11 +119,13 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
             BOLD series (in mni space) with non-aggressive ICA-AROMA denoising applied
         bold_nonaggr_denoised
             BOLD series with non-aggressive ICA-AROMA denoising applied
+        rois_report
+            Reportlet visualizing white-matter/CSF mask used for aCompCor,
+            the ROI for tCompCor and the BOLD brain mask.
 
     **Subworkflows**
 
         * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
-
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
@@ -289,8 +278,7 @@ def init_bold_confs_wf(mem_gb, use_aroma, ignore_aroma_err, metadata,
         (add_header, concat, [('out_file', 'motion')]),
 
         # Set outputs
-        (concat, outputnode, [('confounds_file', 'confounds_file'),
-                              ('confounds_list', 'confounds_list')]),
+        (concat, outputnode, [('confounds_file', 'confounds_file')]),
         (inputnode, rois_plot, [('bold', 'in_file'),
                                 ('bold_mask', 'in_mask')]),
         (tcompcor, mrg_compcor, [('high_variance_masks', 'in1')]),
@@ -396,6 +384,8 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     #. Aggregate identified motion components (aggressive) to TSV
     #. Return classified_motion_ICs and melodic_mix for user to complete
         non-aggressive denoising in T1w space
+    #. Calculate ICA-AROMA-identified noise components
+        (columns named ``AROMAAggrCompXX``)
 
     Additionally, non-aggressive denoising is performed on the BOLD series
     resampled into MNI space.

@@ -315,6 +315,7 @@ def get_ees(in_meta, in_file=None):
     """
 
     import nibabel as nb
+    from fmriprep.interfaces.fmap import _get_pe_index
 
     # Use case 1: EES is defined
     ees = in_meta.get('EffectiveEchoSpacing', None)
