@@ -430,10 +430,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
             ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform')]),
-        (inputnode, bold_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
-                                        ('t1_mask', 'inputnode.t1_mask')]),
-        (bold_reg_wf, bold_confounds_wf, [('outputnode.bold_t1', 'inputnode.bold_t1'),
-                                          ('outputnode.bold_mask_t1', 'inputnode.bold_mask_t1')]),
         (bold_split, bold_reg_wf, [('out_files', 'inputnode.bold_split')]),
         (bold_hmc_wf, bold_reg_wf, [('outputnode.xforms', 'inputnode.hmc_xforms')]),
         (bold_reg_wf, func_reports_wf, [
@@ -450,7 +446,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (bold_hmc_wf, bold_confounds_wf, [
             ('outputnode.movpar_file', 'inputnode.movpar_file')]),
         (bold_reg_wf, bold_confounds_wf, [
-            ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
+            ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform'),
+            ('outputnode.bold_mask_t1', 'inputnode.bold_mask_t1')]),
         (bold_confounds_wf, func_reports_wf, [
             ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
         (bold_confounds_wf, outputnode, [
