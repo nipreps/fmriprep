@@ -728,19 +728,23 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (bold_mni_trans_wf, ica_aroma_wf, [
                 ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
                 ('outputnode.bold_mni', 'inputnode.bold_mni')]),
-            (bold_confounds_wf, join, [
-                ('outputnode.confounds_file', 'in_file')]),
-            (ica_aroma_wf, join,
-                [('outputnode.aroma_confounds', 'join_file')]),
             (ica_aroma_wf, outputnode,
                 [('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
                  ('outputnode.melodic_mix', 'melodic_mix'),
                  ('outputnode.bold_mni_smooth_nonaggr_denoised',
                   'bold_mni_smooth_nonaggr_denoised')]),
-            (join, outputnode, [('out_file', 'confounds')]),
             (ica_aroma_wf, func_reports_wf, [
                 ('outputnode.out_report', 'inputnode.ica_aroma_report')]),
         ])
+
+        if return_non_denoised:
+            workflow.connect([
+                (bold_confounds_wf, join, [
+                    ('outputnode.confounds_file', 'in_file')]),
+                (ica_aroma_wf, join,
+                    [('outputnode.aroma_confounds', 'join_file')]),
+                (join, outputnode, [('out_file', 'confounds')])
+            ])
 
         # Do nonaggresive denoising for bold, T1w, and mni spaces
         workflow.connect([
