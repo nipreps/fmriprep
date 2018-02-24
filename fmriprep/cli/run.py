@@ -315,6 +315,11 @@ def build_workflow(opts, retval):
                            '\t--template must be set to "MNI152NLin2009cAsym" (was: "{}")\n'
                            '\t--output-space list must include "template" (was: "{}")'.format(
                                opts.template, ' '.join(opts.output_space)))
+
+    # ERROR check if return_non_denoised has been called without use_aroma
+    if not opts.use_aroma and opts.return_non_denoised:
+        raise RuntimeError('ERROR: cannot specify --return-non-denoised without --use-aroma.\n')
+
     # Check output_space
     if 'template' not in opts.output_space and (opts.use_syn_sdc or opts.force_syn):
         msg = ('SyN SDC correction requires T1 to MNI registration, but '
