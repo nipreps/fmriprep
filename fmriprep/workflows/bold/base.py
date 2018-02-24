@@ -679,11 +679,13 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold', 'inputnode.bold_orig'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-            (bold_confounds_wf, outputnode, [
-                ('outputnode.confounds_file', 'confounds'),
-            ]),
         ])
 
+        if not return_non_denoised:
+            workflow.connect([
+                (bold_confounds_wf, outputnode, [
+                    ('outputnode.confounds_file', 'confounds')]),
+            ])
     if use_aroma:  # ICA-AROMA workflow
         """
         ica_aroma_report
