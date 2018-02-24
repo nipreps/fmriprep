@@ -325,7 +325,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                                    output_spaces=output_spaces,
                                                    template=template,
                                                    freesurfer=freesurfer,
-                                                   use_aroma=use_aroma)
+                                                   use_aroma=use_aroma,
+                                                   return_non_denoised=return_non_denoised)
 
     workflow.connect([
         (inputnode, func_reports_wf, [('bold_file', 'inputnode.source_file')]),
@@ -923,7 +924,7 @@ def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma, use_syn, name='f
 
 
 def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
-                             use_aroma, name='func_derivatives_wf'):
+                             use_aroma, return_non_denoised, name='func_derivatives_wf'):
     """
     Set up a battery of datasinks to store derivatives in the right location
     """
@@ -968,10 +969,11 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         base_directory=output_dir, suffix='confounds'),
         name="ds_confounds", run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([
-        (inputnode, ds_confounds, [('source_file', 'source_file'),
-                                   ('confounds', 'in_file')]),
-    ])
+    if not use_aroma or return_non_denoised:
+        workflow.connect([
+            (inputnode, ds_confounds, [('source_file', 'source_file'),
+                                       ('confounds', 'in_file')]),
+            ])
 
     # Resample to T1w space
     if 'T1w' in output_spaces:
@@ -1070,7 +1072,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_confounds_dnsd = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=variant_suffix_fmt(
-                template, 'AROMAnonaggr', 'preproc')),
+                template, 'AROMAnonaggr', 'confounds')),
             name="ds_confounds_dnsd", run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
 
