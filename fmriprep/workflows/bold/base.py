@@ -14,6 +14,7 @@ Orchestrating the BOLD-preprocessing workflow
 import os
 
 import nibabel as nb
+from niworkflows.nipype.interfaces import fsl
 from niworkflows.nipype import logging
 
 from niworkflows.nipype.interfaces.fsl import Split as FSLSplit
@@ -56,8 +57,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                          use_bbr, t2s_coreg, bold2t1w_dof, reportlets_dir,
                          output_spaces, template, output_dir, omp_nthreads,
                          fmap_bspline, fmap_demean, use_syn, force_syn,
-                         use_aroma, ignore_aroma_err, medial_surface_nan,
-                         debug, low_mem, output_grid_ref, layout=None):
+                         use_aroma, ignore_aroma_err, return_non_denoised,
+                         medial_surface_nan, debug, low_mem, output_grid_ref, layout=None):
     """
     This workflow controls the functional preprocessing stages of FMRIPREP.
 
@@ -87,7 +88,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   output_grid_ref=None,
                                   medial_surface_nan=False,
                                   use_aroma=False,
-                                  ignore_aroma_err=False)
+                                  ignore_aroma_err=False,
+                                  return_non_denoised=False)
 
     **Parameters**
 
@@ -136,6 +138,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
+        return_non_denoised : bool
+            Return the non denoised confounds/files in addition to the denoised
+            confounds/files (used in conjunction with use_aroma)
         medial_surface_nan : bool
             Replace medial wall values with NaNs on functional GIFTI files
         debug : bool
@@ -199,9 +204,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (for backwards compatibility purposes)
         bold_nonaggr_denoised
             BOLD series with non-aggressive ICA-AROMA denoising applied
-        bold_nonaggr_denoised_t1
+        bold_t1_nonaggr_denoised
             BOLD series (in t1w space) with non-aggressive ICA-AROMA denoising applied
-        bold_nonaggr_denoised_mni
+        bold_mni_nonaggr_denoised
             BOLD series (in mni space) with non-aggressive ICA-AROMA denoising applied
 
     **Subworkflows**
@@ -294,9 +299,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_aparc_t1', 'bold_mask_mni',
-                'confounds', 'surfaces', 't2s_map', 'aroma_noise_ics', 'melodic_mix',
-                'bold_smooth_nonaggr_denoised_mni', 'bold_nonaggr_denoised',
-                'bold_nonaggr_denoised_t1', 'bold_nonaggr_denoised_mni']),
+                'confounds', 'confounds_dnsd', 'surfaces', 't2s_map', 'aroma_noise_ics',
+                'melodic_mix', 'bold_mni_smooth_nonaggr_denoised', 'bold_nonaggr_denoised',
+                'bold_t1_nonaggr_denoised', 'bold_mni_nonaggr_denoised']),
         name='outputnode')
 
     # BOLD buffer: an identity used as a pointer to either the original BOLD
@@ -333,12 +338,13 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('bold_mni', 'inputnode.bold_mni'),
             ('bold_mask_mni', 'inputnode.bold_mask_mni'),
             ('confounds', 'inputnode.confounds'),
+            ('confounds_dnsd', 'inputnode.confounds_dnsd'),
             ('surfaces', 'inputnode.surfaces'),
             ('aroma_noise_ics', 'inputnode.aroma_noise_ics'),
             ('melodic_mix', 'inputnode.melodic_mix'),
-            ('bold_nonaggr_denoised_mni', 'inputnode.bold_nonaggr_denoised_mni'),
-            ('bold_nonaggr_denoised_t1', 'inputnode.bold_nonaggr_denoised_t1'),
-            ('bold_smooth_nonaggr_denoised_mni', 'inputnode.bold_smooth_nonaggr_denoised_mni'),
+            ('bold_mni_nonaggr_denoised', 'inputnode.bold_mni_nonaggr_denoised'),
+            ('bold_t1_nonaggr_denoised', 'inputnode.bold_t1_nonaggr_denoised'),
+            ('bold_mni_smooth_nonaggr_denoised', 'inputnode.bold_mni_smooth_nonaggr_denoised'),
         ]),
     ])
 
@@ -372,14 +378,19 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                    use_compression=False,
                                    use_fieldwarp=(fmaps is not None or use_syn))
 
-    # get confounds
+    # get confounds (no ICA-AROMA)
     bold_confounds_wf = init_bold_confs_wf(
         mem_gb=mem_gb['largemem'],
         metadata=metadata,
-        use_aroma=use_aroma,
-        ignore_aroma_err=ignore_aroma_err,
         name='bold_confounds_wf')
     bold_confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
+
+    # get confounds (with ICA-AROMA denoised inputs)
+    bold_confounds_dn_wf = init_bold_confs_wf(
+        mem_gb=mem_gb['largemem'],
+        metadata=metadata,
+        name='bold_confounds_wf')
+    bold_confounds_dn_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
 
     # Apply transforms in 1 shot
     # Only use uncompressed output if AROMA is to be run
@@ -440,23 +451,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                    ('outputnode.bold_aseg_t1', 'bold_aseg_t1'),
                                    ('outputnode.bold_aparc_t1', 'bold_aparc_t1')]),
         (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
-        # Connect bold_confounds_wf
-        (inputnode, bold_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
-                                        ('t1_mask', 'inputnode.t1_mask')]),
-        (bold_hmc_wf, bold_confounds_wf, [
-            ('outputnode.movpar_file', 'inputnode.movpar_file')]),
-        (bold_reg_wf, bold_confounds_wf, [
-            ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform'),
-            ('outputnode.bold_mask_t1', 'inputnode.bold_mask_t1')]),
-        (bold_confounds_wf, func_reports_wf, [
-            ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
-        (bold_confounds_wf, outputnode, [
-            ('outputnode.confounds_file', 'confounds'),
-            ('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
-            ('outputnode.melodic_mix', 'melodic_mix'),
-            ('outputnode.bold_smooth_nonaggr_denoised_mni',
-             'bold_smooth_nonaggr_denoised_mni'),
-        ]),
         # Connect bold_bold_trans_wf
         (inputnode, bold_bold_trans_wf, [
             ('bold_file', 'inputnode.name_source')]),
@@ -464,18 +458,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('out_files', 'inputnode.bold_split')]),
         (bold_hmc_wf, bold_bold_trans_wf, [
             ('outputnode.xforms', 'inputnode.hmc_xforms')]),
-        (bold_bold_trans_wf, bold_confounds_wf, [
-            ('outputnode.bold', 'inputnode.bold'),
-            ('outputnode.bold_mask', 'inputnode.bold_mask')]),
         # Summary
         (outputnode, summary, [('confounds', 'confounds_file')]),
         (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
-    ])
-
-    workflow.connect([
-        (bold_confounds_wf, outputnode, [
-            ('outputnode.bold_nonaggr_denoised_t1', 'bold_nonaggr_denoised_t1'),
-            ('outputnode.bold_nonaggr_denoised_mni', 'bold_nonaggr_denoised_mni')]),
     ])
 
     # FIELDMAPS ################################################################
@@ -665,9 +650,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (bold_mni_trans_wf, outputnode, [
                 ('outputnode.bold_mni', 'bold_mni'),
                 ('outputnode.bold_mask_mni', 'bold_mask_mni')]),
-            (bold_mni_trans_wf, bold_confounds_wf, [
-                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
-                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
             (bold_bold_trans_wf, bold_mni_trans_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
         ])
@@ -683,46 +665,136 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                     ('outputnode.out_warp', 'inputnode.fieldwarp')]),
             ])
 
-        if use_aroma:  # ICA-AROMA workflow
-            """
-            ica_aroma_report
-                Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
-            aroma_noise_ics
-                CSV of noise components identified by ICA-AROMA
-            melodic_mix
-                FSL MELODIC mixing matrix
-            nonaggr_denoised_file
-                BOLD series with non-aggressive ICA-AROMA denoising applied
+    if return_non_denoised or not use_aroma:
+        # THE NORMAL CONFOUNDS WORKFLOW
+        # Connect bold_confounds_wf
+        workflow.connect([
+            (inputnode, bold_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
+                                            ('t1_mask', 'inputnode.t1_mask')]),
+            (bold_hmc_wf, bold_confounds_wf, [
+                ('outputnode.movpar_file', 'inputnode.movpar_file')]),
+            (bold_reg_wf, bold_confounds_wf, [
+                ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
+            (bold_confounds_wf, func_reports_wf, [
+                ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
+            (bold_bold_trans_wf, bold_confounds_wf, [
+                ('outputnode.bold', 'inputnode.bold'),
+                ('outputnode.bold', 'inputnode.bold_orig')
+                ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+            (bold_mni_trans_wf, bold_confounds_wf, [
+                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
+                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
+            (bold_confounds_wf, outputnode, [
+                ('outputnode.confounds_file', 'confounds'),
+            ]),
+        ])
 
-            """
-            from .confounds import init_ica_aroma_wf
-            from ...interfaces import JoinTSVColumns
-            ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
-                                             ignore_aroma_err=ignore_aroma_err)
-            join = pe.Node(JoinTSVColumns(), name='aroma_confounds')
+    if use_aroma:  # ICA-AROMA workflow
+        """
+        ica_aroma_report
+            Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
+        aroma_noise_ics
+            CSV of noise components identified by ICA-AROMA
+        melodic_mix
+            FSL MELODIC mixing matrix
+        bold_mni_smooth_nonaggr_denoised
+            BOLD series with non-aggressive ICA-AROMA denoising applied
 
-            workflow.disconnect([
-                (bold_confounds_wf, outputnode, [
-                    ('outputnode.confounds_file', 'confounds'),
-                ]),
-            ])
+        """
+        from .confounds import init_ica_aroma_wf
+        from ...interfaces import JoinTSVColumns
+
+        def _loadcsv(csv):
+            import numpy as np
+            return list(np.loadtxt(csv, delimiter=",", dtype='int'))
+
+        ica_aroma_wf = init_ica_aroma_wf(name='ica_aroma_wf',
+                                         ignore_aroma_err=ignore_aroma_err)
+        join = pe.Node(JoinTSVColumns(), name='aroma_confounds')
+
+        # performs partial regression (nonaggressive denoising)
+        reg_filt_bold = pe.Node(fsl.FilterRegressor(), name='reg_filt_bold')
+        reg_filt_t1 = pe.Node(fsl.FilterRegressor(), name='reg_filt_t1')
+        reg_filt_mni = pe.Node(fsl.FilterRegressor(), name='reg_filt_mni')
+
+        # construct confounds workflow with nonaggr denoised bold
+        bold_dnsd_confounds_wf = init_bold_confs_wf(
+            mem_gb=mem_gb['largemem'],
+            metadata=metadata,
+            name='bold_dnsd_confounds_wf')
+        bold_dnsd_confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
+
+        # Connect ICA-AROMA
+        workflow.connect([
+            (bold_hmc_wf, ica_aroma_wf, [
+                ('outputnode.movpar_file', 'inputnode.movpar_file')]),
+            (bold_mni_trans_wf, ica_aroma_wf, [
+                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
+                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
+            (bold_confounds_wf, join, [
+                ('outputnode.confounds_file', 'in_file')]),
+            (ica_aroma_wf, join,
+                [('outputnode.aroma_confounds', 'join_file')]),
+            (ica_aroma_wf, outputnode,
+                [('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
+                 ('outputnode.melodic_mix', 'melodic_mix'),
+                 ('outputnode.bold_mni_smooth_nonaggr_denoised',
+                  'bold_mni_smooth_nonaggr_denoised')]),
+            (join, outputnode, [('out_file', 'confounds')]),
+            (ica_aroma_wf, func_reports_wf, [
+                ('outputnode.out_report', 'inputnode.ica_aroma_report')]),
+        ])
+
+        # Do nonaggresive denoising for bold, T1w, and mni spaces
+        workflow.connect([
+            # native space
+            (ica_aroma_wf, reg_filt_bold, [('outputnode.melodic_mix', 'design_file'),
+                                           (('outputnode.aroma_noise_ics', _loadcsv),
+                                           'filter_columns')]),
+            (bold_bold_trans_wf, reg_filt_bold, [('outputnode.bold', 'in_file'),
+                                                 ('outputnode.bold_mask', 'mask')]),
+            (reg_filt_bold, outputnode, [('out_file', 'bold_nonaggr_denoised')]),
+            # t1w space
+            (ica_aroma_wf, reg_filt_t1, [('outputnode.melodic_mix', 'design_file'),
+                                         (('outputnode.aroma_noise_ics', _loadcsv),
+                                         'filter_columns')]),
+            (bold_reg_wf, reg_filt_t1, [('bold_t1', 'in_file'),
+                                        ('bold_mask_t1', 'mask')]),
+            (reg_filt_t1, outputnode, [('out_file', 'bold_t1_nonaggr_denoised')]),
+            # mni space
+            (ica_aroma_wf, reg_filt_mni, [('outputnode.melodic_mix', 'design_file'),
+                                          (('outputnode.aroma_noise_ics', _loadcsv),
+                                          'filter_columns')]),
+            (bold_mni_trans_wf, reg_filt_mni, [('inputnode.bold_mni', 'in_file'),
+                                               ('inputnode.bold_mask_mni', 'mask')]),
+            (reg_filt_mni, outputnode, [('out_file', 'bold_mni_nonaggr_denoised')]),
+        ])
+
+        # Connect the bold_dnsd_confounds_wf (e.g. passing in the denoised bold)
+        workflow.connect([
+            (inputnode, bold_dnsd_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
+                                                 ('t1_mask', 'inputnode.t1_mask')]),
+            (bold_hmc_wf, bold_dnsd_confounds_wf, [
+                ('outputnode.movpar_file', 'inputnode.movpar_file')]),
+            (bold_reg_wf, bold_dnsd_confounds_wf, [
+                ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
+            (reg_filt_bold, bold_dnsd_confounds_wf, [
+                ('out_file', 'inputnode.bold')]),
+            (bold_bold_trans_wf, bold_dnsd_confounds_wf, [
+                ('outputnode.bold', 'inputnode.bold_orig'),
+                ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+            (bold_mni_trans_wf, bold_dnsd_confounds_wf, [
+                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
+                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
+            (bold_dnsd_confounds_wf, outputnode, [
+                ('outputnode.confounds_file', 'confounds_dnsd'),
+            ]),
+        ])
+
+        if not return_non_denoised:
             workflow.connect([
-                (bold_hmc_wf, ica_aroma_wf, [
-                    ('outputnode.movpar_file', 'inputnode.movpar_file')]),
-                (bold_mni_trans_wf, ica_aroma_wf, [
-                    ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
-                    ('outputnode.bold_mni', 'inputnode.bold_mni')]),
-                (bold_confounds_wf, join, [
-                    ('outputnode.confounds_file', 'in_file')]),
-                (ica_aroma_wf, join,
-                    [('outputnode.aroma_confounds', 'join_file')]),
-                (ica_aroma_wf, outputnode,
-                    [('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
-                     ('outputnode.melodic_mix', 'melodic_mix'),
-                     ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')]),
-                (join, outputnode, [('out_file', 'confounds')]),
-                (ica_aroma_wf, func_reports_wf, [
-                    ('outputnode.out_report', 'inputnode.ica_aroma_report')]),
+                (bold_dnsd_confounds_wf, func_reports_wf, [
+                    ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
             ])
 
     # SURFACES ##################################################################################
@@ -745,8 +817,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         # Use the denoised bold derived from ICA-AROMA
         if use_aroma:
             workflow.connect([
-                (bold_confounds_wf, bold_surf_wf, [
-                    ('outputnode.bold_nonaggr_denoised_t1', 'inputnode.source_file')]),
+                (reg_filt_t1, bold_surf_wf, [
+                    ('out_file', 'inputnode.source_file')]),
             ])
         else:
             workflow.connect([
@@ -863,9 +935,9 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         niu.IdentityInterface(
             fields=['source_file', 'bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_mask_mni',
                     'bold_aseg_t1', 'bold_aparc_t1',
-                    'confounds', 'surfaces', 'aroma_noise_ics', 'melodic_mix',
-                    'bold_smooth_nonaggr_denoised_mni', 'bold_nonaggr_denoised_t1',
-                    'bold_nonaggr_denoised_mni']),
+                    'confounds', 'confounds_dnsd', 'surfaces', 'aroma_noise_ics',
+                    'melodic_mix', 'bold_mni_smooth_nonaggr_denoised',
+                    'bold_t1_nonaggr_denoised', 'bold_mni_nonaggr_denoised']),
         name='inputnode')
 
     suffix_fmt = 'space-{}_{}'.format
@@ -890,16 +962,13 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                name='ds_bold_mask_mni', run_without_submitting=True,
                                mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_confounds = pe.Node(DerivativesDataSink(base_directory=output_dir, suffix='confounds'),
-                           name="ds_confounds", run_without_submitting=True,
-                           mem_gb=DEFAULT_MEMORY_MIN_GB)
-
     name_surfs = pe.MapNode(GiftiNameSource(pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii',
                                             template='space-{space}.{LR}.func'),
                             iterfield='in_file',
                             name='name_surfs',
                             mem_gb=DEFAULT_MEMORY_MIN_GB,
                             run_without_submitting=True)
+
     ds_bold_surfs = pe.MapNode(DerivativesDataSink(base_directory=output_dir),
                                iterfield=['in_file', 'suffix'], name='ds_bold_surfs',
                                run_without_submitting=True,
@@ -937,7 +1006,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
                     ('source_file', 'source_file'),
-                    ('bold_nonaggr_denoised_t1', 'in_file')]),
+                    ('bold_t1_nonaggr_denoised', 'in_file')]),
             ])
 
     # Resample to template (default: MNI)
@@ -1004,6 +1073,16 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                 template, 'smoothAROMAnonaggr', 'preproc')),
             name='ds_aroma_smooth_mni', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
+        ds_aroma_mni = pe.Node(DerivativesDataSink(
+            base_directory=output_dir, suffix=variant_suffix_fmt(
+                template, 'AROMAnonaggr', 'preproc')),
+            name='ds_aroma_smooth_mni', run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
+        ds_confounds_dnsd = pe.Node(DerivativesDataSink(
+            base_directory=output_dir, suffix=variant_suffix_fmt(
+                template, 'AROMAnonaggr', 'preproc')),
+            name="ds_confounds_dnsd", run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
 
         workflow.connect([
             (inputnode, ds_aroma_noise_ics, [('source_file', 'source_file'),
@@ -1011,7 +1090,11 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
             (inputnode, ds_aroma_smooth_mni, [('source_file', 'source_file'),
-                                              ('nonaggr_denoised_file', 'in_file')]),
+                                              ('bold_mni_smooth_nonaggr_denoised', 'in_file')]),
+            (inputnode, ds_aroma_mni, [('source_file', 'source_file'),
+                                       ('bold_mni_nonaggr_denoised', 'in_file')]),
+            (inputnode, ds_confounds_dnsd, [('source_file', 'source_file'),
+                                            ('confounds_dnsd', 'in_file')])
         ])
 
     return workflow
