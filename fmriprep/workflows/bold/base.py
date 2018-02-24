@@ -758,7 +758,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (ica_aroma_wf, reg_filt_t1, [('outputnode.melodic_mix', 'design_file'),
                                          (('outputnode.aroma_noise_ics', _loadcsv),
                                          'filter_columns')]),
-            (bold_reg_wf, reg_filt_t1, [('ouputnode.bold_t1', 'in_file'),
+            (bold_reg_wf, reg_filt_t1, [('outputnode.bold_t1', 'in_file'),
                                         ('outputnode.bold_mask_t1', 'mask')]),
             (reg_filt_t1, outputnode, [('out_file', 'bold_t1_nonaggr_denoised')]),
             # mni space
