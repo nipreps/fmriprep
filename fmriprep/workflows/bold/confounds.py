@@ -100,27 +100,6 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
 
         confounds_file
             TSV of all aggregated confounds
-        confounds_list
-            List of calculated confounds for reporting
-        acompcor_report
-            Reportlet visualizing white-matter/CSF mask used for aCompCor
-        tcompcor_report
-            Reportlet visualizing ROI identified in tCompCor
-        ica_aroma_report
-            Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
-        aroma_noise_ics
-            CSV of noise components identified by ICA-AROMA
-        melodic_mix
-            FSL MELODIC mixing matrix
-        bold_smooth_nonaggr_denoised_mni
-            BOLD series with smoothing and non-aggressive ICA-AROMA denoising applied
-            (for backwards compatibility purposes)
-        bold_nonaggr_denoised_t1
-            BOLD series (in t1w space) with non-aggressive ICA-AROMA denoising applied
-        bold_nonaggr_denoised_mni
-            BOLD series (in mni space) with non-aggressive ICA-AROMA denoising applied
-        bold_nonaggr_denoised
-            BOLD series with non-aggressive ICA-AROMA denoising applied
         rois_report
             Reportlet visualizing white-matter/CSF mask used for aCompCor,
             the ROI for tCompCor and the BOLD brain mask.

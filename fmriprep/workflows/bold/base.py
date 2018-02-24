@@ -298,10 +298,11 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         inputnode.inputs.bold_file = bold_file
 
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_aparc_t1', 'bold_mask_mni',
-                'confounds', 'confounds_dnsd', 'surfaces', 't2s_map', 'aroma_noise_ics',
-                'melodic_mix', 'bold_mni_smooth_nonaggr_denoised', 'bold_nonaggr_denoised',
-                'bold_t1_nonaggr_denoised', 'bold_mni_nonaggr_denoised']),
+        fields=['bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_aseg_t1', 'bold_aparc_t1',
+                'bold_mask_mni', 'confounds', 'confounds_dnsd', 'surfaces', 't2s_map',
+                'aroma_noise_ics', 'melodic_mix', 'bold_mni_smooth_nonaggr_denoised',
+                'bold_nonaggr_denoised', 'bold_t1_nonaggr_denoised',
+                'bold_mni_nonaggr_denoised']),
         name='outputnode')
 
     # BOLD buffer: an identity used as a pointer to either the original BOLD
@@ -411,7 +412,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         ])
 
     # MAIN WORKFLOW STRUCTURE #######################################################
-
     workflow.connect([
         # BOLD buffer has slice-time corrected if it was run, original otherwise
         (boldbuffer, bold_split, [('bold_file', 'in_file')]),
@@ -661,6 +661,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             workflow.connect([
                 (nonlinear_sdc_wf, bold_mni_trans_wf, [
                     ('outputnode.out_warp', 'inputnode.fieldwarp')]),
+<<<<<<< HEAD
             ])
 
     if return_non_denoised or not use_aroma:
@@ -934,10 +935,10 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['source_file', 'bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_mask_mni',
-                    'bold_aseg_t1', 'bold_aparc_t1',
-                    'confounds', 'confounds_dnsd', 'surfaces', 'aroma_noise_ics',
-                    'melodic_mix', 'bold_mni_smooth_nonaggr_denoised',
-                    'bold_t1_nonaggr_denoised', 'bold_mni_nonaggr_denoised']),
+                    'bold_aseg_t1', 'bold_aparc_t1', 'confounds', 'confounds_dnsd',
+                    'surfaces', 'aroma_noise_ics', 'melodic_mix',
+                    'bold_mni_smooth_nonaggr_denoised', 'bold_t1_nonaggr_denoised',
+                    'bold_mni_nonaggr_denoised']),
         name='inputnode')
 
     suffix_fmt = 'space-{}_{}'.format
@@ -970,6 +971,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         base_directory=output_dir, suffix='confounds'),
         name="ds_confounds", run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
+
     if not use_aroma or return_non_denoised:
         workflow.connect([
             (inputnode, ds_confounds, [('source_file', 'source_file'),
@@ -994,7 +996,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                           ('bold_mask_t1', 'in_file')]),
         ])
 
-        # Output the denoised bold in t1w space
+        # connect the denoised bold in t1w space
         if use_aroma:
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
