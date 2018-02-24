@@ -197,6 +197,126 @@ class AddTSVHeader(SimpleInterface):
         return runtime
 
 
+class JoinTSVColumnsInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input file')
+    join_file = File(exists=True, mandatory=True, desc='file to be adjoined')
+    side = traits.Enum('right', 'left', usedefault=True, desc='where to join')
+    columns = traits.List(traits.Str, desc='header for columns')
+
+
+class JoinTSVColumnsOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='output TSV file')
+
+
+class JoinTSVColumns(SimpleInterface):
+    """Add a header row to a TSV file
+
+    .. testsetup::
+
+    >>> import os
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> from tempfile import TemporaryDirectory
+    >>> tmpdir = TemporaryDirectory()
+    >>> os.chdir(tmpdir.name)
+
+    .. doctest::
+
+    An example TSV:
+
+    >>> data = np.arange(30).reshape((6, 5))
+    >>> np.savetxt('data.tsv', data[:, :3], delimiter='\t', fmt='%.1f')
+    >>> np.savetxt('add.tsv', data[:, 3:], delimiter='\t', fmt='%.1f')
+
+    Add headers:
+
+    >>> from fmriprep.interfaces import JoinTSVColumns
+    >>> join = JoinTSVColumns()
+    >>> join.inputs.in_file = 'data.tsv'
+    >>> join.inputs.join_file = 'add.tsv'
+    >>> join.inputs.columns = ['a', 'b', 'c', 'd', 'e']
+    >>> res = join.run()
+    >>> res.outputs.out_file  # doctest: +ELLIPSIS
+    '...data_joined.tsv'
+    >>> pd.read_csv(res.outputs.out_file, sep='\s+', index_col=None,
+    ...             engine='python')  # doctest: +NORMALIZE_WHITESPACE
+          a     b     c     d     e
+    0   0.0   1.0   2.0   3.0   4.0
+    1   5.0   6.0   7.0   8.0   9.0
+    2  10.0  11.0  12.0  13.0  14.0
+    3  15.0  16.0  17.0  18.0  19.0
+    4  20.0  21.0  22.0  23.0  24.0
+    5  25.0  26.0  27.0  28.0  29.0
+
+    >>> join = JoinTSVColumns()
+    >>> join.inputs.in_file = 'data.tsv'
+    >>> join.inputs.join_file = 'add.tsv'
+    >>> res = join.run()
+    >>> pd.read_csv(res.outputs.out_file, sep='\s+', index_col=None,
+    ...             engine='python')  # doctest: +NORMALIZE_WHITESPACE
+        0.0   1.0   2.0   3.0   4.0
+    0   5.0   6.0   7.0   8.0   9.0
+    1  10.0  11.0  12.0  13.0  14.0
+    2  15.0  16.0  17.0  18.0  19.0
+    3  20.0  21.0  22.0  23.0  24.0
+    4  25.0  26.0  27.0  28.0  29.0
+
+    >>> join = JoinTSVColumns()
+    >>> join.inputs.in_file = 'data.tsv'
+    >>> join.inputs.join_file = 'add.tsv'
+    >>> join.inputs.side = 'left'
+    >>> join.inputs.columns = ['a', 'b', 'c', 'd', 'e']
+    >>> res = join.run()
+    >>> pd.read_csv(res.outputs.out_file, sep='\s+', index_col=None,
+    ...             engine='python')  # doctest: +NORMALIZE_WHITESPACE
+          a     b     c    d     e
+    0   3.0   4.0  0.0   1.0   2.0
+    1   8.0   9.0  5.0   6.0   7.0
+    2  13.0  14.0 10.0  11.0  12.0
+    3  18.0  19.0 15.0  16.0  17.0
+    4  23.0  24.0 20.0  21.0  22.0
+    5  28.0  29.0 25.0  26.0  27.0
+
+    .. testcleanup::
+
+    >>> tmpdir.cleanup()
+
+    """
+    input_spec = JoinTSVColumnsInputSpec
+    output_spec = JoinTSVColumnsOutputSpec
+
+    def _run_interface(self, runtime):
+        out_file = fname_presuffix(
+            self.inputs.in_file, suffix='_joined.tsv', newpath=runtime.cwd,
+            use_ext=False)
+
+        header = ''
+        if isdefined(self.inputs.columns) and self.inputs.columns:
+            header = '\t'.join(self.inputs.columns)
+
+        with open(self.inputs.in_file) as ifh:
+            data = ifh.read().splitlines(keepends=False)
+
+        with open(self.inputs.join_file) as ifh:
+            join = ifh.read().splitlines(keepends=False)
+
+        assert len(data) == len(join)
+
+        merged = []
+        for d, j in zip(data, join):
+            line = '%s\t%s' % ((j, d) if self.inputs.side == 'left' else (d, j))
+            merged.append(line)
+
+        if header:
+            merged.insert(0, header)
+
+        with open(out_file, 'w') as ofh:
+            ofh.write('\n'.join(merged))
+
+        self._results['out_file'] = out_file
+        return runtime
+
+
 class ConcatAffinesInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     invert = traits.Bool(False, usedefault=True, desc='Invert output transform')
 

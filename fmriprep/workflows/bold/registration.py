@@ -95,6 +95,12 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         t1_seg
             Segmentation of preprocessed structural image, including
             gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
+        t1_aseg
+            FreeSurfer's ``aseg.mgz`` atlas projected into the T1w reference
+            (only if ``recon-all`` was run).
+        t1_aparc
+            FreeSurfer's ``aparc+aseg.mgz`` atlas projected into the T1w reference
+            (only if ``recon-all`` was run).
         bold_split
             Individual 3D BOLD volumes, not motion corrected
         hmc_xforms
@@ -118,6 +124,12 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             Motion-corrected BOLD series in T1 space
         bold_mask_t1
             BOLD mask in T1 space
+        bold_aseg_t1
+            FreeSurfer's ``aseg.mgz`` atlas, in T1w-space at the BOLD resolution
+            (only if ``recon-all`` was run).
+        bold_aparc_t1
+            FreeSurfer's ``aparc+aseg.mgz`` atlas, in T1w-space at the BOLD resolution
+            (only if ``recon-all`` was run).
         out_report
             Reportlet visualizing quality of registration
         fallback
@@ -134,15 +146,15 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['name_source', 'ref_bold_brain', 'ref_bold_mask',
-                    't1_preproc', 't1_brain', 't1_mask',
-                    't1_seg', 'bold_split', 'hmc_xforms',
+                    't1_preproc', 't1_brain', 't1_mask', 't1_seg',
+                    't1_aseg', 't1_aparc', 'bold_split', 'hmc_xforms',
                     'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'fieldwarp']),
         name='inputnode'
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold',
-                                      'bold_t1', 'bold_mask_t1',
-                                      'out_report', 'fallback']),
+        niu.IdentityInterface(fields=[
+            'itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback',
+            'bold_t1', 'bold_mask_t1', 'bold_aseg_t1', 'bold_aparc_t1']),
         name='outputnode'
     )
 
@@ -170,7 +182,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB
 
     mask_t1w_tfm = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True),
+        ApplyTransforms(interpolation='MultiLabel', float=True),
         name='mask_t1w_tfm', mem_gb=0.1
     )
 
@@ -178,14 +190,32 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
                               ('t1_brain', 'fixed_image'),
                               ('t1_mask', 'fov_mask')]),
+        (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
         (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
         (bbr_wf, mask_t1w_tfm, [('outputnode.itk_bold_to_t1', 'transforms')]),
-        (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
-        (mask_t1w_tfm, outputnode, [('output_image', 'bold_mask_t1')])
+        (mask_t1w_tfm, outputnode, [('output_image', 'bold_mask_t1')]),
     ])
 
+    if freesurfer:
+        # Resample aseg and aparc in T1w space (no transforms needed)
+        aseg_t1w_tfm = pe.Node(
+            ApplyTransforms(interpolation='MultiLabel', transforms='identity', float=True),
+            name='aseg_t1w_tfm', mem_gb=0.1)
+        aparc_t1w_tfm = pe.Node(
+            ApplyTransforms(interpolation='MultiLabel', transforms='identity', float=True),
+            name='aparc_t1w_tfm', mem_gb=0.1)
+
+        workflow.connect([
+            (inputnode, aseg_t1w_tfm, [('t1_aseg', 'input_image')]),
+            (inputnode, aparc_t1w_tfm, [('t1_aparc', 'input_image')]),
+            (gen_ref, aseg_t1w_tfm, [('out_file', 'reference_image')]),
+            (gen_ref, aparc_t1w_tfm, [('out_file', 'reference_image')]),
+            (aseg_t1w_tfm, outputnode, [('output_image', 'bold_aseg_t1')]),
+            (aparc_t1w_tfm, outputnode, [('output_image', 'bold_aparc_t1')]),
+        ])
+
     # Merge transforms placing the head motion correction last
-    nforms = 3 if use_fieldwarp else 2
+    nforms = 2 + int(use_fieldwarp)
     merge_xforms = pe.Node(niu.Merge(nforms), name='merge_xforms',
                            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
     workflow.connect([
@@ -465,7 +495,8 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
         name='outputnode')
 
     wm_mask = pe.Node(niu.Function(function=extract_wm), name='wm_mask')
-    flt_bbr_init = pe.Node(FLIRTRPT(dof=6, generate_report=not use_bbr), name='flt_bbr_init')
+    flt_bbr_init = pe.Node(FLIRTRPT(dof=6, generate_report=not use_bbr,
+                                    uses_qform=True), name='flt_bbr_init')
 
     invt_bbr = pe.Node(fsl.ConvertXFM(invert_xfm=True), name='invt_bbr',
                        mem_gb=DEFAULT_MEMORY_MIN_GB)

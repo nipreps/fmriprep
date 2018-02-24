@@ -55,7 +55,7 @@ body {
             </ul>
         </li>
     </ul>
-<div>
+</div>
 </nav>
 <noscript>
     <h1 class="text-danger"> The navigation menu uses Javascript. Without it this report might not work as expected </h1>

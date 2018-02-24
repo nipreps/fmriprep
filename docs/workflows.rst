@@ -210,7 +210,7 @@ Based on the tissue segmentation of FreeSurfer (located in ``mri/aseg.mgz``)
 and only when the :ref:`Surface Processing <workflows_surface>` step has been
 executed, FMRIPREP replaces the brain mask with a refined one that derives
 from the ``aseg.mgz`` file as described in
-:mod:`fmriprep.workflows.anatomical.init_refine_brainmask_wf`.
+:mod:`fmriprep.interfaces.freesurfer.grow_mask`.
 
 
 BOLD preprocessing
@@ -487,8 +487,6 @@ Confounds estimation
     from fmriprep.workflows.bold.confounds import init_bold_confs_wf
     wf = init_bold_confs_wf(
         name="discover_wf",
-        use_aroma=False,
-        ignore_aroma_err=False,
         mem_gb=1,
         metadata={"RepetitionTime": 2.0,
                   "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]})

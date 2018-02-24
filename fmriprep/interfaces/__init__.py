@@ -13,7 +13,7 @@ from .freesurfer import (
 )
 from .surf import NormalizeSurf, GiftiNameSource, GiftiSetAnatomicalStructure
 from .reports import SubjectSummary, FunctionalSummary, AboutSummary
-from .utils import TPM2ROI, AddTPMs, AddTSVHeader, ConcatAffines
+from .utils import TPM2ROI, AddTPMs, AddTSVHeader, ConcatAffines, JoinTSVColumns
 from .fmap import FieldEnhance, FieldToRadS, FieldToHz, Phasediff2Fieldmap
 from .confounds import GatherConfounds, ICAConfounds
 from .itk import MCFLIRT2ITK, MultiApplyTransforms

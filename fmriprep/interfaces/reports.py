@@ -11,6 +11,8 @@ Interfaces to generate reportlets
 
 import os
 import time
+import re
+
 from collections import Counter
 from niworkflows.nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
@@ -147,7 +149,7 @@ class FunctionalSummaryInputSpec(BaseInterfaceInputSpec):
     registration_dof = traits.Enum(6, 9, 12, desc='Registration degrees of freedom',
                                    mandatory=True)
     output_spaces = traits.List(desc='Target spaces')
-    confounds = traits.List(desc='Confounds collected')
+    confounds_file = File(exists=True, desc='Confounds file')
 
 
 class FunctionalSummary(SummaryInterface):
@@ -174,9 +176,13 @@ class FunctionalSummary(SummaryInterface):
             pedir = 'MISSING - Assuming Anterior-Posterior'
         else:
             pedir = {'i': 'Left-Right', 'j': 'Anterior-Posterior'}[self.inputs.pe_direction[0]]
+
+        if isdefined(self.inputs.confounds_file):
+            with open(self.inputs.confounds_file) as cfh:
+                conflist = cfh.readline().strip('\n').strip()
         return FUNCTIONAL_TEMPLATE.format(pedir=pedir, stc=stc, sdc=sdc, registration=reg,
                                           output_spaces=', '.join(self.inputs.output_spaces),
-                                          confounds=', '.join(self.inputs.confounds))
+                                          confounds=re.sub(r'[\t ]+', ', ', conflist))
 
 
 class AboutSummaryInputSpec(BaseInterfaceInputSpec):

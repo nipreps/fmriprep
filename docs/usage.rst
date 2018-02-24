@@ -60,7 +60,7 @@ All bugs, concerns and enhancement requests for this software can be submitted h
 https://github.com/poldracklab/fmriprep/issues.
 
 If you have a problem or would like to ask a question about how to use ``fmriprep``,
-please submit a question to `NeuroStars.org <http://neurostars.org>`_ with an ``fmriprep`` tag.
+please submit a question to `NeuroStars.org <http://neurostars.org/tags/fmriprep>`_ with an ``fmriprep`` tag.
 NeuroStars.org is a platform similar to StackOverflow but dedicated to neuroinformatics.
 
 All previous ``fmriprep`` questions are available here:
