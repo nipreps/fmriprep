@@ -681,9 +681,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold', 'inputnode.bold_orig')
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-            (bold_mni_trans_wf, bold_confounds_wf, [
-                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
-                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
             (bold_confounds_wf, outputnode, [
                 ('outputnode.confounds_file', 'confounds'),
             ]),
@@ -783,9 +780,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             (bold_bold_trans_wf, bold_dnsd_confounds_wf, [
                 ('outputnode.bold', 'inputnode.bold_orig'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-            (bold_mni_trans_wf, bold_dnsd_confounds_wf, [
-                ('outputnode.bold_mask_mni', 'inputnode.bold_mask_mni'),
-                ('outputnode.bold_mni', 'inputnode.bold_mni')]),
             (bold_dnsd_confounds_wf, outputnode, [
                 ('outputnode.confounds_file', 'confounds_dnsd'),
             ]),
