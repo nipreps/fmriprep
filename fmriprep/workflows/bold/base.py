@@ -741,8 +741,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             workflow.connect([
                 (bold_confounds_wf, join, [
                     ('outputnode.confounds_file', 'in_file')]),
-                (ica_aroma_wf, join,
-                    [('outputnode.aroma_confounds', 'join_file')]),
+                (ica_aroma_wf, join, [
+                    ('outputnode.aroma_confounds', 'join_file')]),
                 (join, outputnode, [('out_file', 'confounds')]),
             ])
 
