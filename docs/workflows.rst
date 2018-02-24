@@ -47,7 +47,8 @@ is presented below:
                                 force_syn=True,
                                 output_grid_ref=None,
                                 use_aroma=False,
-                                ignore_aroma_err=False)
+                                ignore_aroma_err=False,
+                                return_non_denoised=False)
 
 
 T1w/T2w preprocessing
@@ -243,7 +244,8 @@ BOLD preprocessing
                               force_syn=True,
                               output_grid_ref=None,
                               use_aroma=False,
-                              ignore_aroma_err=False)
+                              ignore_aroma_err=False,
+                              return_non_denoised=False)
 
 Preprocessing of :abbr:`BOLD (blood-oxygen level-dependent)` files is
 split into multiple sub-workflows described below.

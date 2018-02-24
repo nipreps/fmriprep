@@ -661,7 +661,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             workflow.connect([
                 (nonlinear_sdc_wf, bold_mni_trans_wf, [
                     ('outputnode.out_warp', 'inputnode.fieldwarp')]),
-<<<<<<< HEAD
             ])
 
     if return_non_denoised or not use_aroma:
