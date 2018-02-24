@@ -1068,7 +1068,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         ds_aroma_mni = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=variant_suffix_fmt(
                 template, 'AROMAnonaggr', 'preproc')),
-            name='ds_aroma_smooth_mni', run_without_submitting=True,
+            name='ds_aroma_mni', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_confounds_dnsd = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=variant_suffix_fmt(
