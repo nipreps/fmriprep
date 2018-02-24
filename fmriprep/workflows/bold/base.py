@@ -386,13 +386,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         name='bold_confounds_wf')
     bold_confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
 
-    # get confounds (with ICA-AROMA denoised inputs)
-    bold_confounds_dn_wf = init_bold_confs_wf(
-        mem_gb=mem_gb['largemem'],
-        metadata=metadata,
-        name='bold_confounds_wf')
-    bold_confounds_dn_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
-
     # Apply transforms in 1 shot
     # Only use uncompressed output if AROMA is to be run
     bold_bold_trans_wf = init_bold_preproc_trans_wf(
@@ -458,11 +451,15 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (bold_split, bold_bold_trans_wf, [
             ('out_files', 'inputnode.bold_split')]),
         (bold_hmc_wf, bold_bold_trans_wf, [
-            ('outputnode.xforms', 'inputnode.hmc_xforms')]),
+            ('outputnode.xforms', 'inputnode.hmc_xforms')])
+        ])
+
+    if not use_aroma or return_non_denoised:
         # Summary
-        (outputnode, summary, [('confounds', 'confounds_file')]),
-        (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
-    ])
+        workflow.connect[(
+            (outputnode, summary, [('confounds', 'confounds_file')]),
+            (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
+        )]
 
     # FIELDMAPS ################################################################
     # Table of behavior is now found under workflows/fieldmap/base.py
@@ -794,6 +791,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             workflow.connect([
                 (bold_dnsd_confounds_wf, func_reports_wf, [
                     ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
+                (outputnode, summary, [('confounds_dnsd', 'confounds_file')]),
+                (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
             ])
 
     # SURFACES ##################################################################################
