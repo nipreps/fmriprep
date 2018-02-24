@@ -679,7 +679,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
             (bold_bold_trans_wf, bold_confounds_wf, [
                 ('outputnode.bold', 'inputnode.bold'),
-                ('outputnode.bold', 'inputnode.bold_orig')
+                ('outputnode.bold', 'inputnode.bold_orig'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_confounds_wf, outputnode, [
                 ('outputnode.confounds_file', 'confounds'),
