@@ -454,13 +454,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.xforms', 'inputnode.hmc_xforms')])
         ])
 
-    if not use_aroma or return_non_denoised:
-        # Summary
-        workflow.connect([
-            (outputnode, summary, [('confounds', 'confounds_file')]),
-            (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
-        ])
-
     # FIELDMAPS ################################################################
     # Table of behavior is now found under workflows/fieldmap/base.py
 
@@ -679,13 +672,19 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold', 'inputnode.bold_orig'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+            # Summary
+            (outputnode, summary, [
+                ('confounds', 'confounds_file')]),
+            (summary, func_reports_wf, [
+                ('out_report', 'inputnode.summary_report')]),
         ])
 
-        if not return_non_denoised:
+        if not use_aroma:
             workflow.connect([
                 (bold_confounds_wf, outputnode, [
                     ('outputnode.confounds_file', 'confounds')]),
             ])
+
     if use_aroma:  # ICA-AROMA workflow
         """
         ica_aroma_report
@@ -738,12 +737,27 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         ])
 
         if return_non_denoised:
+            # Return the non-denoised confounds with the noise IC components
+            # so they can be used for aggressive filtering
             workflow.connect([
                 (bold_confounds_wf, join, [
                     ('outputnode.confounds_file', 'in_file')]),
                 (ica_aroma_wf, join, [
                     ('outputnode.aroma_confounds', 'join_file')]),
                 (join, outputnode, [('out_file', 'confounds')]),
+            ])
+        else:
+            # If the only confound workflow is for the denoised confounds
+            # report those rois
+            # ASSUMPTION: the ROIs generated for bold_dnsd_confounds_wf would be the same
+            # as the ROIs generated from bold_confounds_wf
+            workflow.connect([
+                (bold_dnsd_confounds_wf, func_reports_wf, [
+                    ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
+                (outputnode, summary, [
+                    ('confounds_dnsd', 'confounds_file')]),
+                (summary, func_reports_wf, [
+                    ('out_report', 'inputnode.summary_report')]),
             ])
 
         # Do nonaggresive denoising for bold, T1w, and mni spaces
@@ -788,14 +802,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                 ('outputnode.confounds_file', 'confounds_dnsd'),
             ]),
         ])
-
-        if not return_non_denoised:
-            workflow.connect([
-                (bold_dnsd_confounds_wf, func_reports_wf, [
-                    ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
-                (outputnode, summary, [('confounds_dnsd', 'confounds_file')]),
-                (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
-            ])
 
     # SURFACES ##################################################################################
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
@@ -966,12 +972,14 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                run_without_submitting=True,
                                mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_confounds = pe.Node(DerivativesDataSink(
-        base_directory=output_dir, suffix='confounds'),
-        name="ds_confounds", run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+    # Only connect if use_aroma isn't specified or if the user wants both
+    # the denoised and the non-denoised outputs
     if not use_aroma or return_non_denoised:
+        ds_confounds = pe.Node(DerivativesDataSink(
+            base_directory=output_dir, suffix='confounds'),
+            name="ds_confounds", run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
+
         workflow.connect([
             (inputnode, ds_confounds, [('source_file', 'source_file'),
                                        ('confounds', 'in_file')]),
@@ -979,46 +987,68 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     # Resample to T1w space
     if 'T1w' in output_spaces:
-        ds_bold_t1 = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt('T1w', 'preproc')),
-            name='ds_bold_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-        ds_bold_mask_t1 = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt('T1w', 'brainmask')),
-            name='ds_bold_mask_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        workflow.connect([
-            (inputnode, ds_bold_t1, [('source_file', 'source_file'),
-                                     ('bold_t1', 'in_file')]),
-            (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
-                                          ('bold_mask_t1', 'in_file')]),
-        ])
-
         # connect the denoised bold in t1w space
-        if use_aroma:
+        if use_aroma and not return_non_denoised:
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
                     ('source_file', 'source_file'),
                     ('bold_t1_nonaggr_denoised', 'in_file')]),
             ])
+        else:
+            ds_bold_t1 = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt('T1w', 'preproc')),
+                name='ds_bold_t1', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            ds_bold_mask_t1 = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt('T1w', 'brainmask')),
+                name='ds_bold_mask_t1', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            workflow.connect([
+                (inputnode, ds_bold_t1, [('source_file', 'source_file'),
+                                         ('bold_t1', 'in_file')]),
+                (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
+                                              ('bold_mask_t1', 'in_file')]),
+            ])
 
     # Resample to template (default: MNI)
     if 'template' in output_spaces:
-        ds_bold_mni = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt(template, 'preproc')),
-            name='ds_bold_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_bold_mask_mni = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt(template, 'brainmask')),
-            name='ds_bold_mask_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        workflow.connect([
-            (inputnode, ds_bold_mni, [('source_file', 'source_file'),
-                                      ('bold_mni', 'in_file')]),
-            (inputnode, ds_bold_mask_mni, [('source_file', 'source_file'),
-                                           ('bold_mask_mni', 'in_file')]),
-        ])
+        if use_aroma and not return_non_denoised:
+            ds_aroma_smooth_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=variant_suffix_fmt(
+                    template, 'smoothAROMAnonaggr', 'preproc')),
+                name='ds_aroma_smooth_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            ds_aroma_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=variant_suffix_fmt(
+                    template, 'AROMAnonaggr', 'preproc')),
+                name='ds_aroma_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, ds_aroma_smooth_mni, [
+                    ('source_file', 'source_file'),
+                    ('bold_mni_smooth_nonaggr_denoised', 'in_file')]),
+                (inputnode, ds_aroma_mni, [
+                    ('source_file', 'source_file'),
+                    ('bold_mni_nonaggr_denoised', 'in_file')]),
+            ])
+
+        else:
+            ds_bold_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt(template, 'preproc')),
+                name='ds_bold_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            ds_bold_mask_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt(template, 'brainmask')),
+                name='ds_bold_mask_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            workflow.connect([
+                (inputnode, ds_bold_mni, [('source_file', 'source_file'),
+                                          ('bold_mni', 'in_file')]),
+                (inputnode, ds_bold_mask_mni, [('source_file', 'source_file'),
+                                               ('bold_mask_mni', 'in_file')]),
+            ])
 
     if freesurfer:
         ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
@@ -1062,16 +1092,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             base_directory=output_dir, suffix='MELODICmix'),
             name="ds_melodic_mix", run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_aroma_smooth_mni = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=variant_suffix_fmt(
-                template, 'smoothAROMAnonaggr', 'preproc')),
-            name='ds_aroma_smooth_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_aroma_mni = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=variant_suffix_fmt(
-                template, 'AROMAnonaggr', 'preproc')),
-            name='ds_aroma_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_confounds_dnsd = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix='variant-AROMAnonaggr_confounds'),
             name="ds_confounds_dnsd", run_without_submitting=True,
@@ -1082,10 +1102,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                                              ('aroma_noise_ics', 'in_file')]),
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
-            (inputnode, ds_aroma_smooth_mni, [('source_file', 'source_file'),
-                                              ('bold_mni_smooth_nonaggr_denoised', 'in_file')]),
-            (inputnode, ds_aroma_mni, [('source_file', 'source_file'),
-                                       ('bold_mni_nonaggr_denoised', 'in_file')]),
             (inputnode, ds_confounds_dnsd, [('source_file', 'source_file'),
                                             ('confounds_dnsd', 'in_file')])
         ])
