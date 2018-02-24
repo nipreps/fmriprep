@@ -456,10 +456,10 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     if not use_aroma or return_non_denoised:
         # Summary
-        workflow.connect[(
+        workflow.connect([
             (outputnode, summary, [('confounds', 'confounds_file')]),
             (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
-        )]
+        ])
 
     # FIELDMAPS ################################################################
     # Table of behavior is now found under workflows/fieldmap/base.py
