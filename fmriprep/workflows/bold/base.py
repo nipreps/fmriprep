@@ -988,32 +988,35 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
     # Resample to T1w space
     if 'T1w' in output_spaces:
         # connect the denoised bold in t1w space
-        if use_aroma and not return_non_denoised:
+        if use_aroma:
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
                     ('source_file', 'source_file'),
                     ('bold_t1_nonaggr_denoised', 'in_file')]),
             ])
-        else:
+
+        if not use_aroma or return_non_denoised:
             ds_bold_t1 = pe.Node(DerivativesDataSink(
                 base_directory=output_dir, suffix=suffix_fmt('T1w', 'preproc')),
                 name='ds_bold_t1', run_without_submitting=True,
                 mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-            ds_bold_mask_t1 = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, suffix=suffix_fmt('T1w', 'brainmask')),
-                name='ds_bold_mask_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
             workflow.connect([
                 (inputnode, ds_bold_t1, [('source_file', 'source_file'),
                                          ('bold_t1', 'in_file')]),
-                (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
-                                              ('bold_mask_t1', 'in_file')]),
             ])
+
+        ds_bold_mask_t1 = pe.Node(DerivativesDataSink(
+            base_directory=output_dir, suffix=suffix_fmt('T1w', 'brainmask')),
+            name='ds_bold_mask_t1', run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
+        workflow.connect([
+            (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
+                                          ('bold_mask_t1', 'in_file')]),
+        ])
 
     # Resample to template (default: MNI)
     if 'template' in output_spaces:
-        if use_aroma and not return_non_denoised:
+        if use_aroma:
             ds_aroma_smooth_mni = pe.Node(DerivativesDataSink(
                 base_directory=output_dir, suffix=variant_suffix_fmt(
                     template, 'smoothAROMAnonaggr', 'preproc')),
@@ -1034,7 +1037,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
                     ('bold_mni_nonaggr_denoised', 'in_file')]),
             ])
 
-        else:
+        if not use_aroma or return_non_denoised:
             ds_bold_mni = pe.Node(DerivativesDataSink(
                 base_directory=output_dir, suffix=suffix_fmt(template, 'preproc')),
                 name='ds_bold_mni', run_without_submitting=True,
