@@ -245,6 +245,18 @@ jobs:
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
+      - run:
+          name: Get CircleCI CLI
+          command: |
+            curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
+            if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds005'; then
+              echo "Skipping ds000005 build"
+              circleci step halt
+            fi
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -322,6 +334,18 @@ jobs:
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
+      - run:
+          name: Get CircleCI CLI
+          command: |
+            curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
+            if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds054'; then
+              echo "Skipping ds000054 build"
+              circleci step halt
+            fi
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -424,6 +448,7 @@ jobs:
             curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
       - run:
           name: Check whether build should be skipped
+          command: |
             GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
             if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds210'; then
               echo "Skipping ds000210 build"
