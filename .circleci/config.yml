@@ -248,6 +248,7 @@ jobs:
       - run:
           name: Check whether build should be skipped
           command: |
+            cd /tmp/src/fmriprep
             GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
             if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds005'; then
               echo "Skipping ds000005 build"
@@ -333,6 +334,7 @@ jobs:
       - run:
           name: Check whether build should be skipped
           command: |
+            cd /tmp/src/fmriprep
             GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
             if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds054'; then
               echo "Skipping ds000054 build"
@@ -437,6 +439,7 @@ jobs:
       - run:
           name: Check whether build should be skipped
           command: |
+            cd /tmp/src/fmriprep
             GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
             if echo ${GIT_COMMIT_DESC} | grep -Pi 'skip[ _]?ds210'; then
               echo "Skipping ds000210 build"
