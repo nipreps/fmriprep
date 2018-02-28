@@ -246,10 +246,6 @@ jobs:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
       - run:
-          name: Get CircleCI CLI
-          command: |
-            curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
-      - run:
           name: Check whether build should be skipped
           command: |
             GIT_COMMIT_DESC = $(git log --format=oneline -n 1 $CIRCLE_SHA1)
@@ -334,10 +330,6 @@ jobs:
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
-      - run:
-          name: Get CircleCI CLI
-          command: |
-            curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
       - run:
           name: Check whether build should be skipped
           command: |
@@ -435,17 +427,13 @@ jobs:
       - store_artifacts:
           path: /tmp/ds054
 
-  ds000210:
+  ds210:
     machine:
       image: circleci/classic:201711-01
     working_directory: /tmp/ds000210
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
-      - run:
-          name: Get CircleCI CLI
-          command: |
-            curl -o /usr/local/bin/circleci https://circle-downloads.s3.amazonaws.com/releases/build_agent_wrapper/circleci && chmod +x /usr/local/bin/circleci
       - run:
           name: Check whether build should be skipped
           command: |
@@ -620,7 +608,7 @@ workflows:
             tags:
               only: /.*/
 
-      - ds000210:
+      - ds210:
           requires:
             - get_data
             - build
@@ -638,7 +626,7 @@ workflows:
             - build_docs
             - ds005
             - ds054
-            - ds000210
+            - ds210
           filters:
             branches:
               ignore: /.*/
