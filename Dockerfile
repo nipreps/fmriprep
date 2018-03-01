@@ -60,7 +60,7 @@ RUN apt-get update && \
                     fsl-core=5.0.9-4~nd16.04+1 \
                     fsl-mni152-templates=5.0.7-2 \
                     afni=16.2.07~dfsg.1-5~nd16.04+1 \
-                    convert3d=0.0.20170606-1~pre1~nd14.04+1
+                    convert3d
 
 ENV FSLDIR=/usr/share/fsl/5.0 \
     FSLOUTPUTTYPE=NIFTI_GZ \
