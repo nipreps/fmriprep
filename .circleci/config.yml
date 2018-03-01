@@ -15,8 +15,8 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -Pi 'skip[ _]?build'; then
-              echo "Skipping ds000005 build"
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?build\]' )" != "" ]]; then
+              echo "Skipping build"
               circleci step halt
             fi
       - run:
@@ -261,7 +261,7 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -Pi 'skip[ _]?ds005'; then
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds005\]' )" != "" ]]; then
               echo "Skipping ds000005 build"
               circleci step halt
             fi
@@ -348,7 +348,7 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -Pi 'skip[ _]?ds054'; then
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds054\]' )" != "" ]]; then
               echo "Skipping ds000054 build"
               circleci step halt
             fi
@@ -454,7 +454,7 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -Pi 'skip[ _]?ds210'; then
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds210\]' )" != "" ]]; then
               echo "Skipping ds000210 build"
               circleci step halt
             fi
