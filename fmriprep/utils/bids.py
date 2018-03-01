@@ -15,10 +15,10 @@ Fetch some test data
 
 """
 import os
-# import re
+import re
 import os.path as op
 import warnings
-# from itertools import groupby
+from itertools import groupby
 from bids.grabbids import BIDSLayout
 
 
@@ -171,21 +171,21 @@ def collect_data(dataset, participant_label, task=None):
     subj_data = {modality: [x.filename for x in layout.get(**query)]
                  for modality, query in queries.items()}
 
-    # OE: temporary disabled (#914)
-    # This bit of code should:
-    # 1. identify multi-echo scans (must contain echo-<index> identifier)
-    # 2. group echoes belonging to the same run, same task or
-    #    same run and task, always: within same session
-    # def _run_num(x):
-    #     return re.search("task-\\w*_run-\\d*", x).group(0)
+    def _grp_echos(x):
+        if '_echo-' not in x:
+            return x
+        echo = re.search("_echo-\\d*", x).group(0)
+        return x.replace(echo, "_echo-?")
 
-    # if subj_data["bold"] is not []:
-    #     all_runs = subj_data["bold"]
-    #     try:
-    #         runs = [list(run) for _, run in groupby(all_runs, key=_run_num)]
-    #         runs = list(map(lambda x: x[0] if len(x) == 1 else x, runs))
-    #         subj_data.update({"bold": runs})
-    #     except AttributeError:
-    #         pass
+    if subj_data["bold"] is not []:
+        bold_sess = subj_data["bold"]
+
+        if any(['_echo-' in bold for bold in bold_sess]):
+            ses_uids = [list(bold) for _, bold in groupby(bold_sess, key=_grp_echos)]
+            ses_uids = [x[0] if len(x) == 1 else x for x in ses_uids]
+        else:
+            ses_uids = bold_sess
+
+    subj_data.update({"bold": ses_uids})
 
     return subj_data, layout

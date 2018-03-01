@@ -13,6 +13,11 @@ fmriprep.egg-info
 .eggs/**/*
 .eggs
 
+# housekeeping tools
+get_version.py
+update_changes.sh
+tox.ini
+
 # pip installs
 src/**/*
 src/
@@ -34,3 +39,4 @@ out/
 .zenodo.json
 .travis.yml
 .readthedocs.yml
+CONTRIBUTING.md

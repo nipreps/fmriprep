@@ -13,17 +13,49 @@ def main():
     from setuptools import setup, find_packages
     from setuptools.extension import Extension
     from numpy import get_include
+    from fmriprep.info import (
+        __packagename__,
+        __version__,
+        __author__,
+        __email__,
+        __maintainer__,
+        __license__,
+        __description__,
+        __longdesc__,
+        __url__,
+        DOWNLOAD_URL,
+        CLASSIFIERS,
+        REQUIRES,
+        SETUP_REQUIRES,
+        LINKS_REQUIRES,
+        TESTS_REQUIRES,
+        EXTRA_REQUIRES,
+    )
 
-    this_path = op.dirname(op.abspath(getfile(currentframe())))
+    pkg_data = {
+        'fmriprep': [
+            'data/*.json',
+            'data/*.nii.gz',
+            'data/*.mat',
+            'data/itkIdentityTransform.txt',
+            'viz/*.tpl',
+            'viz/*.json'
+        ]
+    }
 
-    # Python 3: use a locals dictionary
-    # http://stackoverflow.com/a/1463370/6820620
-    ldict = locals()
-    # Get version and release info, which is all stored in fmriprep/info.py
-    module_file = op.join(this_path, 'fmriprep', 'info.py')
-    with open(module_file) as infofile:
-        pythoncode = [line for line in infofile.readlines() if not line.strip().startswith('#')]
-        exec('\n'.join(pythoncode), globals(), ldict)
+    root_dir = op.dirname(op.abspath(getfile(currentframe())))
+
+    version = None
+    cmdclass = {}
+    if op.isfile(op.join(root_dir, 'fmriprep', 'VERSION')):
+        with open(op.join(root_dir, 'fmriprep', 'VERSION')) as vfile:
+            version = vfile.readline().strip()
+        pkg_data['fmriprep'].insert(0, 'VERSION')
+
+    if version is None:
+        import versioneer
+        version = versioneer.get_version()
+        cmdclass = versioneer.get_cmdclass()
 
     extensions = [Extension(
         "fmriprep.utils.maths",
@@ -33,27 +65,25 @@ def main():
     ]
 
     setup(
-        name=ldict['__packagename__'],
-        version=ldict['__version__'],
-        description=ldict['__description__'],
-        long_description=ldict['__longdesc__'],
-        author=ldict['__author__'],
-        author_email=ldict['__email__'],
-        maintainer=ldict['__maintainer__'],
-        maintainer_email=ldict['__email__'],
-        url=ldict['__url__'],
-        license=ldict['__license__'],
-        classifiers=ldict['CLASSIFIERS'],
-        download_url=ldict['DOWNLOAD_URL'],
+        name=__packagename__,
+        version=__version__,
+        description=__description__,
+        long_description=__longdesc__,
+        author=__author__,
+        author_email=__email__,
+        maintainer=__maintainer__,
+        maintainer_email=__email__,
+        url=__url__,
+        license=__license__,
+        classifiers=CLASSIFIERS,
+        download_url=DOWNLOAD_URL,
         # Dependencies handling
-        setup_requires=ldict['SETUP_REQUIRES'],
-        install_requires=ldict['REQUIRES'],
-        tests_require=ldict['TESTS_REQUIRES'],
-        extras_require=ldict['EXTRA_REQUIRES'],
-        dependency_links=ldict['LINKS_REQUIRES'],
-        package_data={'fmriprep': ['data/*.json', 'data/*.nii.gz', 'data/*.mat',
-                                   'data/itkIdentityTransform.txt',
-                                   'viz/*.tpl', 'viz/*.json']},
+        setup_requires=SETUP_REQUIRES,
+        install_requires=REQUIRES,
+        tests_require=TESTS_REQUIRES,
+        extras_require=EXTRA_REQUIRES,
+        dependency_links=LINKS_REQUIRES,
+        package_data=pkg_data,
         entry_points={'console_scripts': [
             'fmriprep=fmriprep.cli.run:main',
             'fmriprep-boldmask=fmriprep.cli.fmriprep_bold_mask:main',
@@ -61,7 +91,8 @@ def main():
         ]},
         packages=find_packages(exclude=("tests",)),
         zip_safe=False,
-        ext_modules=extensions
+        ext_modules=extensions,
+        cmdclass=cmdclass,
     )
 
 

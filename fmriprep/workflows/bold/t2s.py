@@ -13,7 +13,7 @@ from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu
 
 from ...interfaces.nilearn import Merge
-from ...interfaces.multiecho import T2SMap
+from ...interfaces.multiecho import (T2SMap, MaskT2SMap)
 from ...interfaces import MultiApplyTransforms
 
 from .util import init_skullstrip_bold_wf
@@ -51,7 +51,7 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
 
     **Inputs**
 
-        xforms
+        hmc_xforms
             ITKTransform file aligning each volume to ``ref_image``
         echo_split
             3D volumes of multi-echo BOLD EPI
@@ -60,35 +60,49 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
 
         t2s_map
             the T2* map for the EPI run
+        oc_mask
+            the skull-stripped optimal combination mask
     """
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(fields=['echo_split', 'xforms']),
+    inputnode = pe.Node(niu.IdentityInterface(fields=['echo_split', 'hmc_xforms']),
                         name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=['t2s_map', 't2s_mask']),
+
+    outputnode = pe.Node(niu.IdentityInterface(fields=['t2s_map', 'oc_mask']),
                          name='outputnode')
 
     LOGGER.log(25, 'Generating T2* map.')
 
-    apply_hmc = pe.Node(
+    apply_hmc = pe.MapNode(
         MultiApplyTransforms(interpolation='NearestNeighbor', float=True, copy_dtype=True),
-        mem_gb=(mem_gb * 3 * omp_nthreads), n_procs=omp_nthreads, name='apply_hmc')
+        mem_gb=(mem_gb * 3 * omp_nthreads), n_procs=omp_nthreads, name='apply_hmc',
+        iterfield=['input_image'])
 
-    merge = pe.Node(Merge(compress=True), name='merge', mem_gb=mem_gb)
+    merge = pe.MapNode(Merge(compress=True), mem_gb=mem_gb,
+                       name='merge', iterfield=['in_files'])
 
-    t2s_map = pe.JoinNode(T2SMap(te_list=echo_times),
-                          joinfield='in_files', joinsource='inputnode',
-                          name='t2s_map')
+    t2s_map = pe.Node(T2SMap(te_list=echo_times),
+                      name='t2s_map')
 
     skullstrip_bold_wf = init_skullstrip_bold_wf()
 
+    mask_t2s = pe.Node(MaskT2SMap(),
+                       name='mask_t2s')
+
     workflow.connect([
         (inputnode, apply_hmc, [('hmc_xforms', 'transforms'),
-                                ('echo_split', 'input_image')]),
+                                ('echo_split', 'input_image'),
+                                (('echo_split', _first), 'reference_image')]),
         (apply_hmc, merge, [('out_files', 'in_files')]),
         (merge, t2s_map, [('out_file', 'in_files')]),
-        (t2s_map, skullstrip_bold_wf, [('output_image', 'inputnode.in_file')]),
-        (skullstrip_bold_wf, outputnode, [('outputnode.skull_stripped_file', 't2s_map'),
-                                          ('outputnode.mask_file', 't2s_mask')])
+        (t2s_map, skullstrip_bold_wf, [('opt_comb', 'inputnode.in_file')]),
+        (t2s_map, mask_t2s, [('t2s_vol', 'image')]),
+        (skullstrip_bold_wf, outputnode, [('outputnode.mask_file', 'oc_mask')]),
+        (skullstrip_bold_wf, mask_t2s, [('outputnode.mask_file', 'mask')]),
+        (mask_t2s, outputnode, [('masked_t2s', 't2s_map')])
     ])
 
     return workflow
+
+
+def _first(inlist):
+    return inlist[0][0]

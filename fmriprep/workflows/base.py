@@ -47,6 +47,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
         :graph2use: orig
         :simple_form: yes
 
+        import os
+        os.environ['FREESURFER_HOME'] = os.getcwd()
         from fmriprep.workflows.base import init_fmriprep_wf
         wf = init_fmriprep_wf(subject_list=['fmripreptest'],
                               task_id='',
@@ -362,11 +364,6 @@ def init_single_subject_wf(subject_id, task_id, name,
     if not subject_data['t1w']:
         raise Exception("No T1w images found for participant {}. "
                         "All workflows require T1w images.".format(subject_id))
-
-    if t2s_coreg and not layout.get_echos():
-        raise Exception("No multiecho BOLD images found for participant {}. "
-                        "T2* coregistration requires multiecho BOLD.").format(
-                            subject_id)
 
     workflow = pe.Workflow(name=name)
 

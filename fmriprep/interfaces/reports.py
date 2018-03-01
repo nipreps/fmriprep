@@ -73,7 +73,7 @@ class SubjectSummaryInputSpec(BaseInterfaceInputSpec):
     t2w = InputMultiPath(File(exists=True), desc='T2w structural images')
     subjects_dir = Directory(desc='FreeSurfer subjects directory')
     subject_id = Str(desc='Subject ID')
-    bold = InputMultiPath(File(exists=True), desc='BOLD functional series')
+    bold = traits.List(desc='BOLD functional series')
     output_spaces = traits.List(desc='Target spaces')
     template = traits.Enum('MNI152NLin2009cAsym', desc='Template space')
 
@@ -115,8 +115,11 @@ class SubjectSummary(SummaryInterface):
 
         # Add list of tasks with number of runs
         bold_series = self.inputs.bold if isdefined(self.inputs.bold) else []
+        bold_series = [s[0] if isinstance(s, list) else s for s in bold_series]
+
         counts = Counter(BIDS_NAME.search(series).groupdict()['task_id'][5:]
                          for series in bold_series)
+
         tasks = ''
         if counts:
             header = '\t\t<ul class="elem-desc">'

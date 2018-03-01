@@ -5,3 +5,7 @@ recursive-include docs/_build/html *
 include requirements.txt
 include CHANGES.rst
 include LICENSE
+
+# versioneer
+include versioneer.py
+include fmriprep/_version.py

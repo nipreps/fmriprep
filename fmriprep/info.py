@@ -5,7 +5,10 @@
 Base module variables
 """
 
-__version__ = '1.0.9-dev'
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
+
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2018, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
@@ -73,6 +76,7 @@ REQUIRES = [
     'seaborn',
     'indexed_gzip>=0.7.0',
     'scikit-image',
+    'versioneer',
 ]
 
 LINKS_REQUIRES = [
