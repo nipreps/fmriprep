@@ -9,16 +9,6 @@ jobs:
       - image: docker:18.01.0-ce-git
     working_directory: /tmp/src/fmriprep
     steps:
-      - checkout:
-          path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?build\]' )" != "" ]]; then
-              echo "Skipping build"
-              circleci step halt
-            fi
       - run:
           name: Install parallel gzip and python3
           command: |
@@ -184,6 +174,16 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /tmp/src/fmriprep
     steps:
+      - checkout:
+          path: /home/circleci/src/fmriprep
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?tests\]' )" != "" ]]; then
+              echo "Skipping pytest job"
+              circleci step halt
+            fi
       - attach_workspace:
           at: /tmp
       - run:
@@ -221,6 +221,16 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /home/circleci/out/docs
     steps:
+      - checkout:
+          path: /home/circleci/src/fmriprep
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?docs\]' )" != "" ]]; then
+              echo "Skipping pytest job"
+              circleci step halt
+            fi
       - attach_workspace:
           at: /tmp
       - run:
