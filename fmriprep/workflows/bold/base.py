@@ -1012,12 +1012,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     suffix_fmt = 'space-{}_{}'.format
     variant_suffix_fmt = 'space-{}_variant-{}_{}'.format
-    ds_aroma_t1 = pe.Node(DerivativesDataSink(base_directory=output_dir,
-                                              suffix=variant_suffix_fmt('T1w',
-                                                                        'AROMAnonaggr',
-                                                                        'preproc')),
-                          name='ds_aroma_t1', run_without_submitting=True,
-                          mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     ds_bold_mask_mni = pe.Node(DerivativesDataSink(base_directory=output_dir,
                                                    suffix=suffix_fmt(template, 'brainmask')),
@@ -1053,6 +1047,11 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
     if 'T1w' in output_spaces:
         # connect the denoised bold in t1w space
         if use_aroma:
+            ds_aroma_t1 = pe.Node(DerivativesDataSink(
+                base_directory=output_dir,
+                suffix=variant_suffix_fmt('T1w', 'AROMAnonaggr', 'preproc')),
+                name='ds_aroma_t1', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
             workflow.connect([
                 (inputnode, ds_aroma_t1, [
                     ('source_file', 'source_file'),
