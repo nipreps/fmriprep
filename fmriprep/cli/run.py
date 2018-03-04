@@ -145,6 +145,9 @@ def get_parser():
     g_aroma = parser.add_argument_group('Specific options for running ICA_AROMA')
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
                          help='add ICA_AROMA to your preprocessing stream')
+    g_aroma.add_argument('--return-non-denoised', action='store_true', default=False,
+                         help='return non-denoised images/confounds in addition '
+                              'to denoised images/confounds when --use-aroma is specified')
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     g_ants.add_argument('--skull-strip-template', action='store', default='OASIS',
@@ -312,6 +315,11 @@ def build_workflow(opts, retval):
                            '\t--template must be set to "MNI152NLin2009cAsym" (was: "{}")\n'
                            '\t--output-space list must include "template" (was: "{}")'.format(
                                opts.template, ' '.join(opts.output_space)))
+
+    # ERROR check if return_non_denoised has been called without use_aroma
+    if not opts.use_aroma and opts.return_non_denoised:
+        raise RuntimeError('ERROR: cannot specify --return-non-denoised without --use-aroma.\n')
+
     # Check output_space
     if 'template' not in opts.output_space and (opts.use_syn_sdc or opts.force_syn):
         msg = ('SyN SDC correction requires T1 to MNI registration, but '
@@ -445,6 +453,7 @@ def build_workflow(opts, retval):
         force_syn=opts.force_syn,
         use_aroma=opts.use_aroma,
         ignore_aroma_err=opts.ignore_aroma_denoising_errors,
+        return_non_denoised=opts.return_non_denoised,
     )
     retval['return_code'] = 0
     return retval

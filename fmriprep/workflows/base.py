@@ -35,7 +35,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                      omp_nthreads, skull_strip_template, work_dir, output_dir, bids_dir,
                      freesurfer, output_spaces, template, medial_surface_nan, hires,
                      use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                     use_aroma, ignore_aroma_err, output_grid_ref):
+                     use_aroma, ignore_aroma_err, return_non_denoised, output_grid_ref):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
     each subject.
@@ -78,6 +78,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               force_syn=True,
                               use_aroma=False,
                               ignore_aroma_err=False,
+                              return_non_denoised=False,
                               output_grid_ref=None)
 
 
@@ -148,6 +149,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
+        return_non_denoised : bool
+            Return the non denoised confounds/files in addition to the denoised
+            confounds/files (used in conjunction with use_aroma)
         output_grid_ref : str or None
             Path of custom reference image for normalization
 
@@ -192,7 +196,8 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    force_syn=force_syn,
                                                    output_grid_ref=output_grid_ref,
                                                    use_aroma=use_aroma,
-                                                   ignore_aroma_err=ignore_aroma_err)
+                                                   ignore_aroma_err=ignore_aroma_err,
+                                                   return_non_denoised=return_non_denoised)
 
         single_subject_wf.config['execution']['crashdump_dir'] = (
             os.path.join(output_dir, "fmriprep", "sub-" + subject_id, 'log', run_uuid)
@@ -213,7 +218,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                            omp_nthreads, skull_strip_template, reportlets_dir, output_dir,
                            bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
                            hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn,
-                           force_syn, output_grid_ref, use_aroma, ignore_aroma_err):
+                           force_syn, output_grid_ref, use_aroma, ignore_aroma_err,
+                           return_non_denoised):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -257,7 +263,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     force_syn=True,
                                     output_grid_ref=None,
                                     use_aroma=False,
-                                    ignore_aroma_err=False)
+                                    ignore_aroma_err=False,
+                                    return_non_denoised=False)
 
     Parameters
 
@@ -328,6 +335,9 @@ def init_single_subject_wf(subject_id, task_id, name,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
+        return_non_denoised : bool
+            Return the non denoised confounds/files in addition to the denoised
+            confounds/files (used in conjunction with use_aroma)
 
     Inputs
 
@@ -438,7 +448,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                debug=debug,
                                                output_grid_ref=output_grid_ref,
                                                use_aroma=use_aroma,
-                                               ignore_aroma_err=ignore_aroma_err)
+                                               ignore_aroma_err=ignore_aroma_err,
+                                               return_non_denoised=return_non_denoised)
 
         workflow.connect([
             (anat_preproc_wf, func_preproc_wf,

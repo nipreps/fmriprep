@@ -74,14 +74,20 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
             BIDS metadata for BOLD file
 
     **Inputs**
-
-        bold
+        bold_orig
             BOLD image, after the prescribed corrections (STC, HMC and SDC)
             when available.
+        bold
+            BOLD image, after the prescribed corrections (STC, HMC, SDC, and
+            optionally nonaggr denoising with use_aroma) when available.
         bold_mask
             BOLD series mask
         movpar_file
             SPM-formatted motion parameters file
+        bold_t1
+            Motion-corrected BOLD series in T1 space
+        bold_mask_t1
+            BOLD series mask in T1w space
         t1_mask
             Mask of the skull-stripped template image
         t1_tpms
@@ -98,10 +104,13 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
             Reportlet visualizing white-matter/CSF mask used for aCompCor,
             the ROI for tCompCor and the BOLD brain mask.
 
+    **Subworkflows**
+
+        * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
     """
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold', 'bold_mask', 'movpar_file', 't1_mask', 't1_tpms',
+        fields=['bold', 'bold_orig', 'bold_mask', 'movpar_file', 't1_mask', 't1_tpms',
                 't1_bold_xform']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
@@ -213,7 +222,8 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
         (inputnode, fdisp, [('movpar_file', 'in_file')]),
 
         # Calculate nonsteady state
-        (inputnode, non_steady_state, [('bold', 'in_file')]),
+        # Make sure to not use a denoised bold file
+        (inputnode, non_steady_state, [('bold_orig', 'in_file')]),
 
         # tCompCor
         (inputnode, tcompcor, [('bold', 'realigned_file')]),
@@ -307,8 +317,8 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
             CSV of noise components identified by ICA-AROMA
         melodic_mix
             FSL MELODIC mixing matrix
-        nonaggr_denoised_file
-            BOLD series with non-aggressive ICA-AROMA denoising applied
+        bold_mni_smooth_nonaggr_denoised
+            Smoothed BOLD series with non-aggressive ICA-AROMA denoising applied
         out_report
             Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
 
@@ -322,7 +332,7 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['aroma_confounds', 'out_report',
                 'aroma_noise_ics', 'melodic_mix',
-                'nonaggr_denoised_file']), name='outputnode')
+                'bold_mni_smooth_nonaggr_denoised']), name='outputnode')
 
     calc_median_val = pe.Node(fsl.ImageStats(op_string='-k %s -p 50'), name='calc_median_val')
     calc_bold_mean = pe.Node(fsl.MeanImage(), name='calc_bold_mean')
@@ -358,24 +368,29 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         (calc_median_val, getusans, [('out_stat', 'thresh')]),
         (inputnode, smooth, [('bold_mni', 'in_file')]),
         (getusans, smooth, [('usans', 'usans')]),
-        (calc_median_val, smooth, [(('out_stat', _getbtthresh), 'brightness_threshold')]),
+        (calc_median_val, smooth, [
+            (('out_stat', _getbtthresh), 'brightness_threshold')]),
         # connect smooth to melodic
         (smooth, melodic, [('smoothed_file', 'in_files')]),
         (inputnode, melodic, [('bold_mask_mni', 'mask')]),
         # connect nodes to ICA-AROMA
         (smooth, ica_aroma, [('smoothed_file', 'in_file')]),
-        (inputnode, ica_aroma, [('bold_mask_mni', 'report_mask'),
-                                ('movpar_file', 'motion_parameters')]),
-        (melodic, ica_aroma, [('out_dir', 'melodic_dir')]),
+        (inputnode, ica_aroma, [
+            ('bold_mask_mni', 'report_mask'),
+            ('movpar_file', 'motion_parameters')]),
+        (melodic, ica_aroma, [
+            ('out_dir', 'melodic_dir')]),
         # generate tsvs from ICA-AROMA
-        (ica_aroma, ica_aroma_confound_extraction, [('out_dir', 'in_directory')]),
+        (ica_aroma, ica_aroma_confound_extraction, [
+            ('out_dir', 'in_directory')]),
         # output for processing and reporting
-        (ica_aroma_confound_extraction, outputnode, [('aroma_confounds', 'aroma_confounds'),
-                                                     ('aroma_noise_ics', 'aroma_noise_ics'),
-                                                     ('melodic_mix', 'melodic_mix')]),
-        # TODO change melodic report to reflect noise and non-noise components
-        (ica_aroma, outputnode, [('out_report', 'out_report'),
-                                 ('nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+        (ica_aroma_confound_extraction, outputnode, [
+            ('aroma_confounds', 'aroma_confounds'),
+            ('aroma_noise_ics', 'aroma_noise_ics'),
+            ('melodic_mix', 'melodic_mix')]),
+        (ica_aroma, outputnode, [
+            ('out_report', 'out_report'),
+            ('nonaggr_denoised_file', 'bold_mni_smooth_nonaggr_denoised')]),
     ])
 
     return workflow
