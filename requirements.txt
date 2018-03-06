@@ -1,2 +1,3 @@
 niworkflows>=0.3.4
 versioneer
+git+https://github.com/INCF/pybids.git@grabbit-fixes#egg=pybids-0.4.3-dev
