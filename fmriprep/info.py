@@ -67,7 +67,7 @@ REQUIRES = [
     'sklearn',
     'nibabel>=2.1.0',
     'pandas',
-    'grabbit',
+    'grabbit>=0.1.1',
     'pybids>=0.4.2',
     'nitime',
     'niworkflows>=0.3.4',
@@ -80,6 +80,7 @@ REQUIRES = [
 ]
 
 LINKS_REQUIRES = [
+    'git+https://github.com/INCF/pybids.git@grabbit-fixes#egg=pybids-0.4.3-dev'
 ]
 
 TESTS_REQUIRES = [
