@@ -247,12 +247,6 @@ jobs:
     steps:
       - attach_workspace:
           at: /tmp
-      - restore_cache:
-          keys:
-            - ds005-anat-v4-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v4-{{ .Branch }}
-            - ds005-anat-v4-master
-            - ds005-anat-v4-
       - run:
           name: Setting up test
           command: |
@@ -284,12 +278,6 @@ jobs:
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
-      - save_cache:
-         key: ds005-anat-v4-{{ .Branch }}-{{ epoch }}
-         paths:
-            - /tmp/ds005/work
-            - /tmp/ds005/derivatives/fmriprep
-
       - run:
           name: Run full fMRIPrep on ds005
           no_output_timeout: 2h
