@@ -36,6 +36,7 @@ class FirstEchoInputSpec(BaseInterfaceInputSpec):
     ref_imgs = InputMultiPath(File(exists=True), mandatory=True, minlen=2,
                               desc='generated reference image for each '
                               'multi-echo BOLD EPI')
+    te_list = traits.List(traits.Float, mandatory=True, desc='echo times')
 
 
 class FirstEchoOutputSpec(TraitedSpec):
@@ -60,6 +61,7 @@ class FirstEcho(SimpleInterface):
     >>> first_echo.inputs.ref_imgs = ['sub-01_run-01_echo-1_bold.nii.gz', \
                                       'sub-01_run-01_echo-2_bold.nii.gz', \
                                       'sub-01_run-01_echo-3_bold.nii.gz']
+    >>> first_echo.inputs.te_list = [0.013, 0.027, 0.043]
     >>> res = first_echo.run()
     >>> res.outputs.first_image
     'sub-01_run-01_echo-1_bold.nii.gz'
@@ -70,8 +72,8 @@ class FirstEcho(SimpleInterface):
     output_spec = FirstEchoOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['first_image'] = sorted(self.inputs.in_files)[0]
-        self._results['first_ref_image'] = sorted(self.inputs.ref_imgs)[0]
+        self._results['first_image'] = self.inputs.in_files[np.argmin(self.inputs.te_list)]
+        self._results['first_ref_image'] = self.inputs.ref_imgs[np.argmin(self.inputs.te_list)]
 
         return runtime
 

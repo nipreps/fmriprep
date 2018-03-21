@@ -82,15 +82,15 @@
             },
             {
                 "name": "epi/unwarp",
-                "file_pattern": "func/.*bold_variant-hmcsdc_preproc\\.",
+                "file_pattern": "func/.*bold_sdc_.*\\.",
                 "title": "Susceptibility distortion correction",
                 "description": "Results of performing susceptibility distortion correction (SDC) on the EPI"
             },
             {
                 "name": "epi/sdc_syn",
-                "file_pattern": "func/.*syn_sdc",
-                "title": "Susceptibility distortion correction (No fieldmaps)",
-                "description": "Results of performing SyN-based SDC on the EPI"
+                "file_pattern": "func/.*bold_forcedsyn",
+                "title": "Experimental fieldmap-less susceptibility distortion correction",
+                "description": "The dataset contained some fieldmap information, but the argument <code>--force-syn</code> was used. The higher-priority SDC method was used. Here, we show the results of performing SyN-based SDC on the EPI for comparison."
             },
             {
                 "name": "epi/rois",

@@ -32,7 +32,7 @@ from ...interfaces import (
 )
 
 
-def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
+def init_fmap_wf(omp_nthreads, fmap_bspline, name='fmap_wf'):
     """
     Fieldmap workflow - when we have a sequence that directly measures the fieldmap
     we just need to mask it (using the corresponding magnitude image) to remove the
@@ -43,8 +43,7 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.fieldmap.fmap import init_fmap_wf
-        wf = init_fmap_wf(reportlets_dir='.', omp_nthreads=6,
-                          fmap_bspline=False)
+        wf = init_fmap_wf(omp_nthreads=6, fmap_bspline=False)
 
     """
 
@@ -65,9 +64,8 @@ def init_fmap_wf(reportlets_dir, omp_nthreads, fmap_bspline, name='fmap_wf'):
                          name='n4_correct', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
-    ds_fmap_mask = pe.Node(DerivativesDataSink(
-        base_directory=reportlets_dir, suffix='fmap_mask'),
-        name='ds_fmap_mask', run_without_submitting=True)
+    ds_fmap_mask = pe.Node(DerivativesDataSink(suffix='fmap_mask'),
+                           name='ds_report_fmap_mask', run_without_submitting=True)
 
     workflow.connect([
         (inputnode, magmrg, [('magnitude', 'in_files')]),

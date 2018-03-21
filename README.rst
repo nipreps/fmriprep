@@ -8,6 +8,10 @@ This pipeline is developed by the `Poldrack lab at Stanford University
 Neuroscience (CRN) <http://reproducibility.stanford.edu/>`_, as well as for
 open-source software distribution.
 
+.. image:: http://bids.neuroimaging.io/openneuro_badge.svg
+  :target: https://openneuro.org
+  :alt: Available in OpenNeuro!
+
 .. image:: https://circleci.com/gh/poldracklab/fmriprep/tree/master.svg?style=shield
   :target: https://circleci.com/gh/poldracklab/fmriprep/tree/master
 

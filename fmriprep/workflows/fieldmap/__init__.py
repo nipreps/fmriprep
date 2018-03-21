@@ -43,7 +43,7 @@ Fieldmap estimation and unwarping workflows
 
 """
 
-from .base import init_fmap_estimator_wf
+from .base import init_sdc_wf
 from .unwarp import init_sdc_unwarp_wf, init_fmap_unwarp_report_wf
 from .pepolar import init_pepolar_unwarp_wf
-from .syn import init_nonlinear_sdc_wf
+from .syn import init_syn_sdc_wf

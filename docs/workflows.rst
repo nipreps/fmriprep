@@ -366,6 +366,7 @@ to ref:`register the BOLD series to the T1w image of the same subject <bold_reg>
 
 Susceptibility Distortion Correction (SDC)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:mod:`fmriprep.workflows.fieldmap.base.init_sdc_wf`
 
 .. figure:: _static/unwarping.svg
     :scale: 100%

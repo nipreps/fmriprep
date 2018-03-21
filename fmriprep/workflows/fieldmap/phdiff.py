@@ -31,7 +31,7 @@ from ...interfaces import (
 )
 
 
-def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
+def init_phdiff_wf(omp_nthreads, name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
     magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
@@ -43,7 +43,7 @@ def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.fieldmap.phdiff import init_phdiff_wf
-        wf = init_phdiff_wf(reportlets_dir='.', omp_nthreads=1)
+        wf = init_phdiff_wf(omp_nthreads=1)
 
 
     Outputs::
@@ -75,9 +75,8 @@ def init_phdiff_wf(reportlets_dir, omp_nthreads, name='phdiff_wf'):
                  name='n4', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
-    ds_fmap_mask = pe.Node(DerivativesDataSink(
-        base_directory=reportlets_dir, suffix='fmap_mask'), name='ds_fmap_mask',
-        mem_gb=0.01, run_without_submitting=True)
+    ds_fmap_mask = pe.Node(DerivativesDataSink(suffix='fmap_mask'), name='ds_report_fmap_mask',
+                           mem_gb=0.01, run_without_submitting=True)
     # uses mask from bet; outputs a mask
     # dilate = pe.Node(fsl.maths.MathsCommand(
     #     nan2zeros=True, args='-kernel sphere 5 -dilM'), name='MskDilate')

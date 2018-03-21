@@ -141,9 +141,8 @@ class SubjectSummary(SummaryInterface):
 class FunctionalSummaryInputSpec(BaseInterfaceInputSpec):
     slice_timing = traits.Enum(False, True, 'TooShort', usedefault=True,
                                desc='Slice timing correction used')
-    distortion_correction = traits.Enum('epi', 'fieldmap', 'phasediff', 'SyN', 'None',
-                                        desc='Susceptibility distortion correction method',
-                                        mandatory=True)
+    distortion_correction = traits.Str(desc='Susceptibility distortion correction method',
+                                       mandatory=True)
     pe_direction = traits.Enum(None, 'i', 'i-', 'j', 'j-', mandatory=True,
                                desc='Phase-encoding direction detected')
     registration = traits.Enum('FSL', 'FreeSurfer', mandatory=True,
@@ -163,11 +162,6 @@ class FunctionalSummary(SummaryInterface):
         stc = {True: 'Applied',
                False: 'Not applied',
                'TooShort': 'Skipped (too few volumes)'}[self.inputs.slice_timing]
-        sdc = {'epi': 'Phase-encoding polarity (pepolar)',
-               'fieldmap': 'Direct fieldmapping',
-               'phasediff': 'Phase difference',
-               'SyN': 'Symmetric normalization (SyN) - no fieldmaps',
-               'None': 'None'}[self.inputs.distortion_correction]
         reg = {'FSL': [
                    'FLIRT with boundary-based registration (BBR) metric - %d dof' % dof,
                    'FLIRT rigid registration - 6 dof'],
@@ -183,9 +177,10 @@ class FunctionalSummary(SummaryInterface):
         if isdefined(self.inputs.confounds_file):
             with open(self.inputs.confounds_file) as cfh:
                 conflist = cfh.readline().strip('\n').strip()
-        return FUNCTIONAL_TEMPLATE.format(pedir=pedir, stc=stc, sdc=sdc, registration=reg,
-                                          output_spaces=', '.join(self.inputs.output_spaces),
-                                          confounds=re.sub(r'[\t ]+', ', ', conflist))
+        return FUNCTIONAL_TEMPLATE.format(
+            pedir=pedir, stc=stc, sdc=self.inputs.distortion_correction, registration=reg,
+            output_spaces=', '.join(self.inputs.output_spaces),
+            confounds=re.sub(r'[\t ]+', ', ', conflist))
 
 
 class AboutSummaryInputSpec(BaseInterfaceInputSpec):

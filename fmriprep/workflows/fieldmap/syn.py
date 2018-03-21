@@ -28,20 +28,17 @@ import pkg_resources as pkgr
 from niworkflows.nipype import logging
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import fsl, utility as niu
-from niworkflows.interfaces import SimpleBeforeAfter
 from niworkflows.interfaces.fixes import (FixHeaderApplyTransforms as ApplyTransforms,
                                           FixHeaderRegistration as Registration)
 from ...interfaces import InvertT1w
-from ...interfaces.images import extract_wm
 from ..bold.util import init_skullstrip_bold_wf
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('workflow')
 
 
-def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
-                          template, omp_nthreads, bold_pe='j',
-                          atlas_threshold=3, name='nonlinear_sdc_wf'):
+def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
+                    atlas_threshold=3, name='syn_sdc_wf'):
     """
     This workflow takes a skull-stripped T1w image and reference BOLD image and
     estimates a susceptibility distortion correction warp, using ANTs symmetric
@@ -61,30 +58,30 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
         :graph2use: orig
         :simple_form: yes
 
-        from fmriprep.workflows.fieldmap.syn import init_nonlinear_sdc_wf
-        wf = init_nonlinear_sdc_wf(
-            bold_file='/dataset/sub-01/func/sub-01_task-rest_bold.nii.gz',
+        from fmriprep.workflows.fieldmap.syn import init_syn_sdc_wf
+        wf = init_syn_sdc_wf(
             bold_pe='j',
-            freesurfer=True,
-            bold2t1w_dof=9,
-            template='MNI152NLin2009cAsym',
             omp_nthreads=8)
 
     **Inputs**
 
+        bold_ref
+            reference image
+        bold_ref_brain
+            skull-stripped reference image
+        template : str
+            Name of template targeted by `'template'` output space
         t1_brain
             skull-stripped, bias-corrected structural image
-        bold_ref
-            skull-stripped reference image
-        t1_seg
-            FAST segmentation white and gray matter, in native T1w space
         t1_2_mni_reverse_transform
             inverse registration transform of T1w image to MNI template
 
     **Outputs**
 
-        out_reference_brain
+        out_reference
             the ``bold_ref`` image after unwarping
+        out_reference_brain
+            the ``bold_ref_brain`` image after unwarping
         out_warp
             the corresponding :abbr:`DFM (displacements field map)` compatible with
             ANTs
@@ -94,22 +91,21 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
     """
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
-        niu.IdentityInterface(['t1_brain', 'bold_ref', 't1_2_mni_reverse_transform',
-                               't1_seg']),
+        niu.IdentityInterface(['bold_ref', 'bold_ref_brain', 'template',
+                               't1_brain', 't1_2_mni_reverse_transform']),
         name='inputnode')
     outputnode = pe.Node(
-        niu.IdentityInterface(['out_reference_brain', 'out_mask', 'out_warp', 'out_warp_report']),
+        niu.IdentityInterface(['out_reference', 'out_reference_brain',
+                               'out_mask', 'out_warp']),
         name='outputnode')
 
     if bold_pe is None or bold_pe[0] not in ['i', 'j']:
-        LOGGER.warning('Incorrect phase-encoding direction, assuming PA (posterior-to-anterior')
+        LOGGER.warning('Incorrect phase-encoding direction, assuming PA (posterior-to-anterior).')
         bold_pe = 'j'
 
     # Collect predefined data
     # Atlas image and registration affine
     atlas_img = pkgr.resource_filename('fmriprep', 'data/fmap_atlas.nii.gz')
-    atlas_2_template_affine = pkgr.resource_filename(
-        'fmriprep', 'data/fmap_atlas_2_{}_affine.mat'.format(template))
     # Registration specifications
     affine_transform = pkgr.resource_filename('fmriprep', 'data/affine.json')
     syn_transform = pkgr.resource_filename('fmriprep', 'data/susceptibility_syn.json')
@@ -125,7 +121,6 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
     # 1) BOLD -> T1; 2) MNI -> T1; 3) ATLAS -> MNI
     transform_list = pe.Node(niu.Merge(3), name='transform_list',
                              mem_gb=DEFAULT_MEMORY_MIN_GB)
-    transform_list.inputs.in3 = atlas_2_template_affine
 
     # Inverting (1), then applying in reverse order:
     #
@@ -150,46 +145,47 @@ def init_nonlinear_sdc_wf(bold_file, freesurfer, bold2t1w_dof,
         Registration(from_file=syn_transform, restrict_deformation=restrict),
         name='syn', n_procs=omp_nthreads)
 
-    seg_2_ref = pe.Node(
-        ApplyTransforms(interpolation='NearestNeighbor', float=True,
-                        invert_transform_flags=[True]),
-        name='seg_2_ref', n_procs=omp_nthreads, mem_gb=0.3)
-    sel_wm = pe.Node(niu.Function(function=extract_wm), name='sel_wm',
-                     mem_gb=DEFAULT_MEMORY_MIN_GB)
-    syn_rpt = pe.Node(SimpleBeforeAfter(), name='syn_rpt',
-                      mem_gb=0.1)
+    unwarp_ref = pe.Node(ApplyTransforms(
+        dimension=3, float=True, interpolation='LanczosWindowedSinc'),
+        name='unwarp_ref')
 
     skullstrip_bold_wf = init_skullstrip_bold_wf()
 
     workflow.connect([
         (inputnode, invert_t1w, [('t1_brain', 'in_file'),
                                  ('bold_ref', 'ref_file')]),
-        (inputnode, ref_2_t1, [('bold_ref', 'moving_image')]),
+        (inputnode, ref_2_t1, [('bold_ref_brain', 'moving_image')]),
         (invert_t1w, ref_2_t1, [('out_file', 'fixed_image')]),
         (inputnode, t1_2_ref, [('bold_ref', 'reference_image')]),
         (invert_t1w, t1_2_ref, [('out_file', 'input_image')]),
         (ref_2_t1, t1_2_ref, [('forward_transforms', 'transforms')]),
         (ref_2_t1, transform_list, [('forward_transforms', 'in1')]),
-        (inputnode, transform_list, [('t1_2_mni_reverse_transform', 'in2')]),
+        (inputnode, transform_list, [
+            ('t1_2_mni_reverse_transform', 'in2'),
+            (('template', _prior_path), 'in3')]),
         (inputnode, atlas_2_ref, [('bold_ref', 'reference_image')]),
         (transform_list, atlas_2_ref, [('out', 'transforms')]),
         (atlas_2_ref, threshold_atlas, [('output_image', 'in_file')]),
         (threshold_atlas, fixed_image_masks, [('out_file', 'in2')]),
-        (inputnode, syn, [('bold_ref', 'moving_image')]),
+        (inputnode, syn, [('bold_ref_brain', 'moving_image')]),
         (t1_2_ref, syn, [('output_image', 'fixed_image')]),
         (fixed_image_masks, syn, [('out', 'fixed_image_masks')]),
-        (inputnode, seg_2_ref, [('t1_seg', 'input_image')]),
-        (ref_2_t1, seg_2_ref, [('forward_transforms', 'transforms')]),
-        (syn, seg_2_ref, [('warped_image', 'reference_image')]),
-        (seg_2_ref, sel_wm, [('output_image', 'in_seg')]),
-        (inputnode, syn_rpt, [('bold_ref', 'before')]),
-        (syn, syn_rpt, [('warped_image', 'after')]),
-        (sel_wm, syn_rpt, [('out', 'wm_seg')]),
-        (syn, skullstrip_bold_wf, [('warped_image', 'inputnode.in_file')]),
         (syn, outputnode, [('forward_transforms', 'out_warp')]),
+        (syn, unwarp_ref, [('forward_transforms', 'transforms')]),
+        (inputnode, unwarp_ref, [('bold_ref', 'reference_image'),
+                                 ('bold_ref', 'input_image')]),
+        (unwarp_ref, skullstrip_bold_wf, [
+            ('output_image', 'inputnode.in_file')]),
+        (unwarp_ref, outputnode, [('output_image', 'out_reference')]),
         (skullstrip_bold_wf, outputnode, [
             ('outputnode.skull_stripped_file', 'out_reference_brain'),
             ('outputnode.mask_file', 'out_mask')]),
-        (syn_rpt, outputnode, [('out_report', 'out_warp_report')])])
+    ])
 
     return workflow
+
+
+def _prior_path(template):
+    from pkg_resources import resource_filename
+    return resource_filename(
+        'fmriprep', 'data/fmap_atlas_2_{}_affine.mat'.format(template))
