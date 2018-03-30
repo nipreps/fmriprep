@@ -101,3 +101,5 @@ For more details, please see :ref:`citation`.
 .. image:: https://badges.gitter.im/poldracklab/fmriprep.svg
    :alt: Join the chat at https://gitter.im/poldracklab/fmriprep
    :target: https://gitter.im/poldracklab/fmriprep?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
+
