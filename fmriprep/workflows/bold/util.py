@@ -138,20 +138,22 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
 
     Steps of this workflow are:
 
-
-      1. Calculate a conservative mask using Nilearn's ``create_epi_mask``.
-      2. Run ANTs' ``N4BiasFieldCorrection`` on the input
+      1. Calculate a loose mask using FSL's ``bet``.
+      2. Run ANTs' ``N4BiasFieldCorrection`` on the input use mask generated in 1).
+      3. Calculate a conservative mask using Nilearn's ``create_epi_mask`` on corrected image
+         from 2).
+      4. Run ANTs' ``N4BiasFieldCorrection`` on the input
          :abbr:`BOLD (blood-oxygen level-dependant)` average, using the
-         mask generated in 1) instead of the internal Otsu thresholding.
-      3. Calculate a loose mask using FSL's ``bet``, with one mathematical morphology
+         mask generated in 3) instead of the internal Otsu thresholding.
+      5. Calculate a loose mask using FSL's ``bet``, with one mathematical morphology
          dilation of one iteration and a sphere of 6mm as structuring element.
-      4. Mask the :abbr:`INU (intensity non-uniformity)`-corrected image
+      6. Mask the :abbr:`INU (intensity non-uniformity)`-corrected image
          with the latest mask calculated in 3), then use AFNI's ``3dUnifize``
          to *standardize* the T2* contrast distribution.
-      5. Calculate a mask using AFNI's ``3dAutomask`` after the contrast
+      7. Calculate a mask using AFNI's ``3dAutomask`` after the contrast
          enhancement of 4).
-      6. Calculate a final mask as the intersection of 3) and 5).
-      7. Apply final mask on the enhanced reference.
+      8. Calculate a final mask as the intersection of 3) and 5).
+      9. Apply final mask on the enhanced reference.
 
 
 
@@ -197,8 +199,16 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
     outputnode = pe.Node(niu.IdentityInterface(fields=[
         'mask_file', 'skull_stripped_file', 'bias_corrected_file']), name='outputnode')
 
+    # Create a loose mask for initial non-uniformaity correction
+    init_mask = pe.Node(fsl.BET(frac=0.2, mask=True, robust=True),
+                        name='init_mask')
+
+    # Create a more uniformed image for later finer correction
+    init_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
+                           name='init_correct', n_procs=1)
+
     # Create a loose mask to avoid N4 internal's Otsu mask
-    n4_mask = pe.Node(MaskEPI(upper_cutoff=0.75, enhance_t2=enhance_t2, opening=1,
+    n4_mask = pe.Node(MaskEPI(upper_cutoff=0.70, enhance_t2=enhance_t2, opening=2,
                       no_sanitize=True), name='n4_mask')
 
     # Run N4 normally, force num_threads=1 for stability (images are small, no need for >1)
@@ -206,7 +216,7 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
                          name='n4_correct', n_procs=1)
 
     # Create a generous BET mask out of the bias-corrected EPI
-    skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
+    skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True, robust=True),
                                     name='skullstrip_first_pass')
     bet_dilate = pe.Node(fsl.DilateImage(
         operation='max', kernel_shape='sphere', kernel_size=6.0,
@@ -236,15 +246,18 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
     apply_mask = pe.Node(fsl.ApplyMask(), name='apply_mask')
 
     workflow.connect([
-        (inputnode, n4_mask, [('in_file', 'in_files')]),
+        (inputnode, init_mask, [('in_file', 'in_file')]),
+        (inputnode, init_correct, [('in_file', 'input_image')]),
         (inputnode, n4_correct, [('in_file', 'input_image')]),
         (inputnode, fixhdr_unifize, [('in_file', 'hdr_file')]),
         (inputnode, fixhdr_skullstrip2, [('in_file', 'hdr_file')]),
+        (init_mask, init_correct, [('mask_file', 'mask_image')]),
+        (init_correct, n4_mask, [('output_image', 'in_files')]),
         (n4_mask, n4_correct, [('out_mask', 'mask_image')]),
         (n4_correct, skullstrip_first_pass, [('output_image', 'in_file')]),
         (skullstrip_first_pass, bet_dilate, [('mask_file', 'in_file')]),
         (bet_dilate, bet_mask, [('out_file', 'mask_file')]),
-        (skullstrip_first_pass, bet_mask, [('out_file', 'in_file')]),
+        (n4_correct, bet_mask, [('output_image', 'in_file')]),
         (bet_mask, unifize, [('out_file', 'in_file')]),
         (unifize, fixhdr_unifize, [('out_file', 'in_file')]),
         (fixhdr_unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
