@@ -1,2 +1,2 @@
-niworkflows>=0.3.4
+niworkflows>=0.3.7
 versioneer

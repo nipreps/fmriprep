@@ -177,6 +177,13 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
             omp_nthreads=omp_nthreads,
             name='pepolar_unwarp_wf')
 
+        workflow.connect([
+            (inputnode, sdc_unwarp_wf, [
+                ('bold_ref', 'inputnode.in_reference'),
+                ('bold_mask', 'inputnode.in_mask'),
+                ('bold_ref_brain', 'inputnode.in_reference_brain')]),
+        ])
+
     # FIELDMAP path
     if fmap['type'] in ['fieldmap', 'phasediff']:
         outputnode.inputs.method = 'FMB (%s-based)' % fmap['type']

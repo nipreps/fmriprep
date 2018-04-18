@@ -35,7 +35,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                      omp_nthreads, skull_strip_template, work_dir, output_dir, bids_dir,
                      freesurfer, output_spaces, template, medial_surface_nan, hires,
                      use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                     use_aroma, ignore_aroma_err, output_grid_ref):
+                     use_aroma, ignore_aroma_err, template_out_grid):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
     each subject.
@@ -78,7 +78,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               force_syn=True,
                               use_aroma=False,
                               ignore_aroma_err=False,
-                              output_grid_ref=None)
+                              template_out_grid='native')
 
 
     Parameters
@@ -148,8 +148,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
-        output_grid_ref : str or None
-            Path of custom reference image for normalization
+        template_out_grid : str
+            Keyword ('native', '1mm' or '2mm') or path of custom reference
+            image for normalization
 
     """
     fmriprep_wf = pe.Workflow(name='fmriprep_wf')
@@ -190,7 +191,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    fmap_demean=fmap_demean,
                                                    use_syn=use_syn,
                                                    force_syn=force_syn,
-                                                   output_grid_ref=output_grid_ref,
+                                                   template_out_grid=template_out_grid,
                                                    use_aroma=use_aroma,
                                                    ignore_aroma_err=ignore_aroma_err)
 
@@ -213,7 +214,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                            omp_nthreads, skull_strip_template, reportlets_dir, output_dir,
                            bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
                            hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn,
-                           force_syn, output_grid_ref, use_aroma, ignore_aroma_err):
+                           force_syn, template_out_grid, use_aroma, ignore_aroma_err):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -255,7 +256,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     fmap_demean=True,
                                     use_syn=True,
                                     force_syn=True,
-                                    output_grid_ref=None,
+                                    template_out_grid='native',
                                     use_aroma=False,
                                     ignore_aroma_err=False)
 
@@ -322,8 +323,9 @@ def init_single_subject_wf(subject_id, task_id, name,
             If fieldmaps are present and enabled, this is not run, by default.
         force_syn : bool
             **Temporary**: Always run SyN-based SDC
-        output_grid_ref : str or None
-            Path of custom reference image for normalization
+        template_out_grid : str
+            Keyword ('native', '1mm' or '2mm') or path of custom reference
+            image for normalization
         use_aroma : bool
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
@@ -405,7 +407,8 @@ def init_single_subject_wf(subject_id, task_id, name,
                             ('bold', 'bold')]),
         (bids_info, summary, [('subject_id', 'subject_id')]),
         (bidssrc, anat_preproc_wf, [('t1w', 'inputnode.t1w'),
-                                    ('t2w', 'inputnode.t2w')]),
+                                    ('t2w', 'inputnode.t2w'),
+                                    ('flair', 'inputnode.flair')]),
         (summary, anat_preproc_wf, [('subject_id', 'inputnode.subject_id')]),
         (bidssrc, ds_summary_report, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (summary, ds_summary_report, [('out_report', 'in_file')]),
@@ -436,7 +439,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                use_syn=use_syn,
                                                force_syn=force_syn,
                                                debug=debug,
-                                               output_grid_ref=output_grid_ref,
+                                               template_out_grid=template_out_grid,
                                                use_aroma=use_aroma,
                                                ignore_aroma_err=ignore_aroma_err)
 

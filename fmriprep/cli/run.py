@@ -132,8 +132,15 @@ def get_parser():
         choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
         help='volume template space (default: MNI152NLin2009cAsym)')
     g_conf.add_argument(
-        '--output-grid-reference', required=False, action='store', default=None,
-        help='Grid reference image for resampling BOLD files to volume template space. '
+        '--output-grid-reference', required=False, action='store',
+        help='Deprecated after FMRIPREP 1.0.8. Please use --template-resampling-grid instead.')
+    g_conf.add_argument(
+        '--template-resampling-grid', required=False, action='store', default='native',
+        help='Keyword ("native", "1mm", or "2mm") or path to an existing file. '
+             'Allows to define a reference grid for the resampling of BOLD images in template '
+             'space. Keyword "native" will use the original BOLD grid as reference. '
+             'Keywords "1mm" and "2mm" will use the corresponding isotropic template '
+             'resolutions. If a path is given, the grid of that image will be used. '
              'It determines the field of view and resolution of the output images, '
              'but is not used in normalization.')
     g_conf.add_argument(
@@ -416,6 +423,13 @@ def build_workflow(opts, retval):
         uuid=run_uuid)
     )
 
+    template_out_grid = opts.template_resampling_grid
+    if opts.output_grid_reference is not None:
+        logger.warning(
+            'Option --output-grid-reference is deprecated, please use '
+            '--template-resampling-grid')
+        template_out_grid = template_out_grid or opts.output_grid_reference
+
     retval['workflow'] = init_fmriprep_wf(
         subject_list=subject_list,
         task_id=opts.task_id,
@@ -435,7 +449,7 @@ def build_workflow(opts, retval):
         output_spaces=opts.output_space,
         template=opts.template,
         medial_surface_nan=opts.medial_surface_nan,
-        output_grid_ref=opts.output_grid_reference,
+        template_out_grid=template_out_grid,
         hires=opts.hires,
         use_bbr=opts.use_bbr,
         bold2t1w_dof=opts.bold2t1w_dof,

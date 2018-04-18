@@ -1,3 +1,32 @@
+1.0.11 (April 16, 2018)
+=======================
+
+* [FIX] Do not detrend CSF/WhiteMatter/GlobalSignal (#1058)
+
+1.0.10 (April 16, 2018)
+=======================
+
+* [TST] Re-run ds005 with only one BOLD run (#1048)
+* [FIX] Patch subject_summary in reports (#1047)
+
+1.0.9 (April 10, 2018)
+======================
+
+With thanks to @danlurie for contributions.
+
+* [FIX] Connect inputnode to SDC for pepolar images (#1046)
+* [FIX] Pass ``ref_file`` to STC check (#1038)
+* [DOC] Add BBR fallback to user docs. (#1036)
+* [ENH] Revise resampling grid for template outputs (#1040)
+* [MAINT] DataSinks within their workflows (#1021)
+* [ENH] Add FLAIR pial refinement support (#829)
+* [MAINT] Upgrade to pybids 0.5 (#1027)
+* [MAINT] Refactor fieldmap heuristics (#1017)
+* [FIX] Use metadata to select shortest echo as ref_file (#1018)
+* [ENH] Adopt versioneer to compose version names (#1007)
+* [ENH] Handle first echo separately for ME-EPI (#891)
+
+
 1.0.8 (February 22, 2018)
 =========================
 

@@ -159,6 +159,8 @@ def collect_data(dataset, participant_label, task=None):
                  'extensions': ['nii', 'nii.gz']},
         'sbref': {'subject': participant_label, 'modality': 'func', 'type': 'sbref',
                   'extensions': ['nii', 'nii.gz']},
+        'flair': {'subject': participant_label, 'type': 'FLAIR',
+                  'extensions': ['nii', 'nii.gz']},
         't2w': {'subject': participant_label, 'type': 'T2w',
                 'extensions': ['nii', 'nii.gz']},
         't1w': {'subject': participant_label, 'type': 'T1w',

@@ -22,8 +22,7 @@ fmriprep/sub-02/figures/sub-02_T1w_seg_brainmask.svg
 fmriprep/sub-02/figures/sub-02_T1w_t1_2_mni.svg
 fmriprep/sub-02/figures/sub-02_task-cuedSGT_run-01_echo-1_bold_flirt.svg
 fmriprep/sub-02/figures/sub-02_task-cuedSGT_run-01_echo-1_bold_rois.svg
-fmriprep/sub-02/figures/sub-02_task-cuedSGT_run-01_echo-2_bold_rois.svg
-fmriprep/sub-02/figures/sub-02_task-cuedSGT_run-01_echo-3_bold_rois.svg
+fmriprep/sub-02/figures/sub-02_task-cuedSGT_run-01_echo-1_bold_sdc_syn.svg
 fmriprep/sub-02/func
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-1_bold_confounds.tsv
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-1_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz

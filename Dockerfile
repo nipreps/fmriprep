@@ -59,7 +59,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     fsl-core=5.0.9-4~nd16.04+1 \
                     fsl-mni152-templates=5.0.7-2 \
-                    afni=16.2.07~dfsg.1-5~nd16.04+1
+                    afni=16.2.07~dfsg.1-5~nd16.04+1 \
+                    convert3d
 
 ENV FSLDIR=/usr/share/fsl/5.0 \
     FSLOUTPUTTYPE=NIFTI_GZ \
@@ -80,14 +81,6 @@ RUN mkdir -p $ANTSPATH && \
     curl -sSL "https://dl.dropbox.com/s/2f4sui1z6lcgyek/ANTs-Linux-centos5_x86_64-v2.2.0-0740f91.tar.gz" \
     | tar -xzC $ANTSPATH --strip-components 1
 ENV PATH=$ANTSPATH:$PATH
-
-# Installing and setting up c3d
-RUN mkdir -p /opt/c3d && \
-    curl -sSL "http://downloads.sourceforge.net/project/c3d/c3d/1.0.0/c3d-1.0.0-Linux-x86_64.tar.gz" \
-    | tar -xzC /opt/c3d --strip-components 1
-
-ENV C3DPATH /opt/c3d/
-ENV PATH $C3DPATH/bin:$PATH
 
 # Installing WEBP tools
 RUN curl -sSLO "http://downloads.webmproject.org/releases/webp/libwebp-0.5.2-linux-x86-64.tar.gz" && \

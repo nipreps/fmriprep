@@ -21,7 +21,7 @@ from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICore
 from niworkflows.interfaces.utils import GenerateSamplingReference
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
-from ...interfaces import MultiApplyTransforms
+from ...interfaces import MultiApplyTransforms, DerivativesDataSink
 
 from ...interfaces.nilearn import Merge
 from ...interfaces.images import extract_wm
@@ -34,7 +34,7 @@ DEFAULT_MEMORY_MIN_GB = 0.01
 
 def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
                      name='bold_reg_wf', use_compression=True,
-                     use_fieldwarp=False):
+                     use_fieldwarp=False, write_report=True):
     """
     This workflow registers the reference BOLD image to T1-space, using a
     boundary-based registration (BBR) cost function.
@@ -75,6 +75,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             Save registered BOLD series as ``.nii.gz``
         use_fieldwarp : bool
             Include SDC warp in single-shot transform from BOLD to T1
+        write_report : bool
+            Whether a reportlet should be stored
 
     **Inputs**
 
@@ -130,8 +132,6 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         bold_aparc_t1
             FreeSurfer's ``aparc+aseg.mgz`` atlas, in T1w-space at the BOLD resolution
             (only if ``recon-all`` was run).
-        out_report
-            Reportlet visualizing quality of registration
         fallback
             Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
@@ -151,9 +151,10 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
                     'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform', 'fieldwarp']),
         name='inputnode'
     )
+
     outputnode = pe.Node(
         niu.IdentityInterface(fields=[
-            'itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback',
+            'itk_bold_to_t1', 'itk_t1_to_bold', 'fallback',
             'bold_t1', 'bold_mask_t1', 'bold_aseg_t1', 'bold_aparc_t1']),
         name='outputnode'
     )
@@ -174,7 +175,6 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             ('t1_brain', 'inputnode.t1_brain')]),
         (bbr_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
                               ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
-                              ('outputnode.out_report', 'out_report'),
                               ('outputnode.fallback', 'fallback')]),
     ])
 
@@ -242,6 +242,23 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         (gen_ref, bold_to_t1w_transform, [('out_file', 'reference_image')]),
         (bold_to_t1w_transform, merge, [('out_files', 'in_files')]),
     ])
+
+    if write_report:
+        ds_report_reg = pe.Node(
+            DerivativesDataSink(),
+            name='ds_report_reg', run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+        def _bold_reg_suffix(fallback, freesurfer):
+            if fallback:
+                return 'coreg' if freesurfer else 'flirt'
+            return 'bbr' if freesurfer else 'flt_bbr'
+
+        workflow.connect([
+            (bbr_wf, ds_report_reg, [
+                ('outputnode.out_report', 'in_file'),
+                (('outputnode.fallback', _bold_reg_suffix, freesurfer), 'suffix')]),
+        ])
 
     return workflow
 

@@ -6,7 +6,6 @@ Orchestrating the BOLD-preprocessing workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: init_func_preproc_wf
-.. autofunction:: init_func_reports_wf
 .. autofunction:: init_func_derivatives_wf
 
 """
@@ -40,7 +39,6 @@ from .resampling import (
     init_bold_surf_wf,
     init_bold_mni_trans_wf,
     init_bold_preproc_trans_wf,
-    init_bold_preproc_report_wf,
 )
 from .util import init_bold_reference_wf
 
@@ -53,7 +51,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                          output_spaces, template, output_dir, omp_nthreads,
                          fmap_bspline, fmap_demean, use_syn, force_syn,
                          use_aroma, ignore_aroma_err, medial_surface_nan,
-                         debug, low_mem, output_grid_ref, layout=None):
+                         debug, low_mem, template_out_grid, layout=None):
     """
     This workflow controls the functional preprocessing stages of FMRIPREP.
 
@@ -80,7 +78,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   use_syn=True,
                                   force_syn=True,
                                   low_mem=False,
-                                  output_grid_ref=None,
+                                  template_out_grid='native',
                                   medial_surface_nan=False,
                                   use_aroma=False,
                                   ignore_aroma_err=False)
@@ -138,8 +136,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Enable debugging outputs
         low_mem : bool
             Write uncompressed .nii files in some cases to reduce memory usage
-        output_grid_ref : str or None
-            Path of custom reference image for normalization
+        template_out_grid : str
+            Keyword ('native', '1mm' or '2mm') or path of custom reference
+            image for normalization
         layout : BIDSLayout
             BIDSLayout structure to enable metadata retrieval
 
@@ -261,13 +260,19 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         # Short circuits: (True and True and (False or 'TooShort')) == 'TooShort'
         run_stc = ("SliceTiming" in metadata and
                    'slicetiming' not in ignore and
-                   (_get_series_len(bold_file) > 4 or "TooShort"))
+                   (_get_series_len(ref_file) > 4 or "TooShort"))
 
     # Use T2* as target for ME-EPI in co-registration
     if t2s_coreg and not multiecho:
         LOGGER.warning("No multiecho BOLD images found for T2* coregistration. "
                        "Using standard EPI-T1 coregistration.")
         t2s_coreg = False
+
+    # Switch stc off
+    if multiecho and run_stc is True:
+        LOGGER.warning('Slice-timing correction is not available for '
+                       'multiecho BOLD data (not implemented).')
+        run_stc = False
 
     # Build workflow
     workflow = pe.Workflow(name=wf_name)
@@ -298,12 +303,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                           pe_direction=metadata.get("PhaseEncodingDirection")),
         name='summary', mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
 
-    func_reports_wf = init_func_reports_wf(reportlets_dir=reportlets_dir,
-                                           freesurfer=freesurfer,
-                                           use_aroma=use_aroma,
-                                           use_syn=use_syn,
-                                           t2s_coreg=t2s_coreg)
-
     func_derivatives_wf = init_func_derivatives_wf(output_dir=output_dir,
                                                    output_spaces=output_spaces,
                                                    template=template,
@@ -311,7 +310,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                                    use_aroma=use_aroma)
 
     workflow.connect([
-        (inputnode, func_reports_wf, [('bold_file', 'inputnode.source_file')]),
         (inputnode, func_derivatives_wf, [('bold_file', 'inputnode.source_file')]),
         (outputnode, func_derivatives_wf, [
             ('bold_t1', 'inputnode.bold_t1'),
@@ -406,8 +404,10 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (boldbuffer, bold_split, [('bold_file', 'in_file')]),
         # Generate early reference
         (inputnode, bold_reference_wf, [('bold_file', 'inputnode.bold_file')]),
-        (bold_reference_wf, func_reports_wf, [
-            ('outputnode.validation_report', 'inputnode.validation_report')]),
+        # HMC
+        (bold_reference_wf, bold_hmc_wf, [
+            ('outputnode.raw_ref_image', 'inputnode.raw_ref_image'),
+            ('outputnode.bold_file', 'inputnode.bold_file')]),
         # EPI-T1 registration workflow
         (inputnode, bold_reg_wf, [
             ('bold_file', 'inputnode.name_source'),
@@ -423,10 +423,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform')]),
         (bold_split, bold_reg_wf, [('out_files', 'inputnode.bold_split')]),
         (bold_hmc_wf, bold_reg_wf, [('outputnode.xforms', 'inputnode.hmc_xforms')]),
-        (bold_reg_wf, func_reports_wf, [
-            ('outputnode.out_report', 'inputnode.bold_reg_report'),
-            ('outputnode.fallback', 'inputnode.bold_reg_fallback'),
-        ]),
         (bold_reg_wf, outputnode, [('outputnode.bold_t1', 'bold_t1'),
                                    ('outputnode.bold_aseg_t1', 'bold_aseg_t1'),
                                    ('outputnode.bold_aparc_t1', 'bold_aparc_t1')]),
@@ -454,8 +450,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.movpar_file', 'inputnode.movpar_file')]),
         (bold_reg_wf, bold_confounds_wf, [
             ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
-        (bold_confounds_wf, func_reports_wf, [
-            ('outputnode.rois_report', 'inputnode.bold_rois_report')]),
         (bold_confounds_wf, outputnode, [
             ('outputnode.confounds_file', 'confounds'),
         ]),
@@ -463,7 +457,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         (inputnode, bold_bold_trans_wf, [
             ('bold_file', 'inputnode.name_source')]),
         (bold_split, bold_bold_trans_wf, [
-            ('out_files', 'inputnode.bold_split')]),
+            ('out_files', 'inputnode.bold_file')]),
         (bold_hmc_wf, bold_bold_trans_wf, [
             ('outputnode.xforms', 'inputnode.hmc_xforms')]),
         (bold_bold_trans_wf, bold_confounds_wf, [
@@ -471,7 +465,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             ('outputnode.bold_mask', 'inputnode.bold_mask')]),
         # Summary
         (outputnode, summary, [('confounds', 'confounds_file')]),
-        (summary, func_reports_wf, [('out_report', 'inputnode.summary_report')]),
     ])
 
     if fmaps:
@@ -506,94 +499,45 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                     ('outputnode.syn_bold_ref', 'inputnode.in_post')]),
             ])
 
-    # Fill-in datasinks of reportlets seen so far
-    for node in workflow.list_node_names():
-        if node.split('.')[-1].startswith('ds_report'):
-            workflow.get_node(node).inputs.base_directory = reportlets_dir
-            workflow.get_node(node).inputs.source_file = bold_file
-
     # if multiecho data, select first echo for hmc correction
     if multiecho:
         inputnode.iterables = ('bold_file', bold_file)
 
-        me_first_echo = pe.JoinNode(interface=FirstEcho(te_list=tes),
-                                    joinfield=['in_files', 'ref_imgs'],
-                                    joinsource='inputnode',
-                                    name='me_first_echo')
+        me_first_echo = pe.Node(FirstEcho(
+            te_list=tes, in_files=bold_file, ref_imgs=bold_file),
+            name='me_first_echo')
+        # Replace reference with the echo selected with FirstEcho
+        workflow.disconnect([
+            (inputnode, bold_reference_wf, [
+                ('bold_file', 'inputnode.bold_file')]),
+        ])
         workflow.connect([
-            (bold_reference_wf, me_first_echo, [
-                ('outputnode.bold_file', 'in_files'),
-                ('outputnode.raw_ref_image', 'ref_imgs')]),
-            (me_first_echo, bold_hmc_wf, [
-                ('first_image', 'inputnode.bold_file'),
-                ('first_ref_image', 'inputnode.raw_ref_image')])
+            (me_first_echo, bold_reference_wf, [
+                ('first_image', 'inputnode.bold_file')])
         ])
 
         if t2s_coreg:
-            # use a joinNode to gather all preprocessed echos
-            join_split_echos = pe.JoinNode(niu.IdentityInterface(fields=['echo_files']),
-                                           joinsource='inputnode',
-                                           joinfield='echo_files',
-                                           name='join_split_echos')
-
             # create a T2* map
-            bold_t2s_wf = init_bold_t2s_wf(echo_times=tes,
-                                           name='bold_t2s_wf',
-                                           mem_gb=mem_gb['filesize'],
-                                           omp_nthreads=omp_nthreads)
+            bold_t2s_wf = init_bold_t2s_wf(bold_echos=bold_file,
+                                           echo_times=tes,
+                                           mem_gb=mem_gb['resampled'],
+                                           omp_nthreads=omp_nthreads,
+                                           name='bold_t2s_wf')
+            bold_t2s_wf.inputs.inputnode.name_source = ref_file
 
-            subset_reg_reports = pe.JoinNode(niu.Select(index=0),
-                                             name='subset_reg_reports',
-                                             joinsource=inputnode,
-                                             joinfield=['inlist'])
-
-            subset_reg_fallbacks = pe.JoinNode(niu.Select(index=0),
-                                               name='subset_reg_fallbacks',
-                                               joinsource=inputnode,
-                                               joinfield=['inlist'])
-
-            first_echo = pe.Node(niu.IdentityInterface(fields=['first_echo']),
-                                 name='first_echo')
-            first_echo.inputs.first_echo = ref_file
-
-            # remove duplicate registration reports
+            # Replace EPI-to-T1w registration inputs
             workflow.disconnect([
-                (bold_reg_wf, func_reports_wf, [
-                    ('outputnode.out_report', 'inputnode.bold_reg_report'),
-                    ('outputnode.fallback', 'inputnode.bold_reg_fallback')]),
                 (bold_sdc_wf, bold_reg_wf, [
-                    ('outputnode.out_warp', 'inputnode.fieldwarp'),
                     ('outputnode.bold_ref_brain', 'inputnode.ref_bold_brain'),
                     ('outputnode.bold_mask', 'inputnode.ref_bold_mask')]),
             ])
-
             workflow.connect([
-                (first_echo, func_reports_wf, [
-                    ('first_echo', 'inputnode.first_echo')]),
-                (bold_split, join_split_echos, [
-                    ('out_files', 'echo_files')]),
-                (join_split_echos, bold_t2s_wf, [
-                    ('echo_files', 'inputnode.echo_split')]),
                 (bold_hmc_wf, bold_t2s_wf, [
                     ('outputnode.xforms', 'inputnode.hmc_xforms')]),
                 (bold_t2s_wf, bold_reg_wf, [
                     ('outputnode.t2s_map', 'inputnode.ref_bold_brain'),
                     ('outputnode.oc_mask', 'inputnode.ref_bold_mask')]),
-                (bold_reg_wf, subset_reg_reports, [
-                    ('outputnode.out_report', 'inlist')]),
-                (bold_reg_wf, subset_reg_fallbacks, [
-                    ('outputnode.fallback', 'inlist')]),
-                (subset_reg_reports, func_reports_wf, [
-                    ('out', 'inputnode.bold_reg_report')]),
-                (subset_reg_fallbacks, func_reports_wf, [
-                    ('out', 'inputnode.bold_reg_fallback')]),
             ])
-    else:
-        workflow.connect([
-            (bold_reference_wf, bold_hmc_wf, [
-                ('outputnode.raw_ref_image', 'inputnode.raw_ref_image'),
-                ('outputnode.bold_file', 'inputnode.bold_file')])
-        ])
 
     # Map final BOLD mask into T1w space (if required)
     if 'T1w' in output_spaces:
@@ -622,7 +566,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             template=template,
             mem_gb=mem_gb['resampled'],
             omp_nthreads=omp_nthreads,
-            output_grid_ref=output_grid_ref,
+            template_out_grid=template_out_grid,
             use_compression=not (low_mem and use_aroma),
             use_fieldwarp=fmaps is not None,
             name='bold_mni_trans_wf'
@@ -684,8 +628,6 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                      ('outputnode.melodic_mix', 'melodic_mix'),
                      ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')]),
                 (join, outputnode, [('out_file', 'confounds')]),
-                (ica_aroma_wf, func_reports_wf, [
-                    ('outputnode.out_report', 'inputnode.ica_aroma_report')]),
             ])
 
     # SURFACES ##################################################################################
@@ -706,89 +648,28 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         ])
 
     # REPORTING ############################################################
-    bold_bold_report_wf = init_bold_preproc_report_wf(
-        mem_gb=mem_gb['resampled'],
-        reportlets_dir=reportlets_dir
-    )
-
-    workflow.connect([
-        (inputnode, bold_bold_report_wf, [
-            ('bold_file', 'inputnode.name_source'),
-            ('bold_file', 'inputnode.in_pre')]),  # This should be after STC
-        (bold_bold_trans_wf, bold_bold_report_wf, [
-            ('outputnode.bold', 'inputnode.in_post')]),
-    ])
-
-    return workflow
-
-
-def init_func_reports_wf(reportlets_dir, freesurfer, use_aroma,
-                         use_syn, t2s_coreg, name='func_reports_wf'):
-    """
-    Set up a battery of datasinks to store reports in the right location
-    """
-    workflow = pe.Workflow(name=name)
-
-    inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['source_file', 'summary_report', 'validation_report',
-                    'bold_reg_report', 'bold_reg_fallback', 'bold_rois_report',
-                    'syn_sdc_report', 'ica_aroma_report', 'first_echo']),
-        name='inputnode')
-
-    ds_summary_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='summary'),
-        name='ds_summary_report', run_without_submitting=True,
+    ds_report_summary = pe.Node(
+        DerivativesDataSink(suffix='summary'),
+        name='ds_report_summary', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    ds_validation_report = pe.Node(
+    ds_report_validation = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir,
                             suffix='validation'),
-        name='ds_validation_report', run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    ds_bold_rois_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='rois'),
-        name='ds_bold_rois_report', run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    def _bold_reg_suffix(fallback, freesurfer):
-        if fallback:
-            return 'coreg' if freesurfer else 'flirt'
-        return 'bbr' if freesurfer else 'flt_bbr'
-
-    ds_bold_reg_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir),
-        name='ds_bold_reg_report', run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    ds_ica_aroma_report = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='ica_aroma'),
-        name='ds_ica_aroma_report', run_without_submitting=True,
+        name='ds_report_validation', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     workflow.connect([
-        (inputnode, ds_bold_reg_report, [
-            ('first_echo' if t2s_coreg else 'source_file', 'source_file')]),
-        (inputnode, ds_summary_report, [('source_file', 'source_file'),
-                                        ('summary_report', 'in_file')]),
-        (inputnode, ds_validation_report, [('source_file', 'source_file'),
-                                           ('validation_report', 'in_file')]),
-        (inputnode, ds_bold_rois_report, [('source_file', 'source_file'),
-                                          ('bold_rois_report', 'in_file')]),
-        (inputnode, ds_bold_reg_report, [
-            ('bold_reg_report', 'in_file'),
-            (('bold_reg_fallback', _bold_reg_suffix, freesurfer), 'suffix')]),
+        (summary, ds_report_summary, [('out_report', 'in_file')]),
+        (bold_reference_wf, ds_report_validation, [
+            ('outputnode.validation_report', 'in_file')]),
     ])
 
-    if use_aroma:
-        workflow.connect([
-            (inputnode, ds_ica_aroma_report, [('source_file', 'source_file'),
-                                              ('ica_aroma_report', 'in_file')]),
-        ])
+    # Fill-in datasinks of reportlets seen so far
+    for node in workflow.list_node_names():
+        if node.split('.')[-1].startswith('ds_report'):
+            workflow.get_node(node).inputs.base_directory = reportlets_dir
+            workflow.get_node(node).inputs.source_file = ref_file
 
     return workflow
 
@@ -917,8 +798,6 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
 def _get_series_len(bold_fname):
     from niworkflows.interfaces.registration import _get_vols_to_discard
-    if isinstance(bold_fname, list):  # Multi-echo data
-        bold_fname = bold_fname[0]
     img = nb.load(bold_fname)
     if len(img.shape) < 4:
         return 1

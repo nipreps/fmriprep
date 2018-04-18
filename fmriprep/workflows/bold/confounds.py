@@ -19,12 +19,15 @@ from niworkflows.interfaces.masks import ROIsPlot
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
 from ...interfaces import (
-    TPM2ROI, AddTPMs, AddTSVHeader, GatherConfounds, ICAConfounds
+    TPM2ROI, AddTPMs, AddTSVHeader, GatherConfounds, ICAConfounds,
+    DerivativesDataSink
 )
 from ...interfaces.patches import (
     RobustACompCor as ACompCor,
     RobustTCompCor as TCompCor
 )
+
+DEFAULT_MEMORY_MIN_GB = 0.01
 
 
 def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
@@ -105,7 +108,7 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
                 't1_bold_xform']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['confounds_file', 'rois_report']),
+        fields=['confounds_file']),
         name='outputnode')
 
     # Get masks ready in T1w space
@@ -159,9 +162,8 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
 
     # Global and segment regressors
     mrg_lbl = pe.Node(niu.Merge(3), name='merge_rois', run_without_submitting=True)
-    signals = pe.Node(SignalExtraction(
-        detrend=True, class_labels=["CSF", "WhiteMatter", "GlobalSignal"]),
-        name="signals", mem_gb=mem_gb)
+    signals = pe.Node(SignalExtraction(class_labels=["CSF", "WhiteMatter", "GlobalSignal"]),
+                      name="signals", mem_gb=mem_gb)
 
     # Arrange confounds
     add_header = pe.Node(AddTSVHeader(columns=["X", "Y", "Z", "RotX", "RotY", "RotZ"]),
@@ -172,6 +174,11 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
     mrg_compcor = pe.Node(niu.Merge(2), name='merge_compcor', run_without_submitting=True)
     rois_plot = pe.Node(ROIsPlot(compress_report=True, colors=['r', 'b', 'magenta'],
                         generate_report=True), name='rois_plot')
+
+    ds_report_bold_rois = pe.Node(
+        DerivativesDataSink(suffix='rois'),
+        name='ds_report_bold_rois', run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     def _pick_csf(files):
         return files[0]
@@ -253,7 +260,7 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
         (tcompcor, mrg_compcor, [('high_variance_masks', 'in1')]),
         (acc_msk, mrg_compcor, [('out', 'in2')]),
         (mrg_compcor, rois_plot, [('out', 'in_rois')]),
-        (rois_plot, outputnode, [('out_report', 'rois_report')]),
+        (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
     ])
 
     return workflow
@@ -309,8 +316,6 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
             FSL MELODIC mixing matrix
         nonaggr_denoised_file
             BOLD series with non-aggressive ICA-AROMA denoising applied
-        out_report
-            Reportlet visualizing MELODIC ICs, with ICA-AROMA signal/noise labels
 
     .. _ICA-AROMA: https://github.com/rhr-pruim/ICA-AROMA
     '''
@@ -320,16 +325,15 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
         fields=['bold_mni', 'movpar_file', 'bold_mask_mni']), name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(
-        fields=['aroma_confounds', 'out_report',
-                'aroma_noise_ics', 'melodic_mix',
+        fields=['aroma_confounds', 'aroma_noise_ics', 'melodic_mix',
                 'nonaggr_denoised_file']), name='outputnode')
 
     calc_median_val = pe.Node(fsl.ImageStats(op_string='-k %s -p 50'), name='calc_median_val')
     calc_bold_mean = pe.Node(fsl.MeanImage(), name='calc_bold_mean')
 
-    def getusans_func(image, thresh):
+    def _getusans_func(image, thresh):
         return [tuple([image, thresh])]
-    getusans = pe.Node(niu.Function(function=getusans_func, output_names=['usans']),
+    getusans = pe.Node(niu.Function(function=_getusans_func, output_names=['usans']),
                        name='getusans', mem_gb=0.01)
 
     smooth = pe.Node(fsl.SUSAN(fwhm=6.0), name='smooth')
@@ -344,6 +348,11 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
     # extract the confound ICs from the results
     ica_aroma_confound_extraction = pe.Node(ICAConfounds(ignore_aroma_err=ignore_aroma_err),
                                             name='ica_aroma_confound_extraction')
+
+    ds_report_ica_aroma = pe.Node(
+        DerivativesDataSink(suffix='ica_aroma'),
+        name='ds_report_ica_aroma', run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     def _getbtthresh(medianval):
         return 0.75 * medianval
@@ -374,8 +383,8 @@ def init_ica_aroma_wf(name='ica_aroma_wf', ignore_aroma_err=False):
                                                      ('aroma_noise_ics', 'aroma_noise_ics'),
                                                      ('melodic_mix', 'melodic_mix')]),
         # TODO change melodic report to reflect noise and non-noise components
-        (ica_aroma, outputnode, [('out_report', 'out_report'),
-                                 ('nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+        (ica_aroma, outputnode, [('nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+        (ica_aroma, ds_report_ica_aroma, [('out_report', 'in_file')]),
     ])
 
     return workflow

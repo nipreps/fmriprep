@@ -12,9 +12,8 @@ from niworkflows.nipype import logging
 from niworkflows.nipype.pipeline import engine as pe
 from niworkflows.nipype.interfaces import utility as niu
 
-from ...interfaces.nilearn import Merge
 from ...interfaces.multiecho import (T2SMap, MaskT2SMap)
-from ...interfaces import MultiApplyTransforms
+from .resampling import init_bold_preproc_trans_wf
 
 from .util import init_skullstrip_bold_wf
 
@@ -23,7 +22,10 @@ LOGGER = logging.getLogger('workflow')
 
 
 # pylint: disable=R0914
-def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
+def init_bold_t2s_wf(bold_echos, echo_times, mem_gb, omp_nthreads,
+                     name='bold_t2s_wf',
+                     use_compression=True,
+                     use_fieldwarp=False):
     """
     This workflow performs :abbr:`HMC (head motion correction)`
     on individual echo_files, uses T2SMap to generate a T2* image
@@ -34,12 +36,16 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
         :simple_form: yes
 
         from fmriprep.workflows.bold import init_bold_t2s_wf
-        wf = init_bold_t2s_wf(echo_times=[13.6, 29.79, 46.59],
-                              mem_gb=3,
-                              omp_nthreads=1)
+        wf = init_bold_t2s_wf(
+            bold_echos=['echo1', 'echo2', 'echo3'],
+            echo_times=[13.6, 29.79, 46.59],
+            mem_gb=3,
+            omp_nthreads=1)
 
     **Parameters**
 
+        bold_echos
+            list of ME-BOLD files
         echo_times
             list of TEs associated with each echo
         mem_gb : float
@@ -48,13 +54,18 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
             Maximum number of threads an individual process may use
         name : str
             Name of workflow (default: ``bold_t2s_wf``)
+        use_compression : bool
+            Save registered BOLD series as ``.nii.gz``
+        use_fieldwarp : bool
+            Include SDC warp in single-shot transform from BOLD to MNI
 
     **Inputs**
 
+        name_source
+            (one echo of) the original BOLD series NIfTI file
+            Used to recover original information lost during processing
         hmc_xforms
             ITKTransform file aligning each volume to ``ref_image``
-        echo_split
-            3D volumes of multi-echo BOLD EPI
 
     **Outputs**
 
@@ -64,36 +75,41 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
             the skull-stripped optimal combination mask
     """
     workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(fields=['echo_split', 'hmc_xforms']),
-                        name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(
+        fields=['bold_echos', 'name_source', 'hmc_xforms']),
+        name='inputnode')
+    inputnode.iterables = ('bold_echos', bold_echos)
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['t2s_map', 'oc_mask']),
                          name='outputnode')
 
     LOGGER.log(25, 'Generating T2* map.')
 
-    apply_hmc = pe.MapNode(
-        MultiApplyTransforms(interpolation='NearestNeighbor', float=True, copy_dtype=True),
-        mem_gb=(mem_gb * 3 * omp_nthreads), n_procs=omp_nthreads, name='apply_hmc',
-        iterfield=['input_image'])
+    # Apply transforms in 1 shot
+    bold_bold_trans_wf = init_bold_preproc_trans_wf(
+        mem_gb=mem_gb,
+        omp_nthreads=omp_nthreads,
+        use_compression=use_compression,
+        use_fieldwarp=use_fieldwarp,
+        name='bold_bold_trans_wf',
+        split_file=True,
+        interpolation='NearestNeighbor'
+    )
 
-    merge = pe.MapNode(Merge(compress=True), mem_gb=mem_gb,
-                       name='merge', iterfield=['in_files'])
-
-    t2s_map = pe.Node(T2SMap(te_list=echo_times),
-                      name='t2s_map')
+    t2s_map = pe.JoinNode(T2SMap(
+        te_list=echo_times), joinsource='inputnode', joinfield=['in_files'],
+        name='t2s_map')
 
     skullstrip_bold_wf = init_skullstrip_bold_wf()
 
-    mask_t2s = pe.Node(MaskT2SMap(),
-                       name='mask_t2s')
+    mask_t2s = pe.Node(MaskT2SMap(), name='mask_t2s')
 
     workflow.connect([
-        (inputnode, apply_hmc, [('hmc_xforms', 'transforms'),
-                                ('echo_split', 'input_image'),
-                                (('echo_split', _first), 'reference_image')]),
-        (apply_hmc, merge, [('out_files', 'in_files')]),
-        (merge, t2s_map, [('out_file', 'in_files')]),
+        (inputnode, bold_bold_trans_wf, [
+            ('bold_echos', 'inputnode.bold_file'),
+            ('name_source', 'inputnode.name_source'),
+            ('hmc_xforms', 'inputnode.hmc_xforms')]),
+        (bold_bold_trans_wf, t2s_map, [('outputnode.bold', 'in_files')]),
         (t2s_map, skullstrip_bold_wf, [('opt_comb', 'inputnode.in_file')]),
         (t2s_map, mask_t2s, [('t2s_vol', 'image')]),
         (skullstrip_bold_wf, outputnode, [('outputnode.mask_file', 'oc_mask')]),

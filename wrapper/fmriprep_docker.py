@@ -21,6 +21,7 @@ import sys
 import os
 import re
 import subprocess
+from warnings import warn
 
 standard_library.install_aliases()
 
@@ -168,8 +169,8 @@ def merge_help(wrapper_help, target_help):
 
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
-    expected_overlap = set(['h', 'version', 'w', 'output-grid-reference',
-                            'fs-license-file'])
+    expected_overlap = set(['h', 'version', 'w', 'template-resampling-grid',
+                            'output-grid-reference', 'fs-license-file'])
     assert overlap == expected_overlap, "Clobbering options: {}".format(
         ', '.join(overlap - expected_overlap))
 
@@ -244,10 +245,18 @@ def get_parser():
         'Standard options that require mapping files into the container')
     g_wrap.add_argument('-w', '--work-dir', action='store',
                         help='path where intermediate results should be stored')
-    g_wrap.add_argument('--output-grid-reference', required=False, action='store',
-                        type=os.path.abspath,
-                        help='Grid reference image for resampling BOLD files to volume template '
-                             'space.')
+    g_wrap.add_argument(
+        '--output-grid-reference', required=False, action='store', type=os.path.abspath,
+        help='Deprecated after FMRIPREP 1.0.8. Please use --template-resampling-grid instead.')
+    g_wrap.add_argument(
+        '--template-resampling-grid', required=False, action='store', type=str,
+        help='Keyword ("native", "1mm", or "2mm") or path to an existing file. '
+             'Allows to define a reference grid for the resampling of BOLD images in template '
+             'space. Keyword "native" will use the original BOLD grid as reference. '
+             'Keywords "1mm" and "2mm" will use the corresponding isotropic template '
+             'resolutions. If a path is given, the grid of that image will be used. '
+             'It determines the field of view and resolution of the output images, '
+             'but is not used in normalization.')
     g_wrap.add_argument(
         '--fs-license-file', metavar='PATH', type=os.path.abspath,
         default=os.getenv('FS_LICENSE', None),
@@ -370,10 +379,16 @@ def main():
         command.extend(['-v', ':'.join((opts.config,
                                         '/root/.nipype/nipype.cfg', 'ro'))])
 
-    if opts.output_grid_reference:
-        target = '/imports/' + os.path.basename(opts.output_grid_reference)
-        command.extend(['-v', ':'.join((opts.output_grid_reference, target, 'ro'))])
-        unknown_args.extend(['--output-grid-reference', target])
+    template_target = opts.template_resampling_grid or opts.output_grid_reference
+    if template_target is not None:
+        if opts.output_grid_reference is not None:
+            warn('Option --output-grid-reference is deprecated, please use '
+                 '--template-resampling-grid', DeprecationWarning)
+        if template_target not in ['native', '2mm' '1mm']:
+            target = '/imports/' + os.path.basename(template_target)
+            command.extend(['-v', ':'.join((os.path.abspath(
+                template_target), target, 'ro'))])
+        unknown_args.extend(['--template-resampling-grid', template_target])
 
     if opts.shell:
         command.append('--entrypoint=bash')
