@@ -78,29 +78,29 @@ we recommend to include in your paper.
 
    <p style="font-style: italic;">
      Results included in this manuscript come from preprocessing performed using
-     FMRIPREP version <span id="fmriprep_version">latest</span> [1], a Nipype [2,3] based tool.
+     FMRIPREP version <span id="fmriprep_version">latest</span> [1, RRID:SCR_016216], a Nipype [2,3, RRID:SCR_002502] based tool.
      Each T1w (T1-weighted) volume was corrected for INU (intensity non-uniformity) using
      <code>N4BiasFieldCorrection</code> v2.1.0 [4] and skull-stripped using
      <code>antsBrainExtraction.sh</code> v2.1.0 (using the
      <span class="ss_template_text_OASIS">OASIS</span>
      <span class="ss_template_text_NKI" style="display: none">NKI</span> template).
      <span class="freesurfer_text_true">Brain surfaces were reconstructed using
-     <code>recon-all</code> from FreeSurfer v6.0.0 [5],
+     <code>recon-all</code> from FreeSurfer v6.0.1 [5, RRID:SCR_001847],
      and the brain mask estimated previously was refined with a custom variation of
      <a href="https://doi.org/10.1371/journal.pcbi.1005350.g002">the method to reconcile
      ANTs-derived and FreeSurfer-derived segmentations of the cortical gray-matter</a>
-     of Mindboggle [20].</span>
-     Spatial normalization to the ICBM 152 Nonlinear Asymmetrical template version 2009c [6]
+     of Mindboggle [20, RRID:SCR_002438].</span>
+     Spatial normalization to the ICBM 152 Nonlinear Asymmetrical template version 2009c [6, RRID:SCR_008796]
      was performed through nonlinear registration with the <code>antsRegistration</code>
-     tool of ANTs v2.1.0 [7], using brain-extracted versions of both T1w volume and template.
+     tool of ANTs v2.1.0 [7, RRID:SCR_004757], using brain-extracted versions of both T1w volume and template.
      Brain tissue segmentation of cerebrospinal fluid (CSF), white-matter (WM) and
      gray-matter (GM) was performed on the brain-extracted T1w using
-     <code>fast</code> [16] (FSL v5.0.9).
+     <code>fast</code> [16] (FSL v5.0.9, RRID:SCR_002823).
    </p>
 
    <p style="font-style: italic;">
      Functional data was <span class="slicetime_text_true">slice time corrected using
-     <code>3dTshift</code> from AFNI v16.2.07 [10]
+     <code>3dTshift</code> from AFNI v16.2.07 [10, RRID:SCR_005927]
      and </span>motion corrected using <code>mcflirt</code> (FSL v5.0.9 [8]).
      <span class="SDC_text_TOPUP" style="display: none">Distortion correction was performed
      using an implementation of the TOPUP technique [9] using <code>3dQwarp</code> (AFNI v16.2.07 [10]).</span>
@@ -112,7 +112,7 @@ we recommend to include in your paper.
      template [14], implemented with <code>antsRegistration</code> (ANTs).</span>
      This was followed by co-registration to the corresponding T1w using boundary-based registration [15]
      with 9 degrees of freedom, using
-     <span class="freesurfer_text_true"><code>bbregister</code> (FreeSurfer v6.0.0).</span>
+     <span class="freesurfer_text_true"><code>bbregister</code> (FreeSurfer v6.0.1).</span>
      <span class="freesurfer_text_false" style="display: none"><code>flirt</code> (FSL).</span>
      Motion correcting transformations,
      <span class="SDC_text_TOPUP" style="display: none">field distortion correcting warp, </span>
@@ -141,7 +141,7 @@ we recommend to include in your paper.
    </p>
 
    <p style="font-style: italic;">
-     Many internal operations of FMRIPREP use Nilearn [21], principally within the BOLD-processing
+     Many internal operations of FMRIPREP use Nilearn [21, RRID:SCR_001362], principally within the BOLD-processing
      workflow.
      For more details of the pipeline see
      <a id="workflow_url" href="http://fmriprep.readthedocs.io/en/latest/workflows.html">http://fmriprep.readthedocs.io/en/latest/workflows.html</a>.

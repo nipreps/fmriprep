@@ -28,4 +28,4 @@ dependencies:
     - svgutils
     - nitime
     - nilearn
-    - niworkflows>=0.3.7 
+    - niworkflows>=0.3.8

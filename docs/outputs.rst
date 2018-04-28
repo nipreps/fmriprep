@@ -8,14 +8,14 @@ Outputs of FMRIPREP
 
 FMRIPREP generates three broad classes of outcomes:
 
-  1. **Visual QA (quality assessment) reports**: 
+  1. **Visual QA (quality assessment) reports**:
      one :abbr:`HTML (hypertext markup language)` per subject,
      that allows the user a thorough visual assessment of the quality
      of processing and ensures the transparency of fMRIPrep operation.
 
   2. **Pre-processed imaging data** which are derivatives of the original
      anatomical and functional images after various preparation procedures
-     have been applied. For example, 
+     have been applied. For example,
      :abbr:`INU (intensity non-uniformity)`-corrected versions of the T1-weighted
      image (per subject), the brain mask, or :abbr:`BOLD (blood-oxygen level dependent)`
      images after head-motion correction, slice-timing correction and aligned into
@@ -41,7 +41,7 @@ Each report is self contained and thus can be easily shared with collaborators (
 Preprocessed data (fMRIPrep *derivatives*)
 ------------------------------------------
 
-There are additional files, called "Derivatives", written to 
+There are additional files, called "Derivatives", written to
 ``<output dir>/fmriprep/sub-<subject_label>/``. See the
 `BIDS Derivatives <https://docs.google.com/document/d/1Wwc4A6Mow4ZPPszDIWfCUCRNstn7d_zzaWPcfcHmgI4/edit?usp=sharing>`_
 spec for more information.
@@ -86,6 +86,11 @@ Surface output spaces include ``fsnative`` (full density subject-specific mesh),
 ``fsaverage5`` (10k vertices, default).
 
 - (optional) ``*bold_space-<space>.[LR].func.gii`` Motion-corrected EPI file sampled to surface ``<space>``
+
+EPIs can be saved as a CIFTI dtseries file.
+
+- (optional) ``*bold_space-cifti_variant-<variant>_preproc.dtseries.nii`` Motion-corrected EPI converted to CIFTI filetype. Sub-cortical representations
+  are volumetric (supported spaces: ``MNI152NLin2009cAsym``), while cortical representations are sampled to surface (supported spaces: ``fsaverage5``, ``fsaverage6``)
 
 
 .. _fsderivs:
@@ -144,7 +149,7 @@ These are :abbr:`TSV (tab-separated values)` tables, which look like the example
   -1.41   0.29    0.96    13.06   0.99    0.01    -0.04   0.07    0.10    0.31    0.47    0.27    -0.22   0.09    0.11    0.12    0.56    0.14    0.00    0.00    0.00    0.07    0.00    0.00    0.00    -0.67   0.44    0.25    -0.57
 
 
-Each row of the file corresponds to one time point found in the 
+Each row of the file corresponds to one time point found in the
 corresponding :abbr:`BOLD (blood-oxygen level dependent)` time-series
 (stored in ``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_bold_preproc.nii.gz``).
 
@@ -154,13 +159,13 @@ the :abbr:`CSF (cerebro-spinal fluid)` and :abbr:`WM (white matter)` mask across
 derivative of RMS variance over voxels (or :abbr:`DVARS (D referring to difference, )`) that can be
 standardized (``stdDVARS``), non-standardized (``non-stdDVARS``), and voxel-wise standardized (``vx-wisestdDVARS``);
 the ``FrameDisplacement`` is a quantification of the estimated bulk-head motion; ``X``, ``Y``, ``Z``, ``RotX``,
-``RotY``, ``RotZ`` are the actual 6 rigid-body transform parameters estimated by FMRIPREP; 
+``RotY``, ``RotZ`` are the actual 6 rigid-body transform parameters estimated by FMRIPREP;
 the ``NonSteadyStateOutlier00`` column is ``1`` when a non-steady state was found (typically at the beginning of
-the scan) and ``0`` elsewhere; and finally six noise components ``aCompCorXX`` calculated using 
-:abbr:`CompCor (Component Based Noise Correction Method)` 
-and five noise components ``AROMAaggrCompXX`` if 
+the scan) and ``0`` elsewhere; and finally six noise components ``aCompCorXX`` calculated using
+:abbr:`CompCor (Component Based Noise Correction Method)`
+and five noise components ``AROMAaggrCompXX`` if
 :abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)` was enabled.
 
-All these confounds can be used to perform *scrubbing* and *censoring* of outliers, 
+All these confounds can be used to perform *scrubbing* and *censoring* of outliers,
 in the subsequent first-level analysis when building the design matrix,
 and in group level analysis.

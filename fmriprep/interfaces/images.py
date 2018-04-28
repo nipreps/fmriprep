@@ -18,10 +18,9 @@ from textwrap import indent
 from niworkflows.nipype import logging
 from niworkflows.nipype.utils.filemanip import fname_presuffix
 from niworkflows.nipype.interfaces.base import (
-    traits, TraitedSpec, BaseInterfaceInputSpec,
+    traits, TraitedSpec, BaseInterfaceInputSpec, SimpleInterface,
     File, InputMultiPath, OutputMultiPath)
 from niworkflows.nipype.interfaces import fsl
-from niworkflows.nipype.interfaces.base import SimpleInterface
 
 LOGGER = logging.getLogger('interface')
 
@@ -399,13 +398,21 @@ class ValidateImage(SimpleInterface):
         # Check qform is valid
         valid_qform = False
         try:
-            img.get_qform()
+            qform = img.get_qform()
             valid_qform = True
         except ValueError:
             pass
 
+        sform = img.get_sform()
+        if np.linalg.det(sform) == 0:
+            valid_sform = False
+        else:
+            RZS = sform[:3, :3]
+            zooms = np.sqrt(np.sum(RZS * RZS, axis=0))
+            valid_sform = np.allclose(zooms, img.header.get_zooms()[:3])
+
         # Matching affines
-        matching_affines = valid_qform and np.allclose(img.get_qform(), img.get_sform())
+        matching_affines = valid_qform and np.allclose(qform, sform)
 
         # Both match, qform valid (implicit with match), codes okay -> do nothing, empty report
         if matching_affines and qform_code > 0 and sform_code > 0:
@@ -419,15 +426,15 @@ class ValidateImage(SimpleInterface):
         self._results['out_file'] = out_fname
 
         # Row 2:
-        if valid_qform and qform_code > 0 and sform_code == 0:
-            img.set_sform(img.get_qform(), qform_code)
+        if valid_qform and qform_code > 0 and (sform_code == 0 or not valid_sform):
+            img.set_sform(qform, qform_code)
             warning_txt = 'Note on orientation: sform matrix set'
             description = """\
 <p class="elem-desc">The sform has been copied from qform.</p>
 """
         # Rows 3-4:
         # Note: if qform is not valid, matching_affines is False
-        elif sform_code > 0 and (not matching_affines or qform_code == 0):
+        elif (valid_sform and sform_code > 0) and (not matching_affines or qform_code == 0):
             img.set_qform(img.get_sform(), sform_code)
             warning_txt = 'Note on orientation: qform matrix overwritten'
             description = """\
@@ -445,7 +452,7 @@ class ValidateImage(SimpleInterface):
 """
         # Rows 5-6:
         else:
-            affine = img.affine
+            affine = img.header.get_base_affine()
             img.set_sform(affine, nb.nifti1.xform_codes['scanner'])
             img.set_qform(affine, nb.nifti1.xform_codes['scanner'])
             warning_txt = 'WARNING - Missing orientation information'

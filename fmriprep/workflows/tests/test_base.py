@@ -29,6 +29,7 @@ class TestBase(TestWorkflow):
                                          output_spaces=['T1w'],
                                          template='MNI152NLin2009cAsym',
                                          medial_surface_nan=False,
+                                         cifti_output=False,
                                          hires=False,
                                          use_bbr=None,
                                          bold2t1w_dof=9,

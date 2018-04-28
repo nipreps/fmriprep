@@ -44,6 +44,8 @@ fmriprep/sub-01/func
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_AROMAnoiseICs.csv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_confounds.tsv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_MELODICmix.tsv
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_space-cifti_variant-space1_preproc.dtseries.json
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_space-cifti_variant-space1_preproc.dtseries.nii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_space-fsaverage5.L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_space-fsaverage5.R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz

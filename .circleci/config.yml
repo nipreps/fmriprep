@@ -82,8 +82,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v4-{{ epoch }}
-            - data-v4-
+            - data-v5-{{ epoch }}
+            - data-v5-
       - run:
           name: Get test data from ds000005
           command: |
@@ -151,7 +151,7 @@ jobs:
             - ds054/nipype.cfg
             - ds000210/nipype.cfg
       - save_cache:
-         key: data-v4-{{ epoch }}
+         key: data-v5-{{ epoch }}
          paths:
             - /tmp/data
             - /tmp/ds005/derivatives/freesurfer
@@ -331,7 +331,7 @@ jobs:
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
-                --nthreads 2 -vv
+                --nthreads 2 --cifti-output -vv
       - run:
           name: Move intermediate results for second run
           command: |
@@ -357,7 +357,7 @@ jobs:
                 --ignore-aroma-denoising-errors --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
-                --nthreads 2 -vv
+                --nthreads 2 --cifti-output -vv
       - run:
           name: Checking outputs of partial fMRIPrep run
           command: |
@@ -553,7 +553,7 @@ jobs:
                 /tmp/data/ds000210 /tmp/ds000210/derivatives participant \
                 --fs-no-reconall --t2s-coreg --use-syn-sdc \
                 --template-resampling-grid native \
-                --debug --write-graph --mem_mb 4096 --nthreads 2 -vv 
+                --debug --write-graph --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
           command: |
