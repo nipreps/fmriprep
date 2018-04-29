@@ -150,7 +150,7 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
          to *standardize* the T2* contrast distribution.
       5. Calculate a mask using AFNI's ``3dAutomask`` after the contrast
          enhancement of 4).
-      6. Calculate a final mask as the intersection of 3) and 5).
+      6. Calculate a final mask as the intersection of 1), 3) and 5).
       7. Apply final mask on the enhanced reference.
 
 
@@ -198,7 +198,7 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
         'mask_file', 'skull_stripped_file', 'bias_corrected_file']), name='outputnode')
 
     # Create a loose mask to avoid N4 internal's Otsu mask
-    n4_mask = pe.Node(fsl.BET(frac=0.3, mask=True, reduce_bias=True),
+    n4_mask = pe.Node(fsl.BET(frac=0.3, mask=True, robust=True),
                       name='n4_mask')
     fixhdr_n4_mask = pe.Node(CopyXForm(), name='fixhdr_n4_mask', mem_gb=0.1)
 
@@ -229,9 +229,11 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
                                      name='skullstrip_second_pass')
     fixhdr_skullstrip2 = pe.Node(CopyXForm(), name='fixhdr_skullstrip2', mem_gb=0.1)
 
-    # Take intersection of both masks
-    combine_masks = pe.Node(fsl.BinaryMaths(operation='mul'),
-                            name='combine_masks')
+    # Take intersection of all 3 masks
+    combine_masks1 = pe.Node(fsl.BinaryMaths(operation='mul'),
+                             name='combine_masks1')
+    combine_masks2 = pe.Node(fsl.BinaryMaths(operation='mul'),
+                             name='combine_masks2')
 
     # Compute masked brain
     apply_mask = pe.Node(fsl.ApplyMask(), name='apply_mask')
@@ -244,19 +246,21 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
         (inputnode, fixhdr_skullstrip2, [('in_file', 'hdr_file')]),
         (n4_mask, fixhdr_n4_mask, [('mask_file', 'in_file')]),
         (fixhdr_n4_mask, n4_correct, [('out_file', 'mask_image')]),
+        (fixhdr_n4_mask, combine_masks2, [('out_file', 'operand_file')]),
         (n4_correct, skullstrip_first_pass, [('output_image', 'in_files')]),
         (n4_correct, apply_mask_first_pass, [('output_image', 'in_file')]),
         (skullstrip_first_pass, dilate_mask_first_pass, [('out_mask', 'in_file')]),
         (dilate_mask_first_pass, apply_mask_first_pass, [('out_file', 'mask_file')]),
-        (dilate_mask_first_pass, combine_masks, [('out_file', 'in_file')]),
+        (dilate_mask_first_pass, combine_masks1, [('out_file', 'in_file')]),
         (apply_mask_first_pass, unifize, [('out_file', 'in_file')]),
         (unifize, fixhdr_unifize, [('out_file', 'in_file')]),
         (fixhdr_unifize, skullstrip_second_pass, [('out_file', 'in_file')]),
         (fixhdr_unifize, apply_mask, [('out_file', 'in_file')]),
         (skullstrip_second_pass, fixhdr_skullstrip2, [('out_file', 'in_file')]),
-        (fixhdr_skullstrip2, combine_masks, [('out_file', 'operand_file')]),
-        (combine_masks, apply_mask, [('out_file', 'mask_file')]),
-        (combine_masks, outputnode, [('out_file', 'mask_file')]),
+        (fixhdr_skullstrip2, combine_masks1, [('out_file', 'operand_file')]),
+        (combine_masks1, combine_masks2, [('out_file', 'in_file')]),
+        (combine_masks2, apply_mask, [('out_file', 'mask_file')]),
+        (combine_masks2, outputnode, [('out_file', 'mask_file')]),
         (apply_mask, outputnode, [('out_file', 'skull_stripped_file')]),
         (n4_correct, outputnode, [('output_image', 'bias_corrected_file')])
     ])
