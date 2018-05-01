@@ -389,7 +389,10 @@ def init_ica_aroma_wf(template, metadata, mem_gb, omp_nthreads,
     smooth = pe.Node(fsl.SUSAN(fwhm=6.0), name='smooth')
 
     # melodic node
-    melodic = pe.Node(fsl.MELODIC(no_bet=True, no_mm=True), name="melodic")
+    melodic = pe.Node(fsl.MELODIC(
+        no_bet=True, tr_sec=float(metadata['RepetitionTime']), mm_thresh=0.5, out_stats=True),
+        name="melodic")
+
     if aroma_melodic_dim is not None:
         melodic.inputs.dim = aroma_melodic_dim
 
