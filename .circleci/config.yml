@@ -324,11 +324,14 @@ jobs:
           name: Run full fMRIPrep on ds005
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
-                --debug --write-graph --use-syn-sdc --use-aroma \
-                --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -342,7 +345,7 @@ jobs:
           name: Checking outputs of full fMRIPrep run
           command: |
             mkdir -p /tmp/ds005/test
-            find /tmp/ds005/derivatives | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
+            find /tmp/ds005/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds005_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
       - run:
@@ -353,8 +356,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
-                --debug --write-graph --use-syn-sdc --use-aroma \
-                --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -363,7 +365,7 @@ jobs:
           command: |
             mkdir -p /tmp/ds005/test
             sudo rm -rf /tmp/ds005/derivatives_partial/freesurfer
-            find /tmp/ds005/derivatives_partial | sed s+/tmp/ds005/derivatives_partial/++ | sort > /tmp/ds005/test/outputs.out
+            find /tmp/ds005/derivatives_partial -path */figures -prune -o -name "*" -print | sed s+/tmp/ds005/derivatives_partial/++ | sort > /tmp/ds005/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds005_partial_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
       - run:
@@ -443,10 +445,15 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --force-syn \
+                --fs-no-reconall --debug \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --mem_mb 4096 --nthreads 2 -vv
@@ -454,7 +461,7 @@ jobs:
           name: Checking outputs of fMRIPrep
           command: |
             mkdir -p /tmp/ds054/test
-            find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
+            find /tmp/ds054/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds054_outputs.txt /tmp/ds054/test/outputs.out
             exit $?
       - run:
@@ -470,8 +477,10 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --write-graph \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
+                --template-resampling-grid 2mm \
                 --reports-only --run-uuid $UUID
             RET=$?
             set -e
@@ -558,8 +567,8 @@ jobs:
           name: Checking outputs of fMRIPrep
           command: |
             mkdir -p /tmp/ds000210/test
-            find /tmp/ds000210/derivatives  | sed s+/tmp/ds000210/derivatives/++ | sort > /tmp/ds000210/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/ds000210_outputs.txt /tmp/ds000210/test/outputs.out
+            find /tmp/ds000210/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds000210/derivatives/++ | sort > /tmp/ds000210/test/outputs.out
+            diff /tmp/src/fmriprep/.circleci/ds210_outputs.txt /tmp/ds000210/test/outputs.out
             exit $?
       - run:
           name: Clean-up work work directory
