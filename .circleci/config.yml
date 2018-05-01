@@ -375,6 +375,7 @@ jobs:
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
             sudo find /tmp/ds005/work_partial -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            tar cf - work_partial/ | pigz -2 -p 2 > ds005_workdir.tar.gz && sudo rm -fr work work_partial
 
       - store_artifacts:
           path: /tmp/ds005
@@ -486,10 +487,11 @@ jobs:
             set -e
             [[ "$RET" -eq "1" ]]
       - run:
-          name: Clean-up work work directory
+          name: Clean-up work directory
           command: |
             sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
       - store_artifacts:
           path: /tmp/ds054
 
@@ -571,10 +573,11 @@ jobs:
             diff /tmp/src/fmriprep/.circleci/ds210_outputs.txt /tmp/ds000210/test/outputs.out
             exit $?
       - run:
-          name: Clean-up work work directory
+          name: Clean-up work directory
           command: |
             sudo find /tmp/ds000210/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
       - store_artifacts:
           path: /tmp/ds000210
 
