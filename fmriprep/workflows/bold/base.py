@@ -613,6 +613,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
             ica_aroma_wf = init_ica_aroma_wf(
                 template=template,
+                metadata=metadata,
                 mem_gb=mem_gb['resampled'],
                 omp_nthreads=omp_nthreads,
                 use_fieldwarp=fmaps is not None,
