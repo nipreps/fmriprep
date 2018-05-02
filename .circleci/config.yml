@@ -110,7 +110,7 @@ jobs:
           command: |
             if [[ ! -d /tmp/data/ds210 ]]; then
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds210_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5a6e952c6396f90010bb7a26"
+                -O ds210_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5ae9e37b9a64d7000ce66c21"
               tar xvzf ds210_downsampled.tar.gz -C /tmp/data/
             else
               echo "Dataset ds000210 was cached"
