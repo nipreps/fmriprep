@@ -28,4 +28,4 @@ fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-3_bold_confounds.tsv
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-3_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-3_bold_space-MNI152NLin2009cAsym_preproc.nii.gz
 fmriprep/sub-02.html
-/tmp/ds000210/derivatives
+/tmp/ds210/derivatives
