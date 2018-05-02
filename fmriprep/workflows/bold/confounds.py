@@ -270,7 +270,7 @@ def init_bold_confs_wf(mem_gb, metadata, name="bold_confs_wf"):
     return workflow
 
 
-def init_ica_aroma_wf(template, mem_gb, omp_nthreads,
+def init_ica_aroma_wf(template, metadata, mem_gb, omp_nthreads,
                       name='ica_aroma_wf',
                       ignore_aroma_err=False,
                       aroma_melodic_dim=None,
@@ -299,6 +299,7 @@ def init_ica_aroma_wf(template, mem_gb, omp_nthreads,
 
         from fmriprep.workflows.bold.confounds import init_ica_aroma_wf
         wf = init_ica_aroma_wf(template='MNI152NLin2009cAsym',
+                               metadata={'RepetitionTime': 1.0},
                                mem_gb=3,
                                omp_nthreads=1)
 
@@ -310,6 +311,8 @@ def init_ica_aroma_wf(template, mem_gb, omp_nthreads,
             :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`.
             The template must be one of the MNI templates (fMRIPrep uses
             ``MNI152NLin2009cAsym`` by default).
+        metadata : dict
+            BIDS metadata for BOLD file
         mem_gb : float
             Size of BOLD file in GB
         omp_nthreads : int
@@ -386,13 +389,17 @@ def init_ica_aroma_wf(template, mem_gb, omp_nthreads,
     smooth = pe.Node(fsl.SUSAN(fwhm=6.0), name='smooth')
 
     # melodic node
-    melodic = pe.Node(fsl.MELODIC(no_bet=True, no_mm=True), name="melodic")
+    melodic = pe.Node(fsl.MELODIC(
+        no_bet=True, tr_sec=float(metadata['RepetitionTime']), mm_thresh=0.5, out_stats=True),
+        name="melodic")
+
     if aroma_melodic_dim is not None:
         melodic.inputs.dim = aroma_melodic_dim
 
     # ica_aroma node
-    ica_aroma = pe.Node(ICA_AROMARPT(denoise_type='nonaggr', generate_report=True),
-                        name='ica_aroma')
+    ica_aroma = pe.Node(ICA_AROMARPT(
+        denoise_type='nonaggr', generate_report=True, TR=metadata['RepetitionTime']),
+        name='ica_aroma')
 
     # extract the confound ICs from the results
     ica_aroma_confound_extraction = pe.Node(ICAConfounds(ignore_aroma_err=ignore_aroma_err),

@@ -108,10 +108,10 @@ jobs:
       - run:
           name: Get test data from ds000210
           command: |
-            if [[ ! -d /tmp/data/ds000210 ]]; then
+            if [[ ! -d /tmp/data/ds210 ]]; then
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds000210_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5a6e952c6396f90010bb7a26"
-              tar xvzf ds000210_downsampled.tar.gz -C /tmp/data/
+                -O ds210_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5ae9e37b9a64d7000ce66c21"
+              tar xvzf ds210_downsampled.tar.gz -C /tmp/data/
             else
               echo "Dataset ds000210 was cached"
             fi
@@ -135,12 +135,12 @@ jobs:
       - run:
           name: Create Nipype config files
           command: |
-            mkdir -p /tmp/ds005 /tmp/ds054 /tmp/ds000210
+            mkdir -p /tmp/ds005 /tmp/ds054 /tmp/ds210
             printf "[execution]\nstop_on_first_crash = true\nremove_unnecessary_outputs = false\n" > /tmp/ds005/nipype.cfg
             echo "poll_sleep_duration = 0.2" >> /tmp/ds005/nipype.cfg
             echo "hash_method = content" >> /tmp/ds005/nipype.cfg
             cp /tmp/ds005/nipype.cfg /tmp/ds054/nipype.cfg
-            cp /tmp/ds005/nipype.cfg /tmp/ds000210/nipype.cfg
+            cp /tmp/ds005/nipype.cfg /tmp/ds210/nipype.cfg
       - persist_to_workspace:
           root: /tmp
           paths:
@@ -149,7 +149,7 @@ jobs:
             - ds005/nipype.cfg
             - ds005/derivatives
             - ds054/nipype.cfg
-            - ds000210/nipype.cfg
+            - ds210/nipype.cfg
       - save_cache:
          key: data-v5-{{ epoch }}
          paths:
@@ -296,10 +296,10 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v5-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v5-{{ .Branch }}
-            - ds005-anat-v5-master
-            - ds005-anat-v5-
+            - ds005-anat-v6-{{ .Branch }}-{{ epoch }}
+            - ds005-anat-v6-{{ .Branch }}
+            - ds005-anat-v6-master
+            - ds005-anat-v6-
       - run:
           name: Setting up test
           command: |
@@ -332,7 +332,7 @@ jobs:
                 --debug --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds005-anat-v5-{{ .Branch }}-{{ epoch }}
+         key: ds005-anat-v6-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
             - /tmp/ds005/derivatives/fmriprep
@@ -341,11 +341,14 @@ jobs:
           name: Run full fMRIPrep on ds005
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
-                --debug --write-graph --use-syn-sdc --use-aroma \
-                --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -359,7 +362,7 @@ jobs:
           name: Checking outputs of full fMRIPrep run
           command: |
             mkdir -p /tmp/ds005/test
-            find /tmp/ds005/derivatives | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
+            find /tmp/ds005/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds005/derivatives/++ | sort > /tmp/ds005/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds005_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
       - run:
@@ -370,8 +373,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
-                --debug --write-graph --use-syn-sdc --use-aroma \
-                --ignore-aroma-denoising-errors --mem_mb 4096 \
+                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -380,16 +382,19 @@ jobs:
           command: |
             mkdir -p /tmp/ds005/test
             sudo rm -rf /tmp/ds005/derivatives_partial/freesurfer
-            find /tmp/ds005/derivatives_partial | sed s+/tmp/ds005/derivatives_partial/++ | sort > /tmp/ds005/test/outputs.out
+            find /tmp/ds005/derivatives_partial -path */figures -prune -o -name "*" -print | sed s+/tmp/ds005/derivatives_partial/++ | sort > /tmp/ds005/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds005_partial_outputs.txt /tmp/ds005/test/outputs.out
             exit $?
       - run:
           name: Clean working directory
+          when: always
           command: |
-            sudo find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds005
+            find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
-            sudo find /tmp/ds005/work_partial -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            find /tmp/ds005/work_partial -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            # tar cf - work_partial/ | pigz -2 -p 2 > ds005_workdir.tar.gz && sudo rm -fr work work_partial
 
       - store_artifacts:
           path: /tmp/ds005
@@ -415,10 +420,10 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v3-{{ .Branch }}-{{ epoch }}
-            - ds054-anat-v3-{{ .Branch }}
-            - ds054-anat-v3-master
-            - ds054-anat-v3-
+            - ds054-anat-v4-{{ .Branch }}-{{ epoch }}
+            - ds054-anat-v4-{{ .Branch }}
+            - ds054-anat-v4-master
+            - ds054-anat-v4-
       - run:
           name: Setting up test
           command: |
@@ -451,7 +456,7 @@ jobs:
                 --fs-no-reconall --debug --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds054-anat-v3-{{ .Branch }}-{{ epoch }}
+         key: ds054-anat-v4-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
             - /tmp/ds054/derivatives
@@ -460,10 +465,15 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --force-syn \
+                --fs-no-reconall --debug \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --mem_mb 4096 --nthreads 2 -vv
@@ -471,7 +481,7 @@ jobs:
           name: Checking outputs of fMRIPrep
           command: |
             mkdir -p /tmp/ds054/test
-            find /tmp/ds054/derivatives  | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
+            find /tmp/ds054/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds054/derivatives/++ | sort > /tmp/ds054/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/ds054_outputs.txt /tmp/ds054/test/outputs.out
             exit $?
       - run:
@@ -487,24 +497,29 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph --force-syn \
+                --fs-no-reconall --debug --write-graph \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
+                --template-resampling-grid 2mm \
                 --reports-only --run-uuid $UUID
             RET=$?
             set -e
             [[ "$RET" -eq "1" ]]
       - run:
-          name: Clean-up work work directory
+          name: Clean-up work directory
+          when: always
           command: |
-            sudo find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds054
+            find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            # tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
       - store_artifacts:
           path: /tmp/ds054
 
   ds210:
     machine:
       image: circleci/classic:201711-01
-    working_directory: /tmp/ds000210
+    working_directory: /tmp/ds210
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
     steps:
@@ -522,12 +537,12 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds000210-anat-v2-{{ epoch }}
-            - ds000210-anat-v2-
+            - ds210-anat-v1-{{ epoch }}
+            - ds210-anat-v1-
       - run:
           name: Setting up test
           command: |
-            mkdir -p /tmp/ds000210/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds000210/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds000210/derivatives
+            mkdir -p /tmp/ds210/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds210/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds210/derivatives
             pip install future numpy
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
@@ -545,46 +560,49 @@ jobs:
           name: Run anatomical workflow on ds000210
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/ds000210/work /tmp/ds000210/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds000210/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds000210/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds000210/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/ds000210/work
+            mkdir -p /tmp/ds210/work /tmp/ds210/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds210/derivatives && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds210/derivatives
+            sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds210/work && \
+                sudo setfacl -m group:$(id -gn):rwx /tmp/ds210/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $PWD/nipype.cfg -w /tmp/ds000210/work \
-                /tmp/data/ds000210 /tmp/ds000210/derivatives participant \
+                --config $PWD/nipype.cfg -w /tmp/ds210/work \
+                /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --debug --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds000210-anat-v2-{{ epoch }}
+         key: ds210-anat-v1-{{ epoch }}
          paths:
-            - /tmp/ds000210/work
-            - /tmp/ds000210/derivatives
+            - /tmp/ds210/work
+            - /tmp/ds210/derivatives
 
       - run:
           name: Run full fMRIPrep on ds000210
           no_output_timeout: 2h
           command: |
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                --config $PWD/nipype.cfg -w /tmp/ds000210/work \
-                /tmp/data/ds000210 /tmp/ds000210/derivatives participant \
+                --config $PWD/nipype.cfg -w /tmp/ds210/work \
+                /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --t2s-coreg --use-syn-sdc \
                 --template-resampling-grid native \
                 --debug --write-graph --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
           command: |
-            mkdir -p /tmp/ds000210/test
-            find /tmp/ds000210/derivatives  | sed s+/tmp/ds000210/derivatives/++ | sort > /tmp/ds000210/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/ds000210_outputs.txt /tmp/ds000210/test/outputs.out
+            mkdir -p /tmp/ds210/test
+            find /tmp/ds210/derivatives -path */figures -prune -o -name "*" -print | sed s+/tmp/ds210/derivatives/++ | sort > /tmp/ds210/test/outputs.out
+            diff /tmp/src/fmriprep/.circleci/ds210_outputs.txt /tmp/ds210/test/outputs.out
             exit $?
       - run:
-          name: Clean-up work work directory
+          name: Clean-up work directory
+          when: always
           command: |
-            sudo find /tmp/ds000210/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds210
+            find /tmp/ds210/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
                 -not -name "*.mat" -not -name "*.lta" -type f -delete
+            # tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
       - store_artifacts:
-          path: /tmp/ds000210
+          path: /tmp/ds210
 
   deploy:
     machine:
