@@ -206,10 +206,27 @@ jobs:
               poldracklab/fmriprep:latest . \
               --doctest-modules --ignore=docs --ignore=setup.py
       - run:
-          name: Test fmriprep-wrapper
+          name: Test fmriprep-wrapper (Python 2)
           command: |
-            pip install future numpy
+            export PY2=$(pyenv versions | grep '2\.' |
+                         sed -e 's/.* 2\./2./' -e 's/ .*//')
+            pyenv local $PY2
+            echo -n "Python version: "
+            python --version
             pip install --upgrade wrapper/
+            which fmriprep-docker
+            fmriprep-docker -i poldracklab/fmriprep:latest --help
+            fmriprep-docker -i poldracklab/fmriprep:latest --version
+      - run:
+          name: Test fmriprep-wrapper (Python 3)
+          command: |
+            export PY3=$(pyenv versions | grep '3\.' |
+                         sed -e 's/.* 3\./3./' -e 's/ .*//')
+            pyenv local $PY3
+            echo -n "Python version: "
+            python --version
+            pip install --upgrade wrapper/
+            which fmriprep-docker
             fmriprep-docker -i poldracklab/fmriprep:latest --help
             fmriprep-docker -i poldracklab/fmriprep:latest --version
       - store_artifacts:

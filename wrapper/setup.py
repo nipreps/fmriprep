@@ -26,8 +26,8 @@ def main():
         license=info['__license__'],
         classifiers=info['CLASSIFIERS'],
         # Dependencies handling
-        setup_requires=['future'],
-        install_requires=['future'],
+        setup_requires=[],
+        install_requires=[],
         tests_require=[],
         extras_require={},
         dependency_links=[],
