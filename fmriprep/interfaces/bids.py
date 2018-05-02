@@ -255,10 +255,6 @@ class DerivativesDataSink(SimpleInterface):
                 out_file = out_file.format(extra_value=self.inputs.extra_values[i])
             self._results['out_file'].append(out_file)
             self._results['compression'].append(_copy_any(fname, out_file))
-
-        if len(self._results['compression']) == 1:
-            self._results['compression'] = self._results['compression'][0]
-
         return runtime
 
 
