@@ -349,6 +349,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --debug --write-graph --use-syn-sdc --mem_mb 4096 \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -375,6 +376,7 @@ jobs:
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
                 --debug --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
+                --ignore-aroma-denoising-errors --use-aroma \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
       - run:
@@ -473,7 +475,6 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug \
-                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --mem_mb 4096 --nthreads 2 -vv
@@ -498,7 +499,6 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --debug --write-graph \
-                --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --reports-only --run-uuid $UUID
