@@ -34,9 +34,9 @@ from niworkflows.nipype.interfaces import (
 )
 from niworkflows.nipype.interfaces.ants import BrainExtraction, N4BiasFieldCorrection
 
-from niworkflows.interfaces.registration import RobustMNINormalizationRPT
+from niworkflows.interfaces.registration import SelectReference, RobustMNINormalizationRPT
 import niworkflows.data as nid
-from niworkflows.interfaces.masks import ROIsPlot
+from niworkflows.interfaces.masks import PrepareRegistrationImages, ROIsPlot
 
 from niworkflows.interfaces.segmentation import ReconAllRPT
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
@@ -260,17 +260,7 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
                               ('probability_maps', 't1_tpms')]),
     ])
 
-    # 6. Spatial normalization (T1w to MNI registration)
-    t1_2_mni = pe.Node(
-        RobustMNINormalizationRPT(
-            float=True,
-            generate_report=True,
-            flavor='testing' if debug else 'precise',
-        ),
-        name='t1_2_mni',
-        n_procs=omp_nthreads,
-        mem_gb=2
-    )
+    normalization_wf = init_normalization_wf(debug=debug, omp_nthreads=omp_nthreads)
 
     # Resample the brain mask and the tissue probability maps into mni space
     mni_mask = pe.Node(
@@ -296,25 +286,28 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
         template_str = nid.TEMPLATE_MAP[template]
         ref_img = op.join(nid.get_dataset(template_str), '1mm_T1.nii.gz')
 
-        t1_2_mni.inputs.template = template_str
+        normalization_wf.inputs.inputnode.template = template_str
         mni_mask.inputs.reference_image = ref_img
         mni_seg.inputs.reference_image = ref_img
         mni_tpms.inputs.reference_image = ref_img
 
         workflow.connect([
-            (inputnode, t1_2_mni, [('roi', 'lesion_mask')]),
-            (skullstrip_ants_wf, t1_2_mni, [('outputnode.bias_corrected', 'moving_image')]),
-            (buffernode, t1_2_mni, [('t1_mask', 'moving_mask')]),
+            (inputnode, normalization_wf, [('roi', 'inputnode.lesion_mask')]),
+            (skullstrip_ants_wf, normalization_wf, [
+                ('outputnode.bias_corrected', 'inputnode.moving_image')]),
+            (buffernode, normalization_wf, [('t1_mask', 'inputnode.moving_mask')]),
             (buffernode, mni_mask, [('t1_mask', 'input_image')]),
-            (t1_2_mni, mni_mask, [('composite_transform', 'transforms')]),
+            (normalization_wf, mni_mask, [
+                ('outputnode.t1_2_mni_forward_transform', 'transforms')]),
             (t1_seg, mni_seg, [('tissue_class_map', 'input_image')]),
-            (t1_2_mni, mni_seg, [('composite_transform', 'transforms')]),
+            (normalization_wf, mni_seg, [('outputnode.t1_2_mni_forward_transform', 'transforms')]),
             (t1_seg, mni_tpms, [('probability_maps', 'input_image')]),
-            (t1_2_mni, mni_tpms, [('composite_transform', 'transforms')]),
-            (t1_2_mni, outputnode, [
-                ('warped_image', 't1_2_mni'),
-                ('composite_transform', 't1_2_mni_forward_transform'),
-                ('inverse_composite_transform', 't1_2_mni_reverse_transform')]),
+            (normalization_wf, mni_tpms, [
+                ('outputnode.t1_2_mni_forward_transform', 'transforms')]),
+            (normalization_wf, outputnode, [
+                ('outputnode.warped_image', 't1_2_mni'),
+                ('outputnode.t1_2_mni_forward_transform', 't1_2_mni_forward_transform'),
+                ('outputnode.t1_2_mni_reverse_transform', 't1_2_mni_reverse_transform')]),
             (mni_mask, outputnode, [('output_image', 'mni_mask')]),
             (mni_seg, outputnode, [('output_image', 'mni_seg')]),
             (mni_tpms, outputnode, [('output_image', 'mni_tpms')]),
@@ -345,7 +338,8 @@ def init_anat_preproc_wf(skull_strip_template, output_spaces, template, debug,
         ])
     if 'template' in output_spaces:
         workflow.connect([
-            (t1_2_mni, anat_reports_wf, [('out_report', 'inputnode.t1_2_mni_report')]),
+            (normalization_wf, anat_reports_wf, [
+                ('outputnode.t1_2_mni_report', 'inputnode.t1_2_mni_report')]),
         ])
 
     anat_derivatives_wf = init_anat_derivatives_wf(output_dir=output_dir,
@@ -599,6 +593,53 @@ def init_skullstrip_ants_wf(skull_strip_template, debug, omp_nthreads, name='sku
                                       ('BrainExtractionSegmentation', 'out_segs'),
                                       ('N4Corrected0', 'bias_corrected')])
     ])
+
+    return workflow
+
+
+def init_normalization_wf(debug, omp_nthreads, name='normalization_wf'):
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['template', 'lesion_mask', 'moving_image', 'moving_mask']),
+        name='inputnode')
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['t1_2_mni', 't1_2_mni_forward_transform',
+                                      't1_2_mni_reverse_transform', 't1_2_mni_report']),
+        name='outputnode')
+
+    select_ref = pe.Node(SelectReference(), name='select_ref')
+    prep_images = pe.Node(PrepareRegistrationImages(), name='prep_images')
+
+    t1_2_mni = pe.Node(
+        RobustMNINormalizationRPT(
+            float=True,
+            generate_report=True,
+            flavor='testing' if debug else 'precise',
+        ),
+        name='t1_2_mni',
+        n_procs=omp_nthreads,
+        mem_gb=2)
+
+    workflow.connect([
+        (inputnode, select_ref, [('template', 'template')]),
+        (inputnode, prep_images, [
+            ('moving_image', 'moving_file'),
+            ('moving_mask', 'moving_mask'),
+            ('lesion_mask', 'lesion_mask')]),
+        (select_ref, prep_images, [
+            ('reference_image', 'fixed_file'),
+            ('reference_mask', 'fixed_mask')]),
+        (prep_images, t1_2_mni, [
+            ('fixed_file', 'reference_image'),
+            ('fixed_mask', 'reference_mask'),
+            ('moving_file', 'moving_image'),
+            ('moving_mask', 'moving_mask'),
+            ]),
+        (t1_2_mni, outputnode, [
+            ('warped_image', 't1_2_mni'),
+            ('composite_transform', 't1_2_mni_forward_transform'),
+            ('inverse_composite_transform', 't1_2_mni_reverse_transform')]),
+        ])
 
     return workflow
 
