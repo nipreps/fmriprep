@@ -49,7 +49,7 @@ def test_masking(input_fname, expected_fname):
     bold_reference_wf.inputs.inputnode.bold_file = input_fname
     res = bold_reference_wf.run(plugin='MultiProc')
 
-    combine_masks = [node for node in res.nodes if node.name.endswith('combine_masks')][0]
+    combine_masks = [node for node in res.nodes if node.name.endswith('combine_masks2')][0]
     overlap = symmetric_overlap(expected_fname,
                                 combine_masks.result.outputs.out_file)
 
