@@ -115,7 +115,7 @@ Running a Singularity Image
 
 If the data to be preprocessed is also on the HPC, you are ready to run fmriprep. ::
 
-    $ singularity run --clearenv /my_images/fmriprep-1.1.2.simg \
+    $ singularity run --cleanenv /my_images/fmriprep-1.1.2.simg \
         path/to/data/dir path/to/output/dir \
         participant \
         --participant-label label
@@ -126,17 +126,17 @@ If the data to be preprocessed is also on the HPC, you are ready to run fmriprep
    the container <https://github.com/singularityware/singularity/issues/445>`_.
    Because of this your host libraries (such as nipype) could be accidentally used 
    instead of the ones inside the container - if they are included in ``PYTHONPATH``.
-   To avoid such situation we recommend using the ``--clearenv`` singularity flag 
+   To avoid such situation we recommend using the ``--cleanenv`` singularity flag 
    in production use. For example: ::
 
-      $ singularity run --clearenv ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
+      $ singularity run --cleanenv ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
         /work/04168/asdf/lonestar/ $WORK/lonestar/output \
         participant \
         --participant-label 387 --nthreads 16 -w $WORK/lonestar/work \
         --omp-nthreads 16
 
 
-    or, unset the ``PYTHONPATH`` variable before running: ::
+   or, unset the ``PYTHONPATH`` variable before running: ::
 
       $ unset PYTHONPATH; singularity run ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.img \
         /work/04168/asdf/lonestar/ $WORK/lonestar/output \
@@ -153,7 +153,7 @@ If the data to be preprocessed is also on the HPC, you are ready to run fmriprep
    the ``-B <host_folder>:<container_folder>`` Singularity argument.
    For example: ::
 
-      $ singularity run --clearenv -B /work:/work ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.simg \
+      $ singularity run --cleanenv -B /work:/work ~/poldracklab_fmriprep_latest-2016-12-04-5b74ad9a4c4d.simg \
         /work/my_dataset/ /work/my_dataset/derivatives/fmriprep \
         participant \
         --participant-label 387 --nthreads 16 \
@@ -194,7 +194,7 @@ https://surfer.nmr.mgh.harvard.edu/registration.html.
 When using manually-prepared environments or singularity, FreeSurfer will search 
 for a license key file first using the ``$FS_LICENSE`` environment variable and then 
 in the default path to the license key file (``$FREESURFER_HOME/license.txt``). 
-If using the ``--clearenv`` flag and ``$FS_LICENSE`` is set, use ``--fs-license-file $FS_LICENSE`` 
+If using the ``--cleanenv`` flag and ``$FS_LICENSE`` is set, use ``--fs-license-file $FS_LICENSE`` 
 to pass the license file location to fMRIPrep.
 
 It is possible to run the docker container pointing the image to a local path
