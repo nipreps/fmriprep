@@ -15,12 +15,13 @@ Registration workflows
 import os
 import os.path as op
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu, fsl, c3, freesurfer as fs
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu, fsl, c3, freesurfer as fs
 from niworkflows.interfaces.registration import FLIRTRPT, BBRegisterRPT, MRICoregRPT
 from niworkflows.interfaces.utils import GenerateSamplingReference
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
+from ...engine import Workflow
 from ...interfaces import MultiApplyTransforms, DerivativesDataSink
 
 from ...interfaces.nilearn import Merge
@@ -142,7 +143,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         * :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['name_source', 'ref_bold_brain', 'ref_bold_mask',
@@ -328,7 +329,13 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
             Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+The BOLD reference was then co-registered to the T1w reference using
+`bbregister` (FreeSurfer) which implements boundary-based registration [@bbr].
+Co-registration was configured with nine degrees of freedom to account
+for distortions remaining in the BOLD reference.
+"""
 
     inputnode = pe.Node(
         niu.IdentityInterface([
@@ -499,7 +506,14 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
             Boolean indicating whether BBR was rejected (rigid FLIRT registration returned)
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+The BOLD reference was then co-registered to the T1w reference using
+`flirt` [FSL {fsl_ver}, @flirt] with the boundary-based registration [@bbr]
+cost-function.
+Co-registration was configured with nine degrees of freedom to account
+for distortions remaining in the BOLD reference.
+""".format(fsl_ver=FLIRTRPT().version or '<ver>')
 
     inputnode = pe.Node(
         niu.IdentityInterface([
@@ -640,7 +654,7 @@ def compare_xforms(lta_list, norm_threshold=15):
 
     """
     from fmriprep.interfaces.surf import load_transform
-    from niworkflows.nipype.algorithms.rapidart import _calc_norm_affine
+    from nipype.algorithms.rapidart import _calc_norm_affine
 
     bbr_affine = load_transform(lta_list[0])
     fallback_affine = load_transform(lta_list[1])

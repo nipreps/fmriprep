@@ -17,12 +17,12 @@ from nibabel import cifti2 as ci
 import numpy as np
 from nilearn.image import resample_to_img
 
-from niworkflows.nipype.interfaces.base import (
+from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, traits,
     SimpleInterface, Directory
 )
 from niworkflows.data import getters
-from niworkflows.nipype.utils.filemanip import split_filename
+from nipype.utils.filemanip import split_filename
 
 # CITFI structures with corresponding FS labels
 CIFTI_STRUCT_WITH_LABELS = {
@@ -130,12 +130,10 @@ class GenerateCifti(SimpleInterface):
             raise IOError("Freesurfer annotations for %s not found in %s" % (
                           self.inputs.surface_target, self.inputs.subjects_dir))
 
-        label_space = 'oasis_dkt31_mni152'
-        label_template = os.path.dirname(getters.get_dataset(label_space))
-        label_file = os.path.join(label_template,
-                                  'oasis_trt20_DKT31-MNI152NLin',
-                                  ('OASIS-TRT-20_jointfusion_DKT31_CMA_labels'
-                                   '_in_MNI152NLin2009cAsym_2mm_v2.nii.gz'))
+        label_space = 'tpl-OASISTRT20'
+        label_dir = getters.get_oasis_dkt31_mni152()
+        label_file = os.path.join(label_dir,
+                                  'tpl-OASISTRT20_variant-DKT31_space-MNI152NLin2009cAsym.nii.gz')
 
         download_link = getters.OSF_PROJECT_URL + getters.OSF_RESOURCES[label_space][0]
         return annotation_files, label_file, download_link

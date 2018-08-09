@@ -15,9 +15,12 @@ import sys
 import os
 from copy import deepcopy
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu
+from nipype import __version__ as nipype_ver
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu
+from nilearn import __version__ as nilearn_ver
 
+from ..engine import Workflow
 from ..interfaces import (
     BIDSDataGrabber, BIDSFreeSurferDir, BIDSInfo, SubjectSummary, AboutSummary,
     DerivativesDataSink
@@ -30,12 +33,12 @@ from .anatomical import init_anat_preproc_wf
 from .bold import init_func_preproc_wf
 
 
-def init_fmriprep_wf(subject_list, task_id, run_uuid,
+def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids_dir,
                      ignore, debug, low_mem, anat_only, longitudinal, t2s_coreg,
-                     omp_nthreads, skull_strip_template, work_dir, output_dir, bids_dir,
+                     omp_nthreads, skull_strip_template, skull_strip_fixed_seed,
                      freesurfer, output_spaces, template, medial_surface_nan, cifti_output, hires,
                      use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                     use_aroma, ignore_aroma_err, template_out_grid):
+                     use_aroma, ignore_aroma_err, aroma_melodic_dim, template_out_grid):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
     each subject.
@@ -53,6 +56,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
         wf = init_fmriprep_wf(subject_list=['fmripreptest'],
                               task_id='',
                               run_uuid='X',
+                              work_dir='.',
+                              output_dir='.',
+                              bids_dir='.',
                               ignore=[],
                               debug=False,
                               low_mem=False,
@@ -61,9 +67,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               t2s_coreg=False,
                               omp_nthreads=1,
                               skull_strip_template='OASIS',
-                              work_dir='.',
-                              output_dir='.',
-                              bids_dir='.',
+                              skull_strip_fixed_seed=False,
                               freesurfer=True,
                               output_spaces=['T1w', 'fsnative',
                                             'template', 'fsaverage5'],
@@ -79,6 +83,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                               force_syn=True,
                               use_aroma=False,
                               ignore_aroma_err=False,
+                              aroma_melodic_dim=None,
                               template_out_grid='native')
 
 
@@ -90,6 +95,12 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Task ID of BOLD series to preprocess, or ``None`` to preprocess all
         run_uuid : str
             Unique identifier for execution instance
+        work_dir : str
+            Directory in which to store workflow execution state and temporary files
+        output_dir : str
+            Directory in which to save derivatives
+        bids_dir : str
+            Root directory of BIDS dataset
         ignore : list
             Preprocessing steps to skip (may include "slicetiming", "fieldmaps")
         debug : bool
@@ -107,12 +118,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             Maximum number of threads an individual process may use
         skull_strip_template : str
             Name of ANTs skull-stripping template ('OASIS' or 'NKI')
-        work_dir : str
-            Directory in which to store workflow execution state and temporary files
-        output_dir : str
-            Directory in which to save derivatives
-        bids_dir : str
-            Root directory of BIDS dataset
+        skull_strip_fixed_seed : bool
+            Do not use a random seed for skull-stripping - will ensure
+            run-to-run replicability when used with --omp-nthreads 1
         freesurfer : bool
             Enable FreeSurfer surface reconstruction (may increase runtime)
         output_spaces : list
@@ -126,7 +134,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
              - fsnative
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
-            Name of template targeted by `'template'` output space
+            Name of template targeted by ``template`` output space
         medial_surface_nan : bool
             Replace medial wall values with NaNs on functional GIFTI files
         cifti_output : bool
@@ -156,7 +164,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
             image for normalization
 
     """
-    fmriprep_wf = pe.Workflow(name='fmriprep_wf')
+    fmriprep_wf = Workflow(name='fmriprep_wf')
     fmriprep_wf.base_dir = work_dir
 
     if freesurfer:
@@ -172,6 +180,9 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
         single_subject_wf = init_single_subject_wf(subject_id=subject_id,
                                                    task_id=task_id,
                                                    name="single_subject_" + subject_id + "_wf",
+                                                   reportlets_dir=reportlets_dir,
+                                                   output_dir=output_dir,
+                                                   bids_dir=bids_dir,
                                                    ignore=ignore,
                                                    debug=debug,
                                                    low_mem=low_mem,
@@ -180,9 +191,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    t2s_coreg=t2s_coreg,
                                                    omp_nthreads=omp_nthreads,
                                                    skull_strip_template=skull_strip_template,
-                                                   reportlets_dir=reportlets_dir,
-                                                   output_dir=output_dir,
-                                                   bids_dir=bids_dir,
+                                                   skull_strip_fixed_seed=skull_strip_fixed_seed,
                                                    freesurfer=freesurfer,
                                                    output_spaces=output_spaces,
                                                    template=template,
@@ -197,6 +206,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
                                                    force_syn=force_syn,
                                                    template_out_grid=template_out_grid,
                                                    use_aroma=use_aroma,
+                                                   aroma_melodic_dim=aroma_melodic_dim,
                                                    ignore_aroma_err=ignore_aroma_err)
 
         single_subject_wf.config['execution']['crashdump_dir'] = (
@@ -213,12 +223,13 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid,
     return fmriprep_wf
 
 
-def init_single_subject_wf(subject_id, task_id, name,
+def init_single_subject_wf(subject_id, task_id, name, reportlets_dir, output_dir, bids_dir,
                            ignore, debug, low_mem, anat_only, longitudinal, t2s_coreg,
-                           omp_nthreads, skull_strip_template, reportlets_dir, output_dir,
-                           bids_dir, freesurfer, output_spaces, template, medial_surface_nan,
+                           omp_nthreads, skull_strip_template, skull_strip_fixed_seed,
+                           freesurfer, output_spaces, template, medial_surface_nan,
                            cifti_output, hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean,
-                           use_syn, force_syn, template_out_grid, use_aroma, ignore_aroma_err):
+                           use_syn, force_syn, template_out_grid,
+                           use_aroma, aroma_melodic_dim, ignore_aroma_err):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -235,25 +246,26 @@ def init_single_subject_wf(subject_id, task_id, name,
 
         from fmriprep.workflows.base import init_single_subject_wf
         wf = init_single_subject_wf(subject_id='test',
-                                    name='single_subject_wf',
                                     task_id='',
-                                    longitudinal=False,
-                                    t2s_coreg=False,
-                                    omp_nthreads=1,
-                                    freesurfer=True,
+                                    name='single_subject_wf',
                                     reportlets_dir='.',
                                     output_dir='.',
                                     bids_dir='.',
+                                    ignore=[],
+                                    debug=False,
+                                    low_mem=False,
+                                    anat_only=False,
+                                    longitudinal=False,
+                                    t2s_coreg=False,
+                                    omp_nthreads=1,
                                     skull_strip_template='OASIS',
+                                    skull_strip_fixed_seed=False,
+                                    freesurfer=True,
                                     template='MNI152NLin2009cAsym',
                                     output_spaces=['T1w', 'fsnative',
                                                   'template', 'fsaverage5'],
                                     medial_surface_nan=False,
                                     cifti_output=False,
-                                    ignore=[],
-                                    debug=False,
-                                    low_mem=False,
-                                    anat_only=False,
                                     hires=True,
                                     use_bbr=True,
                                     bold2t1w_dof=9,
@@ -263,6 +275,7 @@ def init_single_subject_wf(subject_id, task_id, name,
                                     force_syn=True,
                                     template_out_grid='native',
                                     use_aroma=False,
+                                    aroma_melodic_dim=None,
                                     ignore_aroma_err=False)
 
     Parameters
@@ -290,6 +303,9 @@ def init_single_subject_wf(subject_id, task_id, name,
             Maximum number of threads an individual process may use
         skull_strip_template : str
             Name of ANTs skull-stripping template ('OASIS' or 'NKI')
+        skull_strip_fixed_seed : bool
+            Do not use a random seed for skull-stripping - will ensure
+            run-to-run replicability when used with --omp-nthreads 1
         reportlets_dir : str
             Directory in which to save reportlets
         output_dir : str
@@ -309,7 +325,7 @@ def init_single_subject_wf(subject_id, task_id, name,
              - fsnative
              - fsaverage (or other pre-existing FreeSurfer templates)
         template : str
-            Name of template targeted by `'template'` output space
+            Name of template targeted by ``template`` output space
         medial_surface_nan : bool
             Replace medial wall values with NaNs on functional GIFTI files
         cifti_output : bool
@@ -364,7 +380,29 @@ def init_single_subject_wf(subject_id, task_id, name,
         raise Exception("No T1w images found for participant {}. "
                         "All workflows require T1w images.".format(subject_id))
 
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """
+Results included in this manuscript come from preprocessing
+performed using *fMRIPprep* {fmriprep_ver}
+(@fmriprep1; @fmriprep2; RRID:SCR_016216),
+which is based on *Nipype* {nipype_ver}
+(@nipype1; @nipype2; RRID:SCR_002502).
+
+""".format(fmriprep_ver=__version__, nipype_ver=nipype_ver)
+    workflow.__postdesc__ = """
+
+Many internal operations of *fMRIPrep* use
+*Nilearn* {nilearn_ver} [@nilearn, RRID:SCR_001362],
+mostly within the functional processing workflow.
+For more details of the pipeline, see [the section corresponding
+to workflows in *fMRIPrep*'s documentation]\
+(https://fmriprep.readthedocs.io/en/latest/workflows.html \
+"FMRIPrep's documentation").
+
+
+### References
+
+""".format(nilearn_ver=nilearn_ver)
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']),
                         name='inputnode')
@@ -381,19 +419,20 @@ def init_single_subject_wf(subject_id, task_id, name,
                                  command=' '.join(sys.argv)),
                     name='about', run_without_submitting=True)
 
-    ds_summary_report = pe.Node(
+    ds_report_summary = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir,
                             suffix='summary'),
-        name='ds_summary_report', run_without_submitting=True)
+        name='ds_report_summary', run_without_submitting=True)
 
-    ds_about_report = pe.Node(
+    ds_report_about = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir,
                             suffix='about'),
-        name='ds_about_report', run_without_submitting=True)
+        name='ds_report_about', run_without_submitting=True)
 
     # Preprocessing of T1w (includes registration to MNI)
     anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
                                            skull_strip_template=skull_strip_template,
+                                           skull_strip_fixed_seed=skull_strip_fixed_seed,
                                            output_spaces=output_spaces,
                                            template=template,
                                            debug=debug,
@@ -415,12 +454,13 @@ def init_single_subject_wf(subject_id, task_id, name,
         (bids_info, summary, [('subject_id', 'subject_id')]),
         (bidssrc, anat_preproc_wf, [('t1w', 'inputnode.t1w'),
                                     ('t2w', 'inputnode.t2w'),
+                                    ('roi', 'inputnode.roi'),
                                     ('flair', 'inputnode.flair')]),
         (summary, anat_preproc_wf, [('subject_id', 'inputnode.subject_id')]),
-        (bidssrc, ds_summary_report, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (summary, ds_summary_report, [('out_report', 'in_file')]),
-        (bidssrc, ds_about_report, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (about, ds_about_report, [('out_report', 'in_file')]),
+        (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        (summary, ds_report_summary, [('out_report', 'in_file')]),
+        (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        (about, ds_report_about, [('out_report', 'in_file')]),
     ])
 
     if anat_only:
@@ -449,7 +489,9 @@ def init_single_subject_wf(subject_id, task_id, name,
                                                debug=debug,
                                                template_out_grid=template_out_grid,
                                                use_aroma=use_aroma,
-                                               ignore_aroma_err=ignore_aroma_err)
+                                               aroma_melodic_dim=aroma_melodic_dim,
+                                               ignore_aroma_err=ignore_aroma_err,
+                                               num_bold=len(subject_data['bold']))
 
         workflow.connect([
             (anat_preproc_wf, func_preproc_wf,

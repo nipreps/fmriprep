@@ -37,9 +37,10 @@ def main():
             'data/*.json',
             'data/*.nii.gz',
             'data/*.mat',
+            'data/boilerplate.bib',
             'data/itkIdentityTransform.txt',
             'viz/*.tpl',
-            'viz/*.json'
+            'viz/*.json',
         ]
     }
 

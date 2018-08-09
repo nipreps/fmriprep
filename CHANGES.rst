@@ -1,3 +1,105 @@
+1.1.4 (August 06, 2018)
+=======================
+
+  * [FIX] Verify first word of _cmd in dependency check (#1236)
+  * [DOC] Add two missing references (#1234)
+  * [ENH] Allow turning off random seeding for ANTs brain extraction (#919)
+
+1.1.3 (July 30, 2018)
+=====================
+
+* [ENH] Use upstream ``afni.TShift`` improvements (#1160)
+* [PIN] Nipype 1.1.1 (65078c9)
+* [ENH] Dynamic citation boilerplate (#1024)
+* [ENH] Check Command Line dependencies before running (#1044)
+* [ENH] Reimplement ``SignalExtraction`` (#1170)
+* [DOC] Update copyright year to 2018 (#1224)
+* [ENH] Enable ``-u`` (docker user/userid) flag in wrapper (#1223)
+* [FIX] Corrects Dockerfile ``WORKDIR``. (#1218)
+* [ENH] More specific errors for missing echo times (#1221)
+* [ENH] Change ``WORKDIR`` of Docker image (#1204)
+* [DOC] Update documentation related to contributions (#1187)
+* [DOC] Additions to include before responding to reviews of the pre-print (#1195)
+* [DOC] Improving documentation on using Singularity (#1063)
+* [DOC] Add OHBM 2018 poster, presentation (#1198)
+* [ENH] Replace ``InvertT1w`` with upstream ``Rescale(invert=True)`` (#1161)
+
+1.1.2 (July 6, 2018)
+====================
+
+This release incorporates Nipype improvements that should reduce the
+chance of hanging if tasks are killed for excessive resource consumption.
+
+Thanks to Elizabeth DuPre for documentation updates.
+
+* [DOC] Clarify how to reuse FreeSurfer derivatives (#1189)
+* [DOC] Improve command line option documentation (#1186, #1080)
+* [MAINT] Update core dependencies (#1179, #1180)
+
+1.1.1 (June 7, 2018)
+====================
+
+* [ENH] Pre-cache DKT31 template in Docker image (#1159)
+* [MAINT] Update core dependencies (#1163)
+
+1.1.0 (June 4, 2018)
+====================
+
+* [ENH] Use Reorient interface included upstream in nipype (#1153)
+* [FIX] Refine BIDS queries to avoid indexing derivatives (#1141)
+* [DOC] Clarify outlier columns (#1138)
+* [PIN] Update to niworkflows 0.4.0 and nipype 1.0.4 (#1133)
+
+1.0.15 (May 17, 2018)
+=====================
+
+* [DOC] Add lesion masking during registration (#1113)
+* [FIX] Patch ``boldbuffer`` for ME (#1134)
+
+1.0.14 (May 15, 2018)
+=====================
+
+With thanks to @ZhifangYe for contributions
+
+* [FIX] Non-invertible transforms bringing parcellation to BOLD (#1130)
+* [FIX] Bad connection for ``--medial-surface-nan`` option (#1128)
+
+1.0.13 (May 11, 2018)
+=====================
+
+With thanks to @danlurie for the outstanding contribution of #1106
+
+* [ENH] Some nit picks on reports (#1123)
+* [ENH] Carpetplot + confounds plot (#1114)
+* [ENH] Add constrained cost-function masking to T1-MNI registration (#1106)
+* [FIX] Circular dependency (#1104)
+* [ENH] Set ``PYTHONNOUSERSITE`` in containers (#1103)
+
+
+1.0.12 (May 03, 2018)
+=====================
+
+* [MAINT] fmriprep-docker: Ensure data/output/work paths are absolute (#1089)
+* [ENH] Add usage tracking and centralized error reporting (#1088)
+* [FIX] Ensure one motion IC index is loaded as list (#1096)
+* [TST] Refactoring CircleCI setup (#1098)
+* [FIX] Compression in DataSinks (#1095)
+* [MAINT] fmriprep-docker: Support Python 2/3 without future or other helpers (#1082)
+* [MAINT] Update npm to 10.x (#1087)
+* [DOC] Prefer pre-print over Zenodo doi in boilerplate (#1086)
+* [DOC] Stylistic fix (\`'template'\`) (#1083)
+* [FIX] Run ICA-AROMA in ``MNI152Lin`` 2mm resampling grid (91x109x91 vox) (#1064)
+* [MAINT] Remove cwebp to revert to png (#1081)
+* [ENH] Allow changing the dimensionality of Melodic for AROMA. (#1052)
+* [FIX] Derivatives datasink handling of compression (#1077)
+* [FIX] Check for invalid sform matrices (#1072)
+* [FIX] Check exit code from subprocess (#1073)
+* [DOC] Add preprint fig. 1 to About (#1070)
+* [FIX] Always strip session from T1w for derivative naming (#1071)
+* [DOC] Add RRIDs in the citation boilerplate (#1061)
+* [ENH] Generate CIFTI derivatives (#1001)
+
+
 1.0.11 (April 16, 2018)
 =======================
 

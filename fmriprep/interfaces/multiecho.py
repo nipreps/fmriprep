@@ -21,13 +21,13 @@ import numpy as np
 import nibabel as nb
 from nilearn.masking import (apply_mask, unmask)
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.utils.filemanip import (split_filename, fname_presuffix)
-from niworkflows.nipype.interfaces.base import (
+from nipype import logging
+from nipype.utils.filemanip import (split_filename, fname_presuffix)
+from nipype.interfaces.base import (
     traits, TraitedSpec, File, InputMultiPath, SimpleInterface,
     BaseInterfaceInputSpec)
 
-LOGGER = logging.getLogger('interface')
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class FirstEchoInputSpec(BaseInterfaceInputSpec):

@@ -14,14 +14,14 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import nibabel as nb
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.utils.filemanip import fname_presuffix
-from niworkflows.nipype.interfaces.base import (
+from nipype import logging
+from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec, File, InputMultiPath, OutputMultiPath,
     SimpleInterface)
-from niworkflows.nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
+from nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
 
-LOGGER = logging.getLogger('interface')
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class MCFLIRT2ITKInputSpec(BaseInterfaceInputSpec):
@@ -222,8 +222,8 @@ class FUGUEvsm2ANTSwarp(SimpleInterface):
 
 
 def _mat2itk(args):
-    from niworkflows.nipype.interfaces.c3 import C3dAffineTool
-    from niworkflows.nipype.utils.filemanip import fname_presuffix
+    from nipype.interfaces.c3 import C3dAffineTool
+    from nipype.utils.filemanip import fname_presuffix
 
     in_file, in_ref, in_src, index, newpath = args
     # Generate a temporal file name
@@ -247,7 +247,7 @@ def _applytfms(args):
     multiprocessing's map
     """
     import nibabel as nb
-    from niworkflows.nipype.utils.filemanip import fname_presuffix
+    from nipype.utils.filemanip import fname_presuffix
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
     in_file, in_xform, ifargs, index, newpath = args

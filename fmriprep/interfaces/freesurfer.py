@@ -15,8 +15,8 @@ Fetch some example data:
 
 Disable warnings:
 
-    >>> import niworkflows.nipype as nn
-    >>> nn.logging.getLogger('interface').setLevel('ERROR')
+    >>> from nipype import logging
+    >>> logging.getLogger('nipype.interface').setLevel('ERROR')
 
 """
 
@@ -28,13 +28,13 @@ from skimage import morphology as sim
 from scipy.ndimage.morphology import binary_fill_holes
 from nilearn.image import resample_to_img, new_img_like
 
-from niworkflows.nipype.utils.filemanip import copyfile, filename_to_list, fname_presuffix
-from niworkflows.nipype.interfaces.base import (
+from nipype.utils.filemanip import copyfile, filename_to_list, fname_presuffix
+from nipype.interfaces.base import (
     isdefined, InputMultiPath, BaseInterfaceInputSpec, TraitedSpec, File, traits, Directory
 )
-from niworkflows.nipype.interfaces import freesurfer as fs
-from niworkflows.nipype.interfaces.base import SimpleInterface
-from niworkflows.nipype.interfaces.freesurfer.preprocess import ConcatenateLTA
+from nipype.interfaces import freesurfer as fs
+from nipype.interfaces.base import SimpleInterface
+from nipype.interfaces.freesurfer.preprocess import ConcatenateLTA
 
 
 class StructuralReference(fs.RobustTemplate):
@@ -195,10 +195,10 @@ class PatchedConcatenateLTA(ConcatenateLTA):
     A temporarily patched version of ``fs.ConcatenateLTA`` to recover from
     `this bug <https://www.mail-archive.com/freesurfer@nmr.mgh.harvard.edu/msg55520.html>`_
     in FreeSurfer, that was
-    `fixed here <https://github.com/freesurfer/freesurfer/pull/180>`_.
+    `fixed here <https://github.com/freesurfer/freesurfer/pull/180>`__.
 
     The original FMRIPREP's issue is found
-    `here <https://github.com/poldracklab/fmriprep/issues/768>`_.
+    `here <https://github.com/poldracklab/fmriprep/issues/768>`__.
     """
 
     def _list_outputs(self):

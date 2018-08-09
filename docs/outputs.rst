@@ -160,8 +160,8 @@ derivative of RMS variance over voxels (or :abbr:`DVARS (D referring to differen
 standardized (``stdDVARS``), non-standardized (``non-stdDVARS``), and voxel-wise standardized (``vx-wisestdDVARS``);
 the ``FrameDisplacement`` is a quantification of the estimated bulk-head motion; ``X``, ``Y``, ``Z``, ``RotX``,
 ``RotY``, ``RotZ`` are the actual 6 rigid-body transform parameters estimated by FMRIPREP;
-the ``NonSteadyStateOutlier00`` column is ``1`` when a non-steady state was found (typically at the beginning of
-the scan) and ``0`` elsewhere; and finally six noise components ``aCompCorXX`` calculated using
+the ``NonSteadyStateOutlierXX`` columns indicate non-steady state volumes with a single ``1`` value and ``0`` elsewhere (there 
+is one ``NonSteadyStateOutlierXX`` column per outlier/volume); and finally six noise components ``aCompCorXX`` calculated using
 :abbr:`CompCor (Component Based Noise Correction Method)`
 and five noise components ``AROMAaggrCompXX`` if
 :abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)` was enabled.
@@ -169,3 +169,29 @@ and five noise components ``AROMAaggrCompXX`` if
 All these confounds can be used to perform *scrubbing* and *censoring* of outliers,
 in the subsequent first-level analysis when building the design matrix,
 and in group level analysis.
+
+Confounds and "carpet"-plot on the visual reports
+-------------------------------------------------
+
+Some of the estimated confounds, as well as a "carpet" visualization of the
+:abbr:`BOLD (blood-oxygen level-dependant)` time-series (see [Power2016]_).
+This plot is included for each run within the corresponding visual report.
+An example of these plots follows:
+
+
+.. figure:: _static/sub-01_task-mixedgamblestask_run-01_bold_carpetplot.svg
+    :scale: 100%
+
+    The figure shows on top several confounds estimated for the BOLD series:
+    global signals ('GlobalSignal', 'WM', 'GM'), standardized DVARS ('stdDVARS'),
+    and framewise-displacement ('FramewiseDisplacement').
+    At the bottom, a 'carpetplot' summarizing the BOLD series.
+    The colormap on the left-side of the carpetplot denotes signals located
+    in cortical gray matter regions (blue), subcortical gray matter (orange),
+    cerebellum (green) and the union of white-matter and CSF compartments (red).
+
+
+.. topic:: References
+
+  .. [Power2016] Power JD, A simple but useful way to assess fMRI scan qualities.
+     NeuroImage. 2016. doi: `10.1016/j.neuroimage.2016.08.009 <http://doi.org/10.1016/j.neuroimage.2016.08.009>`_

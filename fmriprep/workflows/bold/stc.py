@@ -8,13 +8,15 @@ Slice-Timing Correction (STC) of BOLD images
 .. autofunction:: init_bold_stc_wf
 
 """
-from niworkflows.nipype import logging
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu, afni
+from nipype import logging
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu, afni
 from niworkflows.interfaces.utils import CopyXForm
 
+from ...engine import Workflow
+
 DEFAULT_MEMORY_MIN_GB = 0.01
-LOGGER = logging.getLogger('workflow')
+LOGGER = logging.getLogger('nipype.workflow')
 
 
 # pylint: disable=R0914
@@ -53,41 +55,28 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
             Slice-timing corrected BOLD series NIfTI file
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+BOLD runs were slice-time corrected using `3dTshift` from
+AFNI {afni_ver} [@afni, RRID:SCR_005927].
+""".format(afni_ver=''.join(list(afni.TShift().version or '<ver>')))
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file', 'skip_vols']), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=['stc_file']), name='outputnode')
 
     LOGGER.log(25, 'Slice-timing correction will be included.')
 
-    def create_custom_slice_timing_file_func(metadata):
-        import os
-        slice_timings_sec = ["%f" % t for t in metadata["SliceTiming"]]
-        out_file = os.path.abspath("timings.1D")
-        with open(out_file, "w") as fp:
-            fp.write("\t".join(slice_timings_sec))
-        return out_file
-
-    create_custom_slice_timing_file = pe.Node(
-        niu.Function(function=create_custom_slice_timing_file_func),
-        name="create_custom_slice_timing_file",
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-    create_custom_slice_timing_file.inputs.metadata = metadata
-
     # It would be good to fingerprint memory use of afni.TShift
     slice_timing_correction = pe.Node(
-        afni.TShift(outputtype='NIFTI_GZ', tr='{}s'.format(metadata["RepetitionTime"])),
+        afni.TShift(outputtype='NIFTI_GZ',
+                    tr='{}s'.format(metadata["RepetitionTime"]),
+                    slice_timing=metadata['SliceTiming']),
         name='slice_timing_correction')
 
     copy_xform = pe.Node(CopyXForm(), name='copy_xform', mem_gb=0.1)
 
-    def _prefix_at(x):
-        return "@%s" % x
-
     workflow.connect([
         (inputnode, slice_timing_correction, [('bold_file', 'in_file'),
                                               ('skip_vols', 'ignore')]),
-        (create_custom_slice_timing_file, slice_timing_correction, [
-            (('out', _prefix_at), 'tpattern')]),
         (slice_timing_correction, copy_xform, [('out_file', 'in_file')]),
         (inputnode, copy_xform, [('bold_file', 'hdr_file')]),
         (copy_xform, outputnode, [('out_file', 'stc_file')]),

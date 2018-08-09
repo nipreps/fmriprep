@@ -9,9 +9,10 @@ Head-Motion Estimation and Correction (HMC) of BOLD images
 
 """
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu, fsl
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu, fsl
 from niworkflows.interfaces import NormalizeMotionParams
+from ...engine import Workflow
 from ...interfaces import MCFLIRT2ITK
 
 DEFAULT_MEMORY_MIN_GB = 0.01
@@ -57,7 +58,14 @@ def init_bold_hmc_wf(mem_gb, omp_nthreads, name='bold_hmc_wf'):
             MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+Head-motion parameters with respect to the BOLD reference
+(transformation matrices, and six corresponding rotation and translation
+parameters) are estimated before any spatiotemporal filtering using
+`mcflirt` [FSL {fsl_ver}, @mcflirt].
+""".format(fsl_ver=fsl.Info().version() or '<ver>')
+
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']),
                         name='inputnode')
     outputnode = pe.Node(

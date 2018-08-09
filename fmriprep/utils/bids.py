@@ -151,7 +151,7 @@ def collect_data(dataset, participant_label, task=None):
 
 
     """
-    layout = BIDSLayout(dataset)
+    layout = BIDSLayout(dataset, exclude=['derivatives', 'sourcedata'])
     queries = {
         'fmap': {'subject': participant_label, 'modality': 'fmap',
                  'extensions': ['nii', 'nii.gz']},
@@ -159,11 +159,13 @@ def collect_data(dataset, participant_label, task=None):
                  'extensions': ['nii', 'nii.gz']},
         'sbref': {'subject': participant_label, 'modality': 'func', 'type': 'sbref',
                   'extensions': ['nii', 'nii.gz']},
-        'flair': {'subject': participant_label, 'type': 'FLAIR',
+        'flair': {'subject': participant_label, 'modality': 'anat', 'type': 'FLAIR',
                   'extensions': ['nii', 'nii.gz']},
-        't2w': {'subject': participant_label, 'type': 'T2w',
+        't2w': {'subject': participant_label, 'modality': 'anat', 'type': 'T2w',
                 'extensions': ['nii', 'nii.gz']},
-        't1w': {'subject': participant_label, 'type': 'T1w',
+        't1w': {'subject': participant_label, 'modality': 'anat', 'type': 'T1w',
+                'extensions': ['nii', 'nii.gz']},
+        'roi': {'subject': participant_label, 'modality': 'anat', 'type': 'roi',
                 'extensions': ['nii', 'nii.gz']},
     }
 

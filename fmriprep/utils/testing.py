@@ -12,9 +12,9 @@ import unittest
 import logging
 from networkx.exception import NetworkXUnfeasible
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces.base import isdefined
-from niworkflows.nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
+from nipype.interfaces.base import isdefined
+from nipype.interfaces import utility as niu
 
 logging.disable(logging.INFO)  # <- do we really want to do this?
 

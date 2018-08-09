@@ -8,94 +8,62 @@ fMRIprep reports builder
 
 
 """
-
+from pathlib import Path
 import json
 import re
-import os
+
 import html
-import shutil
 
 import jinja2
-from niworkflows.nipype.utils.filemanip import loadcrash
+from nipype.utils.filemanip import loadcrash, copyfile
 from pkg_resources import resource_filename as pkgrf
 
 
 class Element(object):
-    def __init__(self, name, file_pattern, title=None, description=None, raw=False):
+    """
+    Just a basic component of a report
+    """
+    def __init__(self, name, title=None):
+        self.name = name
+        self.title = title
+
+
+class Reportlet(Element):
+    """
+    A reportlet has title, description and a list of graphical components
+    """
+    def __init__(self, name, file_pattern=None, title=None, description=None, raw=False):
         self.name = name
         self.file_pattern = re.compile(file_pattern)
         self.title = title
         self.description = description
-        self.files_contents = []
+        self.source_files = []
+        self.contents = []
         self.raw = raw
 
 
-class SubReport(object):
-    def __init__(self, name, elements, title=''):
+class SubReport(Element):
+    """
+    SubReports are sections within a Report
+    """
+    def __init__(self, name, reportlets=None, title=''):
         self.name = name
         self.title = title
-        self.run_reports = []
-        self.elements = [Element(**e) for e in elements]
-
-    def order_by_run(self):
-        run_reps = {}
-        for element in self.elements:
-            for index in range(len(element.files_contents) - 1, -1, -1):
-                filename = element.files_contents[index][0]
-                file_contents = element.files_contents[index][1]
-                name, title = self.generate_name_title(filename)
-                if not name:
-                    continue
-                new_elem = {'name': element.name, 'file_pattern': element.file_pattern,
-                            'title': element.title, 'description': element.description,
-                            'raw': element.raw}
-                try:
-                    new_element = Element(**new_elem)
-                    run_reps[name].elements.append(new_element)
-                    run_reps[name].elements[-1].files_contents.append((filename, file_contents))
-                except KeyError:
-                    run_reps[name] = SubReport(name, [new_elem], title=title)
-                    run_reps[name].elements[0].files_contents.append((filename, file_contents))
-        keys = list(run_reps.keys())
-        keys.sort()
-        for key in keys:
-            self.run_reports.append(run_reps[key])
-
-    def generate_name_title(self, filename):
-        fname = os.path.basename(filename)
-        expr = re.compile('^sub-(?P<subject_id>[a-zA-Z0-9]+)(_ses-(?P<session_id>[a-zA-Z0-9]+))?'
-                          '(_task-(?P<task_id>[a-zA-Z0-9]+))?(_acq-(?P<acq_id>[a-zA-Z0-9]+))?'
-                          '(_rec-(?P<rec_id>[a-zA-Z0-9]+))?(_run-(?P<run_id>[a-zA-Z0-9]+))?')
-        outputs = expr.search(fname)
-        if outputs:
-            outputs = outputs.groupdict()
-        else:
-            return None, None
-
-        name = '{session}{task}{acq}{rec}{run}'.format(
-            session="_ses-" + outputs['session_id'] if outputs['session_id'] else '',
-            task="_task-" + outputs['task_id'] if outputs['task_id'] else '',
-            acq="_acq-" + outputs['acq_id'] if outputs['acq_id'] else '',
-            rec="_rec-" + outputs['rec_id'] if outputs['rec_id'] else '',
-            run="_run-" + outputs['run_id'] if outputs['run_id'] else ''
-        )
-        title = '{session}{task}{acq}{rec}{run}'.format(
-            session=" Session: " + outputs['session_id'] if outputs['session_id'] else '',
-            task=" Task: " + outputs['task_id'] if outputs['task_id'] else '',
-            acq=" Acquisition: " + outputs['acq_id'] if outputs['acq_id'] else '',
-            rec=" Reconstruction: " + outputs['rec_id'] if outputs['rec_id'] else '',
-            run=" Run: " + outputs['run_id'] if outputs['run_id'] else ''
-        )
-        return name, title
+        self.reportlets = []
+        if reportlets:
+            self.reportlets += reportlets
+        self.isnested = False
 
 
 class Report(object):
-
+    """
+    The full report object
+    """
     def __init__(self, path, config, out_dir, run_uuid, out_filename='report.html'):
         self.root = path
-        self.sub_reports = []
+        self.sections = []
         self.errors = []
-        self.out_dir = out_dir
+        self.out_dir = Path(out_dir)
         self.out_filename = out_filename
         self.run_uuid = run_uuid
 
@@ -105,60 +73,67 @@ class Report(object):
         with open(config, 'r') as configfh:
             config = json.load(configfh)
 
-        for e in config['sub_reports']:
-            sub_report = SubReport(**e)
-            self.sub_reports.append(sub_report)
+        self.index(config['sections'])
 
-        self.index()
-
-    def index(self):
+    def index(self, config):
         fig_dir = 'figures'
         subject_dir = self.root.split('/')[-1]
         subject = re.search('^(?P<subject_id>sub-[a-zA-Z0-9]+)$', subject_dir).group()
-        svg_dir = os.path.join(self.out_dir, 'fmriprep', subject, fig_dir)
-        os.makedirs(svg_dir, exist_ok=True)
+        svg_dir = self.out_dir / 'fmriprep' / subject / fig_dir
+        svg_dir.mkdir(parents=True, exist_ok=True)
+        reportlet_list = list(sorted([str(f) for f in Path(self.root).glob('**/*.*')]))
 
-        for root, directories, filenames in os.walk(self.root):
-            for f in filenames:
-                f = os.path.join(root, f)
-                for sub_report in self.sub_reports:
-                    for element in sub_report.elements:
-                        ext = f.split('.')[-1]
-                        if element.file_pattern.search(f) and ext in ('svg', 'html'):
-                            if ext == 'html':
-                                with open(f) as fp:
-                                    content = fp.read()
-                            else:
-                                fbase = os.path.basename(f)
-                                newf = os.path.join(svg_dir, fbase)
-                                shutil.copy(f, newf)
-                                content = """\
-<object type="image/svg+xml" data="./{0}" class="reportlet">filename:{0}</object>\
-""".format(os.path.join(subject, fig_dir, fbase))
-                            element.files_contents.append((f, content))
-        for sub_report in self.sub_reports:
-            sub_report.order_by_run()
+        for subrep_cfg in config:
+            reportlets = []
+            for reportlet_cfg in subrep_cfg['reportlets']:
+                rlet = Reportlet(**reportlet_cfg)
+                for src in reportlet_list:
+                    ext = src.split('.')[-1]
+                    if rlet.file_pattern.search(src):
+                        contents = None
+                        if ext == 'html':
+                            with open(src) as fp:
+                                contents = fp.read().strip()
+                        elif ext == 'svg':
+                            fbase = Path(src).name
+                            copyfile(src, str(svg_dir / fbase),
+                                     copy=True, use_hardlink=True)
+                            contents = str(Path(subject) / fig_dir / fbase)
 
-        error_dir = os.path.join(self.out_dir, "fmriprep", subject, 'log', self.run_uuid)
-        if os.path.isdir(error_dir):
+                        if contents:
+                            rlet.source_files.append(src)
+                            rlet.contents.append(contents)
+
+                if rlet.source_files:
+                    reportlets.append(rlet)
+
+            if reportlets:
+                sub_report = SubReport(
+                    subrep_cfg['name'], reportlets=reportlets,
+                    title=subrep_cfg.get('title'))
+                self.sections.append(order_by_run(sub_report))
+
+        error_dir = self.out_dir / "fmriprep" / subject / 'log' / self.run_uuid
+        if error_dir.is_dir():
             self.index_error_dir(error_dir)
 
     def index_error_dir(self, error_dir):
-        ''' Crawl subjects crash directory for the corresponding run and return text for
-            .pklz crash file found. '''
-        for root, directories, filenames in os.walk(error_dir):
-            for f in filenames:
-                crashtype = os.path.splitext(f)[1]
-                if f[:5] == 'crash' and crashtype == '.pklz':
-                    self.errors.append(self._read_pkl(os.path.join(root, f)))
-                elif f[:5] == 'crash' and crashtype == '.txt':
-                    self.errors.append(self._read_txt(os.path.join(root, f)))
+        """
+        Crawl subjects crash directory for the corresponding run and return text for
+        .pklz crash file found.
+        """
+        for crashfile in error_dir.glob('crash*.*'):
+            if crashfile.suffix == '.pklz':
+                self.errors.append(self._read_pkl(crashfile))
+            elif crashfile.suffix == '.txt':
+                self.errors.append(self._read_txt(crashfile))
 
     @staticmethod
-    def _read_pkl(fname):
+    def _read_pkl(path):
+        fname = str(path)
         crash_data = loadcrash(fname)
         data = {'file': fname,
-                'traceback': ''.join(crash_data['traceback']).replace("\\n", "<br \>")}
+                'traceback': ''.join(crash_data['traceback']).replace("\\n", "<br />")}
         if 'node' in crash_data:
             data['node'] = crash_data['node']
             if data['node'].base_dir:
@@ -169,11 +144,9 @@ class Report(object):
         return data
 
     @staticmethod
-    def _read_txt(fname):
-        with open(fname, 'r') as fobj:
-            crash_data = fobj.read()
-        lines = crash_data.splitlines()
-        data = {'file': fname}
+    def _read_txt(path):
+        lines = path.read_text().splitlines()
+        data = {'file': str(path)}
         traceback_start = 0
         if lines[0].startswith('Node'):
             data['node'] = lines[0].split(': ', 1)[1]
@@ -191,20 +164,111 @@ class Report(object):
         return data
 
     def generate_report(self):
+        logs_path = self.out_dir / 'fmriprep' / 'logs'
+
+        boilerplate = []
+        boiler_idx = 0
+
+        if (logs_path / 'CITATION.html').exists():
+            text = (logs_path / 'CITATION.html').read_text()
+            text = '<div class="boiler-html">%s</div>' % re.compile(
+                '<body>(.*?)</body>',
+                re.DOTALL | re.IGNORECASE).findall(text)[0].strip()
+            boilerplate.append((boiler_idx, 'HTML', text))
+            boiler_idx += 1
+
+        if (logs_path / 'CITATION.md').exists():
+            text = '<pre>%s</pre>\n' % (logs_path / 'CITATION.md').read_text()
+            boilerplate.append((boiler_idx, 'Markdown', text))
+            boiler_idx += 1
+
+        if (logs_path / 'CITATION.tex').exists():
+            text = (logs_path / 'CITATION.tex').read_text()
+            text = re.compile(
+                r'\\begin{document}(.*?)\\end{document}',
+                re.DOTALL | re.IGNORECASE).findall(text)[0].strip()
+            text = '<pre>%s</pre>\n' % text
+            text += '<h3>Bibliography</h3>\n'
+            text += '<pre>%s</pre>\n' % Path(
+                pkgrf('fmriprep', 'data/boilerplate.bib')).read_text()
+            boilerplate.append((boiler_idx, 'LaTeX', text))
+            boiler_idx += 1
+
         searchpath = pkgrf('fmriprep', '/')
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(searchpath=searchpath),
             trim_blocks=True, lstrip_blocks=True
         )
         report_tpl = env.get_template('viz/report.tpl')
-        # Ignore subreports with no children
-        sub_reports = [sub_report for sub_report in self.sub_reports
-                       if len(sub_report.run_reports) > 0 or
-                       any(elem.files_contents for elem in sub_report.elements)]
-        report_render = report_tpl.render(sub_reports=sub_reports, errors=self.errors)
-        with open(os.path.join(self.out_dir, "fmriprep", self.out_filename), 'w') as fp:
-            fp.write(report_render)
+        report_render = report_tpl.render(sections=self.sections, errors=self.errors,
+                                          boilerplate=boilerplate)
+
+        # Write out report
+        (self.out_dir / 'fmriprep' / self.out_filename).write_text(report_render)
         return len(self.errors)
+
+
+def order_by_run(subreport):
+    ordered = []
+    run_reps = {}
+
+    for element in subreport.reportlets:
+        if len(element.source_files) == 1 and element.source_files[0]:
+            ordered.append(element)
+            continue
+
+        for filename, file_contents in zip(element.source_files, element.contents):
+            name, title = generate_name_title(filename)
+            if not filename or not name:
+                continue
+
+            new_element = Reportlet(
+                name=element.name, title=element.title, file_pattern=element.file_pattern,
+                description=element.description, raw=element.raw)
+            new_element.contents.append(file_contents)
+            new_element.source_files.append(filename)
+
+            if name not in run_reps:
+                run_reps[name] = SubReport(name, title=title)
+
+            run_reps[name].reportlets.append(new_element)
+
+    if run_reps:
+        keys = list(sorted(run_reps.keys()))
+        for key in keys:
+            ordered.append(run_reps[key])
+        subreport.isnested = True
+
+    subreport.reportlets = ordered
+    return subreport
+
+
+def generate_name_title(filename):
+    fname = Path(filename).name
+    expr = re.compile('^sub-(?P<subject_id>[a-zA-Z0-9]+)(_ses-(?P<session_id>[a-zA-Z0-9]+))?'
+                      '(_task-(?P<task_id>[a-zA-Z0-9]+))?(_acq-(?P<acq_id>[a-zA-Z0-9]+))?'
+                      '(_rec-(?P<rec_id>[a-zA-Z0-9]+))?(_run-(?P<run_id>[a-zA-Z0-9]+))?')
+    outputs = expr.search(fname)
+    if outputs:
+        outputs = outputs.groupdict()
+    else:
+        return None, None
+
+    name = '{session}{task}{acq}{rec}{run}'.format(
+        session="_ses-" + outputs['session_id'] if outputs['session_id'] else '',
+        task="_task-" + outputs['task_id'] if outputs['task_id'] else '',
+        acq="_acq-" + outputs['acq_id'] if outputs['acq_id'] else '',
+        rec="_rec-" + outputs['rec_id'] if outputs['rec_id'] else '',
+        run="_run-" + outputs['run_id'] if outputs['run_id'] else ''
+    )
+    title = '{session}{task}{acq}{rec}{run}'.format(
+        session=" Session: " + outputs['session_id'] if outputs['session_id'] else '',
+        task=" Task: " + outputs['task_id'] if outputs['task_id'] else '',
+        acq=" Acquisition: " + outputs['acq_id'] if outputs['acq_id'] else '',
+        rec=" Reconstruction: " + outputs['rec_id'] if outputs['rec_id'] else '',
+        run=" Run: " + outputs['run_id'] if outputs['run_id'] else ''
+    )
+    return name.strip('_'), title
 
 
 def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
@@ -230,7 +294,7 @@ def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
     >>> tmpdir.cleanup()
 
     """
-    reportlet_path = os.path.join(reportlets_dir, 'fmriprep', "sub-" + subject_label)
+    reportlet_path = str(Path(reportlets_dir) / 'fmriprep' / ("sub-%s" % subject_label))
     config = pkgrf('fmriprep', 'viz/config.json')
 
     out_filename = 'sub-{}.html'.format(subject_label)
@@ -242,7 +306,7 @@ def generate_reports(subject_list, output_dir, work_dir, run_uuid):
     """
     A wrapper to run_reports on a given ``subject_list``
     """
-    reports_dir = os.path.join(work_dir, 'reportlets')
+    reports_dir = str(Path(work_dir) / 'reportlets')
     report_errors = [
         run_reports(reports_dir, output_dir, subject_label, run_uuid=run_uuid)
         for subject_label in subject_list

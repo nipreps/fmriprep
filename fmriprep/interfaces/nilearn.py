@@ -16,14 +16,14 @@ from scipy.ndimage.morphology import binary_fill_holes
 from nilearn.masking import compute_epi_mask
 from nilearn.image import concat_imgs
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.utils.filemanip import fname_presuffix
-from niworkflows.nipype.interfaces.base import (
+from nipype import logging
+from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces.base import (
     traits, isdefined, TraitedSpec, BaseInterfaceInputSpec,
     File, InputMultiPath, SimpleInterface
 )
 
-LOGGER = logging.getLogger('interface')
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class MaskEPIInputSpec(BaseInterfaceInputSpec):

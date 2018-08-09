@@ -12,11 +12,12 @@ Phase Encoding POLARity (*PEPOLAR*) techniques
 
 import pkg_resources as pkgr
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import afni, ants, fsl, utility as niu
+from nipype.pipeline import engine as pe
+from nipype.interfaces import afni, ants, fsl, utility as niu
 from niworkflows.interfaces import CopyHeader
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 
+from ...engine import Workflow
 from ...interfaces import StructuralReference
 from ..bold.util import init_enhance_and_skullstrip_bold_wf
 
@@ -99,7 +100,13 @@ def init_pepolar_unwarp_wf(bold_meta, epi_fmaps, omp_nthreads=1,
                         "metadata. If not, rerun with '--ignore fieldmaps' to "
                         "skip distortion correction step.")
 
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+A deformation field to correct for susceptibility distortions was estimated
+based on two echo-planar imaging (EPI) references with opposing phase-encoding
+directions, using `3dQwarp` @afni (AFNI {afni_ver}).
+""".format(afni_ver=''.join(list(afni.QwarpPlusMinus().version or '<ver>')))
+
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['in_reference', 'in_reference_brain', 'in_mask']), name='inputnode')
 
@@ -230,10 +237,10 @@ def init_prepare_epi_wf(omp_nthreads, name="prepare_epi_wf"):
                                              output_warped_image=True),
                            name='fmap2ref_reg', n_procs=omp_nthreads)
 
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
 
     def _flatten(l):
-        from niworkflows.nipype.utils.filemanip import filename_to_list
+        from nipype.utils.filemanip import filename_to_list
         return [item for sublist in l for item in filename_to_list(sublist)]
 
     workflow.connect([
@@ -251,7 +258,7 @@ def init_prepare_epi_wf(omp_nthreads, name="prepare_epi_wf"):
 
 def _fix_hdr(in_file, newpath=None):
     import nibabel as nb
-    from niworkflows.nipype.utils.filemanip import fname_presuffix
+    from nipype.utils.filemanip import fname_presuffix
 
     nii = nb.load(in_file)
     hdr = nii.header.copy()

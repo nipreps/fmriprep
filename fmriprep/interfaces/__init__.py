@@ -5,7 +5,7 @@ from .bids import (
     ReadSidecarJSON, DerivativesDataSink, BIDSDataGrabber, BIDSFreeSurferDir, BIDSInfo
 )
 from .images import (
-    IntraModalMerge, InvertT1w, ValidateImage, TemplateDimensions, Conform, Reorient
+    IntraModalMerge, ValidateImage, TemplateDimensions, Conform
 )
 from .freesurfer import (
     StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
@@ -15,6 +15,6 @@ from .surf import NormalizeSurf, GiftiNameSource, GiftiSetAnatomicalStructure
 from .reports import SubjectSummary, FunctionalSummary, AboutSummary
 from .utils import TPM2ROI, AddTPMs, AddTSVHeader, ConcatAffines, JoinTSVColumns
 from .fmap import FieldEnhance, FieldToRadS, FieldToHz, Phasediff2Fieldmap
-from .confounds import GatherConfounds, ICAConfounds
+from .confounds import GatherConfounds, ICAConfounds, FMRISummary
 from .itk import MCFLIRT2ITK, MultiApplyTransforms
 from .multiecho import FirstEcho

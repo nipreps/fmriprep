@@ -82,50 +82,47 @@ RUN mkdir -p $ANTSPATH && \
     | tar -xzC $ANTSPATH --strip-components 1
 ENV PATH=$ANTSPATH:$PATH
 
-# Installing WEBP tools
-RUN curl -sSLO "http://downloads.webmproject.org/releases/webp/libwebp-0.5.2-linux-x86-64.tar.gz" && \
-  tar -xf libwebp-0.5.2-linux-x86-64.tar.gz && cd libwebp-0.5.2-linux-x86-64/bin && \
-  mv cwebp /usr/local/bin/ && rm -rf libwebp-0.5.2-linux-x86-64
-
 # Installing SVGO
-RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
 # Installing and setting up ICA_AROMA
 RUN mkdir -p /opt/ICA-AROMA && \
-  curl -sSL "https://github.com/rhr-pruim/ICA-AROMA/archive/v0.4.1-beta.tar.gz" \
+  curl -sSL "https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.4-beta.tar.gz" \
   | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
   chmod +x /opt/ICA-AROMA/ICA_AROMA.py
 
 ENV PATH=/opt/ICA-AROMA:$PATH
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.3.11-Linux-x86_64.sh && \
-    bash Miniconda3-4.3.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-4.3.11-Linux-x86_64.sh
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh && \
+    bash Miniconda3-4.5.4-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-4.5.4-Linux-x86_64.sh
 
 ENV PATH=/usr/local/miniconda/bin:$PATH \
     LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8
+    LC_ALL=C.UTF-8 \
+    PYTHONNOUSERSITE=1
 
 # Installing precomputed python packages
-RUN conda install -y mkl=2017.0.1 mkl-service;  sync &&\
-    conda install -y numpy=1.12.0 \
-                     scipy=0.18.1 \
-                     scikit-learn=0.18.1 \
-                     matplotlib=2.0.0 \
-                     pandas=0.19.2 \
+RUN conda install -y mkl=2018.0.3 mkl-service;  sync &&\
+    conda install -y numpy=1.14.3 \
+                     scipy=1.1.0 \
+                     scikit-learn=0.19.1 \
+                     matplotlib=2.2.0 \
+                     pandas=0.23.0 \
                      libxml2=2.9.4 \
-                     libxslt=1.1.29\
+                     libxslt=1.1.29 \
                      traits=4.6.0; sync &&  \
     chmod -R a+rX /usr/local/miniconda; sync && \
     chmod +x /usr/local/miniconda/bin/*; sync && \
     conda clean --all -y; sync && \
     conda clean -tipsy && sync
 
-# Precaching fonts
-RUN python -c "from matplotlib import font_manager"
+# Precaching fonts, set 'Agg' as default backend for matplotlib
+RUN python -c "from matplotlib import font_manager" && \
+    sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
 
 # Installing Ubuntu packages and cleaning up
 RUN apt-get update && \
@@ -133,6 +130,11 @@ RUN apt-get update && \
                     git=1:2.7.4-0ubuntu1 \
                     graphviz=2.38.0-12ubuntu2 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install latest pandoc
+RUN curl -o pandoc-2.2.2.1-1-amd64.deb -sSL "https://github.com/jgm/pandoc/releases/download/2.2.2.1/pandoc-2.2.2.1-1-amd64.deb" && \
+    dpkg -i pandoc-2.2.2.1-1-amd64.deb && \
+    rm pandoc-2.2.2.1-1-amd64.deb
 
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
@@ -162,10 +164,12 @@ RUN echo "${VERSION}" > /root/src/fmriprep/fmriprep/VERSION && \
     pip install .[all] && \
     rm -rf ~/.cache/pip
 
+RUN install -m 0755 \
+    /root/src/fmriprep/scripts/generate_reference_mask.py \
+    /usr/local/bin/generate_reference_mask
+
 RUN ldconfig
-
-WORKDIR /root/src/fmriprep
-
+WORKDIR /tmp/
 ENTRYPOINT ["/usr/local/miniconda/bin/fmriprep"]
 
 ARG BUILD_DATE
@@ -174,8 +178,9 @@ ARG VERSION
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="FMRIPREP" \
       org.label-schema.description="FMRIPREP - robust fMRI preprocessing tool" \
-      org.label-schema.url="http://fmriprep.readthedocs.io" \
+      org.label-schema.url="http://fmriprep.org" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.vcs-url="https://github.com/poldracklab/fmriprep" \
       org.label-schema.version=$VERSION \
       org.label-schema.schema-version="1.0"
+

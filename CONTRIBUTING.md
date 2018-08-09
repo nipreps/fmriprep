@@ -1,6 +1,8 @@
-# Contributing to FMRIPREP
+# Contributing to fMRIPrep
 
-Welcome to the FMRIPREP repository! We're excited you're here and want to contribute.  
+Welcome to the fMRIPrep repository! We're excited you're here and want to contribute.
+
+## Practical guide to submitting your contribution
 
 These guidelines are designed to make it as easy as possible to get involved. If you have any questions that aren't discussed below, please let us know by opening an [issue][link_issues]!
 
@@ -30,7 +32,9 @@ We appreciate all contributions to FMRIPREP, but those accepted fastest will fol
 
 **1. Comment on an existing issue or open a new issue referencing your addition.**
 
-This allows other members of the FMRIPREP development team to confirm that you aren't overlapping with work that's currently underway and that everyone is on the same page with the goal of the work you're going to carry out.
+This allows other members of the FMRIPREP development team to confirm that you aren't 
+overlapping with work that's currently underway and that everyone is on the same page
+with the goal of the work you're going to carry out.
 
 [This blog][link_pushpullblog] is a nice explanation of why putting this work in up front is so useful to everyone involved.
 

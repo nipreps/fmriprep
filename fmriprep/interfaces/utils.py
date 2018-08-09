@@ -13,15 +13,15 @@ import numpy as np
 import nibabel as nb
 import scipy.ndimage as nd
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.utils.filemanip import fname_presuffix
-from niworkflows.nipype.interfaces.base import (
+from nipype import logging
+from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces.base import (
     traits, isdefined, File, InputMultiPath,
     TraitedSpec, DynamicTraitedSpec, BaseInterfaceInputSpec, SimpleInterface
 )
-from niworkflows.nipype.interfaces.io import add_traits
+from nipype.interfaces.io import add_traits
 
-IFLOGGER = logging.getLogger('interfaces')
+IFLOGGER = logging.getLogger('nipype.interfaces')
 
 
 class TPM2ROIInputSpec(BaseInterfaceInputSpec):

@@ -3,6 +3,12 @@
 Usage
 -----
 
+.. warning::
+   As of FMRIPREP 1.0.12, the software includes a tracking system
+   to report usage statistics and errors. Users can opt-out using
+   the ``--notrack`` command line argument.
+   
+
 Execution and the BIDS format
 =============================
 
@@ -69,3 +75,20 @@ http://neurostars.org/tags/fmriprep/
 To participate in the ``fmriprep`` development-related discussions please use the
 following mailing list: http://mail.python.org/mailman/listinfo/neuroimaging
 Please add *[fmriprep]* to the subject line when posting on the mailing list.
+
+
+Not running on a local machine? - Data transfer
+===============================================
+
+If you intend to run ``fmriprep`` on a remote system, you will need to
+make your data available within that system first.
+
+For instance, here at the Poldrack Lab we use Stanford's
+:abbr:`HPC (high-performance computing)` system, called Sherlock.
+Sherlock enables `the following data transfer options 
+<https://www.sherlock.stanford.edu/docs/user-guide/storage/data-transfer/>`_.
+
+Alternatively, more comprehensive solutions such as `Datalad
+<http://www.datalad.org/>`_ will handle data transfers with the appropriate
+settings and commands.
+Datalad also performs version control over your data.

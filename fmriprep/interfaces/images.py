@@ -15,14 +15,14 @@ import nibabel as nb
 import nilearn.image as nli
 from textwrap import indent
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.utils.filemanip import fname_presuffix
-from niworkflows.nipype.interfaces.base import (
+from nipype import logging
+from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec, SimpleInterface,
     File, InputMultiPath, OutputMultiPath)
-from niworkflows.nipype.interfaces import fsl
+from nipype.interfaces import fsl
 
-LOGGER = logging.getLogger('interface')
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class IntraModalMergeInputSpec(BaseInterfaceInputSpec):
@@ -291,52 +291,6 @@ class Conform(SimpleInterface):
         return runtime
 
 
-class ReorientInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True,
-                   desc='Input T1w image')
-
-
-class ReorientOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='Reoriented T1w image')
-    transform = File(exists=True, desc='Reorientation transform')
-
-
-class Reorient(SimpleInterface):
-    """Reorient a T1w image to RAS (left-right, posterior-anterior, inferior-superior)
-
-    Syncs qform and sform codes for consistent treatment by all software
-    """
-    input_spec = ReorientInputSpec
-    output_spec = ReorientOutputSpec
-
-    def _run_interface(self, runtime):
-        # Load image, orient as RAS
-        fname = self.inputs.in_file
-        orig_img = nb.load(fname)
-        reoriented = nb.as_closest_canonical(orig_img)
-
-        # Reconstruct transform from orig to reoriented image
-        ornt_xfm = nb.orientations.inv_ornt_aff(
-            nb.io_orientation(orig_img.affine), orig_img.shape)
-
-        normalized = normalize_xform(reoriented)
-
-        # Image may be reoriented
-        if normalized is not orig_img:
-            out_name = fname_presuffix(fname, suffix='_ras', newpath=runtime.cwd)
-            normalized.to_filename(out_name)
-        else:
-            out_name = fname
-
-        mat_name = fname_presuffix(fname, suffix='.mat', newpath=runtime.cwd, use_ext=False)
-        np.savetxt(mat_name, ornt_xfm, fmt='%.08f')
-
-        self._results['out_file'] = out_name
-        self._results['transform'] = mat_name
-
-        return runtime
-
-
 class ValidateImageInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='input image')
 
@@ -473,41 +427,6 @@ class ValidateImage(SimpleInterface):
         return runtime
 
 
-class InvertT1wInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True,
-                   desc='Skull-stripped T1w structural image')
-    ref_file = File(exists=True, mandatory=True,
-                    desc='Skull-stripped reference image')
-
-
-class InvertT1wOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='Inverted T1w structural image')
-
-
-class InvertT1w(SimpleInterface):
-    input_spec = InvertT1wInputSpec
-    output_spec = InvertT1wOutputSpec
-
-    def _run_interface(self, runtime):
-        t1_img = nli.load_img(self.inputs.in_file)
-        t1_data = t1_img.get_data()
-        epi_data = nli.load_img(self.inputs.ref_file).get_data()
-
-        # We assume the image is already masked
-        mask = t1_data > 0
-
-        t1_min, t1_max = np.unique(t1_data)[[1, -1]]
-        epi_min, epi_max = np.unique(epi_data)[[1, -1]]
-        scale_factor = (epi_max - epi_min) / (t1_max - t1_min)
-
-        inv_data = mask * ((t1_max - t1_data) * scale_factor + epi_min)
-
-        out_file = fname_presuffix(self.inputs.in_file, suffix='_inv', newpath=runtime.cwd)
-        nli.new_img_like(t1_img, inv_data, copy_header=True).to_filename(out_file)
-        self._results['out_file'] = out_file
-        return runtime
-
-
 class DemeanImageInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True,
                    desc='image to be demeaned')
@@ -570,7 +489,7 @@ def reorient(in_file, newpath=None):
 def extract_wm(in_seg, wm_label=3, newpath=None):
     import nibabel as nb
     import numpy as np
-    from niworkflows.nipype.utils.filemanip import fname_presuffix
+    from nipype.utils.filemanip import fname_presuffix
 
     nii = nb.load(in_seg)
     data = np.zeros(nii.shape, dtype=np.uint8)
@@ -622,7 +541,7 @@ def demean(in_file, in_mask, only_mask=False, newpath=None):
     import os
     import numpy as np
     import nibabel as nb
-    from niworkflows.nipype.utils.filemanip import fname_presuffix
+    from nipype.utils.filemanip import fname_presuffix
 
     out_file = fname_presuffix(in_file, suffix='_demeaned',
                                newpath=os.getcwd())
@@ -653,3 +572,77 @@ def nii_ones_like(in_file, value, dtype, newpath=None):
     nii.to_filename(out_file)
 
     return out_file
+
+
+class SignalExtractionInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='4-D fMRI nii file')
+    label_files = InputMultiPath(
+        File(exists=True),
+        mandatory=True,
+        desc='a 3-D label image, with 0 denoting '
+        'background, or a list of 3-D probability '
+        'maps (one per label) or the equivalent 4D '
+        'file.')
+    class_labels = traits.List(
+        mandatory=True,
+        desc='Human-readable labels for each segment '
+        'in the label file, in order. The length of '
+        'class_labels must be equal to the number of '
+        'segments (background excluded). This list '
+        'corresponds to the class labels in label_file '
+        'in ascending order')
+    out_file = File(
+        'signals.tsv',
+        usedefault=True,
+        exists=False,
+        desc='The name of the file to output to. '
+        'signals.tsv by default')
+
+
+class SignalExtractionOutputSpec(TraitedSpec):
+    out_file = File(
+        exists=True,
+        desc='tsv file containing the computed '
+        'signals, with as many columns as there are labels and as '
+        'many rows as there are timepoints in in_file, plus a '
+        'header row with values from class_labels')
+
+
+class SignalExtraction(SimpleInterface):
+    """ Extract mean signals from a time series within a set of ROIs
+
+    This interface is intended to be a memory-efficient alternative to
+    nipype.interfaces.nilearn.SignalExtraction.
+    Not all features of nilearn.SignalExtraction are implemented at
+    this time.
+    """
+    input_spec = SignalExtractionInputSpec
+    output_spec = SignalExtractionOutputSpec
+
+    def _run_interface(self, runtime):
+        mask_imgs = [nb.load(fname) for fname in self.inputs.label_files]
+        if len(mask_imgs) == 1:
+            mask_imgs = nb.four_to_three(mask_imgs[0])
+
+        masks = [mask_img.get_data().astype(np.bool) for mask_img in mask_imgs]
+
+        n_masks = len(masks)
+
+        if n_masks != len(self.inputs.class_labels):
+            raise ValueError("Number of masks must match number of labels")
+
+        img = nb.load(self.inputs.in_file)
+
+        series = np.zeros((img.shape[3], n_masks))
+
+        data = img.get_data()
+        for j in range(n_masks):
+            series[:, j] = data[masks[j], :].mean(axis=0)
+
+        output = np.vstack((self.inputs.class_labels, series.astype(str)))
+        self._results['out_file'] = os.path.join(runtime.cwd,
+                                                 self.inputs.out_file)
+        np.savetxt(
+            self._results['out_file'], output, fmt=b'%s', delimiter='\t')
+
+        return runtime

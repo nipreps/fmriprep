@@ -21,6 +21,7 @@ dependencies:
 - python-dateutil
 - pydot>=1.2.3
 - cython
+- nipype>=1.1.1
 
 - pip:
     - sphinx-argparse
@@ -28,4 +29,4 @@ dependencies:
     - svgutils
     - nitime
     - nilearn
-    - niworkflows>=0.3.8
+    - niworkflows>=0.4.2

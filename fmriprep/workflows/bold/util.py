@@ -10,12 +10,13 @@ Utility workflows
 .. autofunction:: init_skullstrip_bold_wf
 
 """
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu, fsl, afni, ants
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu, fsl, afni, ants
 from niworkflows.interfaces.utils import CopyXForm
 from niworkflows.interfaces.masks import SimpleShowMaskRPT
 from niworkflows.interfaces.registration import EstimateReferenceImage
 
+from ...engine import Workflow
 from ...interfaces.nilearn import MaskEPI
 from ...interfaces import ValidateImage
 
@@ -81,8 +82,11 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
         * :py:func:`~fmriprep.workflows.bold.util.init_enhance_and_skullstrip_wf`
 
     """
-    workflow = pe.Workflow(name=name)
-
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+First, a reference volume and its skull-stripped version were generated
+using a custom methodology of *fMRIPrep*.
+"""
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file']), name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['bold_file', 'raw_ref_image', 'skip_vols', 'ref_image',
@@ -191,7 +195,7 @@ def init_enhance_and_skullstrip_bold_wf(name='enhance_and_skullstrip_bold_wf',
 
     .. _N4BiasFieldCorrection: https://hdl.handle.net/10380/3053
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
                         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=[
@@ -300,7 +304,7 @@ def init_skullstrip_bold_wf(name='skullstrip_bold_wf'):
             reportlet for the skull-stripping
 
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
                         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=['mask_file',

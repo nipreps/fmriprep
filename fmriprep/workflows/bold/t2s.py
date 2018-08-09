@@ -8,17 +8,18 @@ Generate T2* map from multi-echo BOLD images
 .. autofunction:: init_bold_t2s_wf
 
 """
-from niworkflows.nipype import logging
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu
+from nipype import logging
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu
 
+from ...engine import Workflow
 from ...interfaces.multiecho import (T2SMap, MaskT2SMap)
 from .resampling import init_bold_preproc_trans_wf
 
 from .util import init_skullstrip_bold_wf
 
 DEFAULT_MEMORY_MIN_GB = 0.01
-LOGGER = logging.getLogger('workflow')
+LOGGER = logging.getLogger('nipype.workflow')
 
 
 # pylint: disable=R0914
@@ -74,7 +75,7 @@ def init_bold_t2s_wf(bold_echos, echo_times, mem_gb, omp_nthreads,
         oc_mask
             the skull-stripped optimal combination mask
     """
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_echos', 'name_source', 'hmc_xforms']),
         name='inputnode')
