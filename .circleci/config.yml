@@ -245,10 +245,12 @@ jobs:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
           command: |
+            mkdir /tmp/data/reports && \
             docker run -ti --rm=false \
               -v /tmp/data:/tmp/data \
               -e FMRIPREP_REGRESSION_SOURCE=/tmp/data/fmriprep_bold_truncated \
               -e FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
+              -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
               --entrypoint="py.test" poldracklab/fmriprep:latest \
               /root/src/fmriprep/ --doctest-modules --ignore=docs --ignore=setup.py
       - run:
@@ -276,7 +278,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest --help
             fmriprep-docker -i poldracklab/fmriprep:latest --version
       - store_artifacts:
-          path: /home/circleci/out/tests
+          path: /tmp/data/reports
 
 
   build_docs:

@@ -3,8 +3,12 @@ import pytest
 import os
 
 import numpy as np
+from nipype.pipeline import engine as pe
 from nipype.utils.filemanip import fname_presuffix
 from nilearn.image import load_img
+
+from niworkflows.interfaces.masks import ROIsPlot
+
 from ..util import init_bold_reference_wf
 
 
@@ -47,6 +51,24 @@ def symmetric_overlap(img1, img2):
 def test_masking(input_fname, expected_fname):
     bold_reference_wf = init_bold_reference_wf(omp_nthreads=1, enhance_t2=True)
     bold_reference_wf.inputs.inputnode.bold_file = input_fname
+
+    # Reconstruct base_fname from above
+    dirname, basename = os.path.split(input_fname)
+    newpath = os.path.join(os.getenv('FMRIPREP_REGRESSION_REPORTS', '.'),
+                           os.path.basename(dirname))
+    out_fname = fname_presuffix(basename, suffix='_masks.svg', use_ext=False,
+                                newpath=newpath)
+    os.makedirs(newpath, exist_ok=True)
+
+    mask_diff_plot = pe.Node(ROIsPlot(), name='mask_diff_plot')
+    mask_diff_plot.inputs.in_mask = expected_fname
+    mask_diff_plot.inputs.out_report = out_fname
+
+    bold_reference_wf.connect([
+        (bold_reference_wf.get_node('outputnode'), mask_diff_plot, [
+            ('ref_image', 'in_file'),
+            ('bold_mask', 'in_rois'),
+            ])])
     res = bold_reference_wf.run(plugin='MultiProc')
 
     combine_masks = [node for node in res.nodes if node.name.endswith('combine_masks2')][0]
