@@ -48,10 +48,10 @@ def main():
 
     version = None
     cmdclass = {}
-    if op.isfile(op.join(root_dir, 'fmriprep', 'VERSION')):
-        with open(op.join(root_dir, 'fmriprep', 'VERSION')) as vfile:
+    if op.isfile(op.join(root_dir, __packagename__, 'VERSION')):
+        with open(op.join(root_dir, __packagename__, 'VERSION')) as vfile:
             version = vfile.readline().strip()
-        pkg_data['fmriprep'].insert(0, 'VERSION')
+        pkg_data[__packagename__].insert(0, 'VERSION')
 
     if version is None:
         import versioneer
