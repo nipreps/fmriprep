@@ -53,7 +53,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                          use_aroma, ignore_aroma_err, aroma_melodic_dim,
                          medial_surface_nan, cifti_output,
                          debug, low_mem, template_out_grid,
-                         layout=None, num_bold=1):
+                         keep_non_denoised, layout=None, num_bold=1):
     """
     This workflow controls the functional preprocessing stages of FMRIPREP.
 
@@ -86,6 +86,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
                                   use_aroma=False,
                                   ignore_aroma_err=False,
                                   aroma_melodic_dim=None,
+                                  keep_non_denoised=False,
                                   num_bold=1)
 
     **Parameters**
@@ -146,6 +147,10 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         template_out_grid : str
             Keyword ('native', '1mm' or '2mm') or path of custom reference
             image for normalization
+        keep_non_denoised : bool
+            If use_aroma is True, and keep_non_denoised is False then all outputs in all specified
+            output spaces will be denoised. If use_aroma is True and keep_non_denoised is True, then
+            both denoised and non_denoised outputs will be kept in all specified output spaces.
         layout : BIDSLayout
             BIDSLayout structure to enable metadata retrieval
         num_bold : int
@@ -323,7 +328,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_t1', 'bold_mask_t1', 'bold_aseg_t1', 'bold_aparc_t1', 'cifti_variant',
                 'bold_mni', 'bold_mask_mni', 'bold_cifti', 'confounds', 'surfaces',
-                't2s_map', 'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file',
+                'surfaces_denoised', 'nonaggr_denoised_bold_mni', 'nonaggr_denoised_bold',
+                't2s_map', 'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_sm_bold_mni',
                 'cifti_variant_key']),
         name='outputnode')
 
@@ -344,6 +350,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                                                    template=template,
                                                    freesurfer=freesurfer,
                                                    use_aroma=use_aroma,
+                                                   keep_non_denoised=keep_non_denoised,
                                                    cifti_output=cifti_output)
 
     workflow.connect([
@@ -357,9 +364,12 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('bold_mask_mni', 'inputnode.bold_mask_mni'),
             ('confounds', 'inputnode.confounds'),
             ('surfaces', 'inputnode.surfaces'),
+            ('surfaces_denoised', 'inputnode.surfaces_denoised'),
             ('aroma_noise_ics', 'inputnode.aroma_noise_ics'),
             ('melodic_mix', 'inputnode.melodic_mix'),
-            ('nonaggr_denoised_file', 'inputnode.nonaggr_denoised_file'),
+            ('nonaggr_denoised_sm_bold_mni', 'inputnode.nonaggr_denoised_sm_bold_mni'),
+            ('nonaggr_denoised_bold_mni', 'inputnode.nonaggr_denoised_bold_mni'),
+            ('nonaggr_denoised_bold', 'inputnode.nonaggr_denoised_bold'),
             ('bold_cifti', 'inputnode.bold_cifti'),
             ('cifti_variant', 'inputnode.cifti_variant'),
             ('cifti_variant_key', 'inputnode.cifti_variant_key')
@@ -652,6 +662,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             # Internally resamples to MNI152 Linear (2006)
             from .confounds import init_ica_aroma_wf
             from ...interfaces import JoinTSVColumns
+            from nipype.interfaces.fsl.utils import FilterRegressor
 
             ica_aroma_wf = init_ica_aroma_wf(
                 template=template,
@@ -664,6 +675,15 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 name='ica_aroma_wf')
 
             join = pe.Node(JoinTSVColumns(), name='aroma_confounds')
+
+            denoise_bold = pe.Node(FilterRegressor(), name='denoise_bold')
+
+            denoise_bold_mni = pe.Node(FilterRegressor(), name='denoise_bold_mni')
+
+            def _read_columns(filter_file):
+                with open(filter_file) as f:
+                    columns = [int(x) for x in f.readline().rstrip('\n').split(',')]
+                return columns
 
             workflow.disconnect([
                 (bold_confounds_wf, outputnode, [
@@ -689,50 +709,99 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                     ('outputnode.confounds_file', 'in_file')]),
                 (ica_aroma_wf, join,
                     [('outputnode.aroma_confounds', 'join_file')]),
+                (ica_aroma_wf, denoise_bold, [
+                    (('outputnode.aroma_noise_ics', _read_columns), 'filter_columns'),
+                    ('outputnode.melodic_mix', 'design_file')]),
+                (bold_reg_wf, denoise_bold, [
+                    ('outputnode.bold_t1', 'in_file')]),
+                (ica_aroma_wf, denoise_bold_mni, [
+                    (('outputnode.aroma_noise_ics', _read_columns), 'filter_columns'),
+                    ('outputnode.melodic_mix', 'design_file')]),
+                (bold_mni_trans_wf, denoise_bold_mni, [
+                    ('outputnode.bold_mni', 'in_file')]),
+                (denoise_bold, outputnode, [
+                    ('out_file', 'nonaggr_denoised_bold')]),
+                (denoise_bold_mni, outputnode, [
+                    ('out_file', 'nonaggr_denoised_bold_mni')]),
                 (ica_aroma_wf, outputnode,
                     [('outputnode.aroma_noise_ics', 'aroma_noise_ics'),
                      ('outputnode.melodic_mix', 'melodic_mix'),
-                     ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_file')]),
+                     ('outputnode.nonaggr_denoised_file', 'nonaggr_denoised_sm_bold_mni')]),
                 (join, outputnode, [('out_file', 'confounds')]),
             ])
 
     # SURFACES ##################################################################################
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
         LOGGER.log(25, 'Creating BOLD surface-sampling workflow.')
-        bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
-                                         output_spaces=output_spaces,
-                                         medial_surface_nan=medial_surface_nan,
-                                         name='bold_surf_wf')
-        workflow.connect([
-            (inputnode, bold_surf_wf, [
-                ('t1_preproc', 'inputnode.t1_preproc'),
-                ('subjects_dir', 'inputnode.subjects_dir'),
-                ('subject_id', 'inputnode.subject_id'),
-                ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
-            (bold_reg_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
-            (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
-        ])
+        if keep_non_denoised or not use_aroma:
+            bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
+                                             output_spaces=output_spaces,
+                                             medial_surface_nan=medial_surface_nan,
+                                             name='bold_surf_wf')
+            workflow.connect([
+                (inputnode, bold_surf_wf, [
+                    ('t1_preproc', 'inputnode.t1_preproc'),
+                    ('subjects_dir', 'inputnode.subjects_dir'),
+                    ('subject_id', 'inputnode.subject_id'),
+                    ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
+                (bold_reg_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
+                (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')])
+            ])
+        if use_aroma:
+            bold_surf_denoised_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
+                                             output_spaces=output_spaces,
+                                             medial_surface_nan=medial_surface_nan,
+                                             name='bold_surf_denoised_wf')
+            workflow.connect([
+                (inputnode, bold_surf_denoised_wf, [
+                    ('t1_preproc', 'inputnode.t1_preproc'),
+                    ('subjects_dir', 'inputnode.subjects_dir'),
+                    ('subject_id', 'inputnode.subject_id'),
+                    ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
+                (denoise_bold, bold_surf_denoised_wf, [('out_file', 'inputnode.source_file')]),
+                (bold_surf_denoised_wf, outputnode, [('outputnode.surfaces', 'surfaces_denoised')]),
+            ])
 
         # CIFTI output
         if cifti_output and 'template' in output_spaces:
-            bold_surf_wf.__desc__ += """\
+            if use_aroma:
+                bold_surf_denoised_wf.__desc__ += """\
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
 """
-            gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
-                                   name="gen_cifti")
-            gen_cifti.inputs.TR = metadata.get("RepetitionTime")
+                gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
+                                       name="gen_cifti")
+                gen_cifti.inputs.TR = metadata.get("RepetitionTime")
 
-            workflow.connect([
-                (bold_surf_wf, gen_cifti, [
-                    ('targets.out', 'surface_target'),
-                    ('outputnode.surfaces', 'gifti_files')]),
-                (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
-                (bold_mni_trans_wf, gen_cifti, [('outputnode.bold_mni', 'bold_file')]),
-                (gen_cifti, outputnode, [('out_file', 'bold_cifti'),
-                                         ('variant', 'cifti_variant'),
-                                         ('variant_key', 'cifti_variant_key')]),
-            ])
+                workflow.connect([
+                    (bold_surf_denoised_wf, gen_cifti, [
+                        ('targets.out', 'surface_target'),
+                        ('outputnode.surfaces', 'gifti_files')]),
+                    (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
+                    (bold_mni_trans_wf, gen_cifti, [('outputnode.bold_mni', 'bold_file')]),
+                    (gen_cifti, outputnode, [('out_file', 'bold_cifti'),
+                                             ('variant', 'cifti_variant'),
+                                             ('variant_key', 'cifti_variant_key')]),
+                ])
+            else:
+                bold_surf_wf.__desc__ += """\
+*Grayordinates* files [@hcppipelines], which combine surface-sampled
+data and volume-sampled data, were also generated.
+"""
+                gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
+                                       name="gen_cifti")
+                gen_cifti.inputs.TR = metadata.get("RepetitionTime")
+
+                workflow.connect([
+                    (bold_surf_wf, gen_cifti, [
+                        ('targets.out', 'surface_target'),
+                        ('outputnode.surfaces', 'gifti_files')]),
+                    (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
+                    (bold_mni_trans_wf, gen_cifti, [('outputnode.bold_mni', 'bold_file')]),
+                    (gen_cifti, outputnode, [('out_file', 'bold_cifti'),
+                                             ('variant', 'cifti_variant'),
+                                             ('variant_key', 'cifti_variant_key')]),
+                ])
 
     # REPORTING ############################################################
     ds_report_summary = pe.Node(
@@ -762,7 +831,7 @@ data and volume-sampled data, were also generated.
 
 
 def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
-                             use_aroma, cifti_output, name='func_derivatives_wf'):
+                             use_aroma, cifti_output, keep_non_denoised, name='func_derivatives_wf'):
     """
     Set up a battery of datasinks to store derivatives in the right location
     """
@@ -773,7 +842,9 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             fields=['source_file', 'bold_t1', 'bold_mask_t1', 'bold_mni', 'bold_mask_mni',
                     'bold_aseg_t1', 'bold_aparc_t1', 'cifti_variant_key',
                     'confounds', 'surfaces', 'aroma_noise_ics', 'melodic_mix',
-                    'nonaggr_denoised_file', 'bold_cifti', 'cifti_variant']),
+                    'nonaggr_denoised_sm_bold_mni', 'nonaggr_denoised_bold',
+                    'nonaggr_denoised_bold_mni', 'surfaces_denoised',
+                    'bold_cifti', 'cifti_variant']),
         name='inputnode')
 
     suffix_fmt = 'space-{}_{}'.format
@@ -790,38 +861,75 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     # Resample to T1w space
     if 'T1w' in output_spaces:
-        ds_bold_t1 = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt('T1w', 'preproc'), compress=True),
-            name='ds_bold_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
         ds_bold_mask_t1 = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=suffix_fmt('T1w', 'brainmask')),
             name='ds_bold_mask_t1', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
+
         workflow.connect([
-            (inputnode, ds_bold_t1, [('source_file', 'source_file'),
-                                     ('bold_t1', 'in_file')]),
             (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
                                           ('bold_mask_t1', 'in_file')]),
         ])
 
+        if keep_non_denoised or not use_aroma:
+            ds_bold_t1 = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt('T1w', 'preproc'), compress=True),
+                name='ds_bold_t1', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, ds_bold_t1, [('source_file', 'source_file'),
+                                         ('bold_t1', 'in_file')]),
+            ])
+
+        if use_aroma:
+            ds_bold_denoised_t1 = pe.Node(DerivativesDataSink(
+                base_directory=output_dir,
+                suffix=variant_suffix_fmt('T1w', 'AROMAnonaggr', 'preproc'),
+                compress=True),
+                name='ds_bold_denoised_t1',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, ds_bold_denoised_t1, [('source_file', 'source_file'),
+                                                  ('nonaggr_denoised_bold', 'in_file')]),
+            ])
+
     # Resample to template (default: MNI)
     if 'template' in output_spaces:
-        ds_bold_mni = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix=suffix_fmt(template, 'preproc')),
-            name='ds_bold_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_bold_mask_mni = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix=suffix_fmt(template, 'brainmask')),
             name='ds_bold_mask_mni', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
+
         workflow.connect([
-            (inputnode, ds_bold_mni, [('source_file', 'source_file'),
-                                      ('bold_mni', 'in_file')]),
             (inputnode, ds_bold_mask_mni, [('source_file', 'source_file'),
                                            ('bold_mask_mni', 'in_file')]),
         ])
+
+        if keep_non_denoised or not use_aroma:
+            ds_bold_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir, suffix=suffix_fmt(template, 'preproc')),
+                name='ds_bold_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, ds_bold_mni, [('source_file', 'source_file'),
+                                          ('bold_mni', 'in_file')]),
+            ])
+
+        if use_aroma:
+            ds_bold_denoised_mni = pe.Node(DerivativesDataSink(
+                base_directory=output_dir,
+                suffix=variant_suffix_fmt(template, 'AROMAnonaggr', 'preproc')),
+                name='ds_bold_denoised_mni', run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, ds_bold_denoised_mni, [('source_file', 'source_file'),
+                                                   ('nonaggr_denoised_bold_mni', 'in_file')]),
+            ])
 
     if freesurfer:
         ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
@@ -841,21 +949,40 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
 
     # fsaverage space
     if freesurfer and any(space.startswith('fs') for space in output_spaces):
-        name_surfs = pe.MapNode(GiftiNameSource(
-            pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii', template='space-{space}.{LR}.func'),
-            iterfield='in_file', name='name_surfs', mem_gb=DEFAULT_MEMORY_MIN_GB,
-            run_without_submitting=True)
-        ds_bold_surfs = pe.MapNode(DerivativesDataSink(base_directory=output_dir),
-                                   iterfield=['in_file', 'suffix'], name='ds_bold_surfs',
-                                   run_without_submitting=True,
-                                   mem_gb=DEFAULT_MEMORY_MIN_GB)
+        if keep_non_denoised or not use_aroma:
+            name_surfs = pe.MapNode(GiftiNameSource(
+                pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii', template='space-{space}.{LR}.func'),
+                iterfield='in_file', name='name_surfs', mem_gb=DEFAULT_MEMORY_MIN_GB,
+                run_without_submitting=True)
+            ds_bold_surfs = pe.MapNode(DerivativesDataSink(base_directory=output_dir),
+                                       iterfield=['in_file', 'suffix'], name='ds_bold_surfs',
+                                       run_without_submitting=True,
+                                       mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-        workflow.connect([
-            (inputnode, name_surfs, [('surfaces', 'in_file')]),
-            (inputnode, ds_bold_surfs, [('source_file', 'source_file'),
-                                        ('surfaces', 'in_file')]),
-            (name_surfs, ds_bold_surfs, [('out_name', 'suffix')]),
-        ])
+            workflow.connect([
+                (inputnode, name_surfs, [('surfaces', 'in_file')]),
+                (inputnode, ds_bold_surfs, [('source_file', 'source_file'),
+                                            ('surfaces', 'in_file')]),
+                (name_surfs, ds_bold_surfs, [('out_name', 'suffix')]),
+            ])
+        if use_aroma:
+            name_denoised_surfs = pe.MapNode(GiftiNameSource(
+                pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii',
+                template='space-{space}_variant-AROMAnonaggr.{LR}.func'),
+                iterfield='in_file', name='name_denoised_surfs', mem_gb=DEFAULT_MEMORY_MIN_GB,
+                run_without_submitting=True)
+            ds_bold_denoised_surfs = pe.MapNode(DerivativesDataSink(
+                base_directory=output_dir),
+                iterfield=['in_file', 'suffix'], name='ds_bold_denoised_surfs',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+            workflow.connect([
+                (inputnode, name_denoised_surfs, [('surfaces_denoised', 'in_file')]),
+                (inputnode, ds_bold_denoised_surfs, [('source_file', 'source_file'),
+                                                     ('surfaces_denoised', 'in_file')]),
+                (name_denoised_surfs, ds_bold_denoised_surfs, [('out_name', 'suffix')]),
+            ])
 
         # CIFTI output
         if cifti_output and 'template' in output_spaces:
@@ -901,7 +1028,7 @@ def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
             (inputnode, ds_aroma_mni, [('source_file', 'source_file'),
-                                       ('nonaggr_denoised_file', 'in_file')]),
+                                       ('nonaggr_denoised_sm_bold_mni', 'in_file')]),
         ])
 
     return workflow

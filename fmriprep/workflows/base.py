@@ -38,7 +38,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids
                      omp_nthreads, skull_strip_template, skull_strip_fixed_seed,
                      freesurfer, output_spaces, template, medial_surface_nan, cifti_output, hires,
                      use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean, use_syn, force_syn,
-                     use_aroma, ignore_aroma_err, aroma_melodic_dim, template_out_grid):
+                     use_aroma, ignore_aroma_err, aroma_melodic_dim, keep_non_denoised, template_out_grid):
     """
     This workflow organizes the execution of FMRIPREP, with a sub-workflow for
     each subject.
@@ -84,6 +84,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids
                               use_aroma=False,
                               ignore_aroma_err=False,
                               aroma_melodic_dim=None,
+                              keep_non_denoised=False,
                               template_out_grid='native')
 
 
@@ -159,6 +160,10 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids
             Perform ICA-AROMA on MNI-resampled functional series
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
+        keep_non_denoised : bool
+            If use_aroma is True, and keep_non_denoised is False then all outputs in all specified
+            output spaces will be denoised. If use_aroma is True and keep_non_denoised is True, then
+            both denoised and non_denoised outputs will be kept in all specified output spaces.
         template_out_grid : str
             Keyword ('native', '1mm' or '2mm') or path of custom reference
             image for normalization
@@ -207,6 +212,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids
                                                    template_out_grid=template_out_grid,
                                                    use_aroma=use_aroma,
                                                    aroma_melodic_dim=aroma_melodic_dim,
+                                                   keep_non_denoised=keep_non_denoised,
                                                    ignore_aroma_err=ignore_aroma_err)
 
         single_subject_wf.config['execution']['crashdump_dir'] = (
@@ -229,7 +235,7 @@ def init_single_subject_wf(subject_id, task_id, name, reportlets_dir, output_dir
                            freesurfer, output_spaces, template, medial_surface_nan,
                            cifti_output, hires, use_bbr, bold2t1w_dof, fmap_bspline, fmap_demean,
                            use_syn, force_syn, template_out_grid,
-                           use_aroma, aroma_melodic_dim, ignore_aroma_err):
+                           use_aroma, aroma_melodic_dim, keep_non_denoised, ignore_aroma_err):
     """
     This workflow organizes the preprocessing pipeline for a single subject.
     It collects and reports information about the subject, and prepares
@@ -276,6 +282,7 @@ def init_single_subject_wf(subject_id, task_id, name, reportlets_dir, output_dir
                                     template_out_grid='native',
                                     use_aroma=False,
                                     aroma_melodic_dim=None,
+                                    keep_non_denoised=False,
                                     ignore_aroma_err=False)
 
     Parameters
@@ -351,6 +358,10 @@ def init_single_subject_wf(subject_id, task_id, name, reportlets_dir, output_dir
             image for normalization
         use_aroma : bool
             Perform ICA-AROMA on MNI-resampled functional series
+        keep_non_denoised : bool
+            If use_aroma is True, and keep_non_denoised is False then all outputs in all specified
+            output spaces will be denoised. If use_aroma is True and keep_non_denoised is True, then
+            both denoised and non_denoised outputs will be kept in all specified output spaces.
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
 
@@ -491,6 +502,7 @@ to workflows in *fMRIPrep*'s documentation]\
                                                use_aroma=use_aroma,
                                                aroma_melodic_dim=aroma_melodic_dim,
                                                ignore_aroma_err=ignore_aroma_err,
+                                               keep_non_denoised=keep_non_denoised,
                                                num_bold=len(subject_data['bold']))
 
         workflow.connect([

@@ -170,6 +170,9 @@ def get_parser():
                          default=None, type=int,
                          help='set the dimensionality of MELODIC before running'
                          'ICA-AROMA')
+    g_aroma.add_argument('--keep-non-denoised', action='store_true', default=False,
+                         help='keep the non denoised bold outputs in addition to the '
+                              'non-aggressively denoised bold outputs')
 
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
@@ -540,6 +543,7 @@ def build_workflow(opts, retval):
         use_aroma=opts.use_aroma,
         aroma_melodic_dim=opts.aroma_melodic_dimensionality,
         ignore_aroma_err=opts.ignore_aroma_denoising_errors,
+        keep_non_denoised=opts.keep_non_denoised,
     )
     retval['return_code'] = 0
 
