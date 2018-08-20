@@ -148,9 +148,10 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             Keyword ('native', '1mm' or '2mm') or path of custom reference
             image for normalization
         keep_non_denoised : bool
-            If use_aroma is True, and keep_non_denoised is False then all outputs in all specified
-            output spaces will be denoised. If use_aroma is True and keep_non_denoised is True, then
-            both denoised and non_denoised outputs will be kept in all specified output spaces.
+            If use_aroma is True, and keep_non_denoised is False then all
+            outputs in all specified output spaces will be denoised. If use_aroma is True and
+            keep_non_denoised is True, then both denoised and non_denoised outputs will
+            be kept in all specified output spaces.
         layout : BIDSLayout
             BIDSLayout structure to enable metadata retrieval
         num_bold : int
@@ -743,23 +744,26 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                     ('t1_preproc', 'inputnode.t1_preproc'),
                     ('subjects_dir', 'inputnode.subjects_dir'),
                     ('subject_id', 'inputnode.subject_id'),
-                    ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
+                    ('t1_2_fsnative_forward_transform',
+                     'inputnode.t1_2_fsnative_forward_transform')]),
                 (bold_reg_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
                 (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')])
             ])
         if use_aroma:
             bold_surf_denoised_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
-                                             output_spaces=output_spaces,
-                                             medial_surface_nan=medial_surface_nan,
-                                             name='bold_surf_denoised_wf')
+                                                      output_spaces=output_spaces,
+                                                      medial_surface_nan=medial_surface_nan,
+                                                      name='bold_surf_denoised_wf')
             workflow.connect([
                 (inputnode, bold_surf_denoised_wf, [
                     ('t1_preproc', 'inputnode.t1_preproc'),
                     ('subjects_dir', 'inputnode.subjects_dir'),
                     ('subject_id', 'inputnode.subject_id'),
-                    ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
+                    ('t1_2_fsnative_forward_transform',
+                     'inputnode.t1_2_fsnative_forward_transform')]),
                 (denoise_bold, bold_surf_denoised_wf, [('out_file', 'inputnode.source_file')]),
-                (bold_surf_denoised_wf, outputnode, [('outputnode.surfaces', 'surfaces_denoised')]),
+                (bold_surf_denoised_wf, outputnode, [
+                    ('outputnode.surfaces', 'surfaces_denoised')]),
             ])
 
         # CIFTI output
@@ -769,7 +773,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
 """
-                gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
+                gen_cifti = pe.MapNode(GenerateCifti(),
+                                       iterfield=["surface_target", "gifti_files"],
                                        name="gen_cifti")
                 gen_cifti.inputs.TR = metadata.get("RepetitionTime")
 
@@ -788,7 +793,8 @@ data and volume-sampled data, were also generated.
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
 """
-                gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
+                gen_cifti = pe.MapNode(GenerateCifti(),
+                                       iterfield=["surface_target", "gifti_files"],
                                        name="gen_cifti")
                 gen_cifti.inputs.TR = metadata.get("RepetitionTime")
 
@@ -830,8 +836,8 @@ data and volume-sampled data, were also generated.
     return workflow
 
 
-def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
-                             use_aroma, cifti_output, keep_non_denoised, name='func_derivatives_wf'):
+def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer, use_aroma,
+                             cifti_output, keep_non_denoised, name='func_derivatives_wf'):
     """
     Set up a battery of datasinks to store derivatives in the right location
     """
