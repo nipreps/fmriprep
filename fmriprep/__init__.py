@@ -9,7 +9,7 @@ the Center for Reproducible Neuroscience (http://reproducibility.stanford.edu/),
 as well as for open-source software distribution.
 """
 
-from .info import (
+from .__about__ import (  # noqa
     __version__,
     __author__,
     __copyright__,

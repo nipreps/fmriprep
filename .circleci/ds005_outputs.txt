@@ -1,4 +1,5 @@
 fmriprep
+fmriprep/dataset_description.json
 fmriprep/logs
 fmriprep/logs/CITATION.html
 fmriprep/logs/CITATION.md

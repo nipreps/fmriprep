@@ -6,7 +6,7 @@ Installation
 
 There are four ways to use fmriprep: on the free cloud service OpenNeuro.org,
 in a `Docker Container`_, in a `Singularity Container`_, or in a `Manually
-Prepared Environment`_.
+Prepared Environment (Python 3.5+)`_.
 Using OpenNeuro or a local container method is highly recommended.
 Once you are ready to run fmriprep, see Usage_ for details.
 
@@ -159,8 +159,8 @@ If the data to be preprocessed is also on the HPC, you are ready to run fmriprep
         --participant-label 387 --nthreads 16 \
         --omp-nthreads 16
 
-Manually Prepared Environment
-=============================
+Manually Prepared Environment (Python 3.5+)
+===========================================
 
 .. warning::
 
@@ -170,15 +170,36 @@ Manually Prepared Environment
 Make sure all of fmriprep's `External Dependencies`_ are installed.
 These tools must be installed and their binaries available in the
 system's ``$PATH``.
-In particular, FreeSurfer requires a license file (see :ref:`fs_license`).
+A relatively interpretable description of how your environment can be set-up
+is found in the `Dockerfile <https://github.com/poldracklab/fmriprep/blob/master/Dockerfile>`_.
+As an additional installation setting, FreeSurfer requires a license file (see :ref:`fs_license`).
 
-If you have pip installed, install fmriprep ::
+On a functional Python 3.5 (or above) environment with ``pip`` installed,
+fMRIPrep can be installed using the habitual command ::
 
     $ pip install fmriprep
 
-If you have your data on hand, you are ready to run fmriprep: ::
+Check your installation with the ``--version`` argument ::
 
-    $ fmriprep data/dir output/dir participant --participant-label label
+    $ fmriprep --version
+
+
+External Dependencies
+---------------------
+
+FMRIPrep is written using Python 3.5 (or above), and is based on
+nipype_.
+
+FMRIPrep requires some other neuroimaging software tools that are
+not handled by the Python's packaging system (Pypi) used to deploy
+the ``fmriprep`` package:
+
+- FSL_ (version 5.0.9)
+- ANTs_ (version 2.2.0 - NeuroDocker build)
+- AFNI_ (version Debian-16.2.07)
+- `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
+- FreeSurfer_ (version 6.0.1)
+- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)
 
 
 .. _fs_license:
@@ -232,17 +253,3 @@ would be equivalent to the latest example: ::
         -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
         /data /out participant
     ...
-
-
-External Dependencies
-=====================
-
-FMRIPrep is implemented using nipype_, but it requires some other neuroimaging
-software tools:
-
-- FSL_ (version 5.0.9)
-- ANTs_ (version 2.2.0 - NeuroDocker build)
-- AFNI_ (version Debian-16.2.07)
-- `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
-- FreeSurfer_ (version 6.0.1)
-- `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)

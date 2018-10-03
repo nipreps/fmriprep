@@ -76,6 +76,16 @@ def init_bold_t2s_wf(bold_echos, echo_times, mem_gb, omp_nthreads,
             the skull-stripped optimal combination mask
     """
     workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+A T2* map was estimated from preprocessed BOLD by fitting to a
+monoexponential signal decay model with log-linear regression.
+For each voxel, the maximal number of echoes with high signal in that voxel was
+used to fit the model.
+The T2* map was used to optimally combine preprocessed BOLD across
+echoes following the method described in @posse_t2s and was also retained as
+the BOLD reference.
+"""
+
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_echos', 'name_source', 'hmc_xforms']),
         name='inputnode')

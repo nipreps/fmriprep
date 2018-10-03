@@ -205,7 +205,7 @@ placed within the corresponding confounds file.
     # Generate reportlet
     mrg_compcor = pe.Node(niu.Merge(2), name='merge_compcor', run_without_submitting=True)
     rois_plot = pe.Node(ROIsPlot(colors=['r', 'b', 'magenta'], generate_report=True),
-                        name='rois_plot')
+                        name='rois_plot', mem_gb=mem_gb)
 
     ds_report_bold_rois = pe.Node(
         DerivativesDataSink(suffix='rois'),

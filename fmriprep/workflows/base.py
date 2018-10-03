@@ -27,7 +27,7 @@ from ..interfaces import (
 )
 from ..utils.bids import collect_data
 from ..utils.misc import fix_multi_T1w_source_name
-from ..info import __version__
+from ..__about__ import __version__
 
 from .anatomical import init_anat_preproc_wf
 from .bold import init_func_preproc_wf

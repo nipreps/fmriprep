@@ -139,10 +139,10 @@ directions, using `3dQwarp` @afni (AFNI {afni_ver}).
 
         workflow.connect([
             (inputnode, prepare_epi_matching_wf, [('in_reference_brain', 'inputnode.ref_brain')]),
-            (prepare_epi_matching_wf, qwarp, [('outputnode.out_file', 'source_file')]),
+            (prepare_epi_matching_wf, qwarp, [('outputnode.out_file', 'in_file')]),
         ])
     else:
-        workflow.connect([(inputnode, qwarp, [('in_reference_brain', 'source_file')])])
+        workflow.connect([(inputnode, qwarp, [('in_reference_brain', 'in_file')])])
 
     to_ants = pe.Node(niu.Function(function=_fix_hdr), name='to_ants',
                       mem_gb=0.01)

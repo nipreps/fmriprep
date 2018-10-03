@@ -1,3 +1,9 @@
+<!--
+Text in these brackets are comments, and won't be visible when you submit your pull request.
+If this is your first contribution, please take the time to read these, in particular the comment
+beginning "Welcome, new contributors!".
+-->
+
 ## Changes proposed in this pull request
 
 <!--
@@ -15,53 +21,29 @@ of ongoing development efforts and possible overlaps between contributions).
 Please summarize here the main changes to the documentation that the reviewers should be aware of.
 -->
 
-## Pull-request guidelines:
+
+
 <!--
-Please make sure you have read the PR guidelines below, and checked 
-all boxes that apply at the bottom.
+Welcome, new contributors!
+
+We ask you to read through the Contributing Guide:
+https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md
+
+These are guidelines intended to make communication easier by describing a consistent process, but
+don't worry if you don't get it everything exactly "right" on the first try.
+
+To boil it down, here are some highlights:
+
+1) Consider starting a conversation in the issues list before submitting a pull request. The discussion might save you a
+   lot of time coding.
+2) Please use descriptive prefixes in your pull request title, such as "ENH:" for an enhancement or "FIX:" for a bug fix.
+   (See the Contributing guide for the full set.) And consider adding a "WIP" tag for works-in-progress.
+3) Any code you submit will be licensed under the same terms (BSD 3-Clause) as the rest of fMRIPrep.
+4) We invite every contributor to add themselves to the `.zenodo.json` file
+   (https://github.com/poldracklab/fmriprep/blob/master/.zenodo.json), which will result in your being listed as an author
+   at the next release. Please add yourself as the next-to-last entry, just above Russ.
+
+A pull request is a conversation. We may ask you to make some changes before accepting your PR,
+and likewise, you should feel free to ask us any questions you have.
+
 -->
-1. We invite you to list yourself as a *fMRIPrep* contributor, so if your name 
-   is not already mentioned, please modify the 
-   [``.zenodo.json``](https://github.com/poldracklab/fmriprep/blob/master/.zenodo.json)
-   file with your data right above Russ' entry. Example:
-   ```
-   {
-      "name": "Contributor, New FMRIPrep",
-      "affiliation": "Department of fMRI prep'ing, Open Science Made-Up University",
-      "orcid": "<your id>"
-   },
-   {
-      "name": "Poldrack, Russell A.",
-      "affiliation": "Department of Psychology, Stanford University",
-      "orcid": "0000-0001-6755-0259"
-   },
-   ```
-   
-2. By submitting this request you acknowledge that your contributions are available under the BSD 3-Clause license.
-
-3. Use a descriptive prefix, between brackets for your PR: ``ENH`` (enhancement), ``FIX``, ``TST``, ``DOC``, ``STY``,
-   ``REF`` (refactor), ``CI`` (continous integration), ``MAINT`` (maintenance). Example:
-   ```
-   [ENH] Support for SB-reference in multi-band datasets
-   ```
-   For works-in-progress, add the ``WIP`` tag in addition to the descriptive prefix. 
-   Pull-requests tagged with ``[WIP]`` will not merged in until the tag is removed.
-
-4. Your PR will be reviewed according to the following
-   [template](https://github.com/poldracklab/fmriprep/wiki/Reviewing-a-Pull-Request).
-
-5. Documentation is a fundamental aspect to the *glass-box* philosophy that *fMRIPrep* abides by.
-   Please understand that the *fMRIPrep* team may (are likely to) request you to improve the documentation
-   provided with this PR, within the PR or in future PRs.
-   
-
-**Please review and check the following**:
-<!-- replace the empty checkboxes [ ] below with checked ones [x] accordingly -->
-
-  - [ ] I have read the [guidelines for contributions](https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md).
-  - [ ] I understand that my contributions will not be merged unless the work is
-        finished (i.e. no ``[WIP]`` tag remains in the title of my PR) and tests pass.
-  - [ ] The proposed code follows the
-        [coding style](https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md#fmriprep-coding-style-guide),
-        to the extent I understood them (and I will address any comments raised by the PR's reviewers in this regard).
-  - [ ] \(Optional\) I opt-out from being listed in the `.zenodo.json` file.

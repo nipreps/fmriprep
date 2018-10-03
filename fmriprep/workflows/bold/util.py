@@ -87,7 +87,8 @@ def init_bold_reference_wf(omp_nthreads, bold_file=None, name='bold_reference_wf
 First, a reference volume and its skull-stripped version were generated
 using a custom methodology of *fMRIPrep*.
 """
-    inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file']), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['bold_file', 'sbref_file']),
+                        name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(fields=['bold_file', 'raw_ref_image', 'skip_vols', 'ref_image',
                                       'ref_image_brain', 'bold_mask', 'validation_report',
@@ -102,16 +103,21 @@ using a custom methodology of *fMRIPrep*.
 
     gen_ref = pe.Node(EstimateReferenceImage(), name="gen_ref",
                       mem_gb=1)  # OE: 128x128x128x50 * 64 / 8 ~ 900MB.
-    enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
+    # Re-run validation; no effect if no sbref; otherwise apply same validation to sbref as bold
+    validate_ref = pe.Node(ValidateImage(), name='validate_ref', mem_gb=DEFAULT_MEMORY_MIN_GB)
+    enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads,
+                                                                         enhance_t2=enhance_t2)
 
     workflow.connect([
         (inputnode, validate, [('bold_file', 'in_file')]),
+        (inputnode, gen_ref, [('sbref_file', 'sbref_file')]),
         (validate, gen_ref, [('out_file', 'in_file')]),
-        (gen_ref, enhance_and_skullstrip_bold_wf, [('ref_image', 'inputnode.in_file')]),
+        (gen_ref, validate_ref, [('ref_image', 'in_file')]),
+        (validate_ref, enhance_and_skullstrip_bold_wf, [('out_file', 'inputnode.in_file')]),
         (validate, outputnode, [('out_file', 'bold_file'),
                                 ('out_report', 'validation_report')]),
-        (gen_ref, outputnode, [('ref_image', 'raw_ref_image'),
-                               ('n_volumes_to_discard', 'skip_vols')]),
+        (gen_ref, outputnode, [('n_volumes_to_discard', 'skip_vols')]),
+        (validate_ref, outputnode, [('out_file', 'raw_ref_image')]),
         (enhance_and_skullstrip_bold_wf, outputnode, [
             ('outputnode.bias_corrected_file', 'ref_image'),
             ('outputnode.mask_file', 'bold_mask'),

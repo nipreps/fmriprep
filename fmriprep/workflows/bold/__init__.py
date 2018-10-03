@@ -24,7 +24,10 @@ from .util import init_bold_reference_wf
 from .hmc import init_bold_hmc_wf
 from .stc import init_bold_stc_wf
 from .t2s import init_bold_t2s_wf
-from .registration import init_bold_reg_wf
+from .registration import (
+    init_bold_t1_trans_wf,
+    init_bold_reg_wf,
+)
 from .resampling import (
     init_bold_mni_trans_wf,
     init_bold_surf_wf,

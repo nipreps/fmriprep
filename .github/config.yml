@@ -1,0 +1,35 @@
+# Configuration for new-pr-welcome - https://github.com/behaviorbot/new-pr-welcome
+
+# Comment to be posted to on PRs from first time contributors in your repository
+newPRWelcomeComment: >
+  Thanks for opening this pull request!
+  We have detected this is the first time for you to contribute
+  to *fMRIPrep*.
+  Please check out our [contributing guidelines](https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md).
+  
+  We invite you to list yourself as a *fMRIPrep* contributor, so if your name
+  is not already mentioned, please modify the
+  [``.zenodo.json``](https://github.com/poldracklab/fmriprep/blob/master/.zenodo.json)
+  file with your data right above Russ' entry. Example:
+
+  ```
+
+  {
+     "name": "Contributor, New FMRIPrep",
+     "affiliation": "Department of fMRI prep'ing, Open Science Made-Up University",
+     "orcid": "<your id>"
+  },
+
+  {
+     "name": "Poldrack, Russell A.",
+     "affiliation": "Department of Psychology, Stanford University",
+     "orcid": "0000-0001-6755-0259"
+  },
+
+  ```
+
+
+  Of course, if you want to opt-out this time there is no
+  problem at all with adding your name later.
+  You will be always welcome to add it in the future whenever
+  you feel it should be listed.

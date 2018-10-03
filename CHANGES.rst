@@ -1,12 +1,65 @@
+1.1.7 (September 25, 2018)
+==========================
+
+Several bug fixes. With thanks to Elizabeth Dupre and Romain Vala for
+contributions.
+
+* [FIX] Revert FreeSurfer download URL (#1280) @chrisfilo
+* [FIX] Default to 6 DoF for BOLD-T1w registration (#1286) @effigies
+* [FIX] Only grab sbref images, not metadata (#1285) @effigies
+* [FIX] QwarpPlusMinus renamed source_file to in_file (#1289) @effigies
+* [FIX] Remove long paths from all LTA output files (#1274) @romainVala
+* [ENH] Use single-band reference images when available (#1270) @effigies
+* [DOC] Note GIFTI surface alignment (#1288) @effigies
+* [REF] Split BOLD-T1w registration into calculation/application workflows (#1278) @emdupre
+* [MAINT] Pin pybids and grabbit in Docker build (#1281) @chrisfilo
+
+1.1.6 (September 10, 2018)
+==========================
+
+Hotfix release.
+
+* [FIX] Typo in plugin config loading.
+
+1.1.5 (September 06, 2018)
+==========================
+
+Improved documentation and minor bug fixes. With thanks to Jarod Roland and
+Taylor Salo for contributions.
+
+* [DOC] Replace ``--clearenv`` with correct ``--cleanenv`` flag (#1237) @jarodroland
+* [DOC] De-indent to remove text from code block (#1238) @effigies
+* [TST] Add enhance-and-skullstrip regression tests (#1074) @effigies
+* [DOC] Clearly indicate that fMRIPrep requires Python 3.5+ (#1249) @oesteban
+* [MAINT] Update PR template (#1239) @effigies
+* [DOC] Set appropriate version in Zenodo citation (#1250) @oesteban
+* [DOC] Updating long description (#1230) @oesteban
+* [DOC] Add ME workflow description (#1253) @tsalo
+* [FIX] Add memory annotation to ROIPlot interface (#1256) @jdkent
+* [ENH] Write derivatives ``dataset_description.json`` (#1247) @effigies
+* [DOC] Enable table text wrap and link docstrings to code on GitHub (#1258) @tsalo
+* [DOC] Clarify language describing T1w image merging (#1269) @chrisfilo
+* [FIX] Accommodate new template formats (#1273) @effigies
+* [FIX] Permit overriding plugin config with CLI options (#1272) @effigies
+
+
 1.1.4 (August 06, 2018)
 =======================
 
-  * [FIX] Verify first word of _cmd in dependency check (#1236)
-  * [DOC] Add two missing references (#1234)
-  * [ENH] Allow turning off random seeding for ANTs brain extraction (#919)
+A hotfix release for `#1235
+<https://github.com/poldracklab/fmriprep/issues/1235>`_. Additionally,
+notebooks have been synced with the latest version of that repository.
+
+* [FIX] Verify first word of ``_cmd`` in dependency check (#1236)
+* [DOC] Add two missing references (#1234)
+* [ENH] Allow turning off random seeding for ANTs brain extraction (#919)
 
 1.1.3 (July 30, 2018)
 =====================
+
+This release comes with many updates to the documentation, a more lightweight
+``SignalExtraction``, a new dynamic boilerplate and some new features from
+Nipype.
 
 * [ENH] Use upstream ``afni.TShift`` improvements (#1160)
 * [PIN] Nipype 1.1.1 (65078c9)

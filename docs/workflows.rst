@@ -128,8 +128,8 @@ to be run through ``fmriprep``.
 
 Longitudinal processing
 ~~~~~~~~~~~~~~~~~~~~~~~
-In the case of multiple sessions, T1w images are merged into a single template
-image using FreeSurfer's `mri_robust_template`_.
+In the case of multiple T1w images (across sessions and/or runs), T1w images are
+merged into a single template image using FreeSurfer's `mri_robust_template`_.
 This template may be *unbiased*, or equidistant from all source images, or
 aligned to the first image (determined lexicographically by session label).
 For two images, the additional cost of estimating an unbiased template is
@@ -219,6 +219,12 @@ The ``smoothwm``, ``midthickness``, ``pial`` and ``inflated`` surfaces are also
 converted to GIFTI_ format and adjusted to be compatible with multiple software
 packages, including FreeSurfer and the `Connectome Workbench`_.
 
+.. note::
+    GIFTI surface outputs are aligned to the FreeSurfer T1.mgz image, which
+    may differ from the T1w space in some cases, to maintain compatibility
+    with the FreeSurfer directory.
+    Any measures sampled to the surface take into account any difference in
+    these images.
 
 Refinement of the brain mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -294,6 +300,9 @@ BOLD reference image estimation
 
 This workflow estimates a reference image for a
 :abbr:`BOLD (blood-oxygen level-dependent)` series.
+If a single-band reference ("sbref") image associated with the BOLD series is
+available, then it is used directly.
+If not, a reference image is estimated from the BOLD series as follows:
 When T1-saturation effects ("dummy scans" or non-steady state volumes) are
 detected, they are averaged and used as reference due to their
 superior tissue contrast.
@@ -373,7 +382,7 @@ T2* Driven Coregistration
 :mod:`fmriprep.workflows.bold.t2s.init_bold_t2s_wf`
 
 .. workflow::
-    :graph2use: colored
+    :graph2use: orig
     :simple_form: yes
 
     from fmriprep.workflows.bold import init_bold_t2s_wf
@@ -386,7 +395,7 @@ T2* Driven Coregistration
 If the ``--t2s-coreg`` command line argument is supplied with multi-echo
 :abbr:`BOLD (blood-oxygen level-dependent)` data, a T2* map is generated.
 This T2* map is then used in place of the :ref:`BOLD reference image <bold_ref>`
-to ref:`register the BOLD series to the T1w image of the same subject <bold_reg>`.
+to :ref:`register the BOLD series to the T1w image <bold_reg>` of the same subject.
 
 Susceptibility Distortion Correction (SDC)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -445,9 +454,9 @@ EPI to T1w registration
         use_bbr=True,
         bold2t1w_dof=9)
 
-The reference :abbr:`EPI (echo-planar imaging)` image of each run is aligned
-by the ``bbregister`` routine to the reconstructed subject using the gray/white
-matter boundary (FreeSurfer's ``?h.white`` surfaces).
+The alignment between the reference :abbr:`EPI (echo-planar imaging)` image
+of each run and the reconstructed subject using the gray/white matter boundary
+(FreeSurfer's ``?h.white`` surfaces) is calculated by the ``bbregister`` routine.
 
 .. figure:: _static/EPIT1Normalization.svg
     :scale: 100%
@@ -456,7 +465,9 @@ matter boundary (FreeSurfer's ``?h.white`` surfaces).
 
 If FreeSurfer processing is disabled, FSL ``flirt`` is run with the
 :abbr:`BBR (boundary-based registration)` cost function, using the
-``fast`` segmentation to establish the gray/white matter boundary. After :abbr:`BBR (boundary-based registration)` is run, the resulting affine transform will be compared to the initial transform found by FLIRT. Excessive deviation will result in rejecting the BBR refinement and accepting the original, affine registration.
+``fast`` segmentation to establish the gray/white matter boundary.
+After :abbr:`BBR (boundary-based registration)` is run, the resulting affine transform will be compared to the initial transform found by FLIRT.
+Excessive deviation will result in rejecting the BBR refinement and accepting the original, affine registration.
 
 EPI to MNI transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -48,6 +48,7 @@ jobs:
             fi
             sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
             sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" docs/citing.rst
+            sed -i "s/title = {FMRIPrep}/title = {FMRIPrep ${CIRCLE_TAG:-$THISVERSION}}/" fmriprep/data/boilerplate.bib
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build \
@@ -231,6 +232,12 @@ jobs:
             - regression-v0-{{ epoch }}
             - regression-v0-
       - run:
+          name: Check PyPi preconditions
+          command: |
+            pip install "setuptools>=27.0" cython numpy twine future docutils
+            python setup.py check -r -s
+            python setup.py sdist
+      - run:
           name: Load Docker image layer cache
           no_output_timeout: 30m
           command: |
@@ -252,7 +259,8 @@ jobs:
               -e FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
               -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
               --entrypoint="py.test" poldracklab/fmriprep:latest \
-              /root/src/fmriprep/ --doctest-modules --ignore=docs --ignore=setup.py
+              /root/src/fmriprep/ \
+              --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
       - run:
           name: Test fmriprep-wrapper (Python 2)
           command: |
@@ -691,8 +699,9 @@ jobs:
       - run:
           name: Deploy to PyPi
           command: |
-            pip install "setuptools>=27.0" cython numpy twine future
+            pip install "setuptools>=27.0" cython numpy twine future docutils
             echo "${CIRCLE_TAG}" > fmriprep/VERSION
+            python setup.py check -r -s
             python setup.py sdist
             twine upload dist/*
             cd wrapper && python setup.py sdist

@@ -54,6 +54,21 @@ It can also be helpful to test your changes locally, using an [FMRIPREP developm
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
+Pull requests titles should begin with a descriptive prefix:
+
+* ``ENH``: enhancements or new features
+* ``FIX``: bug fixes
+* ``TST``: new or updated tests
+* ``DOC``: new or updated documentation
+* ``STY``: style changes
+* ``REF``: refactoring existing code
+* ``CI``: updates to continous integration infrastructure
+* ``MAINT``: general maintenance
+
+For example: `[ENH] Support for SB-reference in multi-band datasets`
+
+For works-in-progress, add the ``WIP`` tag in addition to the descriptive prefix.
+Pull-requests tagged with ``[WIP]`` will not be merged until the tag is removed.
 
 ## FMRIPREP coding style guide
 
@@ -104,6 +119,11 @@ myworkflow_rh_wf = init_workflow_wf(name='myworkflow_rh_wf')
 We welcome and recognize all contributions from documentation to testing to code development.
 You can see a list of current contributors in our [zenodo file][link_zenodo].
 If you are new to the project, don't forget to add your name and affiliation there!
+
+## Licensing
+
+fMRIPrep is licensed under the BSD 3-clause license. Any contributions will be licensed under
+the same terms.
 
 ## Thank you!
 

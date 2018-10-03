@@ -42,7 +42,7 @@ def check_deps(workflow):
 
 def get_parser():
     """Build parser object"""
-    from ..info import __version__
+    from ..__about__ import __version__
 
     verstr = 'fmriprep v{}'.format(__version__)
 
@@ -81,7 +81,7 @@ def get_parser():
     g_perfm = parser.add_argument_group('Options to handle performance')
     g_perfm.add_argument('--debug', action='store_true', default=False,
                          help='run debug version of workflow')
-    g_perfm.add_argument('--nthreads', '--n_cpus', '-n-cpus', action='store', default=0, type=int,
+    g_perfm.add_argument('--nthreads', '--n_cpus', '-n-cpus', action='store', type=int,
                          help='maximum number of threads across all processes')
     g_perfm.add_argument('--omp-nthreads', action='store', type=int, default=0,
                          help='maximum number of threads per-process')
@@ -107,7 +107,7 @@ def get_parser():
     g_conf = parser.add_argument_group('Workflow configuration')
     g_conf.add_argument(
         '--ignore', required=False, action='store', nargs="+", default=[],
-        choices=['fieldmaps', 'slicetiming'],
+        choices=['fieldmaps', 'slicetiming', 'sbref'],
         help='ignore selected aspects of the input dataset to disable corresponding '
              'parts of the workflow (a space delimited list)')
     g_conf.add_argument(
@@ -119,10 +119,9 @@ def get_parser():
              'T2*-driven coregistration. When multi-echo data is provided and this '
              'option is not enabled, standard EPI-T1 coregistration is performed '
              'using the middle echo.')
-    g_conf.add_argument('--bold2t1w-dof', action='store', default=9, choices=[6, 9, 12], type=int,
+    g_conf.add_argument('--bold2t1w-dof', action='store', default=6, choices=[6, 9, 12], type=int,
                         help='Degrees of freedom when registering BOLD to T1w images. '
-                             '9 (rotation, translation, and scaling) is used by '
-                             'default to compensate for field inhomogeneities.')
+                             '6 degrees (rotation and translation) are used by default.')
     g_conf.add_argument(
         '--output-space', required=False, action='store',
         choices=['T1w', 'template', 'fsnative', 'fsaverage', 'fsaverage6', 'fsaverage5'],
@@ -247,8 +246,9 @@ def main():
     """Entry point"""
     from nipype import logging as nlogging
     from multiprocessing import set_start_method, Process, Manager
+    from .. import __version__
     from ..viz.reports import generate_reports
-    from ..info import __version__
+    from ..utils.bids import write_derivative_description
     set_start_method('forkserver')
 
     warnings.showwarning = _warn_redirect
@@ -290,6 +290,7 @@ def main():
 
         fmriprep_wf = retval['workflow']
         plugin_settings = retval['plugin_settings']
+        bids_dir = retval['bids_dir']
         output_dir = retval['output_dir']
         work_dir = retval['work_dir']
         subject_list = retval['subject_list']
@@ -348,6 +349,7 @@ def main():
 
     # Generate reports phase
     errno += generate_reports(subject_list, output_dir, work_dir, run_uuid)
+    write_derivative_description(bids_dir, str(Path(output_dir) / 'fmriprep'))
     sys.exit(int(errno > 0))
 
 
@@ -367,7 +369,7 @@ def build_workflow(opts, retval):
     from pkg_resources import resource_filename as pkgrf
 
     from nipype import logging, config as ncfg
-    from ..info import __version__
+    from ..__about__ import __version__
     from ..workflows.base import init_fmriprep_wf
     from ..utils.bids import collect_participants
     from ..viz.reports import generate_reports
@@ -413,28 +415,35 @@ def build_workflow(opts, retval):
     subject_list = collect_participants(
         bids_dir, participant_label=opts.participant_label)
 
-    # Setting up MultiProc
-    nthreads = opts.nthreads
-    if nthreads < 1:
-        nthreads = cpu_count()
-
-    plugin_settings = {
-        'plugin': 'MultiProc',
-        'plugin_args': {
-            'n_procs': nthreads,
-            'raise_insufficient': False,
-            'maxtasksperchild': 1,
-        }
-    }
-
-    if opts.mem_mb:
-        plugin_settings['plugin_args']['memory_gb'] = opts.mem_mb / 1024
-
-    # Overload plugin_settings if --use-plugin
+    # Load base plugin_settings from file if --use-plugin
     if opts.use_plugin is not None:
         from yaml import load as loadyml
         with open(opts.use_plugin) as f:
             plugin_settings = loadyml(f)
+        plugin_settings.setdefault('plugin_args', {})
+    else:
+        # Defaults
+        plugin_settings = {
+            'plugin': 'MultiProc',
+            'plugin_args': {
+                'raise_insufficient': False,
+                'maxtasksperchild': 1,
+            }
+        }
+
+    # Resource management options
+    # Note that we're making strong assumptions about valid plugin args
+    # This may need to be revisited if people try to use batch plugins
+    nthreads = plugin_settings['plugin_args'].get('n_procs')
+    # Permit overriding plugin config with specific CLI options
+    if nthreads is None or opts.nthreads is not None:
+        nthreads = opts.nthreads
+        if nthreads is None or nthreads < 1:
+            nthreads = cpu_count()
+        plugin_settings['plugin_args']['n_procs'] = nthreads
+
+    if opts.mem_mb:
+        plugin_settings['plugin_args']['memory_gb'] = opts.mem_mb / 1024
 
     omp_nthreads = opts.omp_nthreads
     if omp_nthreads == 0:
@@ -479,6 +488,7 @@ def build_workflow(opts, retval):
 
     retval['return_code'] = 0
     retval['plugin_settings'] = plugin_settings
+    retval['bids_dir'] = bids_dir
     retval['output_dir'] = output_dir
     retval['work_dir'] = work_dir
     retval['subject_list'] = subject_list
