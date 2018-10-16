@@ -227,6 +227,8 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
 
         bold_mni
             BOLD series, resampled to template space
+        bold_mni_ref
+            Reference, contrast-enhanced summary of the BOLD series, resampled to template space
         bold_mask_mni
             BOLD series mask in template space
 
@@ -251,7 +253,7 @@ generating a *preprocessed BOLD run in {tpl} space*.
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_mni', 'bold_mask_mni']),
+        niu.IdentityInterface(fields=['bold_mni', 'bold_mni_ref', 'bold_mask_mni']),
         name='outputnode')
 
     def _aslist(in_value):
@@ -298,6 +300,9 @@ generating a *preprocessed BOLD run in {tpl} space*.
     merge = pe.Node(Merge(compress=use_compression), name='merge',
                     mem_gb=mem_gb * 3)
 
+    # Generate a reference on the target T1w space
+    gen_final_ref = init_bold_reference_wf(omp_nthreads)
+
     workflow.connect([
         (inputnode, merge_xforms, [('t1_2_mni_forward_transform', 'in1'),
                                    (('itk_bold_to_t1', _aslist), 'in2')]),
@@ -305,7 +310,9 @@ generating a *preprocessed BOLD run in {tpl} space*.
         (inputnode, merge, [('name_source', 'header_source')]),
         (inputnode, bold_to_mni_transform, [('bold_split', 'input_image')]),
         (bold_to_mni_transform, merge, [('out_files', 'in_files')]),
+        (merge, gen_final_ref, [('out_file', 'inputnode.bold_file')]),
         (merge, outputnode, [('out_file', 'bold_mni')]),
+        (gen_final_ref, outputnode, [('outputnode.ref_image', 'bold_mni_ref')]),
     ])
 
     if template_out_grid == 'native':

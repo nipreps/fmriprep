@@ -44,7 +44,7 @@ from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransf
 
 from ..engine import Workflow
 from ..interfaces import (
-    DerivativesDataSink, MakeMidthickness, FSInjectBrainExtracted,
+    DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
     FSDetectInputs, NormalizeSurf, GiftiNameSource, TemplateDimensions, Conform,
     ConcatAffines, RefineBrainMask,
 )
@@ -521,15 +521,16 @@ A T1w-reference map was computed after registration of
         N4BiasFieldCorrection(dimension=3, copy_header=True),
         iterfield='input_image', name='n4_correct',
         n_procs=1)  # n_procs=1 for reproducibility
+    # StructuralReference is fs.RobustTemplate if > 1 volume, copying otherwise
     t1_merge = pe.Node(
-        fs.RobustTemplate(auto_detect_sensitivity=True,
-                          initial_timepoint=1,      # For deterministic behavior
-                          intensity_scaling=True,   # 7-DOF (rigid + intensity)
-                          subsample_threshold=200,
-                          fixed_timepoint=not longitudinal,
-                          no_iteration=not longitudinal,
-                          transform_outputs=True,
-                          ),
+        StructuralReference(auto_detect_sensitivity=True,
+                            initial_timepoint=1,      # For deterministic behavior
+                            intensity_scaling=True,   # 7-DOF (rigid + intensity)
+                            subsample_threshold=200,
+                            fixed_timepoint=not longitudinal,
+                            no_iteration=not longitudinal,
+                            transform_outputs=True,
+                            ),
         mem_gb=2 * num_t1w - 1,
         name='t1_merge')
 

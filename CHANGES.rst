@@ -1,3 +1,14 @@
+1.1.8 (October 4, 2018)
+=======================
+
+Several bug fixes. This release is intended to be the last before start
+adopting BIDS-Derivatives RC1 (which will trigger 1.2.x versions).
+
+* [DOC] Switch to orig graph for ``init_bold_t2s_wf`` (#1298) @effigies
+* [FIX] Enhance T2 contrast ``enhance_t2`` in reference estimate (#1299) @effigies
+* [FIX] Create template from one usable T1w image (#1305) @effigies
+* [MAINT] Pin grabbit and pybids in ``setup.py`` (#1284) @oesteban
+
 1.1.7 (September 25, 2018)
 ==========================
 

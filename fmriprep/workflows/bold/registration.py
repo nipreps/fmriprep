@@ -112,8 +112,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
 
     **Subworkflows**
 
-        * :py:func:`~fmriprep.workflows.util.init_bbreg_wf`
-        * :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`
+        * :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`
+        * :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`
 
     """
     workflow = Workflow(name=name)
@@ -232,6 +232,8 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_fieldwarp=False,
 
         bold_t1
             Motion-corrected BOLD series in T1 space
+        bold_t1_ref
+            Reference, contrast-enhanced summary of the motion-corrected BOLD series in T1w space
         bold_mask_t1
             BOLD mask in T1 space
         bold_aseg_t1
@@ -244,10 +246,11 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_fieldwarp=False,
 
     **Subworkflows**
 
-        * :py:func:`~fmriprep.workflows.util.init_bbreg_wf`
-        * :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`
+        * :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`
+        * :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`
 
     """
+    from .util import init_bold_reference_wf
     workflow = Workflow(name=name)
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -260,7 +263,7 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_fieldwarp=False,
 
     outputnode = pe.Node(
         niu.IdentityInterface(fields=[
-            'bold_t1', 'bold_mask_t1',
+            'bold_t1', 'bold_t1_ref', 'bold_mask_t1',
             'bold_aseg_t1', 'bold_aparc_t1']),
         name='outputnode'
     )
@@ -320,6 +323,9 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_fieldwarp=False,
 
     merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=mem_gb)
 
+    # Generate a reference on the target T1w space
+    gen_final_ref = init_bold_reference_wf(omp_nthreads)
+
     workflow.connect([
         (inputnode, merge_xforms, [('itk_bold_to_t1', 'in1')]),
         (merge_xforms, bold_to_t1w_transform, [('out', 'transforms')]),
@@ -327,7 +333,9 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_fieldwarp=False,
         (inputnode, bold_to_t1w_transform, [('bold_split', 'input_image')]),
         (gen_ref, bold_to_t1w_transform, [('out_file', 'reference_image')]),
         (bold_to_t1w_transform, merge, [('out_files', 'in_files')]),
+        (merge, gen_final_ref, [('out_file', 'inputnode.bold_file')]),
         (merge, outputnode, [('out_file', 'bold_t1')]),
+        (gen_final_ref, outputnode, [('outputnode.ref_image', 'bold_t1_ref')]),
     ])
 
     return workflow
@@ -338,7 +346,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     This workflow uses FreeSurfer's ``bbregister`` to register a BOLD image to
     a T1-weighted structural image.
 
-    It is a counterpart to :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`,
+    It is a counterpart to :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`,
     which performs the same task using FSL's FLIRT with a BBR cost function.
 
     The ``use_bbr`` option permits a high degree of control over registration.
@@ -381,9 +389,9 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
         subject_id
             FreeSurfer subject ID (must have folder in SUBJECTS_DIR)
         t1_brain
-            Unused (see :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`)
+            Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
         t1_seg
-            Unused (see :py:func:`~fmriprep.workflows.util.init_fsl_bbr_wf`)
+            Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
 
 
     Outputs
@@ -556,17 +564,17 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
         t1_seg
             FAST segmentation of ``t1_brain``
         t1_2_fsnative_reverse_transform
-            Unused (see :py:func:`~fmriprep.workflows.util.init_bbreg_wf`)
+            Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
         subjects_dir
-            Unused (see :py:func:`~fmriprep.workflows.util.init_bbreg_wf`)
+            Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
         subject_id
-            Unused (see :py:func:`~fmriprep.workflows.util.init_bbreg_wf`)
+            Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
 
 
     Outputs
 
         itk_bold_to_t1
-            Affine transform from ``ref_bold_brain`` to T1 space (ITK format)
+            Affine transform from ``ref_bold_brain`` to T1w space (ITK format)
         itk_t1_to_bold
             Affine transform from T1 space to BOLD space (ITK format)
         out_report

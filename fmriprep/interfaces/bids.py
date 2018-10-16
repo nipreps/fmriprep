@@ -163,6 +163,7 @@ class DerivativesDataSinkInputSpec(BaseInterfaceInputSpec):
     in_file = InputMultiPath(File(exists=True), mandatory=True,
                              desc='the object to be saved')
     source_file = File(exists=False, mandatory=True, desc='the input func file')
+    keep_dtype = traits.Bool(False, usedefault=True, desc='keep datatype suffix')
     suffix = traits.Str('', mandatory=True, desc='suffix appended to source_file')
     extra_values = traits.List(traits.Str)
     compress = traits.Bool(desc="force compression (True) or uncompression (False)"
@@ -189,10 +190,11 @@ class DerivativesDataSink(SimpleInterface):
     >>> dsink = DerivativesDataSink(base_directory=tmpdir)
     >>> dsink.inputs.in_file = tmpfile
     >>> dsink.inputs.source_file = collect_data('ds114', '01')[0]['t1w'][0]
+    >>> dsink.inputs.keep_dtype = True
     >>> dsink.inputs.suffix = 'target-mni'
     >>> res = dsink.run()
     >>> res.outputs.out_file  # doctest: +ELLIPSIS
-    '.../fmriprep/sub-01/ses-retest/anat/sub-01_ses-retest_T1w_target-mni.nii.gz'
+    '.../fmriprep/sub-01/ses-retest/anat/sub-01_ses-retest_target-mni_T1w.nii.gz'
 
     """
     input_spec = DerivativesDataSinkInputSpec
@@ -208,6 +210,7 @@ class DerivativesDataSink(SimpleInterface):
 
     def _run_interface(self, runtime):
         src_fname, _ = _splitext(self.inputs.source_file)
+        src_fname, dtype = src_fname.rsplit('_', 1)
         _, ext = _splitext(self.inputs.in_file[0])
         if self.inputs.compress is True and not ext.endswith('.gz'):
             ext += '.gz'
@@ -241,9 +244,9 @@ class DerivativesDataSink(SimpleInterface):
 
         base_fname = op.join(out_path, src_fname)
 
-        formatstr = '{bname}_{suffix}{ext}'
+        formatstr = '{bname}_{suffix}{dtype}{ext}'
         if len(self.inputs.in_file) > 1 and not isdefined(self.inputs.extra_values):
-            formatstr = '{bname}_{suffix}{i:04d}{ext}'
+            formatstr = '{bname}_{suffix}{i:04d}{dtype}{ext}'
 
         self._results['compression'] = []
         for i, fname in enumerate(self.inputs.in_file):
@@ -251,6 +254,7 @@ class DerivativesDataSink(SimpleInterface):
                 bname=base_fname,
                 suffix=self.inputs.suffix,
                 i=i,
+                dtype='' if not self.inputs.keep_dtype else ('_%s' % dtype),
                 ext=ext)
             if isdefined(self.inputs.extra_values):
                 out_file = out_file.format(extra_value=self.inputs.extra_values[i])
