@@ -260,7 +260,7 @@ jobs:
               -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
               --entrypoint="py.test" poldracklab/fmriprep:latest \
               /root/src/fmriprep/ \
-              --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
+              -svx --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
       - run:
           name: Zip new masks
           no_output_timeout: 10m
