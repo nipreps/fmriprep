@@ -67,9 +67,9 @@ def test_masking(input_fname, expected_fname):
 
     mask_dir = os.path.join(newpath, 'fmriprep_bold_mask')
     save_mask = pe.Node(niu.Function(function=copyfile), name='save_mask')
-    save_mask.copy = True
-    save_mask.newfile = fname_presuffix(basename, suffix='_mask', use_ext=True,
-                                        newpath=mask_dir)
+    save_mask.inputs.copy = True
+    save_mask.inputs.newfile = fname_presuffix(basename, suffix='_mask',
+                                               use_ext=True, newpath=mask_dir)
 
     outputnode = bold_reference_wf.get_node('outputnode')
     bold_reference_wf.connect([
