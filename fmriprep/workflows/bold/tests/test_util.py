@@ -4,7 +4,8 @@ import os
 
 import numpy as np
 from nipype.pipeline import engine as pe
-from nipype.utils.filemanip import fname_presuffix
+from nipype.interfaces import utility as niu
+from nipype.utils.filemanip import fname_presuffix, copyfile
 from nilearn.image import load_img
 
 from niworkflows.interfaces.masks import ROIsPlot
@@ -64,11 +65,18 @@ def test_masking(input_fname, expected_fname):
     mask_diff_plot.inputs.in_mask = expected_fname
     mask_diff_plot.inputs.out_report = out_fname
 
+    mask_dir = os.path.join(newpath, 'fmriprep_bold_mask')
+    save_mask = pe.Node(niu.Function(function=copyfile), name='save_mask')
+    save_mask.copy = True
+    save_mask.newfile = fname_presuffix(basename, suffix='_mask', use_ext=True,
+                                        newpath=mask_dir)
+
+    outputnode = bold_reference_wf.get_node('outputnode')
     bold_reference_wf.connect([
-        (bold_reference_wf.get_node('outputnode'), mask_diff_plot, [
-            ('ref_image', 'in_file'),
-            ('bold_mask', 'in_rois'),
-            ])])
+        (outputnode, mask_diff_plot, [('ref_image', 'in_file'),
+                                      ('bold_mask', 'in_rois')]),
+        (outputnode, save_mask, [('bold_mask', 'originalfile')]),
+        ])
     res = bold_reference_wf.run(plugin='MultiProc')
 
     combine_masks = [node for node in res.nodes if node.name.endswith('combine_masks2')][0]
