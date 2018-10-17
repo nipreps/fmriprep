@@ -1,6 +1,7 @@
 ''' Testing module for fmriprep.workflows.bold.util '''
 import pytest
 import os
+from pathlib import Path
 
 import numpy as np
 from nipype.pipeline import engine as pe
@@ -55,27 +56,21 @@ def test_masking(input_fname, expected_fname):
 
     # Reconstruct base_fname from above
     dirname, basename = os.path.split(input_fname)
-    newpath = os.path.join(os.getenv('FMRIPREP_REGRESSION_REPORTS', '.'),
-                           os.path.basename(dirname))
+    dsname = os.path.basename(dirname)
+    reports_dir = Path(os.getenv('FMRIPREP_REGRESSION_REPORTS', ''))
+    newpath = reports_dir / dirname
     out_fname = fname_presuffix(basename, suffix='_masks.svg', use_ext=False,
-                                newpath=newpath)
-    os.makedirs(newpath, exist_ok=True)
+                                newpath=str(newpath))
+    newpath.mkdir(parents=True, exist_ok=True)
 
     mask_diff_plot = pe.Node(ROIsPlot(), name='mask_diff_plot')
     mask_diff_plot.inputs.in_mask = expected_fname
     mask_diff_plot.inputs.out_report = out_fname
 
-    mask_dir = os.path.join(newpath, 'fmriprep_bold_mask')
-    save_mask = pe.Node(niu.Function(function=copyfile), name='save_mask')
-    save_mask.inputs.copy = True
-    save_mask.inputs.newfile = fname_presuffix(basename, suffix='_mask',
-                                               use_ext=True, newpath=mask_dir)
-
     outputnode = bold_reference_wf.get_node('outputnode')
     bold_reference_wf.connect([
         (outputnode, mask_diff_plot, [('ref_image', 'in_file'),
-                                      ('bold_mask', 'in_rois')]),
-        (outputnode, save_mask, [('bold_mask', 'originalfile')]),
+                                      ('bold_mask', 'in_rois')])
         ])
     res = bold_reference_wf.run(plugin='MultiProc')
 
@@ -84,3 +79,10 @@ def test_masking(input_fname, expected_fname):
                                 combine_masks.result.outputs.out_file)
 
     assert overlap > 0.95, input_fname
+
+    mask_dir = reports_dir / 'fmriprep_bold_mask' / dsname
+    mask_dir.mkdir(parents=True, exist_ok=True)
+    copyfile(combine_masks.result.outputs.out_file,
+             fname_presuffix(basename, suffix='_mask',
+                             use_ext=True, newpath=str(mask_dir)),
+             copy=True)
