@@ -262,11 +262,11 @@ jobs:
               /root/src/fmriprep/ \
               -svx --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
       - run:
-          name: Zip new masks
+          name: Package new masks
           no_output_timeout: 10m
           working_directory: /tmp/data/reports
           command: |
-            tar cfz fmriprep_bold_mask.tar.gz fmriprep_bold_mask/*.nii.gz
+            tar cfz fmriprep_bold_mask.tar.gz fmriprep_bold_mask/*/*.nii.gz
       - run:
           name: Test fmriprep-wrapper (Python 2)
           command: |
