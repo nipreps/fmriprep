@@ -290,7 +290,11 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         if 'fieldmaps' not in ignore:
             fmaps = layout.get_fieldmap(ref_file, return_list=True)
             for fmap in fmaps:
-                fmap['metadata'] = layout.get_metadata(fmap[fmap['type']])
+                if fmap['type'] == 'phase':
+                    fmap_key = 'phase1'
+                else:
+                    fmap_key = fmap['type']
+                fmap['metadata'] = layout.get_metadata(fmap[fmap_key])
 
         # Run SyN if forced or in the absence of fieldmap correction
         if force_syn or (use_syn and not fmaps):
