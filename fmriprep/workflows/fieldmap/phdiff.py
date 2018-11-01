@@ -85,7 +85,7 @@ further improvements of HCP Pipelines [@hcppipelines].
         compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
 
     pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
-    
+
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
@@ -109,7 +109,6 @@ further improvements of HCP Pipelines [@hcppipelines].
     demean = pe.Node(niu.Function(function=demean_image), name='demean')
 
     cleanup_wf = cleanup_edge_pipeline(name="cleanup_wf")
-
 
     # The phdiff2fmap interface is equivalent to:
     # rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)

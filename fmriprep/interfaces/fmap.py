@@ -227,7 +227,6 @@ class Phases2Fieldmap(SimpleInterface):
         return runtime
 
 
-
 def _despike2d(data, thres, neigh=None):
     """
     despiking as done in FSL fugue
@@ -517,6 +516,7 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
     nii.to_filename(out_file)
     return out_file
 
+
 def phases2fmap(in_files, delta_te, newpath=None):
     r"""
     Converts the input phase maps (with different echo times) into a fieldmap
@@ -524,7 +524,7 @@ def phases2fmap(in_files, delta_te, newpath=None):
 
     .. math::
 
-        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
+    \Delta B_0 (\text{T}^{-1}) = \frac{\Delta\Theta}{2\pi\gamma\Delta\text{TE}}
 
 
     In this case, we do not take into account the gyromagnetic ratio of the
@@ -541,11 +541,12 @@ def phases2fmap(in_files, delta_te, newpath=None):
     from nipype.utils.filemanip import fname_presuffix
     #  GYROMAG_RATIO_H_PROTON_MHZ = 42.576
 
-
-    out_file = fname_presuffix(in_file, suffix='_fmap', newpath=newpath)
-    image = nb.load(in_file)
-    data = (image.get_data().astype(np.float32) / (2. * math.pi * delta_te))
-    nii = nb.Nifti1Image(data, image.affine, image.header)
+    out_file = fname_presuffix(in_files[0], suffix='_fmap', newpath=newpath)
+    image0 = nb.load(in_files[0])
+    image1 = nb.load(in_files[1])
+    data = image1.get_data() - image0.get_data()
+    data = (data / (2. * math.pi * delta_te))
+    nii = nb.Nifti1Image(data, image0.affine, image0.header)
     nii.set_data_dtype(np.float32)
     nii.to_filename(out_file)
     return out_file
@@ -574,22 +575,25 @@ def _delta_te(in_values, te1=None, te2=None):
 
     # For convienience if both are missing we should give one error about them
     if te1 is None and te2 is None:
-        raise RuntimeError('EchoTime1 and EchoTime2 metadata fields not found. '
-                           'Please consult the BIDS specification.')
+        raise RuntimeError('EchoTime1 and EchoTime2 metadata fields not found.'
+                           ' Please consult the BIDS specification.')
     if te1 is None:
         raise RuntimeError(
-            'EchoTime1 metadata field not found. Please consult the BIDS specification.')
+            'EchoTime1 metadata field not found. Please consult the BIDS '
+            'specification.')
     if te2 is None:
         raise RuntimeError(
-            'EchoTime2 metadata field not found. Please consult the BIDS specification.')
+            'EchoTime2 metadata field not found. Please consult the BIDS '
+            'specification.')
 
     return abs(float(te2) - float(te1))
+
 
 def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
     """Read :math:`\Delta_\text{TE}` from two BIDS metadata dicts"""
 
-    if isinstance(in_values, list):
-        te2_value, te1_value = in_values
+    if isinstance(in_dicts, list):
+        te2_value, te1_value = in_dicts
         if isinstance(te1_value, list):
             te1_dict = te1[1]
             if isinstance(te1_dict, dict):
@@ -605,9 +609,11 @@ def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
                            'Please consult the BIDS specification.')
     if te1 is None:
         raise RuntimeError(
-            'EchoTime metadata field not found for phase1. Please consult the BIDS specification.')
+            'EchoTime metadata field not found for phase1. Please consult the '
+            'BIDS specification.')
     if te2 is None:
         raise RuntimeError(
-            'EchoTime metadata field not found for phase2. Please consult the BIDS specification.')
+            'EchoTime metadata field not found for phase2. Please consult the '
+            'BIDS specification.')
 
     return abs(float(te2) - float(te1))
