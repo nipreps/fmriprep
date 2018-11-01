@@ -517,6 +517,39 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
     nii.to_filename(out_file)
     return out_file
 
+def phases2fmap(in_files, delta_te, newpath=None):
+    r"""
+    Converts the input phase maps (with different echo times) into a fieldmap
+    in Hz, using the eq. (1) of [Hutton2002]_:
+
+    .. math::
+
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
+
+
+    In this case, we do not take into account the gyromagnetic ratio of the
+    proton (:math:`\gamma`), since it will be applied inside TOPUP:
+
+    .. math::
+
+        \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
+
+    """
+    import math
+    import numpy as np
+    import nibabel as nb
+    from nipype.utils.filemanip import fname_presuffix
+    #  GYROMAG_RATIO_H_PROTON_MHZ = 42.576
+
+
+    out_file = fname_presuffix(in_file, suffix='_fmap', newpath=newpath)
+    image = nb.load(in_file)
+    data = (image.get_data().astype(np.float32) / (2. * math.pi * delta_te))
+    nii = nb.Nifti1Image(data, image.affine, image.header)
+    nii.set_data_dtype(np.float32)
+    nii.to_filename(out_file)
+    return out_file
+
 
 def _delta_te(in_values, te1=None, te2=None):
     """Read :math:`\Delta_\text{TE}` from BIDS metadata dict"""
@@ -557,11 +590,11 @@ def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
 
     if isinstance(in_values, list):
         te2_value, te1_value = in_values
-        if isinstance(te1, list):
+        if isinstance(te1_value, list):
             te1_dict = te1[1]
             if isinstance(te1_dict, dict):
                 te1 = te1_dict.get('EchoTime')
-        if isinstance(te2, list):
+        if isinstance(te2_value, list):
             te2_dict = te2[1]
             if isinstance(te2_dict, dict):
                 te2 = te2_dict.get('EchoTime')
