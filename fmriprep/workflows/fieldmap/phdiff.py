@@ -120,7 +120,7 @@ further improvements of HCP Pipelines [@hcppipelines].
         (magmrg, n4, [('out_avg', 'input_image')]),
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
-        (bet, prelude, [('mask_file', 'mask_file')])]),
+        (bet, prelude, [('mask_file', 'mask_file')]),
         (inputnode, pha2rads, [('phasediff', 'in_file')]),
         (meta, compfmap, [('out_dict', 'metadata')]),
         (pha2rads, prelude, [('out', 'phase_file')]),
