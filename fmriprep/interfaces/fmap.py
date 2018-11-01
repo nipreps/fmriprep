@@ -32,10 +32,13 @@ class FieldEnhanceInputSpec(BaseInterfaceInputSpec):
     in_magnitude = File(exists=True, desc='input magnitude')
     unwrap = traits.Bool(False, usedefault=True, desc='run phase unwrap')
     despike = traits.Bool(True, usedefault=True, desc='run despike filter')
-    bspline_smooth = traits.Bool(True, usedefault=True, desc='run 3D bspline smoother')
+    bspline_smooth = traits.Bool(True, usedefault=True,
+                                 desc='run 3D bspline smoother')
     mask_erode = traits.Int(1, usedefault=True, desc='mask erosion iterations')
-    despike_threshold = traits.Float(0.2, usedefault=True, desc='mask erosion iterations')
-    num_threads = traits.Int(1, usedefault=True, nohash=True, desc='number of jobs')
+    despike_threshold = traits.Float(0.2, usedefault=True,
+                                     desc='mask erosion iterations')
+    num_threads = traits.Int(1, usedefault=True, nohash=True,
+                             desc='number of jobs')
 
 
 class FieldEnhanceOutputSpec(TraitedSpec):
@@ -68,7 +71,8 @@ class FieldEnhance(SimpleInterface):
 
             # Dilate mask
             if self.inputs.mask_erode > 0:
-                struc = sim.iterate_structure(sim.generate_binary_structure(3, 2), 1)
+                struc = sim.iterate_structure(
+                            sim.generate_binary_structure(3, 2), 1)
                 mask = sim.binary_erosion(
                     mask, struc,
                     iterations=self.inputs.mask_erode
@@ -108,7 +112,8 @@ class FieldEnhance(SimpleInterface):
 
             nslices = 0
             try:
-                errorslice = np.squeeze(np.argwhere(errormask.sum(0).sum(0) > 0))
+                errorslice = np.squeeze(
+                                np.argwhere(errormask.sum(0).sum(0) > 0))
                 nslices = errorslice[-1] - errorslice[0]
             except IndexError:  # mask is empty, do not refine
                 pass
@@ -119,7 +124,8 @@ class FieldEnhance(SimpleInterface):
                     diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
                     datanii.affine, datanii.header)
 
-                bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
+                bspobj2 = fbsp.BSplineFieldmap(diffmapnii,
+                                               knots_zooms=[24., 24., 4.],
                                                njobs=self.inputs.num_threads)
                 bspobj2.fit()
                 smoothed2 = bspobj2.get_smoothed().get_data()
@@ -272,14 +278,16 @@ def _unwrap(fmap_data, mag_file, mask=None):
 
     nb.Nifti1Image(fmap_data, magnii.affine).to_filename('fmap_rad.nii.gz')
     nb.Nifti1Image(mask, magnii.affine).to_filename('fmap_mask.nii.gz')
-    nb.Nifti1Image(magnii.get_data(), magnii.affine).to_filename('fmap_mag.nii.gz')
+    nb.Nifti1Image(magnii.get_data(), magnii.affine
+                   ).to_filename('fmap_mag.nii.gz')
 
     # Run prelude
     res = PRELUDE(phase_file='fmap_rad.nii.gz',
                   magnitude_file='fmap_mag.nii.gz',
                   mask_file='fmap_mask.nii.gz').run()
 
-    unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax / pi)
+    unwrapped = nb.load(res.outputs.unwrapped_phase_file
+                        ).get_data() * (fmapmax / pi)
     return unwrapped
 
 
@@ -310,8 +318,9 @@ def get_ees(in_meta, in_file=None):
 
            =  T_\\text{ro} \\,  (N_\\text{PE} / f_\\text{acc} - 1)^{-1}
 
-    where :math:`N_y` is the number of pixels along the phase-encoding direction
-    :math:`y`, and :math:`f_\\text{acc}` is the parallel imaging acceleration factor
+    where :math:`N_y` is the number of pixels along the phase-encoding
+    direction :math:`y`, and :math:`f_\\text{acc}` is the parallel imaging
+    acceleration factor
     (:abbr:`GRAPPA (GeneRalized Autocalibrating Partial Parallel Acquisition)`,
     :abbr:`ARC (Autocalibrating Reconstruction for Cartesian imaging)`, etc.).
 
@@ -491,7 +500,8 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
 
     .. math::
 
-        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta\Theta}{\
+                                           2\pi\gamma\Delta\text{TE}}
 
 
     In this case, we do not take into account the gyromagnetic ratio of the
@@ -616,4 +626,4 @@ def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
             'EchoTime metadata field not found for phase2. Please consult the '
             'BIDS specification.')
 
-    return abs(float(te2) - float(te1))
+    return float(te2) - float(te1)

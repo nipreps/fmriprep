@@ -34,7 +34,8 @@ from ...interfaces import (
 def init_phdiff_wf(omp_nthreads, phasetype="phasediff", name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
-    magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
+    magnitude images corresponding to two or more
+    :abbr:`GRE (Gradient Echo sequence)`
     acquisitions. The `original code was taken from nipype
     <https://github.com/nipy/nipype/blob/master/nipype/workflows/dmri/fsl/artifacts.py#L514>`_.
 
@@ -64,7 +65,8 @@ using a custom workflow of *fMRIPrep* derived from D. Greve's `epidewarp.fsl`
 further improvements of HCP Pipelines [@hcppipelines].
 """
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['magnitude', 'phasediff']),
+    inputnode = pe.Node(niu.IdentityInterface(
+                        fields=['magnitude', 'phasediff']),
                         name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(
@@ -76,12 +78,12 @@ further improvements of HCP Pipelines [@hcppipelines].
     if phasetype == "phasediff":
         # Read phasediff echo times
         meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
-                        run_without_submitting=True)
+                       run_without_submitting=True)
         compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
 
     elif phasetype == "phase":
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
-                        run_without_submitting=True,iterfield=['in_file'])
+                          run_without_submitting=True, iterfield=['in_file'])
         compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
 
     pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
@@ -94,7 +96,8 @@ further improvements of HCP Pipelines [@hcppipelines].
                  name='n4', n_procs=omp_nthreads)
     bet = pe.Node(BETRPT(generate_report=True, frac=0.6, mask=True),
                   name='bet')
-    ds_fmap_mask = pe.Node(DerivativesDataSink(suffix='fmap_mask'), name='ds_report_fmap_mask',
+    ds_fmap_mask = pe.Node(DerivativesDataSink(suffix='fmap_mask'),
+                           name='ds_report_fmap_mask',
                            mem_gb=0.01, run_without_submitting=True)
     # uses mask from bet; outputs a mask
     # dilate = pe.Node(fsl.maths.MathsCommand(
@@ -103,7 +106,8 @@ further improvements of HCP Pipelines [@hcppipelines].
     # FSL PRELUDE will perform phase-unwrapping
     prelude = pe.Node(fsl.PRELUDE(), name='prelude')
 
-    denoise = pe.Node(fsl.SpatialFilter(operation='median', kernel_shape='sphere',
+    denoise = pe.Node(fsl.SpatialFilter(operation='median',
+                                        kernel_shape='sphere',
                                         kernel_size=3), name='denoise')
 
     demean = pe.Node(niu.Function(function=demean_image), name='demean')
@@ -112,7 +116,8 @@ further improvements of HCP Pipelines [@hcppipelines].
 
     # The phdiff2fmap interface is equivalent to:
     # rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)
-    # pre_fugue = pe.Node(fsl.FUGUE(save_fmap=True), name='ComputeFieldmapFUGUE')
+    # pre_fugue = pe.Node(fsl.FUGUE(save_fmap=True),
+    #                     name='ComputeFieldmapFUGUE')
     # rsec2hz (divide by 2pi)
 
     workflow.connect([
