@@ -220,7 +220,7 @@ class Phases2Fieldmap(SimpleInterface):
     output_spec = Phasediff2FieldmapOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['out_file'] = phdiff2fmap(
+        self._results['out_file'] = phases2fmap(
             self.inputs.in_file,
             _delta_te_from_two_phases(self.inputs.metadata),
             newpath=runtime.cwd)
