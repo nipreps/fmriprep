@@ -84,6 +84,8 @@ further improvements of HCP Pipelines [@hcppipelines].
                         run_without_submitting=True,iterfield=['in_file'])
         compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
 
+    pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
+    
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
