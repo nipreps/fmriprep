@@ -207,6 +207,27 @@ class Phasediff2Fieldmap(SimpleInterface):
         return runtime
 
 
+class Phases2FieldmapInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='input fieldmap')
+    metadata = traits.List(mandatory=True, desc='BIDS metadata dictionaries')
+
+
+class Phases2Fieldmap(SimpleInterface):
+    """
+    Convert a phase difference map into a fieldmap in Hz
+    """
+    input_spec = Phases2FieldmapInputSpec
+    output_spec = Phasediff2FieldmapOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = phdiff2fmap(
+            self.inputs.in_file,
+            _delta_te_from_two_phases(self.inputs.metadata),
+            newpath=runtime.cwd)
+        return runtime
+
+
+
 def _despike2d(data, thres, neigh=None):
     """
     despiking as done in FSL fugue
@@ -528,5 +549,32 @@ def _delta_te(in_values, te1=None, te2=None):
     if te2 is None:
         raise RuntimeError(
             'EchoTime2 metadata field not found. Please consult the BIDS specification.')
+
+    return abs(float(te2) - float(te1))
+
+def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
+    """Read :math:`\Delta_\text{TE}` from two BIDS metadata dicts"""
+
+    if isinstance(in_values, list):
+        te2_value, te1_value = in_values
+        if isinstance(te1, list):
+            te1_dict = te1[1]
+            if isinstance(te1_dict, dict):
+                te1 = te1_dict.get('EchoTime')
+        if isinstance(te2, list):
+            te2_dict = te2[1]
+            if isinstance(te2_dict, dict):
+                te2 = te2_dict.get('EchoTime')
+
+    # For convienience if both are missing we should give one error about them
+    if te1 is None and te2 is None:
+        raise RuntimeError('EchoTime metadata fields not found. '
+                           'Please consult the BIDS specification.')
+    if te1 is None:
+        raise RuntimeError(
+            'EchoTime metadata field not found for phase1. Please consult the BIDS specification.')
+    if te2 is None:
+        raise RuntimeError(
+            'EchoTime metadata field not found for phase2. Please consult the BIDS specification.')
 
     return abs(float(te2) - float(te1))

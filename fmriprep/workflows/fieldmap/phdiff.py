@@ -27,11 +27,11 @@ from niworkflows.interfaces.masks import BETRPT
 from ...engine import Workflow
 from ...interfaces import (
     ReadSidecarJSON, IntraModalMerge, DerivativesDataSink,
-    Phasediff2Fieldmap
+    Phasediff2Fieldmap, Phases2Fieldmap
 )
 
 
-def init_phdiff_wf(omp_nthreads, name='phdiff_wf'):
+def init_phdiff_wf(omp_nthreads, phasetype="phasediff", name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
     magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
@@ -73,8 +73,16 @@ further improvements of HCP Pipelines [@hcppipelines].
     def _pick1st(inlist):
         return inlist[0]
 
-    # Read phasediff echo times
-    meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01, run_without_submitting=True)
+    if phasetype == "phasediff":
+        # Read phasediff echo times
+        meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
+                        run_without_submitting=True)
+        compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
+
+    elif phasetype == "phase":
+        meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
+                        run_without_submitting=True,iterfield=['in_file'])
+        compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
 
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
@@ -90,9 +98,6 @@ further improvements of HCP Pipelines [@hcppipelines].
     # dilate = pe.Node(fsl.maths.MathsCommand(
     #     nan2zeros=True, args='-kernel sphere 5 -dilM'), name='MskDilate')
 
-    # phase diff -> radians
-    pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
-
     # FSL PRELUDE will perform phase-unwrapping
     prelude = pe.Node(fsl.PRELUDE(), name='prelude')
 
@@ -103,7 +108,6 @@ further improvements of HCP Pipelines [@hcppipelines].
 
     cleanup_wf = cleanup_edge_pipeline(name="cleanup_wf")
 
-    compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
 
     # The phdiff2fmap interface is equivalent to:
     # rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)
@@ -116,10 +120,10 @@ further improvements of HCP Pipelines [@hcppipelines].
         (magmrg, n4, [('out_avg', 'input_image')]),
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
-        (bet, prelude, [('mask_file', 'mask_file')]),
+        (bet, prelude, [('mask_file', 'mask_file')])]),
         (inputnode, pha2rads, [('phasediff', 'in_file')]),
-        (pha2rads, prelude, [('out', 'phase_file')]),
         (meta, compfmap, [('out_dict', 'metadata')]),
+        (pha2rads, prelude, [('out', 'phase_file')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
         (denoise, demean, [('out_file', 'in_file')]),
         (demean, cleanup_wf, [('out', 'inputnode.in_file')]),

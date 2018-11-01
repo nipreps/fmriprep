@@ -52,7 +52,8 @@ FMAP_PRIORITY = {
     'epi': 0,
     'fieldmap': 1,
     'phasediff': 2,
-    'syn': 3
+    'phase':3,
+    'syn': 4
 }
 DEFAULT_MEMORY_MIN_GB = 0.01
 
@@ -193,7 +194,7 @@ co-registration with the anatomical reference.
         ])
 
     # FIELDMAP path
-    if fmap['type'] in ['fieldmap', 'phasediff']:
+    if fmap['type'] in ['fieldmap', 'phasediff', 'phase']:
         outputnode.inputs.method = 'FMB (%s-based)' % fmap['type']
         # Import specific workflows here, so we don't break everything with one
         # unused workflow.
@@ -206,11 +207,17 @@ co-registration with the anatomical reference.
             fmap_estimator_wf.inputs.inputnode.fieldmap = fmap['fieldmap']
             fmap_estimator_wf.inputs.inputnode.magnitude = fmap['magnitude']
 
-        if fmap['type'] == 'phasediff':
+        if fmap['type'] in ('phasediff', 'phase'):
             from .phdiff import init_phdiff_wf
-            fmap_estimator_wf = init_phdiff_wf(omp_nthreads=omp_nthreads)
+            fmap_estimator_wf = init_phdiff_wf(omp_nthreads=omp_nthreads,
+                                               phasetype = fmap['type'])
             # set inputs
-            fmap_estimator_wf.inputs.inputnode.phasediff = fmap['phasediff']
+            if fmap['type'] == 'phasediff':
+                fmap_estimator_wf.inputs.inputnode.phasediff = fmap['phasediff']
+            elif fmap['type'] == 'phase':
+                fmap_estimator_wf.inputs.inputnode.phasediff = [
+                    fmap['phase1'], fmap['phase2']
+                ]
             fmap_estimator_wf.inputs.inputnode.magnitude = [
                 fmap_ for key, fmap_ in sorted(fmap.items())
                 if key.startswith("magnitude")
