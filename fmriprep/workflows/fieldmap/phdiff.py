@@ -27,7 +27,7 @@ from niworkflows.interfaces.masks import BETRPT
 from ...engine import Workflow
 from ...interfaces import (
     ReadSidecarJSON, IntraModalMerge, DerivativesDataSink,
-    Phasediff2Fieldmap, Phases2Fieldmap
+    Phasediff2Fieldmap, Phases2Phasediff, PhasesMetadata2PhasediffMetadata
 )
 
 
@@ -103,6 +103,8 @@ further improvements of HCP Pipelines [@hcppipelines].
 
     cleanup_wf = cleanup_edge_pipeline(name="cleanup_wf")
 
+    compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
+
     # The phdiff2fmap interface is equivalent to:
     # rad2rsec (using rads2radsec from nipype.workflows.dmri.fsl.utils)
     # pre_fugue = pe.Node(fsl.FUGUE(save_fmap=True),
@@ -113,27 +115,36 @@ further improvements of HCP Pipelines [@hcppipelines].
         # Read phasediff echo times
         meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                        run_without_submitting=True)
-        compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
-        workflow.connect(inputnode, 'phasediff', ds_fmap_mask, 'source_file')
-        workflow.connect(inputnode, 'phasediff', pha2rads, 'in_file')
+        workflow.connect([
+
+            (meta, compfmap, [('out_dict', 'metadata')]),
+            (inputnode, pha2rads, [('phasediff', 'in_file')]),
+            (inputnode, ds_fmap_mask, [('phasediff', 'source_file')]),
+        ])
 
     elif phasetype == "phase":
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                           run_without_submitting=True, iterfield=['in_file'])
-        compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
-        workflow.connect(compfmap, 'derived_phasediff', ds_fmap_mask,
-                         'source_file')
-        workflow.connect(compfmap, 'derived_phasediff', pha2rads, 'in_file')
+        phasediff_meta = pe.Node(PhasesMetadata2PhasediffMetadata(),
+                                 name='meta', mem_gb=0.01,
+                                 run_without_submitting=True)
+        diff_phases = pe.Node(Phases2Phasediff(), name='diff_phases')
+
+        workflow.connect([
+            (inputnode, meta, [('phasediff', 'in_file')]),
+            (meta, phasediff_meta, [('out_dice', 'in_file')]),
+            (phasediff_meta, compfmap, [('out_dict', 'metadata')]),
+            (inputnode, diff_phases, [('phasediff', 'in_files')]),
+            (diff_phases, pha2rads, [('out_file', 'in_file')]),
+            (diff_phases, ds_fmap_mask, [('out_file', 'source_file')])
+        ])
 
     workflow.connect([
-        (inputnode, meta, [('phasediff', 'in_file')]),
         (inputnode, magmrg, [('magnitude', 'in_files')]),
         (magmrg, n4, [('out_avg', 'input_image')]),
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
         (bet, prelude, [('mask_file', 'mask_file')]),
-
-        (meta, compfmap, [('out_dict', 'metadata')]),
         (pha2rads, prelude, [('out', 'phase_file')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
         (denoise, demean, [('out_file', 'in_file')]),

@@ -21,7 +21,7 @@ from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
-    SimpleInterface)
+    SimpleInterface, InputMultiPath, traits)
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -213,30 +213,46 @@ class Phasediff2Fieldmap(SimpleInterface):
         return runtime
 
 
-class Phases2FieldmapInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True, desc='input fieldmap')
-    metadata = traits.List(mandatory=True, desc='BIDS metadata dictionaries')
+class Phases2PhasediffInputSpec(BaseInterfaceInputSpec):
+    in_files = InputMultiPath(File(exists=True), mandatory=True,
+                              desc='list of phase1, phase2 files')
 
 
-class Phases2FieldmapOutputSpec(TraitedSpec):
-    out_file = File(desc='the output fieldmap')
-    derived_phasediff = File(desc='the calculated phasediff (wrapped)')
+class Phases2PhasediffOutputSpec(TraitedSpec):
+    out_file = File(desc='the output phasediff')
 
 
-class Phases2Fieldmap(SimpleInterface):
+class Phases2Phasediff(SimpleInterface):
     """
-    Convert a phase difference map into a fieldmap in Hz
+    Convert a phase1, phase2 into a difference map
     """
-    input_spec = Phases2FieldmapInputSpec
-    output_spec = Phases2FieldmapOutputSpec
+    input_spec = Phases2PhasediffInputSpec
+    output_spec = Phases2PhasediffOutputSpec
 
     def _run_interface(self, runtime):
-        phasediff_file, out_file = phases2fmap(
-            self.inputs.in_file,
-            _delta_te_from_two_phases(self.inputs.metadata),
-            newpath=runtime.cwd)
-        self._results['out_file'] = out_file
-        self._results['derived_phasediff'] = phasediff_file
+        self._results['out_file'] = phases2phasediff(self.inputs.in_files)
+        return runtime
+
+
+class PhasesMetadata2PhasediffMetadataInputSpec(BaseInterfaceInputSpec):
+    in_dicts = traits.List(traits.Dict, mandatory=True,
+                           desc='list of phase1, phase2 metadata dicts')
+
+
+class PhasesMetadata2PhasediffMetadataOutputSpec(TraitedSpec):
+    out_dict = traits.Dict(desc='the phasediff metadata')
+
+
+class PhasesMetadata2PhasediffMetadata(SimpleInterface):
+    """
+    Convert phase1, phase2 metadata into phase difference metadata
+    """
+    input_spec = PhasesMetadata2PhasediffMetadataInputSpec
+    output_spec = PhasesMetadata2PhasediffMetadataOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_dict'] = phases_metadata_to_phasediff_metadata(
+                                        self.inputs.in_dicts)
         return runtime
 
 
@@ -534,32 +550,11 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
     return out_file
 
 
-def phases2fmap(in_files, delta_te, newpath=None):
-    r"""
-    Converts the input phase maps (with different echo times) into a fieldmap
-    in Hz, using the eq. (1) of [Hutton2002]_:
-
-    .. math::
-
-    \Delta B_0 (\text{T}^{-1}) = \frac{\Delta\Theta}{2\pi\gamma\Delta\text{TE}}
-
-
-    In this case, we do not take into account the gyromagnetic ratio of the
-    proton (:math:`\gamma`), since it will be applied inside TOPUP:
-
-    .. math::
-
-        \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
-
-    Returns the calculated phasediff image and the fieldmap image
-    """
-    import math
+def phases2phasediff(in_files, newpath=None):
+    """calculates a phasediff from two phase images"""
     import numpy as np
     import nibabel as nb
     from nipype.utils.filemanip import fname_presuffix
-    #  GYROMAG_RATIO_H_PROTON_MHZ = 42.576
-
-    out_file = fname_presuffix(in_files[0], suffix='_fmap', newpath=newpath)
     phasediff_file = fname_presuffix(in_files[0], suffix='_phasediff',
                                      newpath=newpath)
     image0 = nb.load(in_files[0])
@@ -568,11 +563,7 @@ def phases2fmap(in_files, delta_te, newpath=None):
     phasediff_nii = nb.Nifti1Image(phasediff, image0.affine, image0.header)
     phasediff_nii.set_data_dtype(np.float32)
     phasediff_nii.to_filename(phasediff_file)
-    data = (phasediff / (2. * math.pi * delta_te))
-    nii = nb.Nifti1Image(data, image0.affine, image0.header)
-    nii.set_data_dtype(np.float32)
-    nii.to_filename(out_file)
-    return phasediff_file, out_file
+    return phasediff_file
 
 
 def _delta_te(in_values, te1=None, te2=None):
@@ -612,14 +603,16 @@ def _delta_te(in_values, te1=None, te2=None):
     return abs(float(te2) - float(te1))
 
 
-def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
-    """Read :math:`\Delta_\text{TE}` from two BIDS metadata dicts"""
+def phases_metadata_to_phasediff_metadata(in_dicts, te1=None, te2=None):
+    """Combines two BIDS metadata dicts into a phasediff-like metadata dict"""
 
+    reference_dict = {"EchoTime": None}
     if isinstance(in_dicts, list):
         te2_value, te1_value = in_dicts
         if isinstance(te1_value, list):
             te1_dict = te1[1]
             if isinstance(te1_dict, dict):
+                reference_dict = te1_dict
                 te1 = te1_dict.get('EchoTime')
         if isinstance(te2_value, list):
             te2_dict = te2[1]
@@ -639,4 +632,7 @@ def _delta_te_from_two_phases(in_dicts, te1=None, te2=None):
             'EchoTime metadata field not found for phase2. Please consult the '
             'BIDS specification.')
 
-    return float(te2) - float(te1)
+    del reference_dict['EchoTime']
+    reference_dict["EchoTime1"] = te1
+    reference_dict["EchoTime2"] = te2
+    return reference_dict
