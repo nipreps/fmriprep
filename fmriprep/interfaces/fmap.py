@@ -218,18 +218,25 @@ class Phases2FieldmapInputSpec(BaseInterfaceInputSpec):
     metadata = traits.List(mandatory=True, desc='BIDS metadata dictionaries')
 
 
+class Phases2FieldmapOutputSpec(TraitedSpec):
+    out_file = File(desc='the output fieldmap')
+    derived_phasediff = File(desc='the calculated phasediff (wrapped)')
+
+
 class Phases2Fieldmap(SimpleInterface):
     """
     Convert a phase difference map into a fieldmap in Hz
     """
     input_spec = Phases2FieldmapInputSpec
-    output_spec = Phasediff2FieldmapOutputSpec
+    output_spec = Phases2FieldmapOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['out_file'] = phases2fmap(
+        phasediff_file, out_file = phases2fmap(
             self.inputs.in_file,
             _delta_te_from_two_phases(self.inputs.metadata),
             newpath=runtime.cwd)
+        self._results['out_file'] = out_file
+        self._results['derived_phasediff'] = phasediff_file
         return runtime
 
 
@@ -544,6 +551,7 @@ def phases2fmap(in_files, delta_te, newpath=None):
 
         \Delta B_0 (\text{Hz}) = \frac{\Delta \Theta}{2\pi \Delta\text{TE}}
 
+    Returns the calculated phasediff image and the fieldmap image
     """
     import math
     import numpy as np
@@ -552,14 +560,19 @@ def phases2fmap(in_files, delta_te, newpath=None):
     #  GYROMAG_RATIO_H_PROTON_MHZ = 42.576
 
     out_file = fname_presuffix(in_files[0], suffix='_fmap', newpath=newpath)
+    phasediff_file = fname_presuffix(in_files[0], suffix='_phasediff',
+                                     newpath=newpath)
     image0 = nb.load(in_files[0])
     image1 = nb.load(in_files[1])
-    data = image1.get_data() - image0.get_data()
-    data = (data / (2. * math.pi * delta_te))
+    phasediff = image1.get_data() - image0.get_data()
+    phasediff_nii = nb.Nifti1Image(phasediff, image0.affine, image0.header)
+    phasediff_nii.set_data_dtype(np.float32)
+    phasediff_nii.to_filename(phasediff_file)
+    data = (phasediff / (2. * math.pi * delta_te))
     nii = nb.Nifti1Image(data, image0.affine, image0.header)
     nii.set_data_dtype(np.float32)
     nii.to_filename(out_file)
-    return out_file
+    return phasediff_file, out_file
 
 
 def _delta_te(in_values, te1=None, te2=None):

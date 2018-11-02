@@ -120,10 +120,8 @@ further improvements of HCP Pipelines [@hcppipelines].
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                           run_without_submitting=True, iterfield=['in_file'])
         compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
-        # Merge phase1 and phase2
-        phamrg = pe.Node(IntraModalMerge(), name='phamrg')
-        workflow.connect(inputnode, 'phasediff', phamrg, 'in_files')
-        workflow.connect(phamrg, 'out_file', ds_fmap_mask, 'source_file')
+        workflow.connect(compfmap, 'derived_phasediff', ds_fmap_mask,
+                         'source_file')
 
     workflow.connect([
         (inputnode, meta, [('phasediff', 'in_file')]),
