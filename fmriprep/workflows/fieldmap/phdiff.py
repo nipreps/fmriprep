@@ -75,17 +75,6 @@ further improvements of HCP Pipelines [@hcppipelines].
     def _pick1st(inlist):
         return inlist[0]
 
-    if phasetype == "phasediff":
-        # Read phasediff echo times
-        meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
-                       run_without_submitting=True)
-        compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
-
-    elif phasetype == "phase":
-        meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
-                          run_without_submitting=True, iterfield=['in_file'])
-        compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
-
     pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
 
     # Merge input magnitude images
@@ -120,6 +109,22 @@ further improvements of HCP Pipelines [@hcppipelines].
     #                     name='ComputeFieldmapFUGUE')
     # rsec2hz (divide by 2pi)
 
+    if phasetype == "phasediff":
+        # Read phasediff echo times
+        meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
+                       run_without_submitting=True)
+        compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
+        workflow.connect(inputnode, 'phasediff', ds_fmap_mask, 'source_file')
+
+    elif phasetype == "phase":
+        meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
+                          run_without_submitting=True, iterfield=['in_file'])
+        compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
+        # Merge phase1 and phase2
+        phamrg = pe.Node(IntraModalMerge(), name='phamrg')
+        workflow.connect(inputnode, 'phasediff', phamrg, 'in_files')
+        workflow.connect(phamrg, 'out_file', ds_fmap_mask, 'source_file')
+
     workflow.connect([
         (inputnode, meta, [('phasediff', 'in_file')]),
         (inputnode, magmrg, [('magnitude', 'in_files')]),
@@ -138,7 +143,6 @@ further improvements of HCP Pipelines [@hcppipelines].
         (compfmap, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')]),
-        (inputnode, ds_fmap_mask, [('phasediff', 'source_file')]),
         (bet, ds_fmap_mask, [('out_report', 'in_file')]),
     ])
 
