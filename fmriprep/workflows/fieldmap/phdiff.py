@@ -115,6 +115,7 @@ further improvements of HCP Pipelines [@hcppipelines].
                        run_without_submitting=True)
         compfmap = pe.Node(Phasediff2Fieldmap(), name='compfmap')
         workflow.connect(inputnode, 'phasediff', ds_fmap_mask, 'source_file')
+        workflow.connect(inputnode, 'phasediff', pha2rads, 'in_file')
 
     elif phasetype == "phase":
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
@@ -122,6 +123,7 @@ further improvements of HCP Pipelines [@hcppipelines].
         compfmap = pe.Node(Phases2Fieldmap(), name='compfmap')
         workflow.connect(compfmap, 'derived_phasediff', ds_fmap_mask,
                          'source_file')
+        workflow.connect(compfmap, 'derived_phasediff', pha2rads, 'in_file')
 
     workflow.connect([
         (inputnode, meta, [('phasediff', 'in_file')]),
@@ -130,7 +132,7 @@ further improvements of HCP Pipelines [@hcppipelines].
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
         (bet, prelude, [('mask_file', 'mask_file')]),
-        (inputnode, pha2rads, [('phasediff', 'in_file')]),
+
         (meta, compfmap, [('out_dict', 'metadata')]),
         (pha2rads, prelude, [('out', 'phase_file')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
