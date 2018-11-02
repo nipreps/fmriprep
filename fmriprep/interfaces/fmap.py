@@ -21,7 +21,7 @@ from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
-    SimpleInterface, InputMultiPath, traits)
+    SimpleInterface, InputMultiPath)
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -559,8 +559,9 @@ def phases2phasediff(in_files, newpath=None):
                                      newpath=newpath)
     image0 = nb.load(in_files[0])
     image1 = nb.load(in_files[1])
-    phasediff = image1.get_data() - image0.get_data()
-    phasediff_nii = nb.Nifti1Image(phasediff, image0.affine, image0.header)
+    phasediff = image1.get_data().astype(np.float) \
+                - image0.get_data().astype(np.float)
+    phasediff_nii = nb.Nifti1Image(phasediff, image0.affine)
     phasediff_nii.set_data_dtype(np.float32)
     phasediff_nii.to_filename(phasediff_file)
     return phasediff_file
@@ -605,19 +606,13 @@ def _delta_te(in_values, te1=None, te2=None):
 
 def phases_metadata_to_phasediff_metadata(in_dicts, te1=None, te2=None):
     """Combines two BIDS metadata dicts into a phasediff-like metadata dict"""
+    from copy import deepcopy
 
     reference_dict = {"EchoTime": None}
-    if isinstance(in_dicts, list):
-        te2_value, te1_value = in_dicts
-        if isinstance(te1_value, list):
-            te1_dict = te1[1]
-            if isinstance(te1_dict, dict):
-                reference_dict = te1_dict
-                te1 = te1_dict.get('EchoTime')
-        if isinstance(te2_value, list):
-            te2_dict = te2[1]
-            if isinstance(te2_dict, dict):
-                te2 = te2_dict.get('EchoTime')
+    phase1_dict, phase2_dict = in_dicts
+    reference_dict = deepcopy(phase1_dict)
+    te1 = phase1_dict.get('EchoTime')
+    te2 = phase2_dict.get('EchoTime')
 
     # For convienience if both are missing we should give one error about them
     if te1 is None and te2 is None:

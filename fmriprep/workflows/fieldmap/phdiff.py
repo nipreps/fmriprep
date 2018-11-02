@@ -126,13 +126,13 @@ further improvements of HCP Pipelines [@hcppipelines].
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                           run_without_submitting=True, iterfield=['in_file'])
         phasediff_meta = pe.Node(PhasesMetadata2PhasediffMetadata(),
-                                 name='meta', mem_gb=0.01,
+                                 name='phasediff_meta', mem_gb=0.01,
                                  run_without_submitting=True)
         diff_phases = pe.Node(Phases2Phasediff(), name='diff_phases')
 
         workflow.connect([
             (inputnode, meta, [('phasediff', 'in_file')]),
-            (meta, phasediff_meta, [('out_dice', 'in_file')]),
+            (meta, phasediff_meta, [('out_dict', 'in_dicts')]),
             (phasediff_meta, compfmap, [('out_dict', 'metadata')]),
             (inputnode, diff_phases, [('phasediff', 'in_files')]),
             (diff_phases, pha2rads, [('out_file', 'in_file')]),
