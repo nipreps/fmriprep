@@ -27,7 +27,7 @@ from niworkflows.interfaces.masks import BETRPT
 from ...engine import Workflow
 from ...interfaces import (
     ReadSidecarJSON, IntraModalMerge, DerivativesDataSink,
-    Phasediff2Fieldmap, Phases2Phasediff, PhasesMetadata2PhasediffMetadata
+    Phasediff2Fieldmap, Phases2Fieldmap
 )
 
 
@@ -75,8 +75,6 @@ further improvements of HCP Pipelines [@hcppipelines].
     def _pick1st(inlist):
         return inlist[0]
 
-    pha2rads = pe.Node(niu.Function(function=siemens2rads), name='pha2rads')
-
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
@@ -112,6 +110,9 @@ further improvements of HCP Pipelines [@hcppipelines].
     # rsec2hz (divide by 2pi)
 
     if phasetype == "phasediff":
+        # phase diff -> radians
+        pha2rads = pe.Node(niu.Function(function=siemens2rads),
+                           name='pha2rads')
         # Read phasediff echo times
         meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                        run_without_submitting=True)
@@ -119,24 +120,23 @@ further improvements of HCP Pipelines [@hcppipelines].
 
             (meta, compfmap, [('out_dict', 'metadata')]),
             (inputnode, pha2rads, [('phasediff', 'in_file')]),
+            (pha2rads, prelude, [('out', 'phase_file')]),
             (inputnode, ds_fmap_mask, [('phasediff', 'source_file')]),
         ])
 
     elif phasetype == "phase":
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                           run_without_submitting=True, iterfield=['in_file'])
-        phasediff_meta = pe.Node(PhasesMetadata2PhasediffMetadata(),
-                                 name='phasediff_meta', mem_gb=0.01,
-                                 run_without_submitting=True)
-        diff_phases = pe.Node(Phases2Phasediff(), name='diff_phases')
+        phases2fmap = pe.Node(Phases2Fieldmap(), name='phases2fmap')
 
         workflow.connect([
             (inputnode, meta, [('phasediff', 'in_file')]),
-            (meta, phasediff_meta, [('out_dict', 'in_dicts')]),
-            (phasediff_meta, compfmap, [('out_dict', 'metadata')]),
-            (inputnode, diff_phases, [('phasediff', 'in_files')]),
-            (diff_phases, pha2rads, [('out_file', 'in_file')]),
-            (diff_phases, ds_fmap_mask, [('out_file', 'source_file')])
+            (meta, phases2fmap, [('out_dict', 'metadatas')]),
+            (inputnode, phases2fmap, [('phasediff', 'phase_files')]),
+            (inputnode, phases2fmap, [('magnitude', 'magnitude_files')]),
+            (phases2fmap, prelude), [('out_file', 'phase_file')],
+            (phases2fmap, compfmap, [('phasediff_metadata', 'metadata')]),
+            (phases2fmap, ds_fmap_mask, [('out_file', 'source_file')])
         ])
 
     workflow.connect([
@@ -145,7 +145,6 @@ further improvements of HCP Pipelines [@hcppipelines].
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
         (bet, prelude, [('mask_file', 'mask_file')]),
-        (pha2rads, prelude, [('out', 'phase_file')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
         (denoise, demean, [('out_file', 'in_file')]),
         (demean, cleanup_wf, [('out', 'inputnode.in_file')]),

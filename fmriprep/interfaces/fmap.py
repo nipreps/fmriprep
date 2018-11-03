@@ -213,46 +213,35 @@ class Phasediff2Fieldmap(SimpleInterface):
         return runtime
 
 
-class Phases2PhasediffInputSpec(BaseInterfaceInputSpec):
-    in_files = InputMultiPath(File(exists=True), mandatory=True,
-                              desc='list of phase1, phase2 files')
+class Phases2FieldmapInputSpec(BaseInterfaceInputSpec):
+    phase_files = InputMultiPath(File(exists=True), mandatory=True,
+                                 desc='list of phase1, phase2 files')
+    magnitude_files = InputMultiPath(File(exists=True), mandatory=True,
+                                     desc='list of phase1, phase2 files')
+    metadatas = traits.List(traits.Dict, mandatory=True,
+                            desc='list of phase1, phase2 metadata dicts')
 
 
-class Phases2PhasediffOutputSpec(TraitedSpec):
-    out_file = File(desc='the output phasediff')
+class Phases2FieldmapOutputSpec(TraitedSpec):
+    out_file = File(desc='the output fieldmap')
+    phasediff_metadata = traits.Dict(desc='the phasediff metadata')
 
 
-class Phases2Phasediff(SimpleInterface):
+class Phases2Fieldmap(SimpleInterface):
     """
     Convert a phase1, phase2 into a difference map
     """
-    input_spec = Phases2PhasediffInputSpec
-    output_spec = Phases2PhasediffOutputSpec
+    input_spec = Phases2FieldmapInputSpec
+    output_spec = Phases2FieldmapOutputSpec
 
     def _run_interface(self, runtime):
-        self._results['out_file'] = phases2phasediff(self.inputs.in_files)
-        return runtime
-
-
-class PhasesMetadata2PhasediffMetadataInputSpec(BaseInterfaceInputSpec):
-    in_dicts = traits.List(traits.Dict, mandatory=True,
-                           desc='list of phase1, phase2 metadata dicts')
-
-
-class PhasesMetadata2PhasediffMetadataOutputSpec(TraitedSpec):
-    out_dict = traits.Dict(desc='the phasediff metadata')
-
-
-class PhasesMetadata2PhasediffMetadata(SimpleInterface):
-    """
-    Convert phase1, phase2 metadata into phase difference metadata
-    """
-    input_spec = PhasesMetadata2PhasediffMetadataInputSpec
-    output_spec = PhasesMetadata2PhasediffMetadataOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_dict'] = phases_metadata_to_phasediff_metadata(
-                                        self.inputs.in_dicts)
+        # Get the echo times
+        fmap_file, merged_metadata = phases2fmap(
+            self.inputs.phase_files, self.inputs.magnitude_files,
+            self.inputs.metadatas
+        )
+        self._results['phasediff_metadata'] = merged_metadata
+        self._results['out_file'] = fmap_file
         return runtime
 
 
@@ -550,20 +539,53 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
     return out_file
 
 
-def phases2phasediff(in_files, newpath=None):
-    """calculates a phasediff from two phase images"""
+def phases2fmap(phase_files, magnitude_files, metadatas, newpath=None):
+    """calculates a phasediff from two phase images. Assumes monopolar
+    readout and that the second image in the list corresponds to the
+    longer echo time"""
     import numpy as np
     import nibabel as nb
     from nipype.utils.filemanip import fname_presuffix
-    phasediff_file = fname_presuffix(in_files[0], suffix='_phasediff',
+    from copy import deepcopy
+
+    phasediff_file = fname_presuffix(phase_files[0], suffix='_phasediff',
                                      newpath=newpath)
-    image0 = nb.load(in_files[0])
-    image1 = nb.load(in_files[1])
-    phasediff = image1.get_data().astype(np.float) \
-                - image0.get_data().astype(np.float)
-    phasediff_nii = nb.Nifti1Image(phasediff, image0.affine)
+    echo_times = [meta.get("EchoTime") for meta in metadatas]
+    if None in echo_times or echo_times[0] == echo_times[1]:
+        raise RuntimeError()
+    # Determine the order of subtraction
+    short_echo_index = echo_times.index(min(echo_times))
+    long_echo_index = echo_times.index(max(echo_times))
+
+    magnitude_image = magnitude_files[short_echo_index]
+    short_phase_image = phase_files[short_echo_index]
+    long_phase_image = phase_files[long_echo_index]
+
+    mag_img = nb.load(magnitude_image)
+    mag = mag_img.get_data().astype(np.float)
+    image0 = nb.load(short_phase_image)
+    phase0 = image0.get_data().astype(np.float)
+    image1 = nb.load(long_phase_image)
+    phase1 = image1.get_data().astype(np.float)
+
+    # Calculate fieldmaps
+    rad0 = np.pi * phase0 / 2048 - np.pi
+    rad1 = np.pi * phase1 / 2048 - np.pi
+    a = mag * np.cos(rad0)
+    b = mag * np.sin(rad0)
+    c = mag * np.cos(rad1)
+    d = mag * np.sin(rad1)
+    fmap = -np.atan2(b*c-a*d, a*c+b*d)
+
+    phasediff_nii = nb.Nifti1Image(fmap, image0.affine)
     phasediff_nii.set_data_dtype(np.float32)
     phasediff_nii.to_filename(phasediff_file)
+
+    merged_metadata = deepcopy[metadatas[0]]
+    del merged_metadata['EchoTime']
+    merged_metadata['EchoTime1'] = float(echo_times[short_echo_index])
+    merged_metadata['EchoTime2'] = float(echo_times[long_echo_index])
+
     return phasediff_file
 
 
@@ -602,32 +624,3 @@ def _delta_te(in_values, te1=None, te2=None):
             'specification.')
 
     return abs(float(te2) - float(te1))
-
-
-def phases_metadata_to_phasediff_metadata(in_dicts, te1=None, te2=None):
-    """Combines two BIDS metadata dicts into a phasediff-like metadata dict"""
-    from copy import deepcopy
-
-    reference_dict = {"EchoTime": None}
-    phase1_dict, phase2_dict = in_dicts
-    reference_dict = deepcopy(phase1_dict)
-    te1 = phase1_dict.get('EchoTime')
-    te2 = phase2_dict.get('EchoTime')
-
-    # For convienience if both are missing we should give one error about them
-    if te1 is None and te2 is None:
-        raise RuntimeError('EchoTime metadata fields not found. '
-                           'Please consult the BIDS specification.')
-    if te1 is None:
-        raise RuntimeError(
-            'EchoTime metadata field not found for phase1. Please consult the '
-            'BIDS specification.')
-    if te2 is None:
-        raise RuntimeError(
-            'EchoTime metadata field not found for phase2. Please consult the '
-            'BIDS specification.')
-
-    del reference_dict['EchoTime']
-    reference_dict["EchoTime1"] = te1
-    reference_dict["EchoTime2"] = te2
-    return reference_dict
