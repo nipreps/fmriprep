@@ -72,9 +72,6 @@ further improvements of HCP Pipelines [@hcppipelines].
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['fmap', 'fmap_ref', 'fmap_mask']), name='outputnode')
 
-    def _pick1st(inlist):
-        return inlist[0]
-
     # Merge input magnitude images
     magmrg = pe.Node(IntraModalMerge(), name='magmrg')
 
@@ -117,7 +114,6 @@ further improvements of HCP Pipelines [@hcppipelines].
         meta = pe.Node(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                        run_without_submitting=True)
         workflow.connect([
-
             (meta, compfmap, [('out_dict', 'metadata')]),
             (inputnode, pha2rads, [('phasediff', 'in_file')]),
             (pha2rads, prelude, [('out', 'phase_file')]),
@@ -125,21 +121,21 @@ further improvements of HCP Pipelines [@hcppipelines].
         ])
 
     elif phasetype == "phase":
+        # Special case for phase1, phase2 images
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,
                           run_without_submitting=True, iterfield=['in_file'])
         phases2fmap = pe.Node(Phases2Fieldmap(), name='phases2fmap')
-
         workflow.connect([
-            (inputnode, meta, [('phasediff', 'in_file')]),
             (meta, phases2fmap, [('out_dict', 'metadatas')]),
             (inputnode, phases2fmap, [('phasediff', 'phase_files')]),
             (inputnode, phases2fmap, [('magnitude', 'magnitude_files')]),
-            (phases2fmap, prelude), [('out_file', 'phase_file')],
+            (phases2fmap, prelude, [('out_file', 'phase_file')]),
             (phases2fmap, compfmap, [('phasediff_metadata', 'metadata')]),
             (phases2fmap, ds_fmap_mask, [('out_file', 'source_file')])
         ])
 
     workflow.connect([
+        (inputnode, meta, [('phasediff', 'in_file')]),
         (inputnode, magmrg, [('magnitude', 'in_files')]),
         (magmrg, n4, [('out_avg', 'input_image')]),
         (n4, prelude, [('output_image', 'magnitude_file')]),

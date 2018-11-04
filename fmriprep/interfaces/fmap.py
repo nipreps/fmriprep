@@ -575,18 +575,18 @@ def phases2fmap(phase_files, magnitude_files, metadatas, newpath=None):
     b = mag * np.sin(rad0)
     c = mag * np.cos(rad1)
     d = mag * np.sin(rad1)
-    fmap = -np.atan2(b*c-a*d, a*c+b*d)
+    fmap = -np.arctan2(b*c-a*d, a*c+b*d)
 
     phasediff_nii = nb.Nifti1Image(fmap, image0.affine)
     phasediff_nii.set_data_dtype(np.float32)
     phasediff_nii.to_filename(phasediff_file)
 
-    merged_metadata = deepcopy[metadatas[0]]
+    merged_metadata = deepcopy(metadatas[0])
     del merged_metadata['EchoTime']
     merged_metadata['EchoTime1'] = float(echo_times[short_echo_index])
     merged_metadata['EchoTime2'] = float(echo_times[long_echo_index])
 
-    return phasediff_file
+    return phasediff_file, merged_metadata
 
 
 def _delta_te(in_values, te1=None, te2=None):
