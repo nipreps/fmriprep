@@ -1,0 +1,4 @@
+plugin: LegacyMultiProc
+plugin_args:
+  maxtasksperchild: 1
+  raise_insufficient: false

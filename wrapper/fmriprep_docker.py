@@ -172,7 +172,7 @@ def merge_help(wrapper_help, target_help):
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
     expected_overlap = set(['h', 'version', 'w', 'template-resampling-grid',
-                            'output-grid-reference', 'fs-license-file'])
+                            'output-grid-reference', 'fs-license-file', 'use-plugin'])
     assert overlap == expected_overlap, "Clobbering options: {}".format(
         ', '.join(overlap - expected_overlap))
 
@@ -266,6 +266,9 @@ def get_parser():
         default=os.getenv('FS_LICENSE', None),
         help='Path to FreeSurfer license key file. Get it (for free) by registering'
              ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
+    g_wrap.add_argument(
+        '--use-plugin', metavar='PATH', action='store', default=None,
+        type=os.path.abspath, help='nipype plugin configuration file')
 
     # Developer patch/shell options
     g_dev = parser.add_argument_group(
@@ -389,6 +392,11 @@ def main():
     if opts.config:
         command.extend(['-v', ':'.join((opts.config,
                                         '/root/.nipype/nipype.cfg', 'ro'))])
+
+    if opts.use_plugin:
+        command.extend(['-v', ':'.join((opts.use_plugin, '/tmp/plugin.yml',
+                                        'ro'))])
+        unknown_args.extend(['--use-plugin', '/tmp/plugin.yml'])
 
     template_target = opts.template_resampling_grid or opts.output_grid_reference
     if template_target is not None:
