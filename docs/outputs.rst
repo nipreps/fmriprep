@@ -1,12 +1,12 @@
-
+.. include:: links.rst
 
 .. _outputs:
 
 -------------------
-Outputs of FMRIPREP
+Outputs of fMRIPrep
 -------------------
 
-FMRIPREP generates three broad classes of outcomes:
+FMRIPrep generates three broad classes of outcomes:
 
   1. **Visual QA (quality assessment) reports**:
      one :abbr:`HTML (hypertext markup language)` per subject,
@@ -25,14 +25,13 @@ FMRIPREP generates three broad classes of outcomes:
      between different spaces or the estimated confounds.
 
 
-In general, FMRIPREP follows the current working draft of the
-:abbr:`BIDS (brain imaging data structure)`-derivatives extension.
-
+fMRIPrep outputs conform to the :abbr:`BIDS (brain imaging data structure)`
+Derivatives specification (see `BIDS Derivatives RC1`_).
 
 Visual Reports
 --------------
 
-FMRIPREP outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
+FMRIPrep outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
 These reports provide a quick way to make visual inspection of the results easy.
 Each report is self contained and thus can be easily shared with collaborators (for example via email).
 `View a sample report. <_static/sample_report.html>`_
@@ -41,56 +40,77 @@ Each report is self contained and thus can be easily shared with collaborators (
 Preprocessed data (fMRIPrep *derivatives*)
 ------------------------------------------
 
-There are additional files, called "Derivatives", written to
-``<output dir>/fmriprep/sub-<subject_label>/``. See the
-`BIDS Derivatives <https://docs.google.com/document/d/1Wwc4A6Mow4ZPPszDIWfCUCRNstn7d_zzaWPcfcHmgI4/edit?usp=sharing>`_
-spec for more information.
+Preprocessed, or derivative, data are written to
+``<output dir>/fmriprep/sub-<subject_label>/``.
+The `BIDS Derivatives RC1`_ specification describes the naming and metadata conventions we follow.
 
-Derivatives related to T1w files are in the ``anat`` subfolder:
+Anatomical derivatives are placed in each subject's ``anat`` subfolder:
 
-- ``*T1w_brainmask.nii.gz`` Brain mask derived using ANTs' ``antsBrainExtraction.sh``.
-- ``*T1w_class-CSF_probtissue.nii.gz``
-- ``*T1w_class-GM_probtissue.nii.gz``
-- ``*T1w_class-WM_probtissue.nii.gz`` tissue-probability maps.
-- ``*T1w_dtissue.nii.gz`` Tissue class map derived using FAST.
-- ``*T1w_preproc.nii.gz`` Bias field corrected T1w file, using ANTS' N4BiasFieldCorrection
-- ``*T1w_space-MNI152NLin2009cAsym_brainmask.nii.gz`` Same as ``_brainmask`` above, but in MNI space.
-- ``*T1w_space-MNI152NLin2009cAsym_class-CSF_probtissue.nii.gz``
-- ``*T1w_space-MNI152NLin2009cAsym_class-GM_probtissue.nii.gz``
-- ``*T1w_space-MNI152NLin2009cAsym_class-WM_probtissue.nii.gz`` Probability tissue maps, transformed into MNI space
-- ``*T1w_space-MNI152NLin2009cAsym_dtissue.nii.gz`` Same as ``_dtissue`` above, but in MNI space
-- ``*T1w_space-MNI152NLin2009cAsym_preproc.nii.gz`` Same as ``_preproc`` above, but in MNI space
-- ``*T1w_space-MNI152NLin2009cAsym_target-T1w_warp.h5`` Composite (warp and affine) transform to map from MNI to T1 space
-- ``*T1w_target-MNI152NLin2009cAsym_warp.h5`` Composite (warp and affine) transform to transform T1w into MNI space
-- (optional) ``*T1w_target-fsnative_affine.txt`` Affine transform to transform T1w into ``fsnative`` space
-- (optional) ``*T1w_smoothwm.[LR].surf.gii`` Smoothed GrayWhite surfaces
-- (optional) ``*T1w_pial.[LR].surf.gii`` Pial surfaces
-- (optional) ``*T1w_midthickness.[LR].surf.gii`` MidThickness surfaces
-- (optional) ``*T1w_inflated.[LR].surf.gii`` FreeSurfer inflated surfaces for visualization
+- ``anat/sub-<subject_label>_[space-<space_label>_]desc-preproc_T1w.nii.gz``
+- ``anat/sub-<subject_label>_[space-<space_label>_]desc-brain_mask.nii.gz``
+- ``anat/sub-<subject_label>_[space-<space_label>_]dseg.nii.gz``
+- ``anat/sub-<subject_label>_[space-<space_label>_]label-CSF_probseg.nii.gz``
+- ``anat/sub-<subject_label>_[space-<space_label>_]label-GM_probseg.nii.gz``
+- ``anat/sub-<subject_label>_[space-<space_label>_]label-WM_probseg.nii.gz``
 
-Derivatives related to EPI files are in the ``func`` subfolder.
+Template-normalized derivatives use the space label ``MNI152NLin2009cAsym``, while derivatives in
+the original ``T1w`` space omit the ``space-`` keyword.
 
-- ``*bold_confounds.tsv`` A tab-separated value file with one column per calculated confound and one row per timepoint/volume
-- (optional) ``*bold_AROMAnoiseICs.csv`` A comma-separated value file listing each MELODIC component classified as noise
-- (optional) ``*bold_MELODICmix.tsv`` A tab-separated value file with one column per MELODIC component
+Additionally, the following transforms are saved:
+
+- ``anat/sub-<subject_label>_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5`` 
+- ``anat/sub-<subject_label>_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5`` 
+
+If FreeSurfer reconstructions are used, the following surface files are generated:
+
+- ``anat/sub-<subject_label>_hemi-[LR]_smoothwm.surf.gii``
+- ``anat/sub-<subject_label>_hemi-[LR]_pial.surf.gii``
+- ``anat/sub-<subject_label>_hemi-[LR]_midthickness.surf.gii``
+- ``anat/sub-<subject_label>_hemi-[LR]_inflated.surf.gii``
+
+And the affine translation between ``T1w`` space and FreeSurfer's reconstruction (``fsnative``) is
+stored in:
+
+- ``anat/sub-<subject_label>_from-T1w_to-fsnative_mode-image_xfm.txt``
+
+Functional derivatives are stored in the ``func`` subfolder.
+All derivatives contain ``task-<task_label>`` (mandatory) and ``run-<run_index>`` (optional), and
+these will be indicated with ``[specifiers]``.
+
+- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_boldref.nii.gz``
+- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_desc-brain_mask.nii.gz``
+- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_desc-preproc_bold.nii.gz``
 
 Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
 
-- ``*bold_space-<space>_brainmask.nii.gz`` Brain mask for EPI files, calculated by nilearn on the average EPI volume, post-motion correction
-- ``*bold_space-<space>_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation) EPI file
-- (optional) ``*bold_space-<space>_variant-smoothAROMAnonaggr_preproc.nii.gz`` Motion-corrected (using MCFLIRT for estimation and ANTs for interpolation),
-  smoothed (6mm), and non-aggressively denoised (using AROMA) EPI file - currently produced only for the ``MNI152NLin2009cAsym`` space
+Confounds are saved as a :abbr:`TSV (tab-separated value)` file:
+
+- ``func/sub-<subject_label>_[specifiers]_desc-confounds_regressors.nii.gz``
+
+If FreeSurfer reconstructions are used, the ``(aparc+)aseg`` segmentations are aligned to the
+subject's T1w space and resampled to the BOLD grid, and the BOLD series are resampled to the
+midthickness surface mesh:
+
+- ``func/sub-<subject_label>_[specifiers]_space-T1w_desc-aparcaseg_dseg.nii.gz``
+- ``func/sub-<subject_label>_[specifiers]_space-T1w_desc-aseg_dseg.nii.gz``
+- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_hemi-[LR].func.gii``
 
 Surface output spaces include ``fsnative`` (full density subject-specific mesh),
 ``fsaverage`` and the down-sampled meshes ``fsaverage6`` (41k vertices) and
 ``fsaverage5`` (10k vertices, default).
 
-- (optional) ``*bold_space-<space>.[LR].func.gii`` Motion-corrected EPI file sampled to surface ``<space>``
+If CIFTI outputs are requested, the BOLD series is also saved as ``dtseries.nii`` CIFTI2 files:
 
-EPIs can be saved as a CIFTI dtseries file.
+- ``func/sub-<subject_label>_[specifiers]_bold.dtseries.nii``
 
-- (optional) ``*bold_space-cifti_variant-<variant>_preproc.dtseries.nii`` Motion-corrected EPI converted to CIFTI filetype. Sub-cortical representations
-  are volumetric (supported spaces: ``MNI152NLin2009cAsym``), while cortical representations are sampled to surface (supported spaces: ``fsaverage5``, ``fsaverage6``)
+Sub-cortical time series are volumetric (supported spaces: ``MNI152NLin2009cAsym``), while cortical
+time series are sampled to surface (supported spaces: ``fsaverage5``, ``fsaverage6``)
+
+Finally, if ICA-AROMA is used, the MELODIC mixing matrix and the components classified as noise
+are saved:
+
+- ``func/sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv``
+- ``func/sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv``
 
 
 .. _fsderivs:
@@ -125,46 +145,39 @@ Confounds
 See implementation on :mod:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`.
 
 
-For each :abbr:`BOLD (blood-oxygen level dependent)` run processed with FMRIPREP, a
-``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_confounds.tsv``
+For each :abbr:`BOLD (blood-oxygen level dependent)` run processed with fMRIPrep, a
+``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_desc-confounds_regressors.tsv``
 file will be generated.
 These are :abbr:`TSV (tab-separated values)` tables, which look like the example below: ::
 
-  WhiteMatter GlobalSignal    stdDVARS    non-stdDVARS    vx-wisestdDVARS FramewiseDisplacement   tCompCor00  tCompCor01  tCompCor02  tCompCor03  tCompCor04  tCompCor05  aCompCor00  aCompCor01  aCompCor02  aCompCor03  aCompCor04  aCompCor05  NonSteadyStateOutlier00 X   Y   Z   RotX    RotY    RotZ    AROMAAggrComp01 AROMAAggrComp03 AROMAAggrComp04 AROMAAggrComp05
-  0.63    2.72    n/a n/a n/a n/a 0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00    1.00    0.00    0.00    0.00    0.00    0.00    0.00    2.62    -1.12   -0.03   3.12
-  3.14    0.51    1.18    16.05   1.21    0.07    -0.21   -0.36   -0.23   0.29    -0.37   0.04    -0.33   -0.54   -0.36   0.22    -0.07   0.16    0.00    0.00    0.02    0.05    0.00    0.00    0.00    1.66    -1.74   -0.38   -0.99
-  -1.23   -0.85   1.09    14.86   1.11    0.03    0.02    0.04    -0.22   -0.08   -0.18   0.66    0.11    -0.45   -0.16   -0.28   -0.05   0.26    0.00    0.00    0.00    0.05    0.00    0.00    0.00    0.35    -1.22   0.10    -0.23
-  -1.61   -1.53   1.01    13.83   1.05    0.03    0.27    0.21    -0.07   0.21    0.30    -0.02   0.24    -0.15   0.24    0.17    0.51    -0.02   0.00    0.01    -0.01   0.04    0.00    0.00    0.00    -0.42   -0.55   0.49    -0.38
-  -3.43   -1.48   0.98    13.32   1.02    0.03    0.06    0.49    0.24    -0.18   0.06    0.12    0.25    0.11    0.09    -0.10   0.08    0.47    0.00    0.02    -0.01   0.03    0.00    0.00    0.00    -1.12   -0.40   0.21    1.23
-  0.71    -0.66   0.97    13.26   1.02    0.04    -0.29   0.43    0.14    0.06    -0.20   -0.32   0.40    0.22    -0.07   0.45    -0.02   -0.04   0.00    0.02    -0.02   0.03    0.00    0.00    0.00    -1.00   -0.91   -0.99   0.30
-  -2.81   0.61    0.95    12.98   1.01    0.08    -0.48   0.24    -0.11   -0.15   -0.16   -0.22   0.38    0.20    -0.35   0.16    -0.31   -0.01   0.00    0.00    0.00    0.05    0.00    0.00    0.00    -0.66   -0.49   -1.89   0.43
-  2.85    0.35    0.95    12.99   1.01    0.04    -0.22   0.00    -0.50   0.05    0.15    0.14    0.30    -0.20   -0.22   -0.22   0.04    -0.34   0.00    0.00    -0.01   0.03    0.00    0.00    0.00    0.01    0.22    -1.76   -0.39
-  -2.57   -0.54   1.04    14.22   1.07    0.05    0.45    0.01    -0.43   -0.51   -0.01   -0.20   0.13    -0.02   0.26    -0.62   0.00    -0.30   0.00    0.00    0.00    0.06    0.00    0.00    0.00    0.60    1.59    0.05    -0.46
-  3.41    -0.72   1.03    14.04   1.05    0.07    0.37    0.06    0.08    0.55    -0.21   -0.14   -0.10   -0.18   0.51    0.17    -0.24   0.05    0.00    0.00    0.02    0.07    0.00    0.00    0.00    0.52    0.71    1.63    -0.95
-  3.75    -0.54   1.01    13.83   1.04    0.06    0.16    -0.16   0.38    -0.19   -0.01   0.16    -0.11   0.18    0.37    0.00    -0.43   0.20    0.00    0.00    0.00    0.06    0.00    0.00    0.00    -0.53   -0.07   1.85    -0.01
-  0.41    1.19    1.05    14.28   1.08    0.06    -0.27   -0.38   0.32    -0.11   0.10    0.07    -0.31   0.31    -0.25   -0.24   -0.01   0.27    0.00    0.00    0.01    0.09    0.00    0.00    0.00    -0.75   -0.03   0.14    -0.26
-  -4.14   0.72    0.97    13.20   1.01    0.03    -0.13   -0.28   0.03    -0.16   0.48    -0.28   -0.26   0.40    -0.24   -0.10   0.18    -0.20   0.00    0.00    0.00    0.08    0.00    0.00    0.00    -0.44   1.03    -0.50   -0.15
-  2.21    -0.02   0.96    13.09   1.00    0.01    0.18    -0.26   -0.04   0.14    -0.05   -0.37   -0.26   -0.10   0.07    0.25    -0.10   -0.54   0.00    0.00    0.00    0.08    0.00    0.00    0.00    0.28    1.54    0.12    -0.77
-  0.08    -0.06   0.95    12.89   0.99    0.01    0.15    -0.12   0.31    -0.22   -0.37   0.08    -0.22   0.12    -0.02   0.01    -0.15   -0.10   0.00    0.00    0.00    0.08    0.00    0.00    0.00    -0.46   1.00    0.70    0.08
-  -1.41   0.29    0.96    13.06   0.99    0.01    -0.04   0.07    0.10    0.31    0.47    0.27    -0.22   0.09    0.11    0.12    0.56    0.14    0.00    0.00    0.00    0.07    0.00    0.00    0.00    -0.67   0.44    0.25    -0.57
+  csf	white_matter	global_signal	std_dvars	dvars	framewise_displacement	t_comp_cor_00	t_comp_cor_01	t_comp_cor_02	t_comp_cor_03	t_comp_cor_04	t_comp_cor_05	a_comp_cor_00	a_comp_cor_01	a_comp_cor_02	a_comp_cor_03	a_comp_cor_04	a_comp_cor_05	non_steady_state_outlier00	trans_x	trans_y	trans_z	rot_x	rot_y	rot_z	aroma_motion_02	aroma_motion_04
+  682.75275	0.0	491.64752000000004	n/a	n/a	n/a	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	1.0	0.0	0.0	0.0	-0.00017029	-0.0	0.0	0.0	0.0
+  669.14166	0.0	489.4421	1.168398	17.575331	0.07211929999999998	-0.4506846719	0.1191909139	-0.0945884724	0.1542023065	-0.2302324641	0.0838194238	-0.032426848599999995	0.4284323184	-0.5809158299	0.1382414008	-0.1203486637	0.3783661265	0.0	0.0	0.0207752	0.0463124	-0.000270924	-0.0	0.0	-2.402958171	-0.7574011893
+  665.3969	0.0	488.03	1.085204	16.323903999999995	0.0348966	0.010819676200000001	0.0651895837	-0.09556632150000001	-0.033148835	-0.4768871111	0.20641088559999998	0.2818768463	0.4303863764	0.41323714850000004	-0.2115232212	-0.0037154909000000004	0.10636180070000001	0.0	0.0	0.0	0.0457372	0.0	-0.0	0.0	-1.341359143	0.1636017242
+  662.82715	0.0	487.37302	1.01591	15.281561	0.0333937	0.3328022893	-0.2220965269	-0.0912891436	0.2326688125	0.279138129	-0.111878887	0.16901660629999998	0.0550480212	0.1798747037	-0.25383302620000003	0.1646403629	0.3953613889	0.0	0.010164	-0.0103568	0.0424513	0.0	-0.0	0.00019174	-0.1554834655	0.6451987913
 
 
 Each row of the file corresponds to one time point found in the
 corresponding :abbr:`BOLD (blood-oxygen level dependent)` time-series
-(stored in ``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_bold_preproc.nii.gz``).
+(stored in ``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_desc-preproc_bold.nii.gz``).
 
-Columns represent the different confounds: ``CSF`` and ``WhiteMatter`` are the average signal inside
-the :abbr:`CSF (cerebro-spinal fluid)` and :abbr:`WM (white matter)` mask across time;
-``GlobalSignal`` corresponds to the global-signal within the whole-brain mask; three columns relate to the
-derivative of RMS variance over voxels (or :abbr:`DVARS (D referring to difference, )`) that can be
-standardized (``stdDVARS``), non-standardized (``non-stdDVARS``), and voxel-wise standardized (``vx-wisestdDVARS``);
-the ``FrameDisplacement`` is a quantification of the estimated bulk-head motion; ``X``, ``Y``, ``Z``, ``RotX``,
-``RotY``, ``RotZ`` are the actual 6 rigid-body transform parameters estimated by FMRIPREP;
-the ``NonSteadyStateOutlierXX`` columns indicate non-steady state volumes with a single ``1`` value and ``0`` elsewhere (there
-is one ``NonSteadyStateOutlierXX`` column per outlier/volume); and finally six noise components ``aCompCorXX`` calculated using
-:abbr:`CompCor (Component Based Noise Correction Method)`
-and five noise components ``AROMAaggrCompXX`` if
-:abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)` was enabled.
+Columns represent the different confounds: ``csf`` and ``white_matter`` are the average signal
+inside the anatomically-derived :abbr:`CSF (cerebro-spinal fluid)` and :abbr:`WM (white matter)`
+masks across time;
+``global_signal`` corresponds to the mean time series within the brain mask; two columns relate to
+the derivative of RMS variance over voxels (or :abbr:`DVARS (defined in Power, et al. 2012)`), and
+both the original (``dvars``) and standardized (``std_dvars``) are provided;
+``framewise_displacement`` is a quantification of the estimated bulk-head motion;
+``trans_x``, ``trans_y``, ``trans_z``, ``rot_x``, ``rot_y``, ``rot_z`` are the 6 rigid-body
+motion-correction parameters estimated by fMRIPrep;
+if present, ``non_steady_state_outlier_XX`` columns indicate non-steady state volumes with a single
+``1`` value and ``0`` elsewhere (*i.e.*, there is one ``non_steady_state_outlier_XX`` column per
+outlier/volume);
+six noise components are calculated using :abbr:`CompCor (Component Based Noise Correction)`, 
+according to both the anatomical (``a_comp_cor_XX``) and temporal (``t_comp_cor_XX``) variants;
+and the motion-related components identified by
+:abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)`
+(if enabled) are indicated with ``aroma_motioon_XX``.
 
 All these confounds can be used to perform *scrubbing* and *censoring* of outliers,
 in the subsequent first-level analysis when building the design matrix,

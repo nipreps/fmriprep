@@ -516,7 +516,7 @@ def build_workflow(opts, retval):
             'Option --output-grid-reference is deprecated, please use '
             '--template-resampling-grid')
         template_out_grid = template_out_grid or opts.output_grid_reference
-    if opts.debug is not None:
+    if opts.debug:
         logger.warning('Option --debug is deprecated and has no effect')
 
     retval['workflow'] = init_fmriprep_wf(

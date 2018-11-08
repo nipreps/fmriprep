@@ -1,3 +1,38 @@
+1.2.1 (November 1, 2018)
+========================
+
+Hotfix release (deployment system)
+
+1.2.0 (October 31, 2018)
+========================
+
+This release marks a substantial renaming of derivatives to conform to the BIDS Derivatives specification [release candidate](https://docs.google.com/document/d/17ebopupQxuRwp7U7TFvS6BH03ALJOgGHufxK8ToAvyI/).
+
+The most significant additional change is a substantial revision of BOLD skull-stripping, using a BOLD template constructed from many open datasets. Building off the work of Zhifang Ye (see #1050), the skull-stripping is now much more resilient to intensity inhomogeneity.
+
+With many thanks to Ali Cohen, James Kent, Inge Amlien, Sebastian Urchs, and Zhifang Ye for contributions.
+
+* [FIX] Missing BOLD reports (#1326) @oesteban
+* [FIX] Ensure encoding when reading boilerplate (#1322) @alioco
+* [FIX] Reportlets - bbregister vs flirtbbr (continues #1326) (#1328) @oesteban
+* [FIX] Quick update to new template structure (#1330) @oesteban
+* [FIX] Explicitly pass bold mask to AROMA (#1332) @jdkent
+* [FIX] Missing report output - #1339 (#1346) @kasbohm
+* [FIX] Remove non-steady-state volumes prior to ICA-AROMA (#1335) @jdkent
+* [ENH] Store BOLD reference images (#1306) @oesteban
+* [ENH] Deprecate --debug with --sloppy (#1347) @effigies
+* [ENH] Conform confound regressor names to Derivatives RC2 (#1343) @effigies
+* [ENH] Do not set KEEP_FILE_OPEN_DEFAULT (#1356) @effigies
+* [ENH] Template-based masking of EPI boldrefs (#1321) @oesteban
+* [DOC] Update BIDS-validator link (#1320) @surchs
+* [DOC] add --bind method to singularity patch documentation (#1340) @jdkent
+* [RF] Update anatomical derivatives for RC1  (#1325) @effigies
+* [RF] Update functional derivatives for RC1 (#1333) @effigies
+* [TST] Add heavily-nonuniform boldrefs for regression tests (#1329) @oesteban
+* [TST] Fix expectations for CIFTI outputs & ds005 (#1344) @oesteban
+* [MAINT] Ignore project settings files from popular python/code editors (#1336) @jdkent
+* [CI] Deploy poldracklab/fmriprep:unstable tracking master (#1307) @effigies 
+
 1.1.8 (October 4, 2018)
 =======================
 

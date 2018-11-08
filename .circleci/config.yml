@@ -397,7 +397,7 @@ jobs:
             - /tmp/ds005/derivatives/fmriprep
 
       - run:
-          name: Run full fMRIPrep on ds005
+          name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
@@ -412,6 +412,7 @@ jobs:
                 --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
+                --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 2 --cifti-output -vv
       - run:
           name: Move intermediate results for second run
@@ -749,6 +750,8 @@ workflows:
                 - /ds005\/.*/
                 - /ds054\/.*/
                 - /ds210\/.*/
+            tags:
+              only: /.*/
 
       - build_docs:
           requires:
