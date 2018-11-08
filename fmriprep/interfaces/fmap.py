@@ -545,9 +545,15 @@ def phases2fmap(phase_files, metadatas, newpath=None):
     image1 = nb.load(long_phase_image)
     phase1 = image1.get_fdata()
 
+    def rescale_image(img):
+        imax = img.max()
+        imin = img.min()
+        scaled = 2 * ((img - imin) / (imax - imin) - 0.5)
+        return np.pi * scaled
+
     # Calculate fieldmaps
-    rad0 = np.pi * phase0 / 2048 - np.pi
-    rad1 = np.pi * phase1 / 2048 - np.pi
+    rad0 = rescale_image(phase0)
+    rad1 = rescale_image(phase1)
     a = np.cos(rad0)
     b = np.sin(rad0)
     c = np.cos(rad1)
