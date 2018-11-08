@@ -68,8 +68,9 @@ class FieldEnhance(SimpleInterface):
             # Dilate mask
             if self.inputs.mask_erode > 0:
                 struc = sim.iterate_structure(sim.generate_binary_structure(3, 2), 1)
+                # pylint: disable=no-member
                 mask = sim.binary_erosion(
-                    mask, struc, iterations=self.inputs.mask_erode).astype(np.uint8)  # pylint: disable=no-member
+                    mask, struc, iterations=self.inputs.mask_erode).astype(np.uint8)
 
         self._results['out_file'] = fname_presuffix(
             self.inputs.in_file, suffix='_enh', newpath=runtime.cwd)
