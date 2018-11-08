@@ -84,6 +84,11 @@
       "orcid": "0000-0002-8508-9088"
     },
     {
+      "name": "Cieslak, Matthew",
+      "affiliation": "Department of Neuropsychiatry, University of Pennsylvania",
+      "orcid": "0000-0002-1931-4734"
+    },
+    {
       "name": "Poldrack, Russell A.",
       "affiliation": "Department of Psychology, Stanford University",
       "orcid": "0000-0001-6755-0259"
@@ -97,11 +102,6 @@
       "name": "Gorgolewski, Krzysztof J.",
       "affiliation": "Department of Psychology, Stanford University",
       "orcid": "0000-0003-3321-7583"
-    },
-    {
-      "name": "Cieslak, Matthew",
-      "affiliation": "Department of Neuropsychiatry, University of Pennsylvania",
-      "orcid": "0000-0002-1931-4734"
     }
   ],
   "keywords": [

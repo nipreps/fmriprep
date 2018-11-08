@@ -19,9 +19,8 @@ import numpy as np
 import nibabel as nb
 from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
-from nipype.interfaces.base import (
-    BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
-    SimpleInterface, InputMultiPath)
+from nipype.interfaces.base import (BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
+                                    SimpleInterface, InputMultiObject)
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -32,13 +31,10 @@ class FieldEnhanceInputSpec(BaseInterfaceInputSpec):
     in_magnitude = File(exists=True, desc='input magnitude')
     unwrap = traits.Bool(False, usedefault=True, desc='run phase unwrap')
     despike = traits.Bool(True, usedefault=True, desc='run despike filter')
-    bspline_smooth = traits.Bool(True, usedefault=True,
-                                 desc='run 3D bspline smoother')
+    bspline_smooth = traits.Bool(True, usedefault=True, desc='run 3D bspline smoother')
     mask_erode = traits.Int(1, usedefault=True, desc='mask erosion iterations')
-    despike_threshold = traits.Float(0.2, usedefault=True,
-                                     desc='mask erosion iterations')
-    num_threads = traits.Int(1, usedefault=True, nohash=True,
-                             desc='number of jobs')
+    despike_threshold = traits.Float(0.2, usedefault=True, desc='mask erosion iterations')
+    num_threads = traits.Int(1, usedefault=True, nohash=True, desc='number of jobs')
 
 
 class FieldEnhanceOutputSpec(TraitedSpec):
@@ -71,12 +67,9 @@ class FieldEnhance(SimpleInterface):
 
             # Dilate mask
             if self.inputs.mask_erode > 0:
-                struc = sim.iterate_structure(
-                            sim.generate_binary_structure(3, 2), 1)
+                struc = sim.iterate_structure(sim.generate_binary_structure(3, 2), 1)
                 mask = sim.binary_erosion(
-                    mask, struc,
-                    iterations=self.inputs.mask_erode
-                ).astype(np.uint8)  # pylint: disable=no-member
+                    mask, struc, iterations=self.inputs.mask_erode).astype(np.uint8)  # pylint: disable=no-member
 
         self._results['out_file'] = fname_presuffix(
             self.inputs.in_file, suffix='_enh', newpath=runtime.cwd)
@@ -86,8 +79,8 @@ class FieldEnhance(SimpleInterface):
             data = _unwrap(data, self.inputs.in_magnitude, mask)
             self._results['out_unwrapped'] = fname_presuffix(
                 self.inputs.in_file, suffix='_unwrap', newpath=runtime.cwd)
-            nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header).to_filename(
-                self._results['out_unwrapped'])
+            nb.Nifti1Image(data, fmap_nii.affine,
+                           fmap_nii.header).to_filename(self._results['out_unwrapped'])
 
         if not self.inputs.bspline_smooth:
             datanii.to_filename(self._results['out_file'])
@@ -97,8 +90,7 @@ class FieldEnhance(SimpleInterface):
             from statsmodels.robust.scale import mad
 
             # Fit BSplines (coarse)
-            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask,
-                                          njobs=self.inputs.num_threads)
+            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask, njobs=self.inputs.num_threads)
             bspobj.fit()
             smoothed1 = bspobj.get_smoothed()
 
@@ -112,8 +104,7 @@ class FieldEnhance(SimpleInterface):
 
             nslices = 0
             try:
-                errorslice = np.squeeze(
-                                np.argwhere(errormask.sum(0).sum(0) > 0))
+                errorslice = np.squeeze(np.argwhere(errormask.sum(0).sum(0) > 0))
                 nslices = errorslice[-1] - errorslice[0]
             except IndexError:  # mask is empty, do not refine
                 pass
@@ -121,12 +112,11 @@ class FieldEnhance(SimpleInterface):
             if nslices > 1:
                 diffmapmsk = mask[..., errorslice[0]:errorslice[-1]]
                 diffmapnii = nb.Nifti1Image(
-                    diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
-                    datanii.affine, datanii.header)
+                    diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk, datanii.affine,
+                    datanii.header)
 
-                bspobj2 = fbsp.BSplineFieldmap(diffmapnii,
-                                               knots_zooms=[24., 24., 4.],
-                                               njobs=self.inputs.num_threads)
+                bspobj2 = fbsp.BSplineFieldmap(
+                    diffmapnii, knots_zooms=[24., 24., 4.], njobs=self.inputs.num_threads)
                 bspobj2.fit()
                 smoothed2 = bspobj2.get_smoothed().get_data()
 
@@ -135,8 +125,8 @@ class FieldEnhance(SimpleInterface):
             else:
                 final = smoothed1.get_data()
 
-            nb.Nifti1Image(final, datanii.affine, datanii.header).to_filename(
-                self._results['out_file'])
+            nb.Nifti1Image(final, datanii.affine,
+                           datanii.header).to_filename(self._results['out_file'])
 
         return runtime
 
@@ -207,19 +197,15 @@ class Phasediff2Fieldmap(SimpleInterface):
 
     def _run_interface(self, runtime):
         self._results['out_file'] = phdiff2fmap(
-            self.inputs.in_file,
-            _delta_te(self.inputs.metadata),
-            newpath=runtime.cwd)
+            self.inputs.in_file, _delta_te(self.inputs.metadata), newpath=runtime.cwd)
         return runtime
 
 
 class Phases2FieldmapInputSpec(BaseInterfaceInputSpec):
-    phase_files = InputMultiPath(File(exists=True), mandatory=True,
-                                 desc='list of phase1, phase2 files')
-    magnitude_files = InputMultiPath(File(exists=True), mandatory=True,
-                                     desc='list of phase1, phase2 files')
-    metadatas = traits.List(traits.Dict, mandatory=True,
-                            desc='list of phase1, phase2 metadata dicts')
+    phase_files = InputMultiObject(
+        File(exists=True), mandatory=True, desc='list of phase1, phase2 files')
+    metadatas = traits.List(
+        traits.Dict, mandatory=True, desc='list of phase1, phase2 metadata dicts')
 
 
 class Phases2FieldmapOutputSpec(TraitedSpec):
@@ -236,10 +222,7 @@ class Phases2Fieldmap(SimpleInterface):
 
     def _run_interface(self, runtime):
         # Get the echo times
-        fmap_file, merged_metadata = phases2fmap(
-            self.inputs.phase_files, self.inputs.magnitude_files,
-            self.inputs.metadatas
-        )
+        fmap_file, merged_metadata = phases2fmap(self.inputs.phase_files, self.inputs.metadatas)
         self._results['phasediff_metadata'] = merged_metadata
         self._results['out_file'] = fmap_file
         return runtime
@@ -271,8 +254,7 @@ def _despike2d(data, thres, neigh=None):
                 patch_range = vals.max() - vals.min()
                 patch_med = np.median(vals)
 
-                if (patch_range > 1e-6 and
-                        (abs(thisval - patch_med) / patch_range) > thres):
+                if (patch_range > 1e-6 and (abs(thisval - patch_med) / patch_range) > thres):
                     data[i, j, k] = patch_med
     return data
 
@@ -290,16 +272,15 @@ def _unwrap(fmap_data, mag_file, mask=None):
 
     nb.Nifti1Image(fmap_data, magnii.affine).to_filename('fmap_rad.nii.gz')
     nb.Nifti1Image(mask, magnii.affine).to_filename('fmap_mask.nii.gz')
-    nb.Nifti1Image(magnii.get_data(), magnii.affine
-                   ).to_filename('fmap_mag.nii.gz')
+    nb.Nifti1Image(magnii.get_data(), magnii.affine).to_filename('fmap_mag.nii.gz')
 
     # Run prelude
-    res = PRELUDE(phase_file='fmap_rad.nii.gz',
-                  magnitude_file='fmap_mag.nii.gz',
-                  mask_file='fmap_mask.nii.gz').run()
+    res = PRELUDE(
+        phase_file='fmap_rad.nii.gz',
+        magnitude_file='fmap_mag.nii.gz',
+        mask_file='fmap_mask.nii.gz').run()
 
-    unwrapped = nb.load(res.outputs.unwrapped_phase_file
-                        ).get_data() * (fmapmax / pi)
+    unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax / pi)
     return unwrapped
 
 
@@ -539,17 +520,15 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
     return out_file
 
 
-def phases2fmap(phase_files, magnitude_files, metadatas, newpath=None):
-    """calculates a phasediff from two phase images. Assumes monopolar
-    readout and that the second image in the list corresponds to the
-    longer echo time"""
+def phases2fmap(phase_files, metadatas, newpath=None):
+    """Calculates a phasediff from two phase images. Assumes monopolar
+    readout. """
     import numpy as np
     import nibabel as nb
     from nipype.utils.filemanip import fname_presuffix
     from copy import deepcopy
 
-    phasediff_file = fname_presuffix(phase_files[0], suffix='_phasediff',
-                                     newpath=newpath)
+    phasediff_file = fname_presuffix(phase_files[0], suffix='_phasediff', newpath=newpath)
     echo_times = [meta.get("EchoTime") for meta in metadatas]
     if None in echo_times or echo_times[0] == echo_times[1]:
         raise RuntimeError()
@@ -557,25 +536,22 @@ def phases2fmap(phase_files, magnitude_files, metadatas, newpath=None):
     short_echo_index = echo_times.index(min(echo_times))
     long_echo_index = echo_times.index(max(echo_times))
 
-    magnitude_image = magnitude_files[short_echo_index]
     short_phase_image = phase_files[short_echo_index]
     long_phase_image = phase_files[long_echo_index]
 
-    mag_img = nb.load(magnitude_image)
-    mag = mag_img.get_data().astype(np.float)
     image0 = nb.load(short_phase_image)
-    phase0 = image0.get_data().astype(np.float)
+    phase0 = image0.get_fdata()
     image1 = nb.load(long_phase_image)
-    phase1 = image1.get_data().astype(np.float)
+    phase1 = image1.get_fdata()
 
     # Calculate fieldmaps
     rad0 = np.pi * phase0 / 2048 - np.pi
     rad1 = np.pi * phase1 / 2048 - np.pi
-    a = mag * np.cos(rad0)
-    b = mag * np.sin(rad0)
-    c = mag * np.cos(rad1)
-    d = mag * np.sin(rad1)
-    fmap = -np.arctan2(b*c-a*d, a*c+b*d)
+    a = np.cos(rad0)
+    b = np.sin(rad0)
+    c = np.cos(rad1)
+    d = np.sin(rad1)
+    fmap = -np.arctan2(b * c - a * d, a * c + b * d)
 
     phasediff_nii = nb.Nifti1Image(fmap, image0.affine)
     phasediff_nii.set_data_dtype(np.float32)
@@ -615,12 +591,10 @@ def _delta_te(in_values, te1=None, te2=None):
         raise RuntimeError('EchoTime1 and EchoTime2 metadata fields not found.'
                            ' Please consult the BIDS specification.')
     if te1 is None:
-        raise RuntimeError(
-            'EchoTime1 metadata field not found. Please consult the BIDS '
-            'specification.')
+        raise RuntimeError('EchoTime1 metadata field not found. Please consult the BIDS '
+                           'specification.')
     if te2 is None:
-        raise RuntimeError(
-            'EchoTime2 metadata field not found. Please consult the BIDS '
-            'specification.')
+        raise RuntimeError('EchoTime2 metadata field not found. Please consult the BIDS '
+                           'specification.')
 
     return abs(float(te2) - float(te1))

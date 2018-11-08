@@ -15,6 +15,7 @@ sequence.
 
 Fieldmap preprocessing workflow for fieldmap data structure
 8.9.1 in BIDS 1.0.0: one phase diff and at least one magnitude image
+8.9.2 in BIDS 1.0.0: two phase images and two magnitude images
 
 """
 
@@ -128,7 +129,6 @@ further improvements of HCP Pipelines [@hcppipelines].
         workflow.connect([
             (meta, phases2fmap, [('out_dict', 'metadatas')]),
             (inputnode, phases2fmap, [('phasediff', 'phase_files')]),
-            (inputnode, phases2fmap, [('magnitude', 'magnitude_files')]),
             (phases2fmap, prelude, [('out_file', 'phase_file')]),
             (phases2fmap, compfmap, [('phasediff_metadata', 'metadata')]),
             (phases2fmap, ds_fmap_mask, [('out_file', 'source_file')])
