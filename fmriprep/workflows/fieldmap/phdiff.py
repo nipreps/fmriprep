@@ -35,8 +35,7 @@ from ...interfaces import (
 def init_phdiff_wf(omp_nthreads, phasetype="phasediff", name='phdiff_wf'):
     """
     Estimates the fieldmap using a phase-difference image and one or more
-    magnitude images corresponding to two or more
-    :abbr:`GRE (Gradient Echo sequence)`
+    magnitude images corresponding to two or more :abbr:`GRE (Gradient Echo sequence)`
     acquisitions. The `original code was taken from nipype
     <https://github.com/nipy/nipype/blob/master/nipype/workflows/dmri/fsl/artifacts.py#L514>`_.
 

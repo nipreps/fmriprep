@@ -93,7 +93,8 @@ class FieldEnhance(SimpleInterface):
             from statsmodels.robust.scale import mad
 
             # Fit BSplines (coarse)
-            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask, njobs=self.inputs.num_threads)
+            bspobj = fbsp.BSplineFieldmap(datanii, weights=mask,
+                                          njobs=self.inputs.num_threads)
             bspobj.fit()
             smoothed1 = bspobj.get_smoothed()
 
@@ -200,7 +201,8 @@ class Phasediff2Fieldmap(SimpleInterface):
 
     def _run_interface(self, runtime):
         self._results['out_file'] = phdiff2fmap(
-            self.inputs.in_file, _delta_te(self.inputs.metadata), newpath=runtime.cwd)
+            self.inputs.in_file, _delta_te(self.inputs.metadata),
+            newpath=runtime.cwd)
         return runtime
 
 
