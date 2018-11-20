@@ -19,8 +19,9 @@ import numpy as np
 import nibabel as nb
 from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
-from nipype.interfaces.base import (BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
-                                    SimpleInterface, InputMultiObject)
+from nipype.interfaces.base import (
+    BaseInterfaceInputSpec, TraitedSpec, File, isdefined, traits,
+    SimpleInterface, InputMultiObject)
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -68,9 +69,10 @@ class FieldEnhance(SimpleInterface):
             # Dilate mask
             if self.inputs.mask_erode > 0:
                 struc = sim.iterate_structure(sim.generate_binary_structure(3, 2), 1)
-                # pylint: disable=no-member
                 mask = sim.binary_erosion(
-                    mask, struc, iterations=self.inputs.mask_erode).astype(np.uint8)
+                    mask, struc,
+                    iterations=self.inputs.mask_erode
+                ).astype(np.uint8) # pylint: disable=no-member
 
         self._results['out_file'] = fname_presuffix(
             self.inputs.in_file, suffix='_enh', newpath=runtime.cwd)
@@ -80,8 +82,8 @@ class FieldEnhance(SimpleInterface):
             data = _unwrap(data, self.inputs.in_magnitude, mask)
             self._results['out_unwrapped'] = fname_presuffix(
                 self.inputs.in_file, suffix='_unwrap', newpath=runtime.cwd)
-            nb.Nifti1Image(data, fmap_nii.affine,
-                           fmap_nii.header).to_filename(self._results['out_unwrapped'])
+            nb.Nifti1Image(data, fmap_nii.affine, fmap_nii.header).to_filename(
+                self._results['out_unwrapped'])
 
         if not self.inputs.bspline_smooth:
             datanii.to_filename(self._results['out_file'])
@@ -276,10 +278,9 @@ def _unwrap(fmap_data, mag_file, mask=None):
     nb.Nifti1Image(magnii.get_data(), magnii.affine).to_filename('fmap_mag.nii.gz')
 
     # Run prelude
-    res = PRELUDE(
-        phase_file='fmap_rad.nii.gz',
-        magnitude_file='fmap_mag.nii.gz',
-        mask_file='fmap_mask.nii.gz').run()
+    res = PRELUDE(phase_file='fmap_rad.nii.gz',
+                  magnitude_file='fmap_mag.nii.gz',
+                  mask_file='fmap_mask.nii.gz').run()
 
     unwrapped = nb.load(res.outputs.unwrapped_phase_file).get_data() * (fmapmax / pi)
     return unwrapped
@@ -312,9 +313,8 @@ def get_ees(in_meta, in_file=None):
 
            =  T_\\text{ro} \\,  (N_\\text{PE} / f_\\text{acc} - 1)^{-1}
 
-    where :math:`N_y` is the number of pixels along the phase-encoding
-    direction :math:`y`, and :math:`f_\\text{acc}` is the parallel imaging
-    acceleration factor
+    where :math:`N_y` is the number of pixels along the phase-encoding direction
+    :math:`y`, and :math:`f_\\text{acc}` is the parallel imaging acceleration factor
     (:abbr:`GRAPPA (GeneRalized Autocalibrating Partial Parallel Acquisition)`,
     :abbr:`ARC (Autocalibrating Reconstruction for Cartesian imaging)`, etc.).
 
@@ -494,8 +494,7 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
 
     .. math::
 
-        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta\Theta}{\
-                                           2\pi\gamma\Delta\text{TE}}
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{\2\pi\gamma \Delta\text{TE}}
 
 
     In this case, we do not take into account the gyromagnetic ratio of the
@@ -595,13 +594,13 @@ def _delta_te(in_values, te1=None, te2=None):
 
     # For convienience if both are missing we should give one error about them
     if te1 is None and te2 is None:
-        raise RuntimeError('EchoTime1 and EchoTime2 metadata fields not found.'
-                           ' Please consult the BIDS specification.')
+        raise RuntimeError('EchoTime1 and EchoTime2 metadata fields not found. '
+                           'Please consult the BIDS specification.')
     if te1 is None:
-        raise RuntimeError('EchoTime1 metadata field not found. Please consult the BIDS '
-                           'specification.')
+        raise RuntimeError(
+            'EchoTime1 metadata field not found. Please consult the BIDS specification.')
     if te2 is None:
-        raise RuntimeError('EchoTime2 metadata field not found. Please consult the BIDS '
-                           'specification.')
+        raise RuntimeError(
+            'EchoTime2 metadata field not found. Please consult the BIDS specification.')
 
     return abs(float(te2) - float(te1))

@@ -9,8 +9,8 @@ Automatic selection of the appropriate SDC method
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If the dataset metadata indicate tha more than one field map acquisition is
-``IntendedFor`` (see BIDS Specification section 8.9) the following priority
-will be used:
+``IntendedFor`` (see BIDS Specification section 8.9) the following priority will
+be used:
 
   1. :ref:`sdc_pepolar` (or **blip-up/blip-down**)
 
@@ -81,17 +81,13 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
         wf = init_sdc_wf(
             fmaps=[{
                 'type': 'phasediff',
-                'phasediff': \
-                    'sub-03/ses-2/fmap/sub-03_ses-2_run-1_phasediff.nii.gz',
-                'magnitude1': \
-                    'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude1.nii.gz',
-                'magnitude2': \
-                    'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude2.nii.gz',
+                'phasediff': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_phasediff.nii.gz',
+                'magnitude1': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude1.nii.gz',
+                'magnitude2': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude2.nii.gz',
             }],
             bold_meta={
                 'RepetitionTime': 2.0,
-                'SliceTiming': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                                0.6, 0.7, 0.8, 0.9],
+                'SliceTiming': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
                 'PhaseEncodingDirection': 'j',
             },
         )
@@ -180,12 +176,10 @@ co-registration with the anatomical reference.
 
     # PEPOLAR path
     if fmap['type'] == 'epi':
-        outputnode.inputs.method = \
-            'PEB/PEPOLAR (phase-encoding based / PE-POLARity)'
+        outputnode.inputs.method = 'PEB/PEPOLAR (phase-encoding based / PE-POLARity)'
         # Get EPI polarities and their metadata
-        epi_fmaps = [
-            (fmap_['epi'], fmap_['metadata']["PhaseEncodingDirection"])
-            for fmap_ in fmaps if fmap_['type'] == 'epi']
+        epi_fmaps = [(fmap_['epi'], fmap_['metadata']["PhaseEncodingDirection"])
+                     for fmap_ in fmaps if fmap_['type'] == 'epi']
         sdc_unwarp_wf = init_pepolar_unwarp_wf(
             bold_meta=bold_meta,
             epi_fmaps=epi_fmaps,
@@ -219,16 +213,11 @@ co-registration with the anatomical reference.
                                                phasetype=fmap['type'])
             # set inputs
             if fmap['type'] == 'phasediff':
-                fmap_estimator_wf.inputs.inputnode.phasediff = \
-                    fmap['phasediff']
+                fmap_estimator_wf.inputs.inputnode.phasediff = fmap['phasediff']
             elif fmap['type'] == 'phase':
-                fmap_estimator_wf.inputs.inputnode.phasediff = [
-                    fmap['phase1'], fmap['phase2']
-                ]
+                fmap_estimator_wf.inputs.inputnode.phasediff = [fmap['phase1'], fmap['phase2']]
             fmap_estimator_wf.inputs.inputnode.magnitude = [
-                fmap_ for key, fmap_ in sorted(fmap.items())
-                if key.startswith("magnitude")
-            ]
+                fmap_ for key, fmap_ in sorted(fmap.items()) if key.startswith("magnitude")]
 
         sdc_unwarp_wf = init_sdc_unwarp_wf(
             omp_nthreads=omp_nthreads,
@@ -257,8 +246,7 @@ co-registration with the anatomical reference.
         workflow.connect([
             (inputnode, syn_sdc_wf, [
                 ('t1_brain', 'inputnode.t1_brain'),
-                ('t1_2_mni_reverse_transform',
-                    'inputnode.t1_2_mni_reverse_transform'),
+                ('t1_2_mni_reverse_transform', 'inputnode.t1_2_mni_reverse_transform'),
                 ('bold_ref', 'inputnode.bold_ref'),
                 ('bold_ref_brain', 'inputnode.bold_ref_brain'),
                 ('template', 'inputnode.template')]),
