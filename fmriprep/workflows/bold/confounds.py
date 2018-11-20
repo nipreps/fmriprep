@@ -9,13 +9,12 @@ Calculate BOLD confounds
 .. autofunction:: init_ica_aroma_wf
 
 """
-import os
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu, fsl
 from nipype.interfaces.nilearn import SignalExtraction
 from nipype.algorithms import confounds as nac
 
-from niworkflows.data import get_mni_icbm152_linear, get_mni_icbm152_nlin_asym_09c
+from niworkflows.data import get_template
 from niworkflows.interfaces.segmentation import ICA_AROMARPT
 from niworkflows.interfaces.masks import ROIsPlot
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
@@ -213,7 +212,7 @@ placed within the corresponding confounds file.
 
     # Generate reportlet
     mrg_compcor = pe.Node(niu.Merge(2), name='merge_compcor', run_without_submitting=True)
-    rois_plot = pe.Node(ROIsPlot(colors=['r', 'b', 'magenta'], generate_report=True),
+    rois_plot = pe.Node(ROIsPlot(colors=['b', 'magenta'], generate_report=True),
                         name='rois_plot', mem_gb=mem_gb)
 
     ds_report_bold_rois = pe.Node(
@@ -358,8 +357,9 @@ def init_carpetplot_wf(mem_gb, metadata, name="bold_carpet_wf"):
     # Warp segmentation into EPI space
     resample_parc = pe.Node(ApplyTransforms(
         float=True,
-        input_image=os.path.join(
-            get_mni_icbm152_nlin_asym_09c(), '1mm_parc.nii.gz'),
+        input_image=str(
+            get_template('MNI152NLin2009cAsym') /
+            'tpl-MNI152NLin2009cAsym_space-MNI_res-01_label-carpet_atlas.nii.gz'),
         dimension=3, default_value=0, interpolation='MultiLabel'),
         name='resample_parc')
 
@@ -400,7 +400,7 @@ def init_ica_aroma_wf(template, metadata, mem_gb, omp_nthreads,
                       name='ica_aroma_wf',
                       susan_fwhm=6.0,
                       ignore_aroma_err=False,
-                      aroma_melodic_dim=None,
+                      aroma_melodic_dim=-200,
                       use_fieldwarp=True):
     """
     This workflow wraps `ICA-AROMA`_ to identify and remove motion-related
@@ -459,9 +459,11 @@ def init_ica_aroma_wf(template, metadata, mem_gb, omp_nthreads,
             Include SDC warp in single-shot transform from BOLD to MNI
         ignore_aroma_err : bool
             Do not fail on ICA-AROMA errors
-        aroma_melodic_dim: int or None
-            Set the dimensionality of the Melodic ICA decomposition
-            If None, MELODIC automatically estimates dimensionality.
+        aroma_melodic_dim: int
+            Set the dimensionality of the MELODIC ICA decomposition.
+            Negative numbers set a maximum on automatic dimensionality estimation.
+            Positive numbers set an exact number of components to extract.
+            (default: -200, i.e., estimate <=200 components)
 
     **Inputs**
 
@@ -531,8 +533,8 @@ in the corresponding confounds file.
         template=template,
         mem_gb=mem_gb,
         omp_nthreads=omp_nthreads,
-        template_out_grid=os.path.join(get_mni_icbm152_linear(),
-                                       '2mm_T1.nii.gz'),
+        template_out_grid=str(
+            get_template('MNI152Lin') / 'tpl-MNI152Lin_space-MNI_res-02_T1w.nii.gz'),
         use_compression=False,
         use_fieldwarp=use_fieldwarp,
         name='bold_mni_trans_wf'
@@ -555,11 +557,8 @@ in the corresponding confounds file.
 
     # melodic node
     melodic = pe.Node(fsl.MELODIC(
-        no_bet=True, tr_sec=float(metadata['RepetitionTime']), mm_thresh=0.5, out_stats=True),
-        name="melodic")
-
-    if aroma_melodic_dim is not None:
-        melodic.inputs.dim = aroma_melodic_dim
+        no_bet=True, tr_sec=float(metadata['RepetitionTime']), mm_thresh=0.5, out_stats=True,
+        dim=aroma_melodic_dim), name="melodic")
 
     # ica_aroma node
     ica_aroma = pe.Node(ICA_AROMARPT(

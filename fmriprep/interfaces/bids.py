@@ -350,6 +350,7 @@ class BIDSFreeSurferDir(SimpleInterface):
     """
     input_spec = BIDSFreeSurferDirInputSpec
     output_spec = BIDSFreeSurferDirOutputSpec
+    _always_run = True
 
     def _run_interface(self, runtime):
         subjects_dir = os.path.join(self.inputs.derivatives,

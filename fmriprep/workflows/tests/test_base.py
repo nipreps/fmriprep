@@ -37,7 +37,7 @@ class TestBase(TestWorkflow):
                                          fmap_bspline=True,
                                          fmap_demean=True,
                                          use_aroma=False,
-                                         aroma_melodic_dim=70,
+                                         aroma_melodic_dim=-200,
                                          ignore_aroma_err=False,
                                          use_syn=True,
                                          force_syn=True,

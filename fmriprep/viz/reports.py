@@ -12,11 +12,11 @@ from pathlib import Path
 import json
 import re
 
-import html
-
 import jinja2
-from nipype.utils.filemanip import loadcrash, copyfile
+from nipype.utils.filemanip import copyfile
 from pkg_resources import resource_filename as pkgrf
+
+from fmriprep.utils.misc import read_crashfile
 
 
 class Element(object):
@@ -59,13 +59,15 @@ class Report(object):
     """
     The full report object
     """
-    def __init__(self, path, config, out_dir, run_uuid, out_filename='report.html'):
+    def __init__(self, path, config, out_dir, run_uuid, out_filename='report.html',
+                 sentry_sdk=None):
         self.root = path
         self.sections = []
         self.errors = []
         self.out_dir = Path(out_dir)
         self.out_filename = out_filename
         self.run_uuid = run_uuid
+        self.sentry_sdk = sentry_sdk
 
         self._load_config(config)
 
@@ -119,49 +121,48 @@ class Report(object):
 
     def index_error_dir(self, error_dir):
         """
-        Crawl subjects crash directory for the corresponding run and return text for
-        .pklz crash file found.
+        Crawl subjects crash directory for the corresponding run, report to sentry, and
+        populate self.errors.
         """
         for crashfile in error_dir.glob('crash*.*'):
-            if crashfile.suffix == '.pklz':
-                self.errors.append(self._read_pkl(crashfile))
-            elif crashfile.suffix == '.txt':
-                self.errors.append(self._read_txt(crashfile))
+            crash_info = read_crashfile(str(crashfile))
+            if self.sentry_sdk:
+                with self.sentry_sdk.push_scope() as scope:
+                    node_name = crash_info['node'].split('.')[-1]
+                    # last line is probably most informative summary
+                    gist = crash_info['traceback'].split('\n')[-1]
+                    exception_text_start = 1
+                    for line in crash_info['traceback'].split('\n')[1:]:
+                        if not line[0].isspace():
+                            break
+                        exception_text_start += 1
 
-    @staticmethod
-    def _read_pkl(path):
-        fname = str(path)
-        crash_data = loadcrash(fname)
-        data = {'file': fname,
-                'traceback': ''.join(crash_data['traceback']).replace("\\n", "<br />")}
-        if 'node' in crash_data:
-            data['node'] = crash_data['node']
-            if data['node'].base_dir:
-                data['node_dir'] = data['node'].output_dir()
-            else:
-                data['node_dir'] = "Node crashed before execution"
-            data['inputs'] = sorted(data['node'].inputs.trait_get().items())
-        return data
+                    exception_text = '\n'.join(crash_info['traceback'].split('\n')[
+                                     exception_text_start:])
 
-    @staticmethod
-    def _read_txt(path):
-        lines = path.read_text(encoding='UTF-8').splitlines()
-        data = {'file': str(path)}
-        traceback_start = 0
-        if lines[0].startswith('Node'):
-            data['node'] = lines[0].split(': ', 1)[1]
-            data['node_dir'] = lines[1].split(': ', 1)[1]
-            inputs = []
-            for i, line in enumerate(lines[5:], 5):
-                if not line:
-                    traceback_start = i + 1
-                    break
-                inputs.append(tuple(map(html.escape, line.split(' = ', 1))))
-            data['inputs'] = sorted(inputs)
-        else:
-            data['node_dir'] = "Node crashed before execution"
-        data['traceback'] = '\n'.join(lines[traceback_start:])
-        return data
+                    scope.set_tag("node_name", node_name)
+                    for k, v in crash_info.items():
+                        if k == 'inputs':
+                            scope.set_extra(k, dict(v))
+                        else:
+                            scope.set_extra(k, v)
+                    scope.level = 'fatal'
+                    message = node_name + ': ' + gist + '\n\n' + exception_text
+
+                    # remove file paths
+                    fingerprint = re.sub(r"(/[^/ ]*)+/?", '', message)
+                    # remove words containing numbers
+                    fingerprint = re.sub(r"([a-zA-Z]*[0-9]+[a-zA-Z]*)+", '', fingerprint)
+                    # adding the return code if it exists
+                    for line in message.split('\n'):
+                        if line.startswith("Return code"):
+                            fingerprint += line
+                            break
+
+                    scope.fingerprint = [fingerprint]
+                    self.sentry_sdk.capture_message(message, 'fatal')
+
+            self.errors.append(crash_info)
 
     def generate_report(self):
         logs_path = self.out_dir / 'fmriprep' / 'logs'
@@ -271,7 +272,7 @@ def generate_name_title(filename):
     return name.strip('_'), title
 
 
-def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
+def run_reports(reportlets_dir, out_dir, subject_label, run_uuid, sentry_sdk=None):
     """
     Runs the reports
 
@@ -298,17 +299,18 @@ def run_reports(reportlets_dir, out_dir, subject_label, run_uuid):
     config = pkgrf('fmriprep', 'viz/config.json')
 
     out_filename = 'sub-{}.html'.format(subject_label)
-    report = Report(reportlet_path, config, out_dir, run_uuid, out_filename)
+    report = Report(reportlet_path, config, out_dir, run_uuid, out_filename, sentry_sdk=sentry_sdk)
     return report.generate_report()
 
 
-def generate_reports(subject_list, output_dir, work_dir, run_uuid):
+def generate_reports(subject_list, output_dir, work_dir, run_uuid, sentry_sdk=None):
     """
     A wrapper to run_reports on a given ``subject_list``
     """
     reports_dir = str(Path(work_dir) / 'reportlets')
     report_errors = [
-        run_reports(reports_dir, output_dir, subject_label, run_uuid=run_uuid)
+        run_reports(reports_dir, output_dir, subject_label, run_uuid=run_uuid,
+                    sentry_sdk=sentry_sdk)
         for subject_label in subject_list
     ]
 
@@ -316,8 +318,9 @@ def generate_reports(subject_list, output_dir, work_dir, run_uuid):
     if errno:
         import logging
         logger = logging.getLogger('cli')
-        logger.warning(
-            'Errors occurred while generating reports for participants: %s.',
-            ', '.join(['%s (%d)' % (subid, err)
-                       for subid, err in zip(subject_list, report_errors)]))
+        error_list = ', '.join(['%s (%d)' % (subid, err) for subid, err in zip(subject_list,
+                                                                               report_errors)])
+        logger.error('Preprocessing did not finish successfully. Errors occurred while processing '
+                     'data from participants: %s. Check the HTML reports for details.' %
+                     error_list)
     return errno

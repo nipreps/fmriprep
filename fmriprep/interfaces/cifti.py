@@ -181,7 +181,7 @@ class GenerateCifti(SimpleInterface):
             if labels is None:  # surface model
                 model_type = "CIFTI_MODEL_TYPE_SURFACE"
                 # use the corresponding annotation
-                hemi = structure.split('_')[-1][0]
+                hemi = structure.split('_')[-1]
                 annot = nb.freesurfer.read_annot(annotation_files[hemi == "RIGHT"])
                 # currently only supports L/R cortex
                 gii = nb.load(gii_files[hemi == "RIGHT"])

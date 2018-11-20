@@ -1,3 +1,27 @@
+1.2.3 (November 16, 2018)
+=========================
+
+Refactor of Sentry reporting, bug fixes and added tests. With thanks to @sebnaze for contributions.
+
+* [TEST] Utility functions for skipping/re-inserting non-steady-state volumes (#1382) @jdkent
+* [FIX] Correctly populate right-hemisphere time series in CIFTI derivatives (#1378) @sebnaze
+* [FIX] Restore original contour colors in reports (#1385) @oesteban
+* [ENH] New sentry SDK (#1381) @chrisfilo
+* [ENH] Sentry refinement (#1394) @chrisfilo
+
+
+1.2.2 (November 9, 2018)
+========================
+
+Several bug fixes. With thanks to Franz Liem, Nir Jacoby and Markus Handal Sneve for contributions.
+
+* [FIX] Do not show --debug deprecation warning unless used (#1361) @effigies
+* [FIX] Select consistent parcellation for producing aparcaseg derivatives (#1369) @nirjacoby
+* [FIX] Count non-steady-state volumes even if sbref is passed (#1373) @effigies
+* [ENH] Respect SliceEncodingDirection metadata (#1350) @fliem
+* [ENH] Set maximum MELODIC components to 200 by default (#1366) @markushs
+* [TEST] Verify LegacyMultiProc functionality (#1368) @effigies
+
 1.2.1 (November 1, 2018)
 ========================
 

@@ -20,8 +20,6 @@ structural images.
 
 """
 
-import os.path as op
-
 from pkg_resources import resource_filename as pkgr
 
 from nipype.pipeline import engine as pe
@@ -50,12 +48,8 @@ from ..interfaces import (
 )
 from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 from ..interfaces.freesurfer import (
-        PatchedLTAConvert as LTAConvert,
-        PatchedRobustRegister as RobustRegister)
-
-TEMPLATE_MAP = {
-    'MNI152NLin2009cAsym': 'mni_icbm152_nlin_asym_09c',
-    }
+    PatchedLTAConvert as LTAConvert,
+    PatchedRobustRegister as RobustRegister)
 
 
 #  pylint: disable=R0914
@@ -337,10 +331,10 @@ and used as T1w-reference throughout the workflow.
     )
 
     if 'template' in output_spaces:
-        template_str = TEMPLATE_MAP[template]
-        ref_img = op.join(nid.get_dataset(template_str), '1mm_T1.nii.gz')
+        ref_img = str(nid.get_template(template) /
+                      ('tpl-%s_space-MNI_res-01_T1w.nii.gz' % template))
 
-        t1_2_mni.inputs.template = template_str
+        t1_2_mni.inputs.template = template
         mni_mask.inputs.reference_image = ref_img
         mni_seg.inputs.reference_image = ref_img
         mni_tpms.inputs.reference_image = ref_img
@@ -364,8 +358,8 @@ and used as T1w-reference throughout the workflow.
             (mni_tpms, outputnode, [('output_image', 'mni_tpms')]),
         ])
 
-    seg2msks = pe.Node(niu.Function(function=_seg2msks), name='seg2msks')
-    seg_rpt = pe.Node(ROIsPlot(colors=['r', 'magenta', 'b', 'g']), name='seg_rpt')
+    seg_rpt = pe.Node(ROIsPlot(colors=['magenta', 'b'], levels=[1.5, 2.5]),
+                      name='seg_rpt')
     anat_reports_wf = init_anat_reports_wf(
         reportlets_dir=reportlets_dir, output_spaces=output_spaces, template=template,
         freesurfer=freesurfer)
@@ -376,8 +370,7 @@ and used as T1w-reference throughout the workflow.
             ('outputnode.out_report', 'inputnode.t1_conform_report')]),
         (anat_template_wf, seg_rpt, [
             ('outputnode.t1_template', 'in_file')]),
-        (t1_seg, seg2msks, [('tissue_class_map', 'in_file')]),
-        (seg2msks, seg_rpt, [('out', 'in_rois')]),
+        (t1_seg, seg_rpt, [('tissue_class_map', 'in_rois')]),
         (outputnode, seg_rpt, [('t1_mask', 'in_mask')]),
         (seg_rpt, anat_reports_wf, [('out_report', 'inputnode.seg_report')]),
     ])
@@ -614,7 +607,7 @@ def init_skullstrip_ants_wf(skull_strip_template, debug, omp_nthreads,
             Reportlet visualizing quality of skull-stripping
 
     """
-    from niworkflows.data.getters import get_dataset
+    from niworkflows.data.getters import get_template, TEMPLATE_ALIASES
 
     if skull_strip_template not in ['OASIS', 'NKI']:
         raise ValueError("Unknown skull-stripping template; select from {OASIS, NKI}")
@@ -625,20 +618,10 @@ The T1w-reference was then skull-stripped using `antsBrainExtraction.sh`
 (ANTs {ants_ver}), using {skullstrip_tpl} as target template.
 """.format(ants_ver=BrainExtraction().version or '<ver>', skullstrip_tpl=skull_strip_template)
 
-    # Grabbing the appropriate template elements
-    template_dir = get_dataset('ants_%s_template_ras' % skull_strip_template.lower())
-    brain_probability_mask = op.join(
-        template_dir, 'T_template0_BrainCerebellumProbabilityMask.nii.gz')
-
-    # TODO: normalize these names so this is not necessary
-    if skull_strip_template == 'OASIS':
-        brain_template = op.join(template_dir, 'T_template0.nii.gz')
-        extraction_registration_mask = op.join(
-            template_dir, 'T_template0_BrainCerebellumRegistrationMask.nii.gz')
-    elif skull_strip_template == 'NKI':
-        brain_template = op.join(template_dir, 'T_template.nii.gz')
-        extraction_registration_mask = op.join(
-            template_dir, 'T_template_BrainCerebellumExtractionMask.nii.gz')
+    # Account for template aliases
+    template_name = TEMPLATE_ALIASES.get(skull_strip_template, skull_strip_template)
+    # Template path
+    template_dir = get_template(template_name)
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']),
                         name='inputnode')
@@ -651,9 +634,15 @@ The T1w-reference was then skull-stripped using `antsBrainExtraction.sh`
                         keep_temporary_files=1, use_random_seeding=not skull_strip_fixed_seed),
         name='t1_skull_strip', n_procs=omp_nthreads)
 
-    t1_skull_strip.inputs.brain_template = brain_template
-    t1_skull_strip.inputs.brain_probability_mask = brain_probability_mask
-    t1_skull_strip.inputs.extraction_registration_mask = extraction_registration_mask
+    # Set appropriate inputs
+    t1_skull_strip.inputs.brain_template = str(
+        template_dir / ('tpl-%s_res-01_T1w.nii.gz' % template_name))
+    t1_skull_strip.inputs.brain_probability_mask = str(
+        template_dir /
+        ('tpl-%s_res-01_class-brainmask_probtissue.nii.gz' % template_name))
+    t1_skull_strip.inputs.extraction_registration_mask = str(
+        template_dir /
+        ('tpl-%s_res-01_label-BrainCerebellumExtraction_roi.nii.gz' % template_name))
 
     workflow.connect([
         (inputnode, t1_skull_strip, [('in_file', 'anatomical_image')]),
@@ -814,6 +803,7 @@ gray-matter of Mindboggle [RRID:SCR_002438, @mindboggle].
         fs.ReconAll(directive='autorecon1', flags='-noskullstrip', openmp=omp_nthreads),
         name='autorecon1', n_procs=omp_nthreads, mem_gb=5)
     autorecon1.interface._can_resume = False
+    autorecon1.interface._always_run = True
 
     skull_strip_extern = pe.Node(FSInjectBrainExtracted(), name='skull_strip_extern')
 
@@ -963,6 +953,7 @@ def init_autorecon_resume_wf(omp_nthreads, name='autorecon_resume_wf'):
     autorecon2_vol = pe.Node(
         fs.ReconAll(directive='autorecon2-volonly', openmp=omp_nthreads),
         n_procs=omp_nthreads, mem_gb=5, name='autorecon2_vol')
+    autorecon2_vol.interface._always_run = True
 
     autorecon_surfs = pe.MapNode(
         fs.ReconAll(
@@ -975,17 +966,20 @@ def init_autorecon_resume_wf(omp_nthreads, name='autorecon_resume_wf'):
         iterfield='hemi', n_procs=omp_nthreads, mem_gb=5,
         name='autorecon_surfs')
     autorecon_surfs.inputs.hemi = ['lh', 'rh']
+    autorecon_surfs.interface._always_run = True
 
     autorecon3 = pe.MapNode(
         fs.ReconAll(directive='autorecon3', openmp=omp_nthreads),
         iterfield='hemi', n_procs=omp_nthreads, mem_gb=5,
         name='autorecon3')
     autorecon3.inputs.hemi = ['lh', 'rh']
+    autorecon3.interface._always_run = True
 
     # Only generate the report once; should be nothing to do
     recon_report = pe.Node(
         ReconAllRPT(directive='autorecon3', generate_report=True),
         name='recon_report', mem_gb=5)
+    recon_report.interface._always_run = True
 
     def _dedup(in_list):
         vals = set(in_list)
@@ -1348,23 +1342,3 @@ def init_anat_derivatives_wf(output_dir, output_spaces, template, freesurfer,
         ])
 
     return workflow
-
-
-def _seg2msks(in_file, newpath=None):
-    """Converts labels to masks"""
-    import nibabel as nb
-    import numpy as np
-    from nipype.utils.filemanip import fname_presuffix
-
-    nii = nb.load(in_file)
-    labels = nii.get_data()
-
-    out_files = []
-    for i in range(1, 4):
-        ldata = np.zeros_like(labels)
-        ldata[labels == i] = 1
-        out_files.append(fname_presuffix(
-            in_file, suffix='_label%03d' % i, newpath=newpath))
-        nii.__class__(ldata, nii.affine, nii.header).to_filename(out_files[-1])
-
-    return out_files

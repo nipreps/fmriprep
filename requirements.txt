@@ -1,4 +1,5 @@
-niworkflows==0.4.4
+niworkflows==0.5.1
 grabbit==0.2.3
 pybids==0.6.5
 versioneer
+git+https://github.com/nipy/nipype.git@ac4076480ef55eb2a79aff9eff7cbf48394c565b#egg=nipype

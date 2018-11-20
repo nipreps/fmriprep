@@ -20,7 +20,7 @@ import os.path as op
 import json
 import warnings
 from itertools import groupby
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 
 
 class BIDSError(ValueError):
@@ -120,7 +120,7 @@ def collect_participants(bids_dir, participant_label=None, strict=False):
 
 def collect_data(dataset, participant_label, task=None):
     """
-    Uses grabbids to retrieve the input data for a given participant
+    Uses pybids to retrieve the input data for a given participant
 
     >>> bids_root, _ = collect_data('ds054', '100185')
     >>> bids_root['fmap']  # doctest: +ELLIPSIS

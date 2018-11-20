@@ -12,6 +12,7 @@ from pathlib import Path
 import logging
 import sys
 import gc
+import re
 import uuid
 import warnings
 from argparse import ArgumentParser
@@ -163,9 +164,9 @@ def get_parser():
     g_aroma.add_argument('--use-aroma', action='store_true', default=False,
                          help='add ICA_AROMA to your preprocessing stream')
     g_aroma.add_argument('--aroma-melodic-dimensionality', action='store',
-                         default=None, type=int,
-                         help='set the dimensionality of MELODIC before running'
-                         'ICA-AROMA')
+                         default=-200, type=int,
+                         help='Exact or maximum number of MELODIC components to estimate '
+                         '(positive = exact, negative = maximum)')
 
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
@@ -245,13 +246,56 @@ def main():
     """Entry point"""
     from nipype import logging as nlogging
     from multiprocessing import set_start_method, Process, Manager
-    from .. import __version__
     from ..viz.reports import generate_reports
     from ..utils.bids import write_derivative_description
     set_start_method('forkserver')
 
     warnings.showwarning = _warn_redirect
     opts = get_parser().parse_args()
+
+    sentry_sdk = None
+    if not opts.notrack:
+        import sentry_sdk
+        from ..__about__ import __version__
+        environment = "prod"
+        release = __version__
+        if not __version__:
+            environment = "dev"
+            release = "dev"
+        elif bool(int(os.getenv('FMRIPREP_DEV', 0))) or ('+' in __version__):
+            environment = "dev"
+
+        def before_send(event, hints):
+            # Filtering log messages about crashed nodes
+            if 'logentry' in event and 'message' in event['logentry']:
+                msg = event['logentry']['message']
+                if msg.startswith("could not run node:"):
+                    return None
+                elif msg.startswith("Saving crash info to "):
+                    return None
+                elif re.match("Node .+ failed to run on host .+", msg):
+                    return None
+            else:
+                return event
+
+        sentry_sdk.init("https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
+                        release=release,
+                        environment=environment,
+                        before_send=before_send)
+        with sentry_sdk.configure_scope() as scope:
+            exec_env = os.name
+            # special variable set in the container
+            if os.getenv('IS_DOCKER_8395080871'):
+                # based on https://stackoverflow.com/a/42674935/616300
+                with open('/proc/1/cgroup', 'rt') as ifh:
+                    if 'docker' in ifh.read():
+                        exec_env = 'docker'
+                    else:
+                        exec_env = 'singularity'
+            scope.set_tag('exec_env', exec_env)
+
+            for k, v in vars(opts).items():
+                scope.set_tag(k, v)
 
     # FreeSurfer license
     default_license = str(Path(os.getenv('FREESURFER_HOME')) / 'license.txt')
@@ -294,6 +338,11 @@ def main():
         work_dir = retval['work_dir']
         subject_list = retval['subject_list']
         run_uuid = retval['run_uuid']
+        if not opts.notrack:
+            with sentry_sdk.configure_scope() as scope:
+                scope.set_tag('run_uuid', run_uuid)
+                scope.set_tag('npart', len(subject_list))
+
         retcode = retval['return_code']
 
     if fmriprep_wf is None:
@@ -310,23 +359,8 @@ def main():
 
     # Sentry tracking
     if not opts.notrack:
-        try:
-            from raven import Client
-            dev_user = bool(int(os.getenv('FMRIPREP_DEV', 0)))
-            msg = 'fMRIPrep running%s' % (int(dev_user) * ' [dev]')
-            client = Client(
-                'https://d5a16b0c38d84d1584dfc93b9fb1ade6:'
-                '21f3c516491847af8e4ed249b122c4af@sentry.io/1137693',
-                release=__version__)
-            client.captureMessage(message=msg,
-                                  level='debug' if dev_user else 'info',
-                                  tags={
-                                      'run_id': run_uuid,
-                                      'npart': len(subject_list),
-                                      'type': 'ping',
-                                      'dev': dev_user})
-        except Exception:
-            pass
+        sentry_sdk.add_breadcrumb(message='fMRIPrep started', level='info')
+        sentry_sdk.capture_message('fMRIPrep started', level='info')
 
     # Check workflow for missing commands
     missing = check_deps(fmriprep_wf)
@@ -341,14 +375,18 @@ def main():
     try:
         fmriprep_wf.run(**plugin_settings)
     except RuntimeError as e:
-        if "Workflow did not execute cleanly" in str(e):
-            errno = 1
-        else:
+        errno = 1
+        if "Workflow did not execute cleanly" not in str(e):
+            sentry_sdk.capture_exception(e)
             raise
+    finally:
+        # Generate reports phase
+        errno += generate_reports(subject_list, output_dir, work_dir, run_uuid,
+                                  sentry_sdk=sentry_sdk)
+        write_derivative_description(bids_dir, str(Path(output_dir) / 'fmriprep'))
 
-    # Generate reports phase
-    errno += generate_reports(subject_list, output_dir, work_dir, run_uuid)
-    write_derivative_description(bids_dir, str(Path(output_dir) / 'fmriprep'))
+    if not opts.notrack and errno == 0:
+        sentry_sdk.capture_message('fMRIPrep finished without errors', level='info')
     sys.exit(int(errno > 0))
 
 

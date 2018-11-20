@@ -154,12 +154,12 @@ div#boilerplate pre {
         <div class="nipype_error">
             Node Name: <a target="_self" onclick="toggle('{{error.file|replace('.', '')}}_details_id');">{{ error.node }}</a><br>
             <div id="{{error.file|replace('.', '')}}_details_id" style="display:none">
-            File: {{ error.file }}<br>
-            Working Directory: {{ error.node_dir }}<br>
+            File: <code>{{ error.file }}</code><br>
+            Working Directory: <code>{{ error.node_dir }}</code><br>
             Inputs: <br>
             <ul>
             {% for name, spec in error.inputs %}
-                <li>{{ name }}: {{ spec }}</li>
+                <li>{{ name }}: <code>{{ spec }}</code></li>
             {% endfor %}
             </ul>
             <pre>{{ error.traceback }}</pre>

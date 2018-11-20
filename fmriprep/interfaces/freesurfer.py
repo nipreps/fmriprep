@@ -139,6 +139,7 @@ class FSInjectBrainExtractedOutputSpec(TraitedSpec):
 class FSInjectBrainExtracted(SimpleInterface):
     input_spec = FSInjectBrainExtractedInputSpec
     output_spec = FSInjectBrainExtractedOutputSpec
+    _always_run = True
 
     def _run_interface(self, runtime):
         subjects_dir, subject_id = inject_skullstripped(

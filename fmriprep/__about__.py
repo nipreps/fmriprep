@@ -98,7 +98,7 @@ REQUIRES = [
     'pybids==0.6.5',
     'nitime',
     'nipype>=1.1.5',
-    'niworkflows==0.4.4',
+    'niworkflows==0.5.1',
     'statsmodels',
     'seaborn',
     'indexed_gzip>=0.8.2',
@@ -108,6 +108,8 @@ REQUIRES = [
 ]
 
 LINKS_REQUIRES = [
+    'git+https://github.com/nipy/nipype.git@'
+    'ac4076480ef55eb2a79aff9eff7cbf48394c565b#egg=nipype',
 ]
 
 TESTS_REQUIRES = [
@@ -130,7 +132,7 @@ EXTRA_REQUIRES = {
     'duecredit': ['duecredit'],
     'datalad': ['datalad'],
     'resmon': ['psutil>=5.4.0'],
-    'sentry': ['raven'],
+    'sentry': ['sentry-sdk>=0.5.3'],
 }
 EXTRA_REQUIRES['docs'] = EXTRA_REQUIRES['doc']
 

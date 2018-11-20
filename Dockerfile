@@ -96,9 +96,9 @@ RUN mkdir -p /opt/ICA-AROMA && \
 ENV PATH=/opt/ICA-AROMA:$PATH
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh && \
-    bash Miniconda3-4.5.4-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-4.5.4-Linux-x86_64.sh
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh && \
+    bash Miniconda3-4.5.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-4.5.11-Linux-x86_64.sh
 
 ENV PATH=/usr/local/miniconda/bin:$PATH \
     LANG=C.UTF-8 \
@@ -106,8 +106,9 @@ ENV PATH=/usr/local/miniconda/bin:$PATH \
     PYTHONNOUSERSITE=1
 
 # Installing precomputed python packages
-RUN conda install -y mkl=2018.0.3 mkl-service;  sync &&\
-    conda install -y numpy=1.14.3 \
+RUN conda install -y python=3.7; sync && \
+    conda install -y mkl=2018.0.3 mkl-service; sync && \
+    conda install -y numpy=1.15.4 \
                      scipy=1.1.0 \
                      scikit-learn=0.19.1 \
                      matplotlib=2.2.0 \
@@ -144,11 +145,13 @@ ENV MKL_NUM_THREADS=1 \
 WORKDIR /root/
 
 # Precaching atlases
-ENV CRN_SHARED_DATA /niworkflows_data
+ENV CRN_SHARED_DATA /templateflow
 ADD docker/scripts/get_templates.sh get_templates.sh
 RUN mkdir $CRN_SHARED_DATA && \
     /root/get_templates.sh && \
-    chmod -R a+rX $CRN_SHARED_DATA
+    find $CRN_SHARED_DATA -type d -exec chmod 555 {} \; && \
+    find $CRN_SHARED_DATA -type f -exec chmod 444 {} \; && \
+    chmod +w $CRN_SHARED_DATA
 
 # Installing dev requirements (packages that are not in pypi)
 ADD requirements.txt requirements.txt
@@ -167,6 +170,8 @@ RUN echo "${VERSION}" > /root/src/fmriprep/fmriprep/VERSION && \
 RUN install -m 0755 \
     /root/src/fmriprep/scripts/generate_reference_mask.py \
     /usr/local/bin/generate_reference_mask
+
+ENV IS_DOCKER_8395080871=1
 
 RUN ldconfig
 WORKDIR /tmp/

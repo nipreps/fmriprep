@@ -83,7 +83,7 @@ def init_fmriprep_wf(subject_list, task_id, run_uuid, work_dir, output_dir, bids
                               force_syn=True,
                               use_aroma=False,
                               ignore_aroma_err=False,
-                              aroma_melodic_dim=None,
+                              aroma_melodic_dim=-200,
                               template_out_grid='native')
 
 
@@ -277,7 +277,7 @@ def init_single_subject_wf(subject_id, task_id, name, reportlets_dir, output_dir
                                     force_syn=True,
                                     template_out_grid='native',
                                     use_aroma=False,
-                                    aroma_melodic_dim=None,
+                                    aroma_melodic_dim=-200,
                                     ignore_aroma_err=False)
 
     Parameters

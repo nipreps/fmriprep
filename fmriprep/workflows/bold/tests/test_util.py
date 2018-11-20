@@ -70,7 +70,8 @@ def test_masking(input_fname, expected_fname):
                                 newpath=str(newpath))
     newpath.mkdir(parents=True, exist_ok=True)
 
-    mask_diff_plot = pe.Node(ROIsPlot(), name='mask_diff_plot')
+    mask_diff_plot = pe.Node(ROIsPlot(colors=['limegreen'], levels=[0.5]),
+                             name='mask_diff_plot')
     mask_diff_plot.inputs.in_mask = expected_fname
     mask_diff_plot.inputs.out_report = out_fname
 
