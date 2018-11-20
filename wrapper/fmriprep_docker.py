@@ -357,6 +357,9 @@ def main():
 
     command = ['docker', 'run', '--rm', '-it']
 
+    # Pass environment variable to distinguish fmriprep-docker from manual Docker commands
+    command.extend(['-e', 'IS_FMRIPREP_DOCKER=1'])
+
     # Patch working repositories into installed package directories
     for pkg in ('fmriprep', 'niworkflows', 'nipype'):
         repo_path = getattr(opts, 'patch_' + pkg)
