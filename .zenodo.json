@@ -89,11 +89,6 @@
       "orcid": "0000-0002-8508-9088"
     },
     {
-      "name": "Cieslak, Matthew",
-      "affiliation": "Department of Neuropsychiatry, University of Pennsylvania",
-      "orcid": "0000-0002-1931-4734"
-    },
-    {
       "name": "Liem, Franz",
       "affiliation": "University of Zurich",
       "orcid": "0000-0003-0646-4810"
@@ -102,6 +97,11 @@
       "name": "Jacoby, Nir",
       "affiliation": "Department of Psychology, Columbia University",
       "orcid": "0000-0001-7936-9991"
+    },
+    {
+      "name": "Cieslak, Matthew",
+      "affiliation": "Department of Neuropsychiatry, University of Pennsylvania",
+      "orcid": "0000-0002-1931-4734"
     },
     {
       "name": "Poldrack, Russell A.",
