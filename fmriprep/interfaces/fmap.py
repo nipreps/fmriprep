@@ -116,11 +116,11 @@ class FieldEnhance(SimpleInterface):
             if nslices > 1:
                 diffmapmsk = mask[..., errorslice[0]:errorslice[-1]]
                 diffmapnii = nb.Nifti1Image(
-                    diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk, datanii.affine,
-                    datanii.header)
+                    diffmap[..., errorslice[0]:errorslice[-1]] * diffmapmsk,
+                    datanii.affine, datanii.header)
 
-                bspobj2 = fbsp.BSplineFieldmap(
-                    diffmapnii, knots_zooms=[24., 24., 4.], njobs=self.inputs.num_threads)
+                bspobj2 = fbsp.BSplineFieldmap(diffmapnii, knots_zooms=[24., 24., 4.],
+                                               njobs=self.inputs.num_threads)
                 bspobj2.fit()
                 smoothed2 = bspobj2.get_smoothed().get_data()
 
@@ -201,7 +201,8 @@ class Phasediff2Fieldmap(SimpleInterface):
 
     def _run_interface(self, runtime):
         self._results['out_file'] = phdiff2fmap(
-            self.inputs.in_file, _delta_te(self.inputs.metadata),
+            self.inputs.in_file,
+            _delta_te(self.inputs.metadata),
             newpath=runtime.cwd)
         return runtime
 
@@ -496,7 +497,7 @@ def phdiff2fmap(in_file, delta_te, newpath=None):
 
     .. math::
 
-        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{\2\pi\gamma \Delta\text{TE}}
+        \Delta B_0 (\text{T}^{-1}) = \frac{\Delta \Theta}{2\pi\gamma \Delta\text{TE}}
 
 
     In this case, we do not take into account the gyromagnetic ratio of the
