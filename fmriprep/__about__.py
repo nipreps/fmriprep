@@ -106,6 +106,7 @@ REQUIRES = [
     'scikit-image',
     'versioneer',
     'pyyaml',
+    'psutil'
 ]
 
 LINKS_REQUIRES = [
