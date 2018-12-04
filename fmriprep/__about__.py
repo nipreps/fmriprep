@@ -106,7 +106,8 @@ REQUIRES = [
     'scikit-image',
     'versioneer',
     'pyyaml',
-    'psutil'
+    'psutil',
+    'sentry_sdk'
 ]
 
 LINKS_REQUIRES = [

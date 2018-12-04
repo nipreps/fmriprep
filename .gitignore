@@ -76,11 +76,13 @@ target/
 .spyderproject
 .spyproject
 
+# Eclipse/PyDev project settings
+/.settings/
+/.project
+/.pydevproject
+
 auth/
 secrets.py
 local_settings.py
 
 *.swp
-/.settings/
-/.project
-/.pydevproject
