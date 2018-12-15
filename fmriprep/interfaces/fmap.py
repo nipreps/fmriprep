@@ -129,8 +129,8 @@ class FieldEnhance(SimpleInterface):
             else:
                 final = smoothed1.get_data()
 
-            nb.Nifti1Image(final, datanii.affine,
-                           datanii.header).to_filename(self._results['out_file'])
+            nb.Nifti1Image(final, datanii.affine, datanii.header).to_filename(
+                self._results['out_file'])
 
         return runtime
 
@@ -260,7 +260,8 @@ def _despike2d(data, thres, neigh=None):
                 patch_range = vals.max() - vals.min()
                 patch_med = np.median(vals)
 
-                if (patch_range > 1e-6 and (abs(thisval - patch_med) / patch_range) > thres):
+                if (patch_range > 1e-6 and
+                        (abs(thisval - patch_med) / patch_range) > thres):
                     data[i, j, k] = patch_med
     return data
 

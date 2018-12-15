@@ -217,7 +217,9 @@ co-registration with the anatomical reference.
             elif fmap['type'] == 'phase':
                 fmap_estimator_wf.inputs.inputnode.phasediff = [fmap['phase1'], fmap['phase2']]
             fmap_estimator_wf.inputs.inputnode.magnitude = [
-                fmap_ for key, fmap_ in sorted(fmap.items()) if key.startswith("magnitude")]
+                fmap_ for key, fmap_ in sorted(fmap.items())
+                if key.startswith("magnitude")
+            ]
 
         sdc_unwarp_wf = init_sdc_unwarp_wf(
             omp_nthreads=omp_nthreads,
