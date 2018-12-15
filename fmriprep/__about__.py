@@ -4,42 +4,41 @@
 """
 Base module variables
 """
-
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
 __author__ = 'The CRN developers'
 __copyright__ = 'Copyright 2018, Center for Reproducible Neuroscience, Stanford University'
-__credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
-               'Shoshana Berleant', 'Christopher J. Markiewicz', 'Russell A. Poldrack']
+__credits__ = ('Contributors: please check the ``.zenodo.json`` file at the top-level folder'
+               'of the repository')
 __license__ = '3-clause BSD'
-__maintainer__ = 'Ross Blair'
-__email__ = 'crn.poldracklab@gmail.com'
+__maintainer__ = 'Oscar Esteban'
+__email__ = 'code@oscaresteban.es'
 __status__ = 'Prototype'
 __url__ = 'https://github.com/poldracklab/fmriprep'
 __packagename__ = 'fmriprep'
-__description__ = ("FMRIprep is a functional magnetic resonance image pre-processing pipeline "
-                   "that is designed to provide an easily accessible, state-of-the-art interface "
-                   "that is robust to differences in scan acquisition protocols and that requires "
-                   "minimal user input, while providing easily interpretable and comprehensive "
-                   "error and output reporting.")
+__description__ = """\
+fMRIPrep is a robust and easy-to-use pipeline for preprocessing of diverse fMRI data.
+The transparent workflow dispenses of manual intervention, thereby ensuring the reproducibility
+of the results"""
 __longdesc__ = """\
 Preprocessing of functional MRI (fMRI) involves numerous steps to clean and standardize
-data before statistical analysis.
-Generally, researchers create ad hoc preprocessing workflows for each new dataset,
-building upon a large inventory of tools available for each step.
-The complexity of these workflows has snowballed with rapid advances in MR data
-acquisition and image processing techniques.
-FMRIPrep is an analysis-agnostic tool that addresses the challenge of robust and
+the data before statistical analysis.
+Generally, researchers create ad hoc preprocessing workflows for each dataset,
+building upon a large inventory of available tools.
+The complexity of these workflows has snowballed with rapid advances in
+acquisition and processing.
+fMRIPrep is an analysis-agnostic tool that addresses the challenge of robust and
 reproducible preprocessing for task-based and resting fMRI data.
-FMRIPrep automatically adapts a best-in-breed workflow to the idiosyncrasies of
-virtually any dataset, ensuring high-quality preprocessing with no manual intervention,
-while providing easily interpretable and comprehensive error and output reporting.
-It performs basic preprocessing steps (coregistration, normalization, unwarping, noise
-component extraction, segmentation, skullstripping etc.) providing outputs that can be
-easily submitted to a variety of group level analyses, including task-based or resting-state
-fMRI, graph theory measures, surface or volume-based statistics, etc.
+fMRIPrep automatically adapts a best-in-breed workflow to the idiosyncrasies of
+virtually any dataset, ensuring high-quality preprocessing without manual intervention.
+fMRIPrep robustly produces high-quality results on diverse fMRI data.
+Additionally, fMRIPrep introduces less uncontrolled spatial smoothness than observed
+with commonly used preprocessing tools.
+fMRIPrep equips neuroscientists with an easy-to-use and transparent preprocessing
+workflow, which can help ensure the validity of inference and the interpretability
+of results.
 
 The workflow is based on `Nipype <https://nipype.readthedocs.io>`_ and encompases a large
 set of tools from well-known neuroimaging packages, including
@@ -52,7 +51,11 @@ This pipeline was designed to provide the best software implementation for each 
 preprocessing, and will be updated as newer and better neuroimaging software becomes
 available.
 
-This tool allows you to easily do the following:
+fMRIPrep performs basic preprocessing steps (coregistration, normalization, unwarping, noise
+component extraction, segmentation, skullstripping etc.) providing outputs that can be
+easily submitted to a variety of group level analyses, including task-based or resting-state
+fMRI, graph theory measures, surface or volume-based statistics, etc.
+fMRIPrep allows you to easily do the following:
 
   * Take fMRI data from *unprocessed* (only reconstructed) to ready for analysis.
   * Implement tools from different software packages.
@@ -63,11 +66,7 @@ This tool allows you to easily do the following:
   * Automate and parallelize processing steps, which provides a significant speed-up from
     typical linear, manual processing.
 
-FMRIPrep has the potential to transform fMRI research by equipping
-neuroscientists with a high-quality, robust, easy-to-use and transparent preprocessing workflow
-which can help ensure the validity of inference and the interpretability of their results.
-
-[Pre-print doi:`10.1101/306951 <https://doi.org/10.1101/306951>`_]
+[Nat Meth doi:`10.1038/s41592-018-0235-4 <https://doi.org/10.1038/s41592-018-0235-4>`_]
 [Documentation `fmriprep.org <https://fmriprep.readthedocs.io>`_]
 [Software doi:`10.5281/zenodo.852659 <https://doi.org/10.5281/zenodo.852659>`_]
 [Support `neurostars.org <https://neurostars.org/tags/fmriprep>`_]
@@ -85,54 +84,46 @@ SETUP_REQUIRES = [
 ]
 
 REQUIRES = [
-    'numpy',
-    'lockfile',
-    'future',
-    'scikit-learn',
-    'matplotlib>=2.2.0',
-    'nilearn',
-    'sklearn',
-    'nibabel>=2.2.1',
-    'pandas',
     'grabbit==0.2.3',
-    'pybids==0.6.5',
+    'indexed_gzip>=0.8.8',
+    'nibabel>=2.2.1',
+    'nilearn',
+    'nipype>=1.1.6',
     'nitime',
-    'nipype>=1.1.5',
-    'niworkflows==0.5.1',
-    'statsmodels',
-    'seaborn',
-    'indexed_gzip>=0.8.2',
-    'scikit-image',
-    'versioneer',
+    'niworkflows>=0.5.1,<0.5.2',
+    'numpy',
+    'pandas',
+    'pybids==0.6.5',
     'pyyaml',
+    'scikit-image',
+    'statsmodels',
+    'tedana>=0.0.5',
 ]
 
+
 LINKS_REQUIRES = [
-    'git+https://github.com/nipy/nipype.git@'
-    'ac4076480ef55eb2a79aff9eff7cbf48394c565b#egg=nipype',
 ]
 
 TESTS_REQUIRES = [
-    "mock",
     "codecov",
     "pytest",
 ]
 
 EXTRA_REQUIRES = {
-    'doc': [
-        'sphinx>=1.5.3',
-        'sphinx_rtd_theme',
-        'sphinx-argparse',
-        'pydotplus',
-        'pydot>=1.2.3',
-        'packaging',
-        'nbsphinx',
-    ],
-    'tests': TESTS_REQUIRES,
-    'duecredit': ['duecredit'],
     'datalad': ['datalad'],
+    'doc': [
+        'nbsphinx',
+        'packaging',
+        'pydot>=1.2.3',
+        'pydotplus',
+        'sphinx>=1.5.3',
+        'sphinx-argparse',
+        'sphinx_rtd_theme',
+    ],
+    'duecredit': ['duecredit'],
     'resmon': ['psutil>=5.4.0'],
     'sentry': ['sentry-sdk>=0.5.3'],
+    'tests': TESTS_REQUIRES,
 }
 EXTRA_REQUIRES['docs'] = EXTRA_REQUIRES['doc']
 

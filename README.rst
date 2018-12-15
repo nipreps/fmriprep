@@ -8,9 +8,17 @@ This pipeline is developed by the `Poldrack lab at Stanford University
 Neuroscience (CRN) <http://reproducibility.stanford.edu/>`_, as well as for
 open-source software distribution.
 
-.. image:: http://bids.neuroimaging.io/openneuro_badge.svg
+.. image:: https://img.shields.io/badge/docker-poldracklab/fmriprep-brightgreen.svg?logo=docker&style=flat
+  :target: https://hub.docker.com/r/poldracklab/fmriprep/tags/
+  :alt: Docker image available!
+
+.. image:: https://img.shields.io/badge/OpenNeuro-Available!-brightgreen.svg
   :target: https://openneuro.org
   :alt: Available in OpenNeuro!
+  
+.. image:: https://codeocean.com/codeocean-assets/badge/open-in-code-ocean.svg
+  :target: https://doi.org/10.24433/CO.ed5ddfef-76a3-4996-b298-e3200f69141b
+  :alt: Available in CodeOcean!
 
 .. image:: https://circleci.com/gh/poldracklab/fmriprep/tree/master.svg?style=shield
   :target: https://circleci.com/gh/poldracklab/fmriprep/tree/master
@@ -22,7 +30,11 @@ open-source software distribution.
 .. image:: https://img.shields.io/pypi/v/fmriprep.svg
   :target: https://pypi.python.org/pypi/fmriprep/
   :alt: Latest Version
-
+  
+.. image:: https://img.shields.io/badge/doi-10.1038%2Fs41592--018--0235--4-blue.svg
+  :target: https://doi.org/10.1038/s41592-018-0235-4
+  :alt: Published in Nature Methods
+  
 
 About
 -----
@@ -35,7 +47,7 @@ preprocessing pipeline that is designed to provide an easily accessible,
 state-of-the-art interface that is robust to variations in scan acquisition
 protocols and that requires minimal user input, while providing easily
 interpretable and comprehensive error and output reporting.
-It performs basic processing steps (coregistration, normalization, unwarping, 
+It performs basic processing steps (coregistration, normalization, unwarping,
 noise component extraction, segmentation, skullstripping etc.) providing
 outputs that can be easily submitted to a variety of group level analyses,
 including task-based or resting-state fMRI, graph theory measures, surface or
@@ -123,8 +135,3 @@ Please acknowledge this work by mentioning explicitly the name of this software
 For more details, please see :ref:`citation`.
 
 .. include:: license.rst
-
-
-.. image:: https://badges.gitter.im/poldracklab/fmriprep.svg
-   :alt: Join the chat at https://gitter.im/poldracklab/fmriprep
-   :target: https://gitter.im/poldracklab/fmriprep?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge

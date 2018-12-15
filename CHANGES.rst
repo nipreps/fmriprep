@@ -1,3 +1,39 @@
+1.2.5 (December 4, 2018)
+========================
+
+Hotfix release.
+
+* [FIX] Breadcrumb reporting (#1435) @chrisfilo
+
+
+1.2.4 (December 3, 2018)
+========================
+
+Bugfixes, an additional iteration over Sentry reporting and some relevant ME-EPI updates 
+(with thanks to @emdupre).
+
+* [ENH] Update ME-EPI workflow to create optimal combination (#1263) @emdupre
+* [MAINT] Merge master into multiecho (#1324) @effigies
+* [ENH] Add echo-idx flag (#1355) @emdupre
+* [FIX] Always run FreeSurfer interfaces that sink outside working directory (#1397) @effigies
+* [ENH] Use Python 3.7 in Dockerfile (#1398) @effigies
+* [DOC] Update contributing guide and add code of conduct (#1404) @emdupre
+* [FIX] Calculate template transforms explicitly as RAS2RAS (#1399) @effigies
+* [MAINT] Replace ``img.get_affine()`` -> ``img.affine`` (#1414) @oesteban
+* [FIX] Truncating of sentry messages (#1417) @chrisfilo
+* [ENH] Add fmriprep-docker execution environment (#1416) @chrisfilo
+* [MAINT] Update indexed_gzip to handle small .nii.gz (#1421) @effigies
+* [ENH] Group common issues with fingerprints (#1418) @chrisfilo
+* [ENH] adding memory and cpu info to sentry logs (#1420) @chrisfilo
+* [ENH] Use standard T2* map as coregistration target (#1383) @emdupre
+* [ENH] Handle FreeSurfer subject directory preparation gracefully when run in parallel (#1413) @effigies
+* [ENH] Make sure inputs are BIDS compliant before running fmriprep (#1419) @chrisfilo
+* [ENH] Sentry event categorization propagation (#1422) @chrisfilo
+* [MAINT] Require nipype >= 1.1.6 (#1426) @effigies
+* [ENH] Omnibus multi-echo pull request (#1296) @effigies
+* [ENH] Report memory overcommit policies (#1429) @effigies
+
+
 1.2.3 (November 16, 2018)
 =========================
 

@@ -87,6 +87,9 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
+# Installing bids-validator
+RUN npm install -g bids-validator@1.1.0
+
 # Installing and setting up ICA_AROMA
 RUN mkdir -p /opt/ICA-AROMA && \
   curl -sSL "https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.4-beta.tar.gz" \

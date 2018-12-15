@@ -1,6 +1,7 @@
 fmriprep
 fmriprep/dataset_description.json
 fmriprep/logs
+fmriprep/logs/CITATION.bib
 fmriprep/logs/CITATION.html
 fmriprep/logs/CITATION.md
 fmriprep/logs/CITATION.tex

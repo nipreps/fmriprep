@@ -14,6 +14,7 @@ class TestBase(TestWorkflow):
         wfbasic = init_single_subject_wf(subject_id='test',
                                          name='single_subject_wf',
                                          task_id='',
+                                         echo_idx=None,
                                          ignore=[],
                                          debug=False,
                                          low_mem=False,

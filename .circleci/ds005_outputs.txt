@@ -1,6 +1,7 @@
 fmriprep
 fmriprep/dataset_description.json
 fmriprep/logs
+fmriprep/logs/CITATION.bib
 fmriprep/logs/CITATION.html
 fmriprep/logs/CITATION.md
 fmriprep/logs/CITATION.tex
@@ -41,6 +42,8 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-MELODIC_mixing.tsv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage5_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage5_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_boldref.nii.gz
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_desc-aparcaseg_dseg.nii.gz
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_desc-aseg_dseg.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_desc-brain_mask.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-MNI152NLin2009cAsym_desc-smoothAROMAnonaggr_bold.nii.gz
@@ -57,6 +60,8 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-MELODIC_mixing.tsv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage5_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage5_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_boldref.nii.gz
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_desc-aparcaseg_dseg.nii.gz
+fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_desc-aseg_dseg.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_desc-brain_mask.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_desc-smoothAROMAnonaggr_bold.nii.gz

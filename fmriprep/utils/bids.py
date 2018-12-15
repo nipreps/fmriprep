@@ -85,7 +85,7 @@ def collect_participants(bids_dir, participant_label=None, strict=False):
         raise BIDSError(
             'Could not find participants. Please make sure the BIDS data '
             'structure is present and correct. Datasets can be validated online '
-            'using the BIDS Validator (http://incf.github.io/bids-validator/).\n'
+            'using the BIDS Validator (http://bids-standard.github.io/bids-validator/).\n'
             'If you are using Docker for Mac or Docker for Windows, you '
             'may need to adjust your "File sharing" preferences.', bids_dir)
 
@@ -118,7 +118,7 @@ def collect_participants(bids_dir, participant_label=None, strict=False):
     return found_label
 
 
-def collect_data(dataset, participant_label, task=None):
+def collect_data(dataset, participant_label, task=None, echo=None):
     """
     Uses pybids to retrieve the input data for a given participant
 
@@ -173,6 +173,9 @@ def collect_data(dataset, participant_label, task=None):
     if task:
         queries['bold']['task'] = task
 
+    if echo:
+        queries['bold']['echo'] = echo
+
     subj_data = {modality: [x.filename for x in layout.get(**query)]
                  for modality, query in queries.items()}
 
@@ -207,13 +210,13 @@ def write_derivative_description(bids_dir, deriv_dir):
             'Name': 'fMRIPrep',
             'Version': __version__,
             'CodeURL': DOWNLOAD_URL,
-            },
+        },
         'CodeURL': 'https://github.com/poldracklab/fmriprep',
         'HowToAcknowledge':
-            'Please cite our paper (https://doi.org/10.1101/306951), and '
-            'include the generated citation boilerplate within the Methods '
+            'Please cite our paper (https://doi.org/10.1038/s41592-018-0235-4), '
+            'and include the generated citation boilerplate within the Methods '
             'section of the text.',
-        }
+    }
 
     # Keys that can only be set by environment
     if 'FMRIPREP_DOCKER_TAG' in os.environ:
@@ -236,7 +239,7 @@ def write_derivative_description(bids_dir, deriv_dir):
 
     if 'DatasetDOI' in orig_desc:
         desc['SourceDatasetsURLs'] = ['https://doi.org/{}'.format(
-                                          orig_desc['DatasetDOI'])]
+            orig_desc['DatasetDOI'])]
     if 'License' in orig_desc:
         desc['License'] = orig_desc['License']
 

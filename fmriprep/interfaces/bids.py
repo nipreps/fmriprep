@@ -373,7 +373,11 @@ class BIDSFreeSurferDir(SimpleInterface):
             if os.path.exists(dest) and self.inputs.overwrite_fsaverage:
                 rmtree(dest)
             if not os.path.exists(dest):
-                copytree(source, dest)
+                try:
+                    copytree(source, dest)
+                except FileExistsError:
+                    LOGGER.warn("{} exists; if multiple jobs are running in parallel, this can be "
+                                "safely ignored.".format(dest))
 
         return runtime
 

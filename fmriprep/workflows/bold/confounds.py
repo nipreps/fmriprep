@@ -531,6 +531,7 @@ in the corresponding confounds file.
 
     bold_mni_trans_wf = init_bold_mni_trans_wf(
         template=template,
+        freesurfer=False,
         mem_gb=mem_gb,
         omp_nthreads=omp_nthreads,
         template_out_grid=str(

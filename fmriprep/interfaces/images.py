@@ -69,8 +69,8 @@ class IntraModalMerge(SimpleInterface):
                 else:
                     in_files = [fname_presuffix(in_files[0], suffix='_squeezed',
                                                 newpath=runtime.cwd)]
-                    nb.Nifti1Image(sqdata, filenii.get_affine(),
-                                   filenii.get_header()).to_filename(in_files[0])
+                    nb.Nifti1Image(sqdata, filenii.affine,
+                                   filenii.header).to_filename(in_files[0])
 
             if np.squeeze(nb.load(in_files[0]).get_data()).ndim < 4:
                 self._results['out_file'] = in_files[0]
@@ -94,7 +94,7 @@ class IntraModalMerge(SimpleInterface):
             hmcdat -= hmcdat.min()
 
         nb.Nifti1Image(
-            hmcdat, hmcnii.get_affine(), hmcnii.get_header()).to_filename(
+            hmcdat, hmcnii.affine, hmcnii.header).to_filename(
             self._results['out_avg'])
 
         return runtime
@@ -208,7 +208,7 @@ class ConformInputSpec(BaseInterfaceInputSpec):
 
 class ConformOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='Conformed image')
-    transform = File(exists=True, desc='Conformation transform')
+    transform = File(exists=True, desc='Conformation transform (voxel-to-voxel)')
 
 
 class Conform(SimpleInterface):
@@ -218,6 +218,9 @@ class Conform(SimpleInterface):
 
     #. Orient to RAS (left-right, posterior-anterior, inferior-superior)
     #. Resample to target zooms (voxel sizes) and shape (number of voxels)
+
+    Note that the output transforms are voxel-to-voxel; the RAS-to-RAS
+    transform is the identity transform.
     """
     input_spec = ConformInputSpec
     output_spec = ConformOutputSpec

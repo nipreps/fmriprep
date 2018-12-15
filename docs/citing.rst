@@ -149,11 +149,11 @@ we recommend to include in your paper.
    <p>
      1. Esteban O, Markiewicz CJ, Blair RW, Moodie CA, Isik AI, Erramuzpe A, Kent JD, Goncalves M,
         DuPre E, Snyder M, Oya H, Ghosh SS, Wright J, Durnez J, Poldrack RA, Gorgolewski KJ.
-        FMRIPrep: a robust preprocessing pipeline for functional MRI.
-        bioRxiv. 2018. 306951; doi:<a href="https://doi.org/10.1101/306951">10.1101/306951</a>
+        fMRIPrep: a robust preprocessing pipeline for functional MRI.
+        Nat Meth. 2018; doi:<a href="https://doi.org/10.1038/s41592-018-0235-4">10.1038/s41592-018-0235-4</a>
    </p>
    <p>
-     2. <span id="fmriprep_citation">FMRIPREP</span> Available from: <a id="fmriprep_doi_url" href="https://doi.org/10.5281/zenodo.852659">10.5281/zenodo.852659</a>.
+     2. <span id="fmriprep_citation">fMRIPrep</span> Available from: <a id="fmriprep_doi_url" href="https://doi.org/10.5281/zenodo.852659">10.5281/zenodo.852659</a>.
      <img src onerror='fillCitation()' alt="" />
    </p>
    <p>

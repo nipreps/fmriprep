@@ -355,7 +355,12 @@ def main():
             if resp not in ('y', 'Y', ''):
                 return 0
 
-    command = ['docker', 'run', '--rm', '-it']
+    ret = subprocess.run(['docker', 'version', '--format', "{{.Server.Version}}"],
+                         stdout=subprocess.PIPE)
+    docker_version = ret.stdout.decode('ascii').strip()
+
+    command = ['docker', 'run', '--rm', '-it', '-e',
+               'DOCKER_VERSION_8395080871=%s' % docker_version]
 
     # Patch working repositories into installed package directories
     for pkg in ('fmriprep', 'niworkflows', 'nipype'):

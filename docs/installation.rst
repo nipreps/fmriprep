@@ -200,6 +200,7 @@ the ``fmriprep`` package:
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.0.0)
 - FreeSurfer_ (version 6.0.1)
 - `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)
+- `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.1.0)
 
 
 .. _fs_license:

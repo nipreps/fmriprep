@@ -141,23 +141,57 @@ class Report(object):
                                      exception_text_start:])
 
                     scope.set_tag("node_name", node_name)
+
+                    chunk_size = 16384
+
                     for k, v in crash_info.items():
                         if k == 'inputs':
                             scope.set_extra(k, dict(v))
+                        elif isinstance(v, str) and len(v) > chunk_size:
+                            chunks = [v[i:i + chunk_size] for i in range(0, len(v), chunk_size)]
+                            for i, chunk in enumerate(chunks):
+                                scope.set_extra('%s_%02d' % (k, i), chunk)
                         else:
                             scope.set_extra(k, v)
                     scope.level = 'fatal'
-                    message = node_name + ': ' + gist + '\n\n' + exception_text
 
-                    # remove file paths
-                    fingerprint = re.sub(r"(/[^/ ]*)+/?", '', message)
-                    # remove words containing numbers
-                    fingerprint = re.sub(r"([a-zA-Z]*[0-9]+[a-zA-Z]*)+", '', fingerprint)
-                    # adding the return code if it exists
-                    for line in message.split('\n'):
-                        if line.startswith("Return code"):
-                            fingerprint += line
+                    # Group common events with pre specified fingerprints
+                    fingerprint_dict = {'permission-denied': [
+                                            "PermissionError: [Errno 13] Permission denied"],
+                                        'memory-error': ["MemoryError", "Cannot allocate memory"],
+                                        'reconall-already-running': [
+                                            "ERROR: it appears that recon-all is already running"],
+                                        'no-disk-space': [
+                                            "OSError: [Errno 28] No space left on device",
+                                            "[Errno 122] Disk quota exceeded"],
+                                        'sigkill': ["Return code: 137"],
+                                        'keyboard-interrupt': ["KeyboardInterrupt"]}
+
+                    fingerprint = ''
+                    issue_title = node_name + ': ' + gist
+                    for new_fingerprint, error_snippets in fingerprint_dict.items():
+                        for error_snippet in error_snippets:
+                            if error_snippet in crash_info['traceback']:
+                                fingerprint = new_fingerprint
+                                issue_title = new_fingerprint
+                                break
+                        if fingerprint:
                             break
+
+                    message = issue_title + '\n\n'
+                    message += exception_text[-(8192-len(message)):]
+                    if fingerprint:
+                        self.sentry_sdk.add_breadcrumb(message=fingerprint, level='fatal')
+                    else:
+                        # remove file paths
+                        fingerprint = re.sub(r"(/[^/ ]*)+/?", '', message)
+                        # remove words containing numbers
+                        fingerprint = re.sub(r"([a-zA-Z]*[0-9]+[a-zA-Z]*)+", '', fingerprint)
+                        # adding the return code if it exists
+                        for line in message.split('\n'):
+                            if line.startswith("Return code"):
+                                fingerprint += line
+                                break
 
                     scope.fingerprint = [fingerprint]
                     self.sentry_sdk.capture_message(message, 'fatal')
@@ -318,8 +352,8 @@ def generate_reports(subject_list, output_dir, work_dir, run_uuid, sentry_sdk=No
     if errno:
         import logging
         logger = logging.getLogger('cli')
-        error_list = ', '.join(['%s (%d)' % (subid, err) for subid, err in zip(subject_list,
-                                                                               report_errors)])
+        error_list = ', '.join('%s (%d)' % (subid, err)
+                               for subid, err in zip(subject_list, report_errors) if err)
         logger.error('Preprocessing did not finish successfully. Errors occurred while processing '
                      'data from participants: %s. Check the HTML reports for details.' %
                      error_list)

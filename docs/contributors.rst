@@ -92,8 +92,8 @@ The image `must be rebuilt <#rebuilding-docker-image>`_ after any
 dependency changes.
 
 Python dependencies should generally be included in the ``REQUIRES``
-list in `fmriprep/info.py
-<https://github.com/poldracklab/fmriprep/blob/29133e5e9f92aae4b23dd897f9733885a60be311/fmriprep/info.py#L46-L61>`_.
+list in `fmriprep/__about__.py
+<https://github.com/poldracklab/fmriprep/blob/510f28db4aab8a6adde0ccadeba2da7d78ed696e/fmriprep/__about__.py#L87-L107>`_.
 If the latest version in `PyPI <https://pypi.org/>`_ is sufficient,
 then no further action is required.
 
@@ -164,4 +164,3 @@ An example of how this works is shown here: ::
     parameters) are estimated before any spatiotemporal filtering using
     `mcflirt` [FSL {fsl_ver}, @mcflirt].
     """.format(fsl_ver=fsl.Info().version() or '<ver>')
-

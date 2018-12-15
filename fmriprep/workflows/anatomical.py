@@ -26,7 +26,6 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import (
     io as nio,
     utility as niu,
-    c3,
     freesurfer as fs,
     fsl,
     image,
@@ -44,11 +43,12 @@ from ..engine import Workflow
 from ..interfaces import (
     DerivativesDataSink, StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
     FSDetectInputs, NormalizeSurf, GiftiNameSource, TemplateDimensions, Conform,
-    ConcatAffines, RefineBrainMask,
+    RefineBrainMask,
 )
 from ..utils.misc import fix_multi_T1w_source_name, add_suffix
 from ..interfaces.freesurfer import (
     PatchedLTAConvert as LTAConvert,
+    PatchedConcatenateLTA as ConcatenateLTA,
     PatchedRobustRegister as RobustRegister)
 
 
@@ -505,6 +505,10 @@ A T1w-reference map was computed after registration of
 
         return workflow
 
+    t1_conform_xfm = pe.MapNode(LTAConvert(in_lta='identity.nofile', out_lta=True),
+                                iterfield=['source_file', 'target_file'],
+                                name='t1_conform_xfm')
+
     # 1. Template (only if several T1w images)
     # 1a. Correct for bias field: the bias field is an additive factor
     #     in log-transformed intensity units. Therefore, it is not a linear
@@ -530,20 +534,19 @@ A T1w-reference map was computed after registration of
     # 2. Reorient template to RAS, if needed (mri_robust_template may set to LIA)
     t1_reorient = pe.Node(image.Reorient(), name='t1_reorient')
 
-    lta_to_fsl = pe.MapNode(LTAConvert(out_fsl=True), iterfield=['in_lta'],
-                            name='lta_to_fsl')
-
     concat_affines = pe.MapNode(
-        ConcatAffines(3, invert=True), iterfield=['mat_AtoB', 'mat_BtoC'],
-        name='concat_affines', run_without_submitting=True)
+        ConcatenateLTA(out_type='RAS2RAS', invert_out=True),
+        iterfield=['in_lta1', 'in_lta2'],
+        name='concat_affines')
 
-    fsl_to_itk = pe.MapNode(c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
-                            iterfield=['transform_file', 'source_file'], name='fsl_to_itk')
+    lta_to_itk = pe.MapNode(LTAConvert(out_itk=True), iterfield=['in_lta'], name='lta_to_itk')
 
     def _set_threads(in_list, maximum):
         return min(len(in_list), maximum)
 
     workflow.connect([
+        (t1_template_dimensions, t1_conform_xfm, [('t1w_valid_list', 'source_file')]),
+        (t1_conform, t1_conform_xfm, [('out_file', 'target_file')]),
         (t1_conform, n4_correct, [('out_file', 'input_image')]),
         (t1_conform, t1_merge, [
             (('out_file', _set_threads, omp_nthreads), 'num_threads'),
@@ -551,16 +554,12 @@ A T1w-reference map was computed after registration of
         (n4_correct, t1_merge, [('output_image', 'in_files')]),
         (t1_merge, t1_reorient, [('out_file', 'in_file')]),
         # Combine orientation and template transforms
-        (t1_merge, lta_to_fsl, [('transform_outputs', 'in_lta')]),
-        (t1_conform, concat_affines, [('transform', 'mat_AtoB')]),
-        (lta_to_fsl, concat_affines, [('out_fsl', 'mat_BtoC')]),
-        (t1_reorient, concat_affines, [('transform', 'mat_CtoD')]),
-        (t1_template_dimensions, fsl_to_itk, [('t1w_valid_list', 'source_file')]),
-        (t1_reorient, fsl_to_itk, [('out_file', 'reference_file')]),
-        (concat_affines, fsl_to_itk, [('out_mat', 'transform_file')]),
+        (t1_conform_xfm, concat_affines, [('out_lta', 'in_lta1')]),
+        (t1_merge, concat_affines, [('transform_outputs', 'in_lta2')]),
+        (concat_affines, lta_to_itk, [('out_file', 'in_lta')]),
         # Output
         (t1_reorient, outputnode, [('out_file', 't1_template')]),
-        (fsl_to_itk, outputnode, [('itk_transform', 'template_transforms')]),
+        (lta_to_itk, outputnode, [('out_itk', 'template_transforms')]),
     ])
 
     return workflow

@@ -164,7 +164,7 @@ spaces: {out_spaces}.
     return workflow
 
 
-def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
+def init_bold_mni_trans_wf(template, freesurfer, mem_gb, omp_nthreads,
                            name='bold_mni_trans_wf',
                            template_out_grid='2mm',
                            use_compression=True,
@@ -179,6 +179,7 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
 
         from fmriprep.workflows.bold import init_bold_mni_trans_wf
         wf = init_bold_mni_trans_wf(template='MNI152NLin2009cAsym',
+                                    freesurfer=True,
                                     mem_gb=3,
                                     omp_nthreads=1,
                                     template_out_grid='native')
@@ -187,6 +188,8 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
 
         template : str
             Name of template targeted by ``template`` output space
+        freesurfer : bool
+            Enable sampling of FreeSurfer files
         mem_gb : float
             Size of BOLD file in GB
         omp_nthreads : int
@@ -211,6 +214,12 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
             Individual 3D volumes, not motion corrected
         bold_mask
             Skull-stripping mask of reference image
+        bold_aseg
+            FreeSurfer's ``aseg.mgz`` atlas projected into the T1w reference
+            (only if ``recon-all`` was run).
+        bold_aparc
+            FreeSurfer's ``aparc+aseg.mgz`` atlas projected into the T1w reference
+            (only if ``recon-all`` was run).
         name_source
             BOLD series NIfTI file
             Used to recover original information lost during processing
@@ -227,6 +236,12 @@ def init_bold_mni_trans_wf(template, mem_gb, omp_nthreads,
             Reference, contrast-enhanced summary of the BOLD series, resampled to template space
         bold_mask_mni
             BOLD series mask in template space
+        bold_aseg_mni
+            FreeSurfer's ``aseg.mgz`` atlas, in template space at the BOLD resolution
+            (only if ``recon-all`` was run)
+        bold_aparc_mni
+            FreeSurfer's ``aparc+aseg.mgz`` atlas, in template space at the BOLD resolution
+            (only if ``recon-all`` was run)
 
     """
     workflow = Workflow(name=name)
@@ -242,6 +257,8 @@ generating a *preprocessed BOLD run in {tpl} space*.
             'name_source',
             'bold_split',
             'bold_mask',
+            'bold_aseg',
+            'bold_aparc',
             'hmc_xforms',
             'fieldwarp'
         ]),
@@ -249,8 +266,11 @@ generating a *preprocessed BOLD run in {tpl} space*.
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_mni', 'bold_mni_ref', 'bold_mask_mni']),
-        name='outputnode')
+        niu.IdentityInterface(fields=[
+            'bold_mni', 'bold_mni_ref', 'bold_mask_mni',
+            'bold_aseg_mni', 'bold_aparc_mni']),
+        name='outputnode'
+    )
 
     def _aslist(in_value):
         if isinstance(in_value, list):
@@ -277,14 +297,6 @@ generating a *preprocessed BOLD run in {tpl} space*.
     mask_merge_tfms = pe.Node(niu.Merge(2), name='mask_merge_tfms', run_without_submitting=True,
                               mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-    nxforms = 4 if use_fieldwarp else 3
-    merge_xforms = pe.Node(niu.Merge(nxforms), name='merge_xforms',
-                           run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([(inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nxforms)])])
-
-    if use_fieldwarp:
-        workflow.connect([(inputnode, merge_xforms, [('fieldwarp', 'in3')])])
-
     workflow.connect([
         (inputnode, gen_ref, [(('bold_split', _first), 'moving_image')]),
         (inputnode, mask_mni_tfm, [('bold_mask', 'input_image')]),
@@ -293,6 +305,14 @@ generating a *preprocessed BOLD run in {tpl} space*.
         (mask_merge_tfms, mask_mni_tfm, [('out', 'transforms')]),
         (mask_mni_tfm, outputnode, [('output_image', 'bold_mask_mni')]),
     ])
+
+    nxforms = 4 if use_fieldwarp else 3
+    merge_xforms = pe.Node(niu.Merge(nxforms), name='merge_xforms',
+                           run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+    workflow.connect([(inputnode, merge_xforms, [('hmc_xforms', 'in%d' % nxforms)])])
+
+    if use_fieldwarp:
+        workflow.connect([(inputnode, merge_xforms, [('fieldwarp', 'in3')])])
 
     bold_to_mni_transform = pe.Node(
         MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
@@ -334,6 +354,41 @@ generating a *preprocessed BOLD run in {tpl} space*.
     else:
         mask_mni_tfm.inputs.reference_image = template_out_grid
         bold_to_mni_transform.inputs.reference_image = template_out_grid
+
+    if freesurfer:
+        # Sample the parcellation files to functional space
+        aseg_mni_tfm = pe.Node(
+            ApplyTransforms(interpolation='MultiLabel', float=True),
+            name='aseg_mni_tfm', mem_gb=1)
+        aparc_mni_tfm = pe.Node(
+            ApplyTransforms(interpolation='MultiLabel', float=True),
+            name='aparc_mni_tfm', mem_gb=1)
+
+        workflow.connect([
+            (inputnode, aseg_mni_tfm, [('bold_aseg', 'input_image'),
+                                       ('t1_2_mni_forward_transform', 'transforms')]),
+            (inputnode, aparc_mni_tfm, [('bold_aparc', 'input_image'),
+                                        ('t1_2_mni_forward_transform', 'transforms')]),
+            (aseg_mni_tfm, outputnode, [('output_image', 'bold_aseg_mni')]),
+            (aparc_mni_tfm, outputnode, [('output_image', 'bold_aparc_mni')]),
+        ])
+        if template_out_grid == 'native':
+            workflow.connect([
+                (gen_ref, aseg_mni_tfm, [('out_file', 'reference_image')]),
+                (gen_ref, aparc_mni_tfm, [('out_file', 'reference_image')]),
+            ])
+        elif template_out_grid in ['1mm', '2mm']:
+            res = int(template_out_grid[0])
+            aseg_mni_tfm.inputs.reference_image = str(
+                template_dir /
+                ('tpl-%s_space-MNI_res-%02d_brainmask.nii.gz' % (template_name, res)))
+            aparc_mni_tfm.inputs.reference_image = str(
+                template_dir /
+                ('tpl-%s_space-MNI_res-%02d_T1w.nii.gz' % (template_name, res)))
+        else:
+            aseg_mni_tfm.inputs.reference_image = template_out_grid
+            aparc_mni_tfm.inputs.reference_image = template_out_grid
+
     return workflow
 
 
