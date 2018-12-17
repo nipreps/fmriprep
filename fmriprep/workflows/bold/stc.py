@@ -11,9 +11,9 @@ Slice-Timing Correction (STC) of BOLD images
 from nipype import logging
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu, afni
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.utils import CopyXForm
 
-from ...engine import Workflow
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')

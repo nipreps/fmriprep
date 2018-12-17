@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-# pylint: disable=unused-import
 """
 
 Pre-processing fMRI - BOLD signal workflows
@@ -38,3 +36,18 @@ from .confounds import (
     init_bold_confs_wf,
     init_ica_aroma_wf,
 )
+
+__all__ = [
+    'init_bold_confs_wf',
+    'init_bold_hmc_wf',
+    'init_bold_mni_trans_wf',
+    'init_bold_preproc_trans_wf',
+    'init_bold_reference_wf',
+    'init_bold_reg_wf',
+    'init_bold_stc_wf',
+    'init_bold_surf_wf',
+    'init_bold_t1_trans_wf',
+    'init_bold_t2s_wf',
+    'init_func_preproc_wf',
+    'init_ica_aroma_wf',
+]

@@ -79,7 +79,7 @@ T1w/T2w preprocessing
                               num_t1w=1)
 
 The anatomical sub-workflow begins by constructing an average image by
-:ref:`conforming <conformation>` all found T1w images to RAS orientation and
+conforming all found T1w images to RAS orientation and
 a common voxel size, and, in the case of multiple images, averages them into a
 single reference template (see `Longitudinal processing`_).
 
@@ -535,13 +535,13 @@ ICA-AROMA
 ~~~~~~~~~
 :mod:`fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
 
-When one of the `--output-spaces` selected is in MNI space, ICA-AROMA denoising 
+When one of the `--output-spaces` selected is in MNI space, ICA-AROMA denoising
 can be automatically appended to the workflow.
 The number of ICA-AROMA components depends on a dimensionality estimate made by MELODIC.
-For datasets with a very short TR and a large number of timepoints, this may result 
-in an unusually high number of components. 
-By default, dimensionality is limited to a maximum of 200 components. 
-To override this upper limit one may specify the number of components to be extracted 
+For datasets with a very short TR and a large number of timepoints, this may result
+in an unusually high number of components.
+By default, dimensionality is limited to a maximum of 200 components.
+To override this upper limit one may specify the number of components to be extracted
 with ``--aroma-melodic-dimensionality``.
 Further details on the implementation are given within the workflow generation function (:mod:`fmriprep.workflows.bold.confounds.init_ica_aroma_wf`).
 

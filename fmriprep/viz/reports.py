@@ -16,7 +16,7 @@ import jinja2
 from nipype.utils.filemanip import copyfile
 from pkg_resources import resource_filename as pkgrf
 
-from fmriprep.utils.misc import read_crashfile
+from niworkflows.utils.misc import read_crashfile
 
 
 class Element(object):

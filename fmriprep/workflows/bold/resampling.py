@@ -15,18 +15,20 @@ from nipype.interfaces import utility as niu, freesurfer as fs
 from nipype.interfaces.fsl import Split as FSLSplit
 
 from niworkflows.data import get_template, TEMPLATE_ALIASES
-from niworkflows.interfaces.utils import GenerateSamplingReference
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
-
-from ...engine import Workflow
-from ...interfaces import GiftiSetAnatomicalStructure, MultiApplyTransforms
-from ...interfaces.nilearn import Merge
-from ...interfaces.freesurfer import (
+from niworkflows.interfaces.freesurfer import (
     MedialNaNs,
     # See https://github.com/poldracklab/fmriprep/issues/768
     PatchedConcatenateLTA as ConcatenateLTA,
     PatchedLTAConvert as LTAConvert
 )
+from niworkflows.interfaces.itk import MultiApplyTransforms
+from niworkflows.interfaces.utils import GenerateSamplingReference
+from niworkflows.interfaces.surf import GiftiSetAnatomicalStructure
+
+from ...interfaces import DerivativesDataSink
+from ...interfaces.nilearn import Merge
 
 from .util import init_bold_reference_wf
 
@@ -580,7 +582,6 @@ def init_bold_preproc_report_wf(mem_gb, reportlets_dir, name='bold_preproc_repor
 
     from nipype.algorithms.confounds import TSNR
     from niworkflows.interfaces import SimpleBeforeAfter
-    from ...interfaces import DerivativesDataSink
 
     workflow = Workflow(name=name)
 

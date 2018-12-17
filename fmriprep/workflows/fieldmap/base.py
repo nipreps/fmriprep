@@ -40,7 +40,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nipype import logging
 
-from ...engine import Workflow
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
 # Fieldmap workflows
 from .pepolar import init_pepolar_unwarp_wf

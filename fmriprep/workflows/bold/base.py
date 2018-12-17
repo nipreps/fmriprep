@@ -19,12 +19,14 @@ from nipype.interfaces.fsl import Split as FSLSplit
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
-from ...utils.misc import meepi_optimal_comb_source_name
-from ...interfaces import DerivativesDataSink, GiftiNameSource
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+from niworkflows.interfaces.cifti import GenerateCifti, CiftiNameSource
+from niworkflows.interfaces.surf import GiftiNameSource
 
+from ...utils.meepi import combine_meepi_source
+
+from ...interfaces import DerivativesDataSink
 from ...interfaces.reports import FunctionalSummary
-from ...interfaces.cifti import GenerateCifti, CiftiNameSource
-from ...engine import Workflow
 
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
@@ -603,7 +605,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         workflow.connect([
             # update name source for optimal combination
             (inputnode, func_derivatives_wf, [
-                (('bold_file', meepi_optimal_comb_source_name), 'inputnode.source_file')]),
+                (('bold_file', combine_meepi_source), 'inputnode.source_file')]),
             (bold_bold_trans_wf, skullstrip_bold_wf, [
                 ('outputnode.bold', 'inputnode.in_file')]),
             (bold_t2s_wf, bold_confounds_wf, [
@@ -733,7 +735,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             # ICA-AROMA workflow
             # Internally resamples to MNI152 Linear (2006)
             from .confounds import init_ica_aroma_wf
-            from ...interfaces import JoinTSVColumns
+            from niworkflows.interfaces.utils import JoinTSVColumns
 
             ica_aroma_wf = init_ica_aroma_wf(
                 template=template,

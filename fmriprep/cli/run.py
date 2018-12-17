@@ -553,9 +553,9 @@ def build_workflow(opts, retval):
     from shutil import copyfile
 
     from nipype import logging, config as ncfg
+    from niworkflows.utils.bids import collect_participants
     from ..__about__ import __version__
     from ..workflows.base import init_fmriprep_wf
-    from ..utils.bids import collect_participants
     from ..viz.reports import generate_reports
 
     logger = logging.getLogger('nipype.workflow')
@@ -742,33 +742,38 @@ def build_workflow(opts, retval):
 
     logs_path = Path(output_dir) / 'fmriprep' / 'logs'
     boilerplate = retval['workflow'].visit_desc()
-    (logs_path / 'CITATION.md').write_text(boilerplate)
-    logger.log(25, 'Works derived from this fMRIPrep execution should '
-               'include the following boilerplate:\n\n%s', boilerplate)
 
-    # Generate HTML file resolving citations
-    cmd = ['pandoc', '-s', '--bibliography',
-           pkgrf('fmriprep', 'data/boilerplate.bib'),
-           '--filter', 'pandoc-citeproc',
-           str(logs_path / 'CITATION.md'),
-           '-o', str(logs_path / 'CITATION.html')]
-    try:
-        check_call(cmd, timeout=10)
-    except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-        logger.warning('Could not generate CITATION.html file:\n%s',
-                       ' '.join(cmd))
+    if boilerplate:
+        (logs_path / 'CITATION.md').write_text(boilerplate)
+        logger.log(25, 'Works derived from this fMRIPrep execution should '
+                   'include the following boilerplate:\n\n%s', boilerplate)
 
-    # Generate LaTex file resolving citations
-    cmd = ['pandoc', '-s', '--bibliography',
-           pkgrf('fmriprep', 'data/boilerplate.bib'),
-           '--natbib', str(logs_path / 'CITATION.md'),
-           '-o', str(logs_path / 'CITATION.tex')]
-    try:
-        check_call(cmd, timeout=10)
-        copyfile(pkgrf('fmriprep', 'data/boilerplate.bib'), str(logs_path / 'CITATION.bib'))
-    except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-        logger.warning('Could not generate CITATION.tex file:\n%s',
-                       ' '.join(cmd))
+        # Generate HTML file resolving citations
+        cmd = ['pandoc', '-s', '--bibliography',
+               pkgrf('fmriprep', 'data/boilerplate.bib'),
+               '--filter', 'pandoc-citeproc',
+               str(logs_path / 'CITATION.md'),
+               '-o', str(logs_path / 'CITATION.html')]
+        try:
+            check_call(cmd, timeout=10)
+        except (FileNotFoundError, CalledProcessError, TimeoutExpired):
+            logger.warning('Could not generate CITATION.html file:\n%s',
+                           ' '.join(cmd))
+
+        # Generate LaTex file resolving citations
+        cmd = ['pandoc', '-s', '--bibliography',
+               pkgrf('fmriprep', 'data/boilerplate.bib'),
+               '--natbib', str(logs_path / 'CITATION.md'),
+               '-o', str(logs_path / 'CITATION.tex')]
+        try:
+            check_call(cmd, timeout=10)
+        except (FileNotFoundError, CalledProcessError, TimeoutExpired):
+            logger.warning('Could not generate CITATION.tex file:\n%s',
+                           ' '.join(cmd))
+        else:
+            copyfile(pkgrf('fmriprep', 'data/boilerplate.bib'),
+                     (logs_path / 'CITATION.bib'))
+
     return retval
 
 

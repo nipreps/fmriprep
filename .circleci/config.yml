@@ -15,10 +15,10 @@ jobs:
             apk add --no-cache pigz python3
       - restore_cache:
           keys:
-            - docker-v2-{{ .Branch }}-{{ epoch }}
-            - docker-v2-{{ .Branch }}-
-            - docker-v2-master-
-            - docker-v2-
+            - docker-v3-{{ .Branch }}-{{ epoch }}
+            - docker-v3-{{ .Branch }}-
+            - docker-v3-master-
+            - docker-v3-
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
@@ -83,8 +83,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v5-{{ epoch }}
-            - data-v5-
+            - data-v6-{{ epoch }}
+            - data-v6-
       - run:
           name: Get test data from ds000005
           command: |
@@ -152,7 +152,7 @@ jobs:
             - ds054/nipype.cfg
             - ds210/nipype.cfg
       - save_cache:
-         key: data-v5-{{ epoch }}
+         key: data-v6-{{ epoch }}
          paths:
             - /tmp/data
             - /tmp/ds005/derivatives/freesurfer
@@ -165,8 +165,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - regression-v2-{{ epoch }}
-            - regression-v2-
+            - regression-v3-{{ epoch }}
+            - regression-v3-
       - run:
           name: Get truncated BOLD series
           command: |
@@ -193,7 +193,7 @@ jobs:
           paths:
             - data
       - save_cache:
-         key: regression-v2-{{ epoch }}
+         key: regression-v3-{{ epoch }}
          paths:
             - /tmp/data
 
@@ -206,7 +206,7 @@ jobs:
       - attach_workspace:
           at: /tmp
       - save_cache:
-         key: docker-v2-{{ .Branch }}-{{ epoch }}
+         key: docker-v3-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/cache/docker.tar.gz
 
@@ -225,12 +225,15 @@ jobs:
               echo "Skipping pytest job"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - run:
           name: Check PyPi preconditions
           command: |
-            pip install "setuptools>=27.0" cython numpy twine future docutils
+            pyenv global 3.5.2
+            virtualenv venv
+            pip install "setuptools>=27.0" cython numpy twine docutils
             python setup.py check -r -s
             python setup.py sdist
       - run:
@@ -306,6 +309,7 @@ jobs:
               echo "Skipping pytest job"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - run:
@@ -350,14 +354,15 @@ jobs:
               echo "Skipping ds000005 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v11-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v11-{{ .Branch }}
-            - ds005-anat-v11-master
-            - ds005-anat-v11-
+            - ds005-anat-v12-{{ .Branch }}-{{ epoch }}
+            - ds005-anat-v12-{{ .Branch }}
+            - ds005-anat-v12-master
+            - ds005-anat-v12-
       - run:
           name: Setting up test
           command: |
@@ -391,7 +396,7 @@ jobs:
                 --sloppy --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds005-anat-v11-{{ .Branch }}-{{ epoch }}
+         key: ds005-anat-v12-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
             - /tmp/ds005/derivatives/fmriprep
@@ -480,14 +485,15 @@ jobs:
               echo "Skipping ds000054 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v8-{{ .Branch }}-{{ epoch }}
-            - ds054-anat-v8-{{ .Branch }}
-            - ds054-anat-v8-master
-            - ds054-anat-v8-
+            - ds054-anat-v10-{{ .Branch }}-{{ epoch }}
+            - ds054-anat-v10-{{ .Branch }}
+            - ds054-anat-v10-master
+            - ds054-anat-v10-
       - run:
           name: Setting up test
           command: |
@@ -521,7 +527,7 @@ jobs:
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds054-anat-v8-{{ .Branch }}-{{ epoch }}
+         key: ds054-anat-v10-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
             - /tmp/ds054/derivatives
@@ -598,14 +604,15 @@ jobs:
               echo "Skipping ds000210 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds210-anat-v6-{{ .Branch }}-{{ epoch }}
-            - ds210-anat-v6-{{ .Branch }}
-            - ds210-anat-v6-master
-            - ds210-anat-v6-
+            - ds210-anat-v8-{{ .Branch }}-{{ epoch }}
+            - ds210-anat-v8-{{ .Branch }}
+            - ds210-anat-v8-master
+            - ds210-anat-v8-
       - run:
           name: Setting up test
           command: |
@@ -639,7 +646,7 @@ jobs:
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds210-anat-v6-{{ .Branch }}-{{ epoch }}
+         key: ds210-anat-v8-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds210/work
             - /tmp/ds210/derivatives
@@ -678,6 +685,7 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /tmp/src/fmriprep
     steps:
+
       - attach_workspace:
           at: /tmp
       - run:
@@ -716,8 +724,11 @@ jobs:
       - run:
           name: Deploy to PyPi
           command: |
-            pip install "setuptools>=27.0" cython numpy twine future docutils
+            pyenv global 3.5.2
+            virtualenv venv
+            pip install "setuptools>=27.0" cython numpy twine docutils
             echo "${CIRCLE_TAG}" > fmriprep/VERSION
+            echo "include fmriprep/VERSION" >> MANIFEST.in
             python setup.py check -r -s
             python setup.py sdist
             twine upload dist/*

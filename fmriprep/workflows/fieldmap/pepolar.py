@@ -14,11 +14,11 @@ import pkg_resources as pkgr
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import afni, ants, fsl, utility as niu
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces import CopyHeader
+from niworkflows.interfaces.freesurfer import StructuralReference
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT
 
-from ...engine import Workflow
-from ...interfaces import StructuralReference
 from ..bold.util import init_enhance_and_skullstrip_bold_wf
 
 

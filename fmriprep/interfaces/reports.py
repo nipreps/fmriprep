@@ -19,8 +19,8 @@ from nipype.interfaces.base import (
     File, Directory, InputMultiPath, Str, isdefined,
     SimpleInterface)
 from nipype.interfaces import freesurfer as fs
+from niworkflows.utils.bids import BIDS_NAME
 
-from .bids import BIDS_NAME
 
 SUBJECT_TEMPLATE = """\t<ul class="elem-desc">
 \t\t<li>Subject ID: {subject_id}</li>

@@ -11,22 +11,25 @@ Calculate BOLD confounds
 """
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu, fsl
-from nipype.interfaces.nilearn import SignalExtraction
 from nipype.algorithms import confounds as nac
 
 from niworkflows.data import get_template
-from niworkflows.interfaces.segmentation import ICA_AROMARPT
-from niworkflows.interfaces.masks import ROIsPlot
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
-
-from ...engine import Workflow
-from ...interfaces import (
-    TPM2ROI, AddTPMs, AddTSVHeader, GatherConfounds, ICAConfounds,
-    FMRISummary, DerivativesDataSink
-)
-from ...interfaces.patches import (
+from niworkflows.interfaces.images import SignalExtraction
+from niworkflows.interfaces.masks import ROIsPlot
+from niworkflows.interfaces.patches import (
     RobustACompCor as ACompCor,
-    RobustTCompCor as TCompCor
+    RobustTCompCor as TCompCor,
+)
+from niworkflows.interfaces.segmentation import ICA_AROMARPT
+from niworkflows.interfaces.utils import (
+    TPM2ROI, AddTPMs, AddTSVHeader
+)
+
+from ...interfaces import (
+    GatherConfounds, ICAConfounds,
+    FMRISummary, DerivativesDataSink
 )
 
 from .resampling import init_bold_mni_trans_wf

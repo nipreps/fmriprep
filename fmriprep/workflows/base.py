@@ -20,13 +20,14 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 from nilearn import __version__ as nilearn_ver
 
-from ..engine import Workflow
-from ..interfaces import (
-    BIDSDataGrabber, BIDSFreeSurferDir, BIDSInfo, SubjectSummary, AboutSummary,
-    DerivativesDataSink
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+from niworkflows.interfaces.bids import (
+    BIDSInfo, BIDSDataGrabber, BIDSFreeSurferDir
 )
-from ..utils.bids import collect_data
-from ..utils.misc import fix_multi_T1w_source_name
+from niworkflows.utils.bids import collect_data
+from niworkflows.utils.misc import fix_multi_T1w_source_name
+
+from ..interfaces import SubjectSummary, AboutSummary, DerivativesDataSink
 from ..__about__ import __version__
 
 from .anatomical import init_anat_preproc_wf
