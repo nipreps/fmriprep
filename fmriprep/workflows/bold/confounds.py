@@ -183,12 +183,13 @@ placed within the corresponding confounds file.
     # a/t-CompCor
     tcompcor = pe.Node(
         TCompCor(components_file='tcompcor.tsv', header_prefix='t_comp_cor_', pre_filter='cosine',
-                 save_pre_filter=True, percentile_threshold=.05),
+                 save_pre_filter=True, percentile_threshold=.05, failure_mode='NaN',
+                 generate_report=True),
         name="tcompcor", mem_gb=mem_gb)
 
     acompcor = pe.Node(
         ACompCor(components_file='acompcor.tsv', header_prefix='a_comp_cor_', pre_filter='cosine',
-                 save_pre_filter=True),
+                 save_pre_filter=True, failure_mode='NaN', generate_report=True),
         name="acompcor", mem_gb=mem_gb)
 
     # Set TR if present
@@ -221,6 +222,16 @@ placed within the corresponding confounds file.
     ds_report_bold_rois = pe.Node(
         DerivativesDataSink(suffix='rois'),
         name='ds_report_bold_rois', run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+    ds_report_warn_acompcor = pe.Node(
+        DerivativesDataSink(suffix='acompcor'),
+        name='ds_report_warn_acompcor', run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
+
+    ds_report_warn_tcompcor = pe.Node(
+        DerivativesDataSink(suffix='tcompcor'),
+        name='ds_report_warn_tcompcor', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     def _pick_csf(files):
@@ -303,6 +314,8 @@ placed within the corresponding confounds file.
         (acc_msk, mrg_compcor, [('out', 'in2')]),
         (mrg_compcor, rois_plot, [('out', 'in_rois')]),
         (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
+        (acompcor, ds_report_warn_acompcor, [('out_report', 'in_file')]),
+        (tcompcor, ds_report_warn_tcompcor, [('out_report', 'in_file')]),
     ])
 
     return workflow

@@ -20,7 +20,7 @@ dependencies:
 - python-dateutil
 - pydot>=1.2.3
 - cython
-- nipype>=1.1.6
+- nipype>=1.1.7
 
 - pip:
     - sphinx-argparse
