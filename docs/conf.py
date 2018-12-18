@@ -57,6 +57,7 @@ if pver.parse(sphinxversion) >= pver.parse('1.7.0'):
     autodoc_mock_imports += [
         'pandas',
         'nilearn',
+        'seaborn',
     ]
 
 # Add any paths that contain templates here, relative to this directory.
