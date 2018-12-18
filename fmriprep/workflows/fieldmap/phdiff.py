@@ -117,8 +117,8 @@ further improvements of HCP Pipelines [@hcppipelines].
 
     elif phasetype == "phase":
         workflow.__desc__ += """\
-The phase difference used for unwarping was calculated using a method developed
-by Mark Elliott [@pncprocessing].
+The phase difference used for unwarping was calculated using two separate phase measurements
+ [@pncprocessing].
     """
         # Special case for phase1, phase2 images
         meta = pe.MapNode(ReadSidecarJSON(), name='meta', mem_gb=0.01,

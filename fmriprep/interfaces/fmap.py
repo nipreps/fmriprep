@@ -228,7 +228,8 @@ class Phases2Fieldmap(SimpleInterface):
 
     def _run_interface(self, runtime):
         # Get the echo times
-        fmap_file, merged_metadata = phases2fmap(self.inputs.phase_files, self.inputs.metadatas)
+        fmap_file, merged_metadata = phases2fmap(self.inputs.phase_files, self.inputs.metadatas,
+                                                 newpath=runtime.cwd)
         self._results['phasediff_metadata'] = merged_metadata
         self._results['out_file'] = fmap_file
         return runtime
@@ -549,10 +550,13 @@ def phases2fmap(phase_files, metadatas, newpath=None):
     phase1 = image1.get_fdata()
 
     def rescale_image(img):
+        mask = img > 0
         imax = img.max()
         imin = img.min()
-        scaled = 2 * ((img - imin) / (imax - imin) - 0.5)
-        return np.pi * scaled
+        max_check = imax - 4096
+        if np.abs(max_check) > 10 or np.abs(imin) > 10:
+            LOGGER.warning("Phase image may be scaled incorrectly: check results")
+        return mask * (img / 2048 * np.pi - np.pi)
 
     # Calculate fieldmaps
     rad0 = rescale_image(phase0)
