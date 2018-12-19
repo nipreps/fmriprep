@@ -88,7 +88,7 @@ REQUIRES = [
     'indexed_gzip>=0.8.8',
     'nibabel>=2.2.1',
     'nilearn',
-    'nipype>=1.1.7',
+    'nipype>=1.1.6',
     'nitime',
     'niworkflows>=0.5.2.post5,<0.5.3',
     'numpy',

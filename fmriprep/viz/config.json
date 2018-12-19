@@ -99,16 +99,6 @@
                 "description": "Brain mask calculated on the BOLD signal (red contour), along with the masks used for a/tCompCor.<br />The aCompCor mask (magenta contour) is a conservative CSF and white-matter mask for extracting physiological and movement confounds. <br />The fCompCor mask (blue contour) contains the top 5% most variable voxels within a heavily-eroded brain-mask."
             },
             {
-                "name": "epi/warn_tcompcor",
-                "file_pattern": "func/.*_acompcor\\.",
-                "raw": true
-            },
-            {
-                "name": "epi/warn_tcompcor",
-                "file_pattern": "func/.*_tcompcor\\.",
-                "raw": true
-            },
-            {
                 "name": "epi_mean_t1_registration/flirt",
                 "file_pattern": "func/.*_flirtnobbr",
                 "title": "EPI to T1 registration",
