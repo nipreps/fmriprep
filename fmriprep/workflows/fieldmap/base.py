@@ -215,6 +215,21 @@ co-registration with the anatomical reference.
             if fmap['type'] == 'phasediff':
                 fmap_estimator_wf.inputs.inputnode.phasediff = fmap['phasediff']
             elif fmap['type'] == 'phase':
+                # Check that fieldmap is not bipolar
+                fmap_polarity = fmap['metadata'].get('DiffusionScheme', None)
+                if fmap_polarity == 'Bipolar':
+                    LOGGER.warning("Bipolar fieldmaps are not supported. Ignoring")
+                    workflow.__postdesc__ = ""
+                    outputnode.inputs.method = 'None'
+                    workflow.connect([
+                        (inputnode, outputnode, [('bold_ref', 'bold_ref'),
+                                                 ('bold_mask', 'bold_mask'),
+                                                 ('bold_ref_brain', 'bold_ref_brain')]),
+                    ])
+                    return workflow
+                if fmap_polarity is None:
+                    LOGGER.warning("Assuming phase images are Monopolar")
+
                 fmap_estimator_wf.inputs.inputnode.phasediff = [fmap['phase1'], fmap['phase2']]
             fmap_estimator_wf.inputs.inputnode.magnitude = [
                 fmap_ for key, fmap_ in sorted(fmap.items())
