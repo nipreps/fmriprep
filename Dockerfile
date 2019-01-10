@@ -15,11 +15,17 @@ RUN apt-get update && \
                     build-essential \
                     autoconf \
                     libtool \
-                    pkg-config && \
-    curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-    apt-key add /root/.neurodebian.gpg && \
-    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
-    apt-get update
+                    pkg-config \
+                    git && \
+    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
+    apt-get install -y --no-install-recommends \
+                    nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install latest pandoc
+RUN curl -o pandoc-2.2.2.1-1-amd64.deb -sSL "https://github.com/jgm/pandoc/releases/download/2.2.2.1/pandoc-2.2.2.1-1-amd64.deb" && \
+    dpkg -i pandoc-2.2.2.1-1-amd64.deb && \
+    rm pandoc-2.2.2.1-1-amd64.deb
 
 # Installing freesurfer
 RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
@@ -35,45 +41,49 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/frees
     --exclude='freesurfer/lib/cuda' \
     --exclude='freesurfer/lib/qt'
 
-ENV FSL_DIR=/usr/share/fsl/5.0 \
-    OS=Linux \
+ENV FSL_DIR="/usr/share/fsl/5.0" \
+    OS="Linux" \
     FS_OVERRIDE=0 \
-    FIX_VERTEX_AREA= \
-    FSF_OUTPUT_FORMAT=nii.gz \
-    FREESURFER_HOME=/opt/freesurfer
-ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
-    FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
-    MNI_DIR=$FREESURFER_HOME/mni \
-    LOCAL_DIR=$FREESURFER_HOME/local \
-    FSFAST_HOME=$FREESURFER_HOME/fsfast \
-    MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
-    MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
-    MNI_DATAPATH=$FREESURFER_HOME/mni/data \
-    FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
-ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
+    FIX_VERTEX_AREA="" \
+    FSF_OUTPUT_FORMAT="nii.gz" \
+    FREESURFER_HOME="/opt/freesurfer"
+ENV SUBJECTS_DIR="$FREESURFER_HOME/subjects" \
+    FUNCTIONALS_DIR="$FREESURFER_HOME/sessions" \
+    MNI_DIR="$FREESURFER_HOME/mni" \
+    LOCAL_DIR="$FREESURFER_HOME/local" \
+    FSFAST_HOME="$FREESURFER_HOME/fsfast" \
+    MINC_BIN_DIR="$FREESURFER_HOME/mni/bin" \
+    MINC_LIB_DIR="$FREESURFER_HOME/mni/lib" \
+    MNI_DATAPATH="$FREESURFER_HOME/mni/data" \
+    FMRI_ANALYSIS_DIR="$FREESURFER_HOME/fsfast"
+ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
 # Installing Neurodebian packages (FSL, AFNI, git)
+RUN curl -sSL http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
+    apt-key add /root/.neurodebian.gpg && \
+    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-                    fsl-core=5.0.9-4~nd16.04+1 \
-                    fsl-mni152-templates=5.0.7-2 \
+                    fsl-core=5.0.9-5~nd16.04+1 \
                     afni=16.2.07~dfsg.1-5~nd16.04+1 \
+                    connectome-workbench=1.3.2-2~nd16.04+1 \
                     convert3d
 
-ENV FSLDIR=/usr/share/fsl/5.0 \
-    FSLOUTPUTTYPE=NIFTI_GZ \
-    FSLMULTIFILEQUIT=TRUE \
-    POSSUMDIR=/usr/share/fsl/5.0 \
-    LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH \
-    FSLTCLSH=/usr/bin/tclsh \
-    FSLWISH=/usr/bin/wish \
-    AFNI_MODELPATH=/usr/lib/afni/models \
-    AFNI_IMSAVE_WARNINGS=NO \
-    AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
-    AFNI_PLUGINPATH=/usr/lib/afni/plugins
-ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
+ENV FSLDIR="/usr/share/fsl/5.0" \
+    FSLOUTPUTTYPE="NIFTI_GZ" \
+    FSLMULTIFILEQUIT="TRUE" \
+    POSSUMDIR="/usr/share/fsl/5.0" \
+    LD_LIBRARY_PATH="/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" \
+    FSLTCLSH="/usr/bin/tclsh" \
+    FSLWISH="/usr/bin/wish" \
+    AFNI_MODELPATH="/usr/lib/afni/models" \
+    AFNI_IMSAVE_WARNINGS="NO" \
+    AFNI_TTATLAS_DATASET="/usr/share/afni/atlases" \
+    AFNI_PLUGINPATH="/usr/lib/afni/plugins"
+ENV PATH="/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH"
 
 # Installing ANTs 2.2.0 (NeuroDocker build)
 ENV ANTSPATH=/usr/lib/ants
@@ -83,8 +93,6 @@ RUN mkdir -p $ANTSPATH && \
 ENV PATH=$ANTSPATH:$PATH
 
 # Installing SVGO
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
-RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
 # Installing bids-validator
@@ -134,17 +142,6 @@ RUN conda install -y python=3.7.1 \
 RUN python -c "from matplotlib import font_manager" && \
     sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
 
-# Installing Ubuntu packages and cleaning up
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-                    git=1:2.7.4-0ubuntu1 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install latest pandoc
-RUN curl -o pandoc-2.2.2.1-1-amd64.deb -sSL "https://github.com/jgm/pandoc/releases/download/2.2.2.1/pandoc-2.2.2.1-1-amd64.deb" && \
-    dpkg -i pandoc-2.2.2.1-1-amd64.deb && \
-    rm pandoc-2.2.2.1-1-amd64.deb
-
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
 ENV MKL_NUM_THREADS=1 \
@@ -171,6 +168,7 @@ COPY . /root/src/fmriprep
 ARG VERSION
 # Force static versioning within container
 RUN echo "${VERSION}" > /root/src/fmriprep/fmriprep/VERSION && \
+    echo "include fmriprep/VERSION" >> /root/src/fmriprep/MANIFEST.in && \
     cd /root/src/fmriprep && \
     pip install .[all] && \
     rm -rf ~/.cache/pip
