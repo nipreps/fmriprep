@@ -61,7 +61,7 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
 # Installing Neurodebian packages (FSL, AFNI, git)
-RUN curl -sSL http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
+RUN curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full" >> /etc/apt/sources.list.d/neurodebian.sources.list && \
     apt-key add /root/.neurodebian.gpg && \
     (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
 
