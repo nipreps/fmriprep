@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 
 # C extensions
 *.so
@@ -64,6 +65,16 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+# pycharm project settings
+.idea
+
+# vscode project settings
+.vscode
+
+# Spyder project settings
+.spyderproject
+.spyproject
 
 auth/
 secrets.py

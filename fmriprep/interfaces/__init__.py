@@ -1,20 +1,38 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-from .bids import (
-    ReadSidecarJSON, DerivativesDataSink, BIDSDataGrabber, BIDSFreeSurferDir, BIDSInfo
-)
-from .images import (
-    IntraModalMerge, InvertT1w, ValidateImage, TemplateDimensions, Conform, Reorient
-)
-from .freesurfer import (
-    StructuralReference, MakeMidthickness, FSInjectBrainExtracted,
-    FSDetectInputs, RefineBrainMask, MedialNaNs
-)
-from .surf import NormalizeSurf, GiftiNameSource, GiftiSetAnatomicalStructure
+
+# Load modules for compatibility
+from niworkflows.interfaces import (
+    bids, cifti, freesurfer, images, itk, surf, utils)
+
 from .reports import SubjectSummary, FunctionalSummary, AboutSummary
-from .utils import TPM2ROI, AddTPMs, AddTSVHeader, ConcatAffines, JoinTSVColumns
 from .fmap import FieldEnhance, FieldToRadS, FieldToHz, Phasediff2Fieldmap
-from .confounds import GatherConfounds, ICAConfounds
-from .itk import MCFLIRT2ITK, MultiApplyTransforms
-from .multiecho import FirstEcho
+from .confounds import GatherConfounds, ICAConfounds, FMRISummary
+from .multiecho import T2SMap
+
+
+class DerivativesDataSink(bids.DerivativesDataSink):
+    out_path_base = 'fmriprep'
+
+
+__all__ = [
+    'bids',
+    'cifti',
+    'freesurfer',
+    'images',
+    'itk',
+    'surf',
+    'utils',
+    'SubjectSummary',
+    'FunctionalSummary',
+    'AboutSummary',
+    'FieldEnhance',
+    'FieldToRadS',
+    'FieldToHz',
+    'Phasediff2Fieldmap',
+    'GatherConfounds',
+    'ICAConfounds',
+    'FMRISummary',
+    'T2SMap',
+    'DerivativesDataSink',
+]

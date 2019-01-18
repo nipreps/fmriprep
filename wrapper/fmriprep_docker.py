@@ -12,7 +12,7 @@ running ::
 Please report any feedback to our GitHub repository
 (https://github.com/poldracklab/fmriprep) and do not
 forget to credit all the authors of software that fMRIPrep
-uses (http://fmriprep.rtfd.io/en/latest/citing.html).
+uses (https://fmriprep.readthedocs.io/en/latest/citing.html).
 """
 import sys
 import os
@@ -23,7 +23,7 @@ from warnings import warn
 __version__ = '99.99.99'
 __packagename__ = 'fmriprep-docker'
 __author__ = 'The CRN developers'
-__copyright__ = 'Copyright 2017, Center for Reproducible Neuroscience, Stanford University'
+__copyright__ = 'Copyright 2018, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ['Craig Moodie', 'Ross Blair', 'Oscar Esteban', 'Chris Gorgolewski',
                'Shoshana Berleant', 'Christopher J. Markiewicz', 'Russell A. Poldrack']
 __license__ = '3-clause BSD'
@@ -172,7 +172,7 @@ def merge_help(wrapper_help, target_help):
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
     expected_overlap = set(['h', 'version', 'w', 'template-resampling-grid',
-                            'output-grid-reference', 'fs-license-file'])
+                            'output-grid-reference', 'fs-license-file', 'use-plugin'])
     assert overlap == expected_overlap, "Clobbering options: {}".format(
         ', '.join(overlap - expected_overlap))
 
@@ -266,6 +266,9 @@ def get_parser():
         default=os.getenv('FS_LICENSE', None),
         help='Path to FreeSurfer license key file. Get it (for free) by registering'
              ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
+    g_wrap.add_argument(
+        '--use-plugin', metavar='PATH', action='store', default=None,
+        type=os.path.abspath, help='nipype plugin configuration file')
 
     # Developer patch/shell options
     g_dev = parser.add_argument_group(
@@ -286,6 +289,8 @@ def get_parser():
                        type=os.path.abspath, help='Use custom nipype.cfg file')
     g_dev.add_argument('-e', '--env', action='append', nargs=2, metavar=('ENV_VAR', 'value'),
                        help='Set custom environment variable within container')
+    g_dev.add_argument('-u', '--user', action='store',
+                       help='Run container as a given user/uid')
 
     return parser
 
@@ -350,21 +355,26 @@ def main():
             if resp not in ('y', 'Y', ''):
                 return 0
 
-    command = ['docker', 'run', '--rm', '-it']
+    ret = subprocess.run(['docker', 'version', '--format', "{{.Server.Version}}"],
+                         stdout=subprocess.PIPE)
+    docker_version = ret.stdout.decode('ascii').strip()
+
+    command = ['docker', 'run', '--rm', '-it', '-e',
+               'DOCKER_VERSION_8395080871=%s' % docker_version]
 
     # Patch working repositories into installed package directories
     for pkg in ('fmriprep', 'niworkflows', 'nipype'):
         repo_path = getattr(opts, 'patch_' + pkg)
         if repo_path is not None:
-            # nipype is now a submodule of niworkflows
-            if pkg == 'nipype':
-                pkg = 'niworkflows/nipype'
             command.extend(['-v',
                             '{}:{}/{}:ro'.format(repo_path, PKG_PATH, pkg)])
 
     if opts.env:
         for envvar in opts.env:
             command.extend(['-e', '%s=%s' % tuple(envvar)])
+
+    if opts.user:
+        command.extend(['-u', opts.user])
 
     if opts.fs_license_file:
         command.extend([
@@ -387,6 +397,11 @@ def main():
     if opts.config:
         command.extend(['-v', ':'.join((opts.config,
                                         '/root/.nipype/nipype.cfg', 'ro'))])
+
+    if opts.use_plugin:
+        command.extend(['-v', ':'.join((opts.use_plugin, '/tmp/plugin.yml',
+                                        'ro'))])
+        unknown_args.extend(['--use-plugin', '/tmp/plugin.yml'])
 
     template_target = opts.template_resampling_grid or opts.output_grid_reference
     if template_target is not None:

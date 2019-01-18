@@ -11,7 +11,7 @@ from random import randint
 from time import sleep
 
 from numpy.linalg.linalg import LinAlgError
-from niworkflows.nipype.algorithms import confounds as nac
+from nipype.algorithms import confounds as nac
 
 
 class RobustACompCor(nac.ACompCor):

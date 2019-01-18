@@ -1,0 +1,20 @@
+{
+    "winsorize_upper_quantile": 0.98,
+    "winsorize_lower_quantile": 0.05,
+    "float": true,
+    "metric": ["Mattes"],
+    "metric_weight": [1],
+    "radius_or_number_of_bins": [64],
+    "transforms": ["Affine"],
+    "transform_parameters": [[0.1]],
+    "number_of_iterations": [[200]],
+    "convergence_window_size": [10],
+    "convergence_threshold": [1e-09],
+    "sampling_strategy": ["Random", "Random"],
+    "smoothing_sigmas": [[2]],
+    "sigma_units": ["mm", "mm", "mm"],
+    "shrink_factors": [[2]],
+    "sampling_percentage": [0.2],
+    "use_histogram_matching": [true],
+    "use_estimate_learning_rate_once": [true]
+}

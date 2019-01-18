@@ -1,3 +1,267 @@
+1.2.6 (January 17, 2019)
+========================
+
+This is a bug fix release in the 1.2 series. Probably the most noticeable
+improvement is the restoration of auto-generated content in the documentation.
+
+Additionally, FreeSurfer ``aparc``/``aseg`` segmentations are now sampled to all
+output spaces.
+
+For any users importing fMRIPrep interfaces, many of these have been moved to
+the niworkflows package.
+
+With thanks to Nir Jacoby and Hrvoje Stojic for contributions.
+
+* [FIX] Use keyword arguments for Sentry breadcrumb reporting (#1441) @chrisfilo
+* [FIX] Verify proc file exists before reading (#1454) @effigies
+* [ENH] Only report participants with errors (#1437) @effigies
+* [ENH] Resample aparc/aseg into specified output spaces (#1401) @nirjacoby
+* [ENH] Copy BibTeX file to log directory for LaTeX users (#1446) @hstojic
+* [RF] Use niworkflows upstreamed interfaces and utilities (#1438) @oesteban
+* [DOC] Fix documentation build (#1451) @oesteban
+* [DOC] Fix ReadTheDocs builds (#1459) @effigies
+* [MAINT/DOC] Clean-up ``__about__``, update with Nat Meth (#1445) @oesteban
+* [MAINT] Make sure Python 3.7.1 is installed (#1452) @oesteban
+* [MAINT] Dev status to beta, bump copyright year (#1468) @effigies
+
+
+1.2.5 (December 4, 2018)
+========================
+
+Hotfix release.
+
+* [FIX] Breadcrumb reporting (#1435) @chrisfilo
+
+
+1.2.4 (December 3, 2018)
+========================
+
+Bugfixes, an additional iteration over Sentry reporting and some relevant ME-EPI updates 
+(with thanks to @emdupre).
+
+* [ENH] Update ME-EPI workflow to create optimal combination (#1263) @emdupre
+* [MAINT] Merge master into multiecho (#1324) @effigies
+* [ENH] Add echo-idx flag (#1355) @emdupre
+* [FIX] Always run FreeSurfer interfaces that sink outside working directory (#1397) @effigies
+* [ENH] Use Python 3.7 in Dockerfile (#1398) @effigies
+* [DOC] Update contributing guide and add code of conduct (#1404) @emdupre
+* [FIX] Calculate template transforms explicitly as RAS2RAS (#1399) @effigies
+* [MAINT] Replace ``img.get_affine()`` -> ``img.affine`` (#1414) @oesteban
+* [FIX] Truncating of sentry messages (#1417) @chrisfilo
+* [ENH] Add fmriprep-docker execution environment (#1416) @chrisfilo
+* [MAINT] Update indexed_gzip to handle small .nii.gz (#1421) @effigies
+* [ENH] Group common issues with fingerprints (#1418) @chrisfilo
+* [ENH] adding memory and cpu info to sentry logs (#1420) @chrisfilo
+* [ENH] Use standard T2* map as coregistration target (#1383) @emdupre
+* [ENH] Handle FreeSurfer subject directory preparation gracefully when run in parallel (#1413) @effigies
+* [ENH] Make sure inputs are BIDS compliant before running fmriprep (#1419) @chrisfilo
+* [ENH] Sentry event categorization propagation (#1422) @chrisfilo
+* [MAINT] Require nipype >= 1.1.6 (#1426) @effigies
+* [ENH] Omnibus multi-echo pull request (#1296) @effigies
+* [ENH] Report memory overcommit policies (#1429) @effigies
+
+
+1.2.3 (November 16, 2018)
+=========================
+
+Refactor of Sentry reporting, bug fixes and added tests. With thanks to @sebnaze for contributions.
+
+* [TEST] Utility functions for skipping/re-inserting non-steady-state volumes (#1382) @jdkent
+* [FIX] Correctly populate right-hemisphere time series in CIFTI derivatives (#1378) @sebnaze
+* [FIX] Restore original contour colors in reports (#1385) @oesteban
+* [ENH] New sentry SDK (#1381) @chrisfilo
+* [ENH] Sentry refinement (#1394) @chrisfilo
+
+
+1.2.2 (November 9, 2018)
+========================
+
+Several bug fixes. With thanks to Franz Liem, Nir Jacoby and Markus Handal Sneve for contributions.
+
+* [FIX] Do not show --debug deprecation warning unless used (#1361) @effigies
+* [FIX] Select consistent parcellation for producing aparcaseg derivatives (#1369) @nirjacoby
+* [FIX] Count non-steady-state volumes even if sbref is passed (#1373) @effigies
+* [ENH] Respect SliceEncodingDirection metadata (#1350) @fliem
+* [ENH] Set maximum MELODIC components to 200 by default (#1366) @markushs
+* [TEST] Verify LegacyMultiProc functionality (#1368) @effigies
+
+1.2.1 (November 1, 2018)
+========================
+
+Hotfix release (deployment system)
+
+1.2.0 (October 31, 2018)
+========================
+
+This release marks a substantial renaming of derivatives to conform to the BIDS Derivatives specification [release candidate](https://docs.google.com/document/d/17ebopupQxuRwp7U7TFvS6BH03ALJOgGHufxK8ToAvyI/).
+
+The most significant additional change is a substantial revision of BOLD skull-stripping, using a BOLD template constructed from many open datasets. Building off the work of Zhifang Ye (see #1050), the skull-stripping is now much more resilient to intensity inhomogeneity.
+
+With many thanks to Ali Cohen, James Kent, Inge Amlien, Sebastian Urchs, and Zhifang Ye for contributions.
+
+* [FIX] Missing BOLD reports (#1326) @oesteban
+* [FIX] Ensure encoding when reading boilerplate (#1322) @alioco
+* [FIX] Reportlets - bbregister vs flirtbbr (continues #1326) (#1328) @oesteban
+* [FIX] Quick update to new template structure (#1330) @oesteban
+* [FIX] Explicitly pass bold mask to AROMA (#1332) @jdkent
+* [FIX] Missing report output - #1339 (#1346) @kasbohm
+* [FIX] Remove non-steady-state volumes prior to ICA-AROMA (#1335) @jdkent
+* [ENH] Store BOLD reference images (#1306) @oesteban
+* [ENH] Deprecate --debug with --sloppy (#1347) @effigies
+* [ENH] Conform confound regressor names to Derivatives RC2 (#1343) @effigies
+* [ENH] Do not set KEEP_FILE_OPEN_DEFAULT (#1356) @effigies
+* [ENH] Template-based masking of EPI boldrefs (#1321) @oesteban
+* [DOC] Update BIDS-validator link (#1320) @surchs
+* [DOC] add --bind method to singularity patch documentation (#1340) @jdkent
+* [RF] Update anatomical derivatives for RC1  (#1325) @effigies
+* [RF] Update functional derivatives for RC1 (#1333) @effigies
+* [TST] Add heavily-nonuniform boldrefs for regression tests (#1329) @oesteban
+* [TST] Fix expectations for CIFTI outputs & ds005 (#1344) @oesteban
+* [MAINT] Ignore project settings files from popular python/code editors (#1336) @jdkent
+* [CI] Deploy poldracklab/fmriprep:unstable tracking master (#1307) @effigies 
+
+1.1.8 (October 4, 2018)
+=======================
+
+Several bug fixes. This release is intended to be the last before start
+adopting BIDS-Derivatives RC1 (which will trigger 1.2.x versions).
+
+* [DOC] Switch to orig graph for ``init_bold_t2s_wf`` (#1298) @effigies
+* [FIX] Enhance T2 contrast ``enhance_t2`` in reference estimate (#1299) @effigies
+* [FIX] Create template from one usable T1w image (#1305) @effigies
+* [MAINT] Pin grabbit and pybids in ``setup.py`` (#1284) @oesteban
+
+1.1.7 (September 25, 2018)
+==========================
+
+Several bug fixes. With thanks to Elizabeth Dupre and Romain Vala for
+contributions.
+
+* [FIX] Revert FreeSurfer download URL (#1280) @chrisfilo
+* [FIX] Default to 6 DoF for BOLD-T1w registration (#1286) @effigies
+* [FIX] Only grab sbref images, not metadata (#1285) @effigies
+* [FIX] QwarpPlusMinus renamed source_file to in_file (#1289) @effigies
+* [FIX] Remove long paths from all LTA output files (#1274) @romainVala
+* [ENH] Use single-band reference images when available (#1270) @effigies
+* [DOC] Note GIFTI surface alignment (#1288) @effigies
+* [REF] Split BOLD-T1w registration into calculation/application workflows (#1278) @emdupre
+* [MAINT] Pin pybids and grabbit in Docker build (#1281) @chrisfilo
+
+1.1.6 (September 10, 2018)
+==========================
+
+Hotfix release.
+
+* [FIX] Typo in plugin config loading.
+
+1.1.5 (September 06, 2018)
+==========================
+
+Improved documentation and minor bug fixes. With thanks to Jarod Roland and
+Taylor Salo for contributions.
+
+* [DOC] Replace ``--clearenv`` with correct ``--cleanenv`` flag (#1237) @jarodroland
+* [DOC] De-indent to remove text from code block (#1238) @effigies
+* [TST] Add enhance-and-skullstrip regression tests (#1074) @effigies
+* [DOC] Clearly indicate that fMRIPrep requires Python 3.5+ (#1249) @oesteban
+* [MAINT] Update PR template (#1239) @effigies
+* [DOC] Set appropriate version in Zenodo citation (#1250) @oesteban
+* [DOC] Updating long description (#1230) @oesteban
+* [DOC] Add ME workflow description (#1253) @tsalo
+* [FIX] Add memory annotation to ROIPlot interface (#1256) @jdkent
+* [ENH] Write derivatives ``dataset_description.json`` (#1247) @effigies
+* [DOC] Enable table text wrap and link docstrings to code on GitHub (#1258) @tsalo
+* [DOC] Clarify language describing T1w image merging (#1269) @chrisfilo
+* [FIX] Accommodate new template formats (#1273) @effigies
+* [FIX] Permit overriding plugin config with CLI options (#1272) @effigies
+
+
+1.1.4 (August 06, 2018)
+=======================
+
+A hotfix release for `#1235
+<https://github.com/poldracklab/fmriprep/issues/1235>`_. Additionally,
+notebooks have been synced with the latest version of that repository.
+
+* [FIX] Verify first word of ``_cmd`` in dependency check (#1236)
+* [DOC] Add two missing references (#1234)
+* [ENH] Allow turning off random seeding for ANTs brain extraction (#919)
+
+1.1.3 (July 30, 2018)
+=====================
+
+This release comes with many updates to the documentation, a more lightweight
+``SignalExtraction``, a new dynamic boilerplate and some new features from
+Nipype.
+
+* [ENH] Use upstream ``afni.TShift`` improvements (#1160)
+* [PIN] Nipype 1.1.1 (65078c9)
+* [ENH] Dynamic citation boilerplate (#1024)
+* [ENH] Check Command Line dependencies before running (#1044)
+* [ENH] Reimplement ``SignalExtraction`` (#1170)
+* [DOC] Update copyright year to 2018 (#1224)
+* [ENH] Enable ``-u`` (docker user/userid) flag in wrapper (#1223)
+* [FIX] Corrects Dockerfile ``WORKDIR``. (#1218)
+* [ENH] More specific errors for missing echo times (#1221)
+* [ENH] Change ``WORKDIR`` of Docker image (#1204)
+* [DOC] Update documentation related to contributions (#1187)
+* [DOC] Additions to include before responding to reviews of the pre-print (#1195)
+* [DOC] Improving documentation on using Singularity (#1063)
+* [DOC] Add OHBM 2018 poster, presentation (#1198)
+* [ENH] Replace ``InvertT1w`` with upstream ``Rescale(invert=True)`` (#1161)
+
+1.1.2 (July 6, 2018)
+====================
+
+This release incorporates Nipype improvements that should reduce the
+chance of hanging if tasks are killed for excessive resource consumption.
+
+Thanks to Elizabeth DuPre for documentation updates.
+
+* [DOC] Clarify how to reuse FreeSurfer derivatives (#1189)
+* [DOC] Improve command line option documentation (#1186, #1080)
+* [MAINT] Update core dependencies (#1179, #1180)
+
+1.1.1 (June 7, 2018)
+====================
+
+* [ENH] Pre-cache DKT31 template in Docker image (#1159)
+* [MAINT] Update core dependencies (#1163)
+
+1.1.0 (June 4, 2018)
+====================
+
+* [ENH] Use Reorient interface included upstream in nipype (#1153)
+* [FIX] Refine BIDS queries to avoid indexing derivatives (#1141)
+* [DOC] Clarify outlier columns (#1138)
+* [PIN] Update to niworkflows 0.4.0 and nipype 1.0.4 (#1133)
+
+1.0.15 (May 17, 2018)
+=====================
+
+* [DOC] Add lesion masking during registration (#1113)
+* [FIX] Patch ``boldbuffer`` for ME (#1134)
+
+1.0.14 (May 15, 2018)
+=====================
+
+With thanks to @ZhifangYe for contributions
+
+* [FIX] Non-invertible transforms bringing parcellation to BOLD (#1130)
+* [FIX] Bad connection for ``--medial-surface-nan`` option (#1128)
+
+1.0.13 (May 11, 2018)
+=====================
+
+With thanks to @danlurie for the outstanding contribution of #1106
+
+* [ENH] Some nit picks on reports (#1123)
+* [ENH] Carpetplot + confounds plot (#1114)
+* [ENH] Add constrained cost-function masking to T1-MNI registration (#1106)
+* [FIX] Circular dependency (#1104)
+* [ENH] Set ``PYTHONNOUSERSITE`` in containers (#1103)
+
+
 1.0.12 (May 03, 2018)
 =====================
 

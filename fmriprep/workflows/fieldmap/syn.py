@@ -25,16 +25,17 @@ Feedback will be enthusiastically received.
 """
 import pkg_resources as pkgr
 
-from niworkflows.nipype import logging
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import fsl, utility as niu
+from nipype import logging
+from nipype.pipeline import engine as pe
+from nipype.interfaces import fsl, utility as niu
+from nipype.interfaces.image import Rescale
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.fixes import (FixHeaderApplyTransforms as ApplyTransforms,
                                           FixHeaderRegistration as Registration)
-from ...interfaces import InvertT1w
 from ..bold.util import init_skullstrip_bold_wf
 
 DEFAULT_MEMORY_MIN_GB = 0.01
-LOGGER = logging.getLogger('workflow')
+LOGGER = logging.getLogger('nipype.workflow')
 
 
 def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
@@ -89,7 +90,23 @@ def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
             mask of the unwarped input file
 
     """
-    workflow = pe.Workflow(name=name)
+
+    if bold_pe is None or bold_pe[0] not in ['i', 'j']:
+        LOGGER.warning('Incorrect phase-encoding direction, assuming PA (posterior-to-anterior).')
+        bold_pe = 'j'
+
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+A deformation field to correct for susceptibility distortions was estimated
+based on *fMRIPrep*'s *fieldmap-less* approach.
+The deformation field is that resulting from co-registering the BOLD reference
+to the same-subject T1w-reference with its intensity inverted [@fieldmapless1;
+@fieldmapless2].
+Registration is performed with `antsRegistration` (ANTs {ants_ver}), and
+the process regularized by constraining deformation to be nonzero only
+along the phase-encoding direction, and modulated with an average fieldmap
+template [@fieldmapless3].
+""".format(ants_ver=Registration().version or '<ver>')
     inputnode = pe.Node(
         niu.IdentityInterface(['bold_ref', 'bold_ref_brain', 'template',
                                't1_brain', 't1_2_mni_reverse_transform']),
@@ -99,10 +116,6 @@ def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
                                'out_mask', 'out_warp']),
         name='outputnode')
 
-    if bold_pe is None or bold_pe[0] not in ['i', 'j']:
-        LOGGER.warning('Incorrect phase-encoding direction, assuming PA (posterior-to-anterior).')
-        bold_pe = 'j'
-
     # Collect predefined data
     # Atlas image and registration affine
     atlas_img = pkgr.resource_filename('fmriprep', 'data/fmap_atlas.nii.gz')
@@ -110,7 +123,7 @@ def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
     affine_transform = pkgr.resource_filename('fmriprep', 'data/affine.json')
     syn_transform = pkgr.resource_filename('fmriprep', 'data/susceptibility_syn.json')
 
-    invert_t1w = pe.Node(InvertT1w(), name='invert_t1w',
+    invert_t1w = pe.Node(Rescale(invert=True), name='invert_t1w',
                          mem_gb=0.3)
 
     ref_2_t1 = pe.Node(Registration(from_file=affine_transform),

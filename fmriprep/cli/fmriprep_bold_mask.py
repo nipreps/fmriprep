@@ -3,7 +3,7 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """Run the BOLD reference+mask workflow"""
 import os
-from niworkflows.nipype.utils.filemanip import hash_infile
+from nipype.utils.filemanip import hash_infile
 
 
 def get_parser():

@@ -36,16 +36,18 @@ False           False       False         HMC only
 
 """
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import utility as niu
-from niworkflows.nipype import logging
+from nipype.pipeline import engine as pe
+from nipype.interfaces import utility as niu
+from nipype import logging
+
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
 # Fieldmap workflows
 from .pepolar import init_pepolar_unwarp_wf
 from .syn import init_syn_sdc_wf
 from .unwarp import init_sdc_unwarp_wf
 
-LOGGER = logging.getLogger('workflow')
+LOGGER = logging.getLogger('nipype.workflow')
 FMAP_PRIORITY = {
     'epi': 0,
     'fieldmap': 1,
@@ -140,7 +142,7 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
     # TODO: To be removed (filter out unsupported fieldmaps):
     fmaps = [fmap for fmap in fmaps if fmap['type'] in FMAP_PRIORITY]
 
-    workflow = pe.Workflow(name='sdc_wf' if fmaps else 'sdc_bypass_wf')
+    workflow = Workflow(name='sdc_wf' if fmaps else 'sdc_bypass_wf')
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_ref', 'bold_ref_brain', 'bold_mask',
                 't1_brain', 't1_2_mni_reverse_transform', 'template']),
@@ -160,6 +162,12 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
                                      ('bold_ref_brain', 'bold_ref_brain')]),
         ])
         return workflow
+
+    workflow.__postdesc__ = """\
+Based on the estimated susceptibility distortion, an
+unwarped BOLD reference was calculated for a more accurate
+co-registration with the anatomical reference.
+"""
 
     # In case there are multiple fieldmaps prefer EPI
     fmaps.sort(key=lambda fmap: FMAP_PRIORITY[fmap['type']])
@@ -246,6 +254,7 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
             outputnode.inputs.method = 'FLB ("fieldmap-less", SyN-based)'
             sdc_unwarp_wf = syn_sdc_wf
         else:  # --force-syn was called when other fieldmap was present
+            sdc_unwarp_wf.__desc__ = None
             workflow.connect([
                 (syn_sdc_wf, outputnode, [
                     ('outputnode.out_reference', 'syn_bold_ref')]),

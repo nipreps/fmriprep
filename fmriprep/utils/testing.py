@@ -12,9 +12,9 @@ import unittest
 import logging
 from networkx.exception import NetworkXUnfeasible
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces.base import isdefined
-from niworkflows.nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
+from nipype.interfaces.base import isdefined
+from nipype.interfaces import utility as niu
 
 logging.disable(logging.INFO)  # <- do we really want to do this?
 
@@ -83,15 +83,18 @@ class TestWorkflow(unittest.TestCase):
 
             workflow.disconnect([(from_node, to_node, fields)])
 
-    def assert_inputs_set(self, workflow, additional_inputs={}):
-        ''' Check that all mandatory inputs of nodes in the workflow (at the first level) are
+    def assert_inputs_set(self, workflow, additional_inputs=None):
+        """Check that all mandatory inputs of nodes in the workflow (at the first level) are
         already set. Additionally, check that inputs in additional_inputs are set. An input is
         "set" if it is
             a) defined explicitly (e.g. in the Interface declaration)
             OR
             b) connected to another node's output (e.g. using the workflow.connect method)
         additional_inputs is a dict:
-            {'node_name': ['mandatory', 'input', 'fields']}'''
+            {'node_name': ['mandatory', 'input', 'fields']}
+        """
+
+        additional_inputs = additional_inputs or {}
         dummy_node = pe.Node(niu.IdentityInterface(fields=['dummy']), name='DummyNode')
         node_names = [name for name in workflow.list_node_names() if name.count('.') == 0]
         for node_name in set(node_names + list(additional_inputs.keys())):

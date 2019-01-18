@@ -68,7 +68,15 @@ arguments in a ``docker`` command::
         -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro --entrypoint=bash \
         poldracklab/fmriprep:latest
 
-Patching containers can be achieved in Singularity by using the PYTHONPATH variable: ::
+Patching containers can be achieved in Singularity analogous to ``docker``
+using the ``--bind`` (``-B``) option: ::
+
+    $ singularity run \
+        -B $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep \
+        fmriprep.img \
+        /scratch/dataset /scratch/out participant -w /out/work/
+
+Or you can patch Singularity containers using the PYTHONPATH variable: ::
 
    $ PYTHONPATH="$HOME/projects/fmriprep" singularity run fmriprep.img \
         /scratch/dataset /scratch/out participant -w /out/work/
@@ -84,8 +92,8 @@ The image `must be rebuilt <#rebuilding-docker-image>`_ after any
 dependency changes.
 
 Python dependencies should generally be included in the ``REQUIRES``
-list in `fmriprep/info.py
-<https://github.com/poldracklab/fmriprep/blob/29133e5e9f92aae4b23dd897f9733885a60be311/fmriprep/info.py#L46-L61>`_.
+list in `fmriprep/__about__.py
+<https://github.com/poldracklab/fmriprep/blob/510f28db4aab8a6adde0ccadeba2da7d78ed696e/fmriprep/__about__.py#L87-L107>`_.
 If the latest version in `PyPI <https://pypi.org/>`_ is sufficient,
 then no further action is required.
 
@@ -121,3 +129,38 @@ This image may be accessed by the `fmriprep-docker`_ wrapper via the
 ``-i`` flag, e.g. ::
 
     $ fmriprep-docker -i fmriprep --shell
+
+
+Adding new features to the citation boilerplate
+===============================================
+
+The citation boilerplate is built by adding two dunder attributes
+of workflow objects: ``__desc__`` and ``__postdesc__``.
+Once the full *fMRIPrep* workflow is built, starting from the
+outer workflow and visiting all sub-workflows in topological
+order, all defined ``__desc__`` are appended to the citation
+boilerplate before descending into sub-workflows.
+Once all the sub-workflows of a given workflow have
+been visited, then the ``__postdesc__`` attribute is appended
+and the execution pops out to higher level workflows.
+The dunder attributes are written in Markdown language, and may contain
+references.
+To add a reference, just add a new Bibtex entry to the references
+database (``/fmriprep/data/boilerplate.bib``).
+You can then use the Bibtex handle within the Markdown text.
+For example, if the Bibtex handle is ``myreference``, a citation
+will be generated in Markdown language with ``@myreference``.
+To generate citations with parenthesis and/or additional content,
+brackets should be used: e.g. ``[see @myreference]`` will produce
+a citation like *(see Doe J. et al 2018)*.
+
+
+An example of how this works is shown here: ::
+
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+    Head-motion parameters with respect to the BOLD reference
+    (transformation matrices, and six corresponding rotation and translation
+    parameters) are estimated before any spatiotemporal filtering using
+    `mcflirt` [FSL {fsl_ver}, @mcflirt].
+    """.format(fsl_ver=fsl.Info().version() or '<ver>')

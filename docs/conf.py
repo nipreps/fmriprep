@@ -24,6 +24,8 @@ from packaging import version as pver  # Avoid distutils.LooseVersion which is d
 sys.path.append(os.path.abspath('sphinxext'))
 sys.path.insert(0, os.path.abspath('../wrapper'))
 
+from github_link import make_linkcode_resolve
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -38,7 +40,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
+    'sphinx.ext.linkcode',
     'sphinxarg.ext',  # argparse extension
     'nipype.sphinxext.plot_workflow',
     'nbsphinx',
@@ -314,6 +316,11 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
 
+# The following is used by sphinx.ext.linkcode to provide links to github
+linkcode_resolve = make_linkcode_resolve('fmriprep',
+                                         u'https://github.com/poldracklab/'
+                                         'fmriprep/blob/{revision}/'
+                                         '{package}/{path}#L{lineno}')
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
@@ -322,5 +329,6 @@ suppress_warnings = ["image.nonlocal_uri"]
 
 
 def setup(app):
+    app.add_stylesheet('theme_overrides.css')
     # We need this for the boilerplate script
     app.add_javascript("https://cdn.rawgit.com/chrisfilo/zenodo.js/v0.1/zenodo.js")

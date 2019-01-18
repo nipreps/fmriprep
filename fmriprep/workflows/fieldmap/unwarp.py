@@ -21,18 +21,15 @@ Unwarping
 
 import pkg_resources as pkgr
 
-from niworkflows.nipype.pipeline import engine as pe
-from niworkflows.nipype.interfaces import ants, fsl, utility as niu
+from nipype.pipeline import engine as pe
+from nipype.interfaces import ants, fsl, utility as niu
+from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+from niworkflows.interfaces import itk
+from niworkflows.interfaces.images import DemeanImage, FilledImageLike
 from niworkflows.interfaces.registration import ANTSApplyTransformsRPT, ANTSRegistrationRPT
 
-from ...interfaces import itk, DerivativesDataSink
-from ...interfaces.fmap import (
-    get_ees as _get_ees,
-    FieldToRadS,
-)
-from ...interfaces.images import (
-    DemeanImage, FilledImageLike
-)
+from ...interfaces import DerivativesDataSink
+from ...interfaces.fmap import get_ees as _get_ees, FieldToRadS
 from ..bold.util import init_enhance_and_skullstrip_bold_wf
 
 
@@ -89,7 +86,7 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
 
     """
 
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['in_reference', 'in_reference_brain', 'in_mask', 'metadata',
                 'fmap_ref', 'fmap_mask', 'fmap']), name='inputnode')
@@ -151,7 +148,8 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
 
     apply_fov_mask = pe.Node(fsl.ApplyMask(), name="apply_fov_mask")
 
-    enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
+    enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads,
+                                                                         pre_mask=True)
 
     workflow.connect([
         (inputnode, fmap2ref_reg, [('fmap_ref', 'moving_image')]),
@@ -186,6 +184,8 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
         (fmap_fov2ref_apply, apply_fov_mask, [('output_image', 'mask_file')]),
         (unwarp_reference, apply_fov_mask, [('output_image', 'in_file')]),
         (apply_fov_mask, enhance_and_skullstrip_bold_wf, [('out_file', 'inputnode.in_file')]),
+        (fmap_mask2ref_apply, enhance_and_skullstrip_bold_wf,
+            [('output_image', 'inputnode.pre_mask')]),
         (apply_fov_mask, outputnode, [('out_file', 'out_reference')]),
         (enhance_and_skullstrip_bold_wf, outputnode, [
             ('outputnode.mask_file', 'out_mask'),
@@ -243,18 +243,13 @@ def init_fmap_unwarp_report_wf(name='fmap_unwarp_report_wf', suffix='variant-hmc
             Affine transform from T1 space to BOLD space (ITK format)
 
     """
-
-    from niworkflows.nipype.pipeline import engine as pe
-    from niworkflows.nipype.interfaces import utility as niu
-    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
-
     from niworkflows.interfaces import SimpleBeforeAfter
-    from ...interfaces.images import extract_wm
-    from ...interfaces import DerivativesDataSink
+    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    from niworkflows.interfaces.images import extract_wm
 
     DEFAULT_MEMORY_MIN_GB = 0.01
 
-    workflow = pe.Workflow(name=name)
+    workflow = Workflow(name=name)
 
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['in_pre', 'in_post', 'in_seg', 'in_xfm']), name='inputnode')

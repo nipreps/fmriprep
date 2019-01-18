@@ -15,10 +15,10 @@ jobs:
             apk add --no-cache pigz python3
       - restore_cache:
           keys:
-            - docker-v2-{{ .Branch }}-{{ epoch }}
-            - docker-v2-{{ .Branch }}-
-            - docker-v2-master-
-            - docker-v2-
+            - docker-v3-{{ .Branch }}-{{ epoch }}
+            - docker-v3-{{ .Branch }}-
+            - docker-v3-master-
+            - docker-v3-
           paths:
             - /tmp/cache/docker.tar.gz
             - /tmp/cache/ubuntu.tar.gz
@@ -48,6 +48,7 @@ jobs:
             fi
             sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
             sed -i -E "s/(var version = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" docs/citing.rst
+            sed -i "s/title = {FMRIPrep}/title = {FMRIPrep ${CIRCLE_TAG:-$THISVERSION}}/" fmriprep/data/boilerplate.bib
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build \
@@ -82,8 +83,8 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v5-{{ epoch }}
-            - data-v5-
+            - data-v6-{{ epoch }}
+            - data-v6-
       - run:
           name: Get test data from ds000005
           command: |
@@ -151,10 +152,50 @@ jobs:
             - ds054/nipype.cfg
             - ds210/nipype.cfg
       - save_cache:
-         key: data-v5-{{ epoch }}
+         key: data-v6-{{ epoch }}
          paths:
             - /tmp/data
             - /tmp/ds005/derivatives/freesurfer
+
+  get_regression_data:
+    machine:
+      # Ubuntu 14.04 with Docker 17.10.0-ce
+      image: circleci/classic:201711-01
+    working_directory: /home/circleci/data
+    steps:
+      - restore_cache:
+          keys:
+            - regression-v3-{{ epoch }}
+            - regression-v3-
+      - run:
+          name: Get truncated BOLD series
+          command: |
+            mkdir -p /tmp/data
+            if [[ ! -d /tmp/data/fmriprep_bold_truncated ]]; then
+              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+                -O fmriprep_bold_truncated.tar.gz "https://osf.io/286yr/download"
+              tar xvzf fmriprep_bold_truncated.tar.gz -C /tmp/data/
+            else
+              echo "Truncated BOLD series were cached"
+            fi
+      - run:
+          name: Get pre-computed masks
+          command: |
+            if [[ ! -d /tmp/data/fmriprep_bold_mask ]]; then
+              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+                -O fmriprep_bold_mask.tar.gz "https://osf.io/s4f7b/download"
+              tar xvzf fmriprep_bold_mask.tar.gz -C /tmp/data/
+            else
+              echo "Pre-computed masks were cached"
+            fi
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - data
+      - save_cache:
+         key: regression-v3-{{ epoch }}
+         paths:
+            - /tmp/data
 
   update_cache:
     machine:
@@ -165,7 +206,7 @@ jobs:
       - attach_workspace:
           at: /tmp
       - save_cache:
-         key: docker-v2-{{ .Branch }}-{{ epoch }}
+         key: docker-v3-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/cache/docker.tar.gz
 
@@ -184,8 +225,17 @@ jobs:
               echo "Skipping pytest job"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
+      - run:
+          name: Check PyPi preconditions
+          command: |
+            pyenv global 3.5.2
+            virtualenv venv
+            pip install "setuptools>=27.0" cython numpy twine docutils
+            python setup.py check -r -s
+            python setup.py sdist
       - run:
           name: Load Docker image layer cache
           no_output_timeout: 30m
@@ -201,10 +251,21 @@ jobs:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
           command: |
+            mkdir /tmp/data/reports && \
             docker run -ti --rm=false \
-              --entrypoint="/usr/local/miniconda/bin/py.test" \
-              poldracklab/fmriprep:latest . \
-              --doctest-modules --ignore=docs --ignore=setup.py
+              -v /tmp/data:/tmp/data \
+              -e FMRIPREP_REGRESSION_SOURCE=/tmp/data/fmriprep_bold_truncated \
+              -e FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
+              -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
+              --entrypoint="py.test" poldracklab/fmriprep:latest \
+              /root/src/fmriprep/ \
+              -svx --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
+      - run:
+          name: Package new masks
+          no_output_timeout: 10m
+          working_directory: /tmp/data/reports
+          command: |
+            tar cfz fmriprep_bold_mask.tar.gz fmriprep_bold_mask/*/*.nii.gz
       - run:
           name: Test fmriprep-wrapper (Python 2)
           command: |
@@ -230,7 +291,7 @@ jobs:
             fmriprep-docker -i poldracklab/fmriprep:latest --help
             fmriprep-docker -i poldracklab/fmriprep:latest --version
       - store_artifacts:
-          path: /home/circleci/out/tests
+          path: /tmp/data/reports
 
 
   build_docs:
@@ -248,6 +309,7 @@ jobs:
               echo "Skipping pytest job"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - run:
@@ -268,7 +330,7 @@ jobs:
             docker run -ti --rm=false -v $PWD:/_build_html \
               --entrypoint=sphinx-build poldracklab/fmriprep:latest \
               -T -E -b html -d _build/doctrees-readthedocs -W -D \
-              language=en docs/ /_build_html 2>&1 \
+              language=en /root/src/fmriprep/docs/ /_build_html 2>&1 \
               | tee $PWD/builddocs.log
             cat $PWD/builddocs.log
             grep -qv "ERROR" $PWD/builddocs.log
@@ -292,14 +354,15 @@ jobs:
               echo "Skipping ds000005 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v6-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v6-{{ .Branch }}
-            - ds005-anat-v6-master
-            - ds005-anat-v6-
+            - ds005-anat-v12-{{ .Branch }}-{{ epoch }}
+            - ds005-anat-v12-{{ .Branch }}
+            - ds005-anat-v12-master
+            - ds005-anat-v12-
       - run:
           name: Setting up test
           command: |
@@ -327,19 +390,19 @@ jobs:
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
                 sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
-                --debug --write-graph --mem_mb 4096 \
+                --sloppy --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds005-anat-v6-{{ .Branch }}-{{ epoch }}
+         key: ds005-anat-v12-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
             - /tmp/ds005/derivatives/fmriprep
 
       - run:
-          name: Run full fMRIPrep on ds005
+          name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && \
@@ -347,13 +410,14 @@ jobs:
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
                 sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
-                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
+                --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --ignore-aroma-denoising-errors --use-aroma \
                 --output-space T1w template fsaverage5 \
                 --template-resampling-grid native \
+                --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 2 --cifti-output -vv
       - run:
           name: Move intermediate results for second run
@@ -374,10 +438,10 @@ jobs:
           command: |
             rm /tmp/data/ds005/sub-01/func/*_run-02_*
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
-                --debug --write-graph --use-syn-sdc --mem_mb 4096 \
+                --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-space T1w template fsaverage5 \
                 --ignore-aroma-denoising-errors --use-aroma \
                 --template-resampling-grid native \
@@ -421,14 +485,15 @@ jobs:
               echo "Skipping ds000054 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v4-{{ .Branch }}-{{ epoch }}
-            - ds054-anat-v4-{{ .Branch }}
-            - ds054-anat-v4-master
-            - ds054-anat-v4-
+            - ds054-anat-v10-{{ .Branch }}-{{ epoch }}
+            - ds054-anat-v10-{{ .Branch }}
+            - ds054-anat-v10-master
+            - ds054-anat-v10-
       - run:
           name: Setting up test
           command: |
@@ -459,10 +524,10 @@ jobs:
                 -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph \
+                --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds054-anat-v4-{{ .Branch }}-{{ epoch }}
+         key: ds054-anat-v10-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
             - /tmp/ds054/derivatives
@@ -479,7 +544,7 @@ jobs:
                 -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug \
+                --fs-no-reconall --sloppy \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --mem_mb 4096 --nthreads 2 -vv
@@ -504,7 +569,7 @@ jobs:
                 -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
-                --fs-no-reconall --debug --write-graph \
+                --fs-no-reconall --sloppy --write-graph \
                 --output-space T1w template \
                 --template-resampling-grid 2mm \
                 --reports-only --run-uuid $UUID
@@ -539,12 +604,15 @@ jobs:
               echo "Skipping ds000210 build"
               circleci step halt
             fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
-            - ds210-anat-v1-{{ epoch }}
-            - ds210-anat-v1-
+            - ds210-anat-v8-{{ .Branch }}-{{ epoch }}
+            - ds210-anat-v8-{{ .Branch }}
+            - ds210-anat-v8-master
+            - ds210-anat-v8-
       - run:
           name: Setting up test
           command: |
@@ -575,10 +643,10 @@ jobs:
                 -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds210/work \
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
-                --fs-no-reconall --debug --write-graph \
+                --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds210-anat-v1-{{ epoch }}
+         key: ds210-anat-v8-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds210/work
             - /tmp/ds210/derivatives
@@ -593,7 +661,7 @@ jobs:
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --t2s-coreg --use-syn-sdc \
                 --template-resampling-grid native \
-                --debug --write-graph --mem_mb 4096 --nthreads 2 -vv
+                --sloppy --write-graph --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
           command: |
@@ -612,11 +680,12 @@ jobs:
       - store_artifacts:
           path: /tmp/ds210
 
-  deploy:
+  deploy_docker:
     machine:
       image: circleci/classic:201711-01
     working_directory: /tmp/src/fmriprep
     steps:
+
       - attach_workspace:
           at: /tmp
       - run:
@@ -636,15 +705,31 @@ jobs:
           command: |
             if [[ -n "$DOCKER_PASS" ]]; then
               docker login -u $DOCKER_USER -p $DOCKER_PASS
-              docker push poldracklab/fmriprep:latest
-              docker tag poldracklab/fmriprep poldracklab/fmriprep:$CIRCLE_TAG
-              docker push poldracklab/fmriprep:$CIRCLE_TAG
+              docker tag poldracklab/fmriprep poldracklab/fmriprep:unstable
+              docker push poldracklab/fmriprep:unstable
+              if [[ -n "$CIRCLE_TAG" ]]; then
+                docker push poldracklab/fmriprep:latest
+                docker tag poldracklab/fmriprep poldracklab/fmriprep:$CIRCLE_TAG
+                docker push poldracklab/fmriprep:$CIRCLE_TAG
+              fi
             fi
+
+  deploy_pypi:
+    machine:
+      image: circleci/classic:201711-01
+    working_directory: /tmp/src/fmriprep
+    steps:
+      - attach_workspace:
+          at: /tmp
       - run:
           name: Deploy to PyPi
           command: |
-            pip install "setuptools>=27.0" cython numpy twine future
+            pyenv global 3.5.2
+            virtualenv venv
+            pip install "setuptools>=27.0" cython numpy twine docutils
             echo "${CIRCLE_TAG}" > fmriprep/VERSION
+            echo "include fmriprep/VERSION" >> MANIFEST.in
+            python setup.py check -r -s
             python setup.py sdist
             twine upload dist/*
             cd wrapper && python setup.py sdist
@@ -662,7 +747,20 @@ workflows:
       - get_data:
           filters:
             branches:
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
+            tags:
+              only: /.*/
+
+      - get_regression_data:
+          filters:
+            branches:
+              ignore:
+                - /docs?\/.*/
+                - /ds005\/.*/
+                - /ds054\/.*/
+                - /ds210\/.*/
             tags:
               only: /.*/
 
@@ -670,6 +768,12 @@ workflows:
           requires:
             - build
           filters:
+            branches:
+              ignore:
+                - /tests?\/.*/
+                - /ds005\/.*/
+                - /ds054\/.*/
+                - /ds210\/.*/
             tags:
               only: /.*/
 
@@ -678,16 +782,23 @@ workflows:
             - build
           filters:
             branches:
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
             tags:
               only: /.*/
 
       - test_pytest:
           requires:
             - build
+            - get_regression_data
           filters:
             branches:
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /ds005\/.*/
+                - /ds054\/.*/
+                - /ds210\/.*/
             tags:
               only: /.*/
 
@@ -697,7 +808,11 @@ workflows:
             - build
           filters:
             branches:
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
+                - /ds054\/.*/
+                - /ds210\/.*/
             tags:
               only: /.*/
 
@@ -707,7 +822,11 @@ workflows:
             - build
           filters:
             branches:
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
+                - /ds005\/.*/
+                - /ds210\/.*/
             tags:
               only: /.*/
 
@@ -718,11 +837,29 @@ workflows:
           filters:
             branches:
               # only: /meepi.*/
-              ignore: /docs?\/.*/
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
+                - /ds005\/.*/
+                - /ds054\/.*/
             tags:
               only: /.*/
 
-      - deploy:
+      - deploy_docker:
+          requires:
+            - build
+            - test_pytest
+            - build_docs
+            - ds005
+            - ds054
+            - ds210
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /.*/
+
+      - deploy_pypi:
           requires:
             - build
             - test_pytest

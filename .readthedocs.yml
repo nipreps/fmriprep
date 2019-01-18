@@ -1,12 +1,14 @@
 # conda:
 #     file: docs/environment.yml
 # requirements_file: requirements.txt - this option seems to be ignored by RTD
-formats:
-    - none
+build:
+    image: latest
+
 python:
-    setup_py_install: false
+    version: 3.6
     pip_install: true
-    version: 3.5
+    use_system_site_packages: true
     extra_requirements:
         - doc
 
+formats: []

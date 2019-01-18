@@ -14,13 +14,13 @@ import time
 import re
 
 from collections import Counter
-from niworkflows.nipype.interfaces.base import (
+from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
     File, Directory, InputMultiPath, Str, isdefined,
     SimpleInterface)
-from niworkflows.nipype.interfaces import freesurfer as fs
+from nipype.interfaces import freesurfer as fs
+from niworkflows.utils.bids import BIDS_NAME
 
-from .bids import BIDS_NAME
 
 SUBJECT_TEMPLATE = """\t<ul class="elem-desc">
 \t\t<li>Subject ID: {subject_id}</li>
@@ -44,8 +44,8 @@ FUNCTIONAL_TEMPLATE = """\t\t<h3 class="elem-title">Summary</h3>
 """
 
 ABOUT_TEMPLATE = """\t<ul>
-\t\t<li>FMRIPREP version: {version}</li>
-\t\t<li>FMRIPREP command: <tt>{command}</tt></li>
+\t\t<li>FMRIPrep version: {version}</li>
+\t\t<li>FMRIPrep command: <code>{command}</code></li>
 \t\t<li>Date preprocessed: {date}</li>
 \t</ul>
 </div>
@@ -106,7 +106,7 @@ class SubjectSummary(SummaryInterface):
             if recon.cmdline.startswith('echo'):
                 freesurfer_status = 'Pre-existing directory'
             else:
-                freesurfer_status = 'Run by FMRIPREP'
+                freesurfer_status = 'Run by fMRIPrep'
 
         output_spaces = [self.inputs.template if space == 'template' else space
                          for space in self.inputs.output_spaces]
@@ -127,7 +127,7 @@ class SubjectSummary(SummaryInterface):
             header = '\t\t<ul class="elem-desc">'
             footer = '\t\t</ul>'
             lines = ['\t\t\t<li>Task: {task_id} ({n_runs:d} run{s})</li>'.format(
-                         task_id=task_id, n_runs=n_runs, s='' if n_runs == 1 else 's')
+                     task_id=task_id, n_runs=n_runs, s='' if n_runs == 1 else 's')
                      for task_id, n_runs in sorted(counts.items())]
             tasks = '\n'.join([header] + lines + [footer])
 
@@ -164,13 +164,16 @@ class FunctionalSummary(SummaryInterface):
         stc = {True: 'Applied',
                False: 'Not applied',
                'TooShort': 'Skipped (too few volumes)'}[self.inputs.slice_timing]
-        reg = {'FSL': [
-                   'FLIRT with boundary-based registration (BBR) metric - %d dof' % dof,
-                   'FLIRT rigid registration - 6 dof'],
-               'FreeSurfer': [
-                   'FreeSurfer boundary-based registration (bbregister) - %d dof' % dof,
-                   'FreeSurfer mri_coreg - %d dof' % dof],
-               }[self.inputs.registration][self.inputs.fallback]
+        reg = {
+            'FSL': [
+                'FSL <code>flirt</code> with boundary-based registration'
+                ' (BBR) metric - %d dof' % dof,
+                'FSL <code>flirt</code> rigid registration - 6 dof'],
+            'FreeSurfer': [
+                'FreeSurfer <code>bbregister</code> '
+                '(boundary-based registration, BBR) - %d dof' % dof,
+                'FreeSurfer <code>mri_coreg</code> - %d dof' % dof],
+        }[self.inputs.registration][self.inputs.fallback]
         if self.inputs.pe_direction is None:
             pedir = 'MISSING - Assuming Anterior-Posterior'
         else:
