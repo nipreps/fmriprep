@@ -322,7 +322,6 @@ def get_ees(in_meta, in_file=None):
     if ees is not None:
         return ees
 
-
     # All other cases require the parallel acc and npe (N vox in PE dir)
     etl = _get_etl(in_meta)
 
