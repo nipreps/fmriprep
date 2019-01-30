@@ -322,8 +322,19 @@ def get_ees(in_meta, in_file=None):
     if ees is not None:
         return ees
 
-    # All other cases require the parallel acc and npe (N vox in PE dir)
-    etl = _get_etl(in_meta, in_file)
+    acc = float(in_meta.get('ParallelReductionFactorInPlane', 1.0))
+    npe = nb.load(in_file).shape[_get_pe_index(in_meta)]
+    etl = npe // acc
+
+    # Prefer metadata over size of the nifti file (Philips data can have
+    # different number of acquired versus reconstructed k-space lines
+    # see https://github.com/poldracklab/fmriprep/issues/1029 )
+
+    if 'EPIFactor' in in_meta:
+        etl = in_meta['EPIFactor'] + 1  # ETL is EPIFactor + 1 for Philips
+
+    # Not part of the BIDS spec now
+    etl = int(in_meta.get('EchoTrainLength', etl))
 
     # Use case 2: TRT is defined
     trt = in_meta.get('TotalReadoutTime', None)
@@ -391,7 +402,19 @@ def get_trt(in_meta, in_file=None):
         return trt
 
     # All other cases require the parallel acc and npe (N vox in PE dir)
-    etl = _get_etl(in_meta, in_file)
+    acc = float(in_meta.get('ParallelReductionFactorInPlane', 1.0))
+    npe = nb.load(in_file).shape[_get_pe_index(in_meta)]
+    etl = npe // acc
+
+    # Prefer metadata over size of the nifti file (Philips data can have
+    # different number of acquired versus reconstructed k-space lines
+    # see https://github.com/poldracklab/fmriprep/issues/1029 )
+
+    if 'EPIFactor' in in_meta:
+        etl = in_meta['EPIFactor'] + 1  # ETL is EPIFactor + 1 for Philips
+
+    # Not part of the BIDS spec now
+    etl = int(in_meta.get('EchoTrainLength', etl))
 
     # Use case 2: TRT is defined
     ees = in_meta.get('EffectiveEchoSpacing', None)
@@ -409,23 +432,6 @@ def get_trt(in_meta, in_file=None):
 
     raise ValueError('Unknown total-readout time specification')
 
-def _get_etl(in_meta, in_file):
-
-    acc = float(in_meta.get('ParallelReductionFactorInPlane', 1.0))
-    npe = nb.load(in_file).shape[_get_pe_index(in_meta)]
-    etl = npe // acc
-
-    # Prefer metadata over size of the nifti file (Philips data can have
-    # different number of acquired versus reconstructed k-space lines
-    # see https://github.com/poldracklab/fmriprep/issues/1029 )
-
-    if 'EPIFactor' in in_meta:
-        etl = in_meta.get('EPIFactor') + 1 # ETL is EPIFactor + 1 for Philips
-
-    # Not part of the BIDS spec now
-    etl = int(in_meta.get('EchoTrainLength', etl))
-
-    return etl
 
 def _get_pe_index(meta):
     pe = meta['PhaseEncodingDirection']
