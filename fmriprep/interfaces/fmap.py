@@ -323,7 +323,7 @@ def get_ees(in_meta, in_file=None):
         return ees
 
     # All other cases require the parallel acc and npe (N vox in PE dir)
-    etl = _get_etl(in_meta)
+    etl = _get_etl(in_meta, in_file)
 
     # Use case 2: TRT is defined
     trt = in_meta.get('TotalReadoutTime', None)
@@ -391,7 +391,7 @@ def get_trt(in_meta, in_file=None):
         return trt
 
     # All other cases require the parallel acc and npe (N vox in PE dir)
-    etl = _get_etl(in_meta)
+    etl = _get_etl(in_meta, in_file)
 
     # Use case 2: TRT is defined
     ees = in_meta.get('EffectiveEchoSpacing', None)
@@ -409,7 +409,7 @@ def get_trt(in_meta, in_file=None):
 
     raise ValueError('Unknown total-readout time specification')
 
-def _get_etl(in_meta):
+def _get_etl(in_meta, in_file):
 
     acc = float(in_meta.get('ParallelReductionFactorInPlane', 1.0))
     npe = nb.load(in_file).shape[_get_pe_index(in_meta)]
