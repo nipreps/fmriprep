@@ -419,7 +419,10 @@ def _get_etl(in_meta):
     # Prefer metadata over size of the nifti file (Philips data can have
     # different number of acquired versus reconstructed k-space lines
     # see https://github.com/poldracklab/fmriprep/issues/1029 )
-    etl = int(in_meta.get('EPIFactor', etl))
+    if 'EPIFactor' in in_meta:
+        etl = in_meta.get('EPIFactor') + 1 # ETL is EPIFactor + 1 for Philips
+
+    # Not part of the BIDS spec now
     etl = int(in_meta.get('EchoTrainLength', etl))
 
     return etl
