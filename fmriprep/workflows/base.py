@@ -26,11 +26,10 @@ from niworkflows.interfaces.bids import (
 )
 from niworkflows.utils.bids import collect_data
 from niworkflows.utils.misc import fix_multi_T1w_source_name
+from smriprep.workflows.anatomical import init_anat_preproc_wf
 
 from ..interfaces import SubjectSummary, AboutSummary, DerivativesDataSink
 from ..__about__ import __version__
-
-from .anatomical import init_anat_preproc_wf
 from .bold import init_func_preproc_wf
 
 
@@ -68,7 +67,7 @@ def init_fmriprep_wf(subject_list, task_id, echo_idx, run_uuid, work_dir, output
                               longitudinal=False,
                               t2s_coreg=False,
                               omp_nthreads=1,
-                              skull_strip_template='OASIS',
+                              skull_strip_template='OASIS30ANTs',
                               skull_strip_fixed_seed=False,
                               freesurfer=True,
                               output_spaces=['T1w', 'fsnative',
@@ -122,7 +121,7 @@ def init_fmriprep_wf(subject_list, task_id, echo_idx, run_uuid, work_dir, output
         omp_nthreads : int
             Maximum number of threads an individual process may use
         skull_strip_template : str
-            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
+            Name of ANTs skull-stripping template ('OASIS30ANTs' or 'NKI')
         skull_strip_fixed_seed : bool
             Do not use a random seed for skull-stripping - will ensure
             run-to-run replicability when used with --omp-nthreads 1
@@ -267,7 +266,7 @@ def init_single_subject_wf(subject_id, task_id, echo_idx, name, reportlets_dir, 
                                     longitudinal=False,
                                     t2s_coreg=False,
                                     omp_nthreads=1,
-                                    skull_strip_template='OASIS',
+                                    skull_strip_template='OASIS30ANTs',
                                     skull_strip_fixed_seed=False,
                                     freesurfer=True,
                                     template='MNI152NLin2009cAsym',
@@ -314,7 +313,7 @@ def init_single_subject_wf(subject_id, task_id, echo_idx, name, reportlets_dir, 
         omp_nthreads : int
             Maximum number of threads an individual process may use
         skull_strip_template : str
-            Name of ANTs skull-stripping template ('OASIS' or 'NKI')
+            Name of ANTs skull-stripping template ('OASIS30ANTs' or 'NKI')
         skull_strip_fixed_seed : bool
             Do not use a random seed for skull-stripping - will ensure
             run-to-run replicability when used with --omp-nthreads 1
@@ -442,19 +441,21 @@ to workflows in *fMRIPrep*'s documentation]\
         name='ds_report_about', run_without_submitting=True)
 
     # Preprocessing of T1w (includes registration to MNI)
-    anat_preproc_wf = init_anat_preproc_wf(name="anat_preproc_wf",
-                                           skull_strip_template=skull_strip_template,
-                                           skull_strip_fixed_seed=skull_strip_fixed_seed,
-                                           output_spaces=output_spaces,
-                                           template=template,
-                                           debug=debug,
-                                           longitudinal=longitudinal,
-                                           omp_nthreads=omp_nthreads,
-                                           freesurfer=freesurfer,
-                                           hires=hires,
-                                           reportlets_dir=reportlets_dir,
-                                           output_dir=output_dir,
-                                           num_t1w=len(subject_data['t1w']))
+    anat_preproc_wf = init_anat_preproc_wf(
+        skull_strip_template=skull_strip_template,
+        fs_spaces=output_spaces,
+        template=template,
+        debug=debug,
+        freesurfer=freesurfer,
+        longitudinal=longitudinal,
+        omp_nthreads=omp_nthreads,
+        hires=hires,
+        reportlets_dir=reportlets_dir,
+        output_dir=output_dir,
+        num_t1w=len(subject_data['t1w']),
+        skull_strip_fixed_seed=skull_strip_fixed_seed,
+        name="anat_preproc_wf",
+    )
 
     workflow.connect([
         (inputnode, anat_preproc_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
@@ -474,6 +475,11 @@ to workflows in *fMRIPrep*'s documentation]\
         (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])
+
+    # Overwrite ``out_path_base`` of smriprep's DataSinks
+    for node in workflow.list_node_names():
+        if node.split('.')[-1].startswith('ds_'):
+            workflow.get_node(node).interface.out_path_base = 'fmriprep'
 
     if anat_only:
         return workflow

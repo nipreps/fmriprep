@@ -779,10 +779,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ])
 
     # SURFACES ##################################################################################
-    if freesurfer and any(space.startswith('fs') for space in output_spaces):
+    surface_spaces = [space for space in output_spaces if space.startswith('fs')]
+    if freesurfer and surface_spaces:
         LOGGER.log(25, 'Creating BOLD surface-sampling workflow.')
         bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
-                                         output_spaces=output_spaces,
+                                         output_spaces=surface_spaces,
                                          medial_surface_nan=medial_surface_nan,
                                          name='bold_surf_wf')
         workflow.connect([
@@ -796,7 +797,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         ])
 
         # CIFTI output
-        if cifti_output and 'template' in output_spaces:
+        if cifti_output and surface_spaces:
             bold_surf_wf.__desc__ += """\
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
@@ -804,10 +805,11 @@ data and volume-sampled data, were also generated.
             gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
                                    name="gen_cifti")
             gen_cifti.inputs.TR = metadata.get("RepetitionTime")
+            gen_cifti.inputs.surface_target = [s for s in surface_spaces
+                                               if s.startswith('fsaverage')]
 
             workflow.connect([
                 (bold_surf_wf, gen_cifti, [
-                    ('targets.out', 'surface_target'),
                     ('outputnode.surfaces', 'gifti_files')]),
                 (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
                 (bold_mni_trans_wf, gen_cifti, [('outputnode.bold_mni', 'bold_file')]),

@@ -35,6 +35,9 @@ open-source software distribution.
   :target: https://doi.org/10.1038/s41592-018-0235-4
   :alt: Published in Nature Methods
   
+.. image:: https://img.shields.io/badge/RRID-SCR__016216-blue.svg
+  :target: https://doi.org/10.1038/s41592-018-0235-4
+  :alt: RRID:SCR_016216
 
 About
 -----

@@ -9,7 +9,7 @@ __version__ = get_versions()['version']
 del get_versions
 
 __author__ = 'The CRN developers'
-__copyright__ = 'Copyright 2018, Center for Reproducible Neuroscience, Stanford University'
+__copyright__ = 'Copyright 2019, Center for Reproducible Neuroscience, Stanford University'
 __credits__ = ('Contributors: please check the ``.zenodo.json`` file at the top-level folder'
                'of the repository')
 __license__ = '3-clause BSD'
@@ -90,21 +90,21 @@ REQUIRES = [
     'nilearn',
     'nipype>=1.1.6',
     'nitime',
-    'niworkflows>=0.5.2.post5,<0.5.3',
+    'niworkflows>=0.6.1,<0.7.0a0',
     'numpy',
     'pandas',
+    'psutil>=5.4',
     'pybids==0.6.5',
     'pyyaml',
     'scikit-image',
+    'smriprep>=0.0.4,<0.1.0a0',
     'statsmodels',
     'tedana>=0.0.5',
-    'psutil>=5.4',
+    'templateflow>=0.0.4',
 ]
 
 
 LINKS_REQUIRES = [
-    'git+https://github.com/poldracklab/niworkflows.git@'
-    'master#egg=niworkflows',
 ]
 
 TESTS_REQUIRES = [
@@ -125,7 +125,7 @@ EXTRA_REQUIRES = {
     ],
     'duecredit': ['duecredit'],
     'resmon': [],
-    'sentry': ['sentry-sdk>=0.5.3'],
+    'sentry': ['sentry-sdk>=0.6.9'],
     'tests': TESTS_REQUIRES,
 }
 EXTRA_REQUIRES['docs'] = EXTRA_REQUIRES['doc']
@@ -135,7 +135,7 @@ EXTRA_REQUIRES['all'] = list(set([
     v for deps in EXTRA_REQUIRES.values() for v in deps]))
 
 CLASSIFIERS = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Intended Audience :: Science/Research',
     'Topic :: Scientific/Engineering :: Image Recognition',
     'License :: OSI Approved :: BSD License',

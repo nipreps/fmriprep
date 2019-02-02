@@ -15,65 +15,81 @@ RUN apt-get update && \
                     build-essential \
                     autoconf \
                     libtool \
-                    pkg-config && \
-    curl -sSL http://neuro.debian.net/lists/xenial.us-ca.full >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-    apt-key add /root/.neurodebian.gpg && \
-    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true) && \
-    apt-get update
+                    pkg-config \
+                    git && \
+    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
+    apt-get install -y --no-install-recommends \
+                    nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install latest pandoc
+RUN curl -o pandoc-2.2.2.1-1-amd64.deb -sSL "https://github.com/jgm/pandoc/releases/download/2.2.2.1/pandoc-2.2.2.1-1-amd64.deb" && \
+    dpkg -i pandoc-2.2.2.1-1-amd64.deb && \
+    rm pandoc-2.2.2.1-1-amd64.deb
 
 # Installing freesurfer
 RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz | tar zxv --no-same-owner -C /opt \
-    --exclude='freesurfer/trctrain' \
+    --exclude='freesurfer/diffusion' \
+    --exclude='freesurfer/docs' \
+    --exclude='freesurfer/fsfast' \
+    --exclude='freesurfer/lib/cuda' \
+    --exclude='freesurfer/lib/qt' \
+    --exclude='freesurfer/matlab' \
+    --exclude='freesurfer/mni/share/man' \
     --exclude='freesurfer/subjects/fsaverage_sym' \
     --exclude='freesurfer/subjects/fsaverage3' \
     --exclude='freesurfer/subjects/fsaverage4' \
     --exclude='freesurfer/subjects/cvs_avg35' \
     --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
     --exclude='freesurfer/subjects/bert' \
+    --exclude='freesurfer/subjects/lh.EC_average' \
+    --exclude='freesurfer/subjects/rh.EC_average' \
+    --exclude='freesurfer/subjects/sample-*.mgz' \
     --exclude='freesurfer/subjects/V1_average' \
-    --exclude='freesurfer/average/mult-comp-cor' \
-    --exclude='freesurfer/lib/cuda' \
-    --exclude='freesurfer/lib/qt'
+    --exclude='freesurfer/trctrain'
 
-ENV FSL_DIR=/usr/share/fsl/5.0 \
-    OS=Linux \
+ENV FSL_DIR="/usr/share/fsl/5.0" \
+    OS="Linux" \
     FS_OVERRIDE=0 \
-    FIX_VERTEX_AREA= \
-    FSF_OUTPUT_FORMAT=nii.gz \
-    FREESURFER_HOME=/opt/freesurfer
-ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
-    FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
-    MNI_DIR=$FREESURFER_HOME/mni \
-    LOCAL_DIR=$FREESURFER_HOME/local \
-    FSFAST_HOME=$FREESURFER_HOME/fsfast \
-    MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
-    MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
-    MNI_DATAPATH=$FREESURFER_HOME/mni/data \
-    FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
-ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
-    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
+    FIX_VERTEX_AREA="" \
+    FSF_OUTPUT_FORMAT="nii.gz" \
+    FREESURFER_HOME="/opt/freesurfer"
+ENV SUBJECTS_DIR="$FREESURFER_HOME/subjects" \
+    FUNCTIONALS_DIR="$FREESURFER_HOME/sessions" \
+    MNI_DIR="$FREESURFER_HOME/mni" \
+    LOCAL_DIR="$FREESURFER_HOME/local" \
+    MINC_BIN_DIR="$FREESURFER_HOME/mni/bin" \
+    MINC_LIB_DIR="$FREESURFER_HOME/mni/lib" \
+    MNI_DATAPATH="$FREESURFER_HOME/mni/data"
+ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
 # Installing Neurodebian packages (FSL, AFNI, git)
+RUN curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full" >> /etc/apt/sources.list.d/neurodebian.sources.list && \
+    apt-key add /root/.neurodebian.gpg && \
+    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-                    fsl-core=5.0.9-4~nd16.04+1 \
-                    fsl-mni152-templates=5.0.7-2 \
+                    fsl-core=5.0.9-5~nd16.04+1 \
                     afni=16.2.07~dfsg.1-5~nd16.04+1 \
-                    convert3d
+                    convert3d \
+                    git-annex-standalone && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-ENV FSLDIR=/usr/share/fsl/5.0 \
-    FSLOUTPUTTYPE=NIFTI_GZ \
-    FSLMULTIFILEQUIT=TRUE \
-    POSSUMDIR=/usr/share/fsl/5.0 \
-    LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH \
-    FSLTCLSH=/usr/bin/tclsh \
-    FSLWISH=/usr/bin/wish \
-    AFNI_MODELPATH=/usr/lib/afni/models \
-    AFNI_IMSAVE_WARNINGS=NO \
-    AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
-    AFNI_PLUGINPATH=/usr/lib/afni/plugins
-ENV PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
+ENV FSLDIR="/usr/share/fsl/5.0" \
+    FSLOUTPUTTYPE="NIFTI_GZ" \
+    FSLMULTIFILEQUIT="TRUE" \
+    POSSUMDIR="/usr/share/fsl/5.0" \
+    LD_LIBRARY_PATH="/usr/lib/fsl/5.0:$LD_LIBRARY_PATH" \
+    FSLTCLSH="/usr/bin/tclsh" \
+    FSLWISH="/usr/bin/wish" \
+    AFNI_MODELPATH="/usr/lib/afni/models" \
+    AFNI_IMSAVE_WARNINGS="NO" \
+    AFNI_TTATLAS_DATASET="/usr/share/afni/atlases" \
+    AFNI_PLUGINPATH="/usr/lib/afni/plugins"
+ENV PATH="/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH"
 
 # Installing ANTs 2.2.0 (NeuroDocker build)
 ENV ANTSPATH=/usr/lib/ants
@@ -123,8 +139,7 @@ RUN conda install -y python=3.7.1 \
                      libxslt=1.1.32 \
                      graphviz=2.40.1 \
                      traits=4.6.0 \
-                     # Make sure zlib is installed
-                     zlib; sync &&  \
+                     zlib; sync && \
     chmod -R a+rX /usr/local/miniconda; sync && \
     chmod +x /usr/local/miniconda/bin/*; sync && \
     conda clean --all -y; sync && \
@@ -134,49 +149,47 @@ RUN conda install -y python=3.7.1 \
 RUN python -c "from matplotlib import font_manager" && \
     sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
 
-# Installing Ubuntu packages and cleaning up
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-                    git=1:2.7.4-0ubuntu1 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install latest pandoc
-RUN curl -o pandoc-2.2.2.1-1-amd64.deb -sSL "https://github.com/jgm/pandoc/releases/download/2.2.2.1/pandoc-2.2.2.1-1-amd64.deb" && \
-    dpkg -i pandoc-2.2.2.1-1-amd64.deb && \
-    rm pandoc-2.2.2.1-1-amd64.deb
-
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
-WORKDIR /root/
-
 # Precaching atlases
-ENV CRN_SHARED_DATA /templateflow
-ADD docker/scripts/get_templates.sh get_templates.sh
-RUN mkdir $CRN_SHARED_DATA && \
-    /root/get_templates.sh && \
-    find $CRN_SHARED_DATA -type d -exec chmod 555 {} \; && \
-    find $CRN_SHARED_DATA -type f -exec chmod 444 {} \; && \
-    chmod +w $CRN_SHARED_DATA
+WORKDIR /opt
+ENV TEMPLATEFLOW_HOME="/opt/templateflow"
+RUN pip install "datalad==0.10.0" && \
+    rm -rf ~/.cache/pip
+
+RUN git config --global user.name "First Last" && \
+    git config --global user.email "email@domain.com" && \
+    datalad install -r https://github.com/templateflow/templateflow.git
+RUN datalad get $TEMPLATEFLOW_HOME/tpl-MNI152NLin2009cAsym/*_T1w.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-MNI152NLin2009cAsym/*_desc-brain_mask.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-MNI152Lin/*_T1w.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-MNI152Lin/*_desc-brain_mask.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-OASIS30ANTs/*_T1w.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_desc-brain_mask.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_label-brain_probseg.nii.gz \
+                $TEMPLATEFLOW_HOME/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_desc-BrainCerebellumExtraction_mask.nii.gz
 
 # Installing dev requirements (packages that are not in pypi)
-ADD requirements.txt requirements.txt
+WORKDIR /src/
+COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt && \
     rm -rf ~/.cache/pip
 
 # Installing FMRIPREP
-COPY . /root/src/fmriprep
+COPY . /src/fmriprep
 ARG VERSION
 # Force static versioning within container
-RUN echo "${VERSION}" > /root/src/fmriprep/fmriprep/VERSION && \
-    cd /root/src/fmriprep && \
+RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
+    echo "include fmriprep/VERSION" >> /src/fmriprep/MANIFEST.in && \
+    cd /src/fmriprep && \
     pip install .[all] && \
     rm -rf ~/.cache/pip
 
 RUN install -m 0755 \
-    /root/src/fmriprep/scripts/generate_reference_mask.py \
+    /src/fmriprep/scripts/generate_reference_mask.py \
     /usr/local/bin/generate_reference_mask
 
 ENV IS_DOCKER_8395080871=1
@@ -189,8 +202,8 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION
 LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="FMRIPREP" \
-      org.label-schema.description="FMRIPREP - robust fMRI preprocessing tool" \
+      org.label-schema.name="fMRIPrep" \
+      org.label-schema.description="fMRIPrep - robust fMRI preprocessing tool" \
       org.label-schema.url="http://fmriprep.org" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.vcs-url="https://github.com/poldracklab/fmriprep" \

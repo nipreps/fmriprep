@@ -21,7 +21,6 @@ jobs:
             - docker-v3-
           paths:
             - /tmp/cache/docker.tar.gz
-            - /tmp/cache/ubuntu.tar.gz
       - checkout
       - setup_remote_docker
       - run:
@@ -258,8 +257,8 @@ jobs:
               -e FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
               -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
               --entrypoint="py.test" poldracklab/fmriprep:latest \
-              /root/src/fmriprep/ \
-              -svx --doctest-modules --ignore=/root/src/fmriprep/docs --ignore=setup.py
+              /src/fmriprep/ \
+              -svx --doctest-modules --ignore=/src/fmriprep/docs --ignore=setup.py
       - run:
           name: Package new masks
           no_output_timeout: 10m
@@ -330,7 +329,7 @@ jobs:
             docker run -ti --rm=false -v $PWD:/_build_html \
               --entrypoint=sphinx-build poldracklab/fmriprep:latest \
               -T -E -b html -d _build/doctrees-readthedocs -W -D \
-              language=en /root/src/fmriprep/docs/ /_build_html 2>&1 \
+              language=en /src/fmriprep/docs/ /_build_html 2>&1 \
               | tee $PWD/builddocs.log
             cat $PWD/builddocs.log
             grep -qv "ERROR" $PWD/builddocs.log
@@ -359,10 +358,10 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v12-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v12-{{ .Branch }}
-            - ds005-anat-v12-master
-            - ds005-anat-v12-
+            - ds005-anat-v14-{{ .Branch }}-{{ epoch }}
+            - ds005-anat-v14-{{ .Branch }}
+            - ds005-anat-v14-master
+            - ds005-anat-v14-
       - run:
           name: Setting up test
           command: |
@@ -390,16 +389,15 @@ jobs:
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
                 sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --sloppy --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds005-anat-v12-{{ .Branch }}-{{ epoch }}
+         key: ds005-anat-v14-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
-            - /tmp/ds005/derivatives/fmriprep
 
       - run:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
@@ -410,12 +408,12 @@ jobs:
             sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/work && \
                 sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/work
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --ignore-aroma-denoising-errors --use-aroma \
-                --output-space T1w template fsaverage5 \
+                --output-space T1w template fsaverage5 fsnative \
                 --template-resampling-grid native \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 2 --cifti-output -vv
@@ -438,11 +436,11 @@ jobs:
           command: |
             rm /tmp/data/ds005/sub-01/func/*_run-02_*
             fmriprep-docker -i poldracklab/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
-                --output-space T1w template fsaverage5 \
+                --output-space T1w template fsaverage5 fsnative \
                 --ignore-aroma-denoising-errors --use-aroma \
                 --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
@@ -490,10 +488,10 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v10-{{ .Branch }}-{{ epoch }}
-            - ds054-anat-v10-{{ .Branch }}
-            - ds054-anat-v10-master
-            - ds054-anat-v10-
+            - ds054-anat-v12-{{ .Branch }}-{{ epoch }}
+            - ds054-anat-v12-{{ .Branch }}
+            - ds054-anat-v12-master
+            - ds054-anat-v12-
       - run:
           name: Setting up test
           command: |
@@ -527,10 +525,9 @@ jobs:
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds054-anat-v10-{{ .Branch }}-{{ epoch }}
+         key: ds054-anat-v12-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
-            - /tmp/ds054/derivatives
 
       - run:
           name: Run full fMRIPrep on ds054
@@ -609,10 +606,10 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds210-anat-v8-{{ .Branch }}-{{ epoch }}
-            - ds210-anat-v8-{{ .Branch }}
-            - ds210-anat-v8-master
-            - ds210-anat-v8-
+            - ds210-anat-v10-{{ .Branch }}-{{ epoch }}
+            - ds210-anat-v10-{{ .Branch }}
+            - ds210-anat-v10-master
+            - ds210-anat-v10-
       - run:
           name: Setting up test
           command: |
@@ -646,10 +643,9 @@ jobs:
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - save_cache:
-         key: ds210-anat-v8-{{ .Branch }}-{{ epoch }}
+         key: ds210-anat-v10-{{ .Branch }}-{{ epoch }}
          paths:
             - /tmp/ds210/work
-            - /tmp/ds210/derivatives
 
       - run:
           name: Run full fMRIPrep on ds000210

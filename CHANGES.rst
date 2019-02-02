@@ -1,3 +1,41 @@
+1.2.6-1 (January 24, 2019)
+==========================
+
+Hotfix release of version 1.2.6, pinning niworkflows to a release version (instead
+of the development branch, since #1459) and including to bugfixes.
+
+* [PIN] NiWorkflows 0.5.2.post7 (`1bf4a21 <https://github.com/poldracklab/fmriprep/commit/1bf4a21cce62c4330510a9a8ae50db876fbc23b0>`__).
+* [FIX] Bad ``fsnative`` replacement in CIfTI workflow (#1476) @oesteban
+* [FIX] Avoid warning when generating boilerplate (#1464) @oesteban
+
+
+1.2.6 (January 17, 2019)
+========================
+
+This is a bug fix release in the 1.2 series. Probably the most noticeable
+improvement is the restoration of auto-generated content in the documentation.
+
+Additionally, FreeSurfer ``aparc``/``aseg`` segmentations are now sampled to all
+output spaces.
+
+For any users importing fMRIPrep interfaces, many of these have been moved to
+the niworkflows package.
+
+With thanks to Nir Jacoby and Hrvoje Stojic for contributions.
+
+* [FIX] Use keyword arguments for Sentry breadcrumb reporting (#1441) @chrisfilo
+* [FIX] Verify proc file exists before reading (#1454) @effigies
+* [ENH] Only report participants with errors (#1437) @effigies
+* [ENH] Resample aparc/aseg into specified output spaces (#1401) @nirjacoby
+* [ENH] Copy BibTeX file to log directory for LaTeX users (#1446) @hstojic
+* [RF] Use niworkflows upstreamed interfaces and utilities (#1438) @oesteban
+* [DOC] Fix documentation build (#1451) @oesteban
+* [DOC] Fix ReadTheDocs builds (#1459) @effigies
+* [MAINT/DOC] Clean-up ``__about__``, update with Nat Meth (#1445) @oesteban
+* [MAINT] Make sure Python 3.7.1 is installed (#1452) @oesteban
+* [MAINT] Dev status to beta, bump copyright year (#1468) @effigies
+
+
 1.2.5 (December 4, 2018)
 ========================
 

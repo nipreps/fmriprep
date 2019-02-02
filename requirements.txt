@@ -1,3 +1,5 @@
 grabbit==0.2.3
 pybids==0.6.5
-git+https://github.com/poldracklab/niworkflows.git@master#egg=niworkflows
+niworkflows>=0.6.1,<0.7.0a0
+smriprep>=0.0.4,<0.1.0a0
+templateflow>=0.0.4

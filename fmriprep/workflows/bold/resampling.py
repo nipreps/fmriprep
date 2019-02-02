@@ -84,6 +84,7 @@ def init_bold_surf_wf(mem_gb, output_spaces, medial_surface_nan, name='bold_surf
             BOLD series, resampled to FreeSurfer surfaces
 
     """
+    # Ensure volumetric spaces do not sneak into this workflow
     spaces = [space for space in output_spaces if space.startswith('fs')]
 
     workflow = Workflow(name=name)
