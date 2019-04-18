@@ -158,11 +158,15 @@ class Report(object):
                     # Group common events with pre specified fingerprints
                     fingerprint_dict = {'permission-denied': [
                                             "PermissionError: [Errno 13] Permission denied"],
-                                        'memory-error': ["MemoryError", "Cannot allocate memory"],
+                                        'memory-error': [
+                                            "MemoryError", 
+                                            "Cannot allocate memory",
+                                            "Return code: 134",
+                                        ],
                                         'reconall-already-running': [
                                             "ERROR: it appears that recon-all is already running"],
                                         'no-disk-space': [
-                                            "OSError: [Errno 28] No space left on device",
+                                            "[Errno 28] No space left on device",
                                             "[Errno 122] Disk quota exceeded"],
                                         'sigkill': ["Return code: 137"],
                                         'keyboard-interrupt': ["KeyboardInterrupt"]}
