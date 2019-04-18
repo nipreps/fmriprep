@@ -169,6 +169,11 @@ class Report(object):
                                             "[Errno 28] No space left on device",
                                             "[Errno 122] Disk quota exceeded"],
                                         'sigkill': ["Return code: 137"],
+                                        'segfault': [
+                                            "Segmentation Fault",
+                                            "Segfault",
+                                            "Return code: 139",
+                                        ]
                                         'keyboard-interrupt': ["KeyboardInterrupt"]}
 
                     fingerprint = ''
