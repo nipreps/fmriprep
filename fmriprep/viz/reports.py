@@ -173,7 +173,11 @@ class Report(object):
                                             "Segmentation Fault",
                                             "Segfault",
                                             "Return code: 139",
-                                        ]
+                                        ],
+                                        'potential-race-condition': [
+                                            "[Errno 39] Directory not empty",
+                                            "_unfinished.json"
+                                        ],
                                         'keyboard-interrupt': ["KeyboardInterrupt"]}
 
                     fingerprint = ''
