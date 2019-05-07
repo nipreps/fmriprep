@@ -174,10 +174,13 @@ RUN pip install --no-cache-dir "templateflow>=0.1.3,<0.2.0a0" && \
 # Installing FMRIPREP
 COPY . /src/fmriprep
 ARG VERSION
-# Force static versioning within container
-RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
-    echo "include fmriprep/VERSION" >> /src/fmriprep/MANIFEST.in && \
-    pip install --no-cache-dir "/src/fmriprep[all]"
+# Simulate a git repository with one commit and a version
+RUN git config --global user.name null && \
+    git config --global user.email null && \
+    git -C /src/fmriprep init && \
+    git -C /src/fmriprep commit --allow-empty -m noop && \
+    git -C /src/fmriprep tag "${VERSION}"
+RUN pip install --no-cache-dir "/src/fmriprep[all]"
 
 RUN install -m 0755 \
     /src/fmriprep/scripts/generate_reference_mask.py \
