@@ -108,9 +108,6 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g svgo
 
-# Installing bids-validator
-RUN npm install -g bids-validator@1.2.3
-
 # Installing and setting up ICA_AROMA
 RUN mkdir -p /opt/ICA-AROMA && \
   curl -sSL "https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.4-beta.tar.gz" \
@@ -170,6 +167,9 @@ RUN pip install --no-cache-dir "templateflow>=0.1.3,<0.2.0a0" && \
                tfapi.get('OASIS30ANTs');" && \
     find $TEMPLATEFLOW_HOME -type d -exec chmod go=u {} + && \
     find $TEMPLATEFLOW_HOME -type f -exec chmod go=u {} +
+
+# Installing bids-validator
+RUN npm install -g bids-validator@1.2.3
 
 # Installing FMRIPREP
 COPY . /src/fmriprep
