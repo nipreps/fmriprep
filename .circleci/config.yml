@@ -59,7 +59,14 @@ jobs:
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" . \
               && e=0 && break || sleep 15
             done && [ "$e" -eq "0" ]
-
+      - run:
+          name: Smoke test Docker image
+          command: |
+            THISVERSION=$( python3 get_version.py )
+            DOCKERVERSION=$(docker run --rm -it poldracklab/fmriprep:latest --version)
+            echo "VERSION: $THISVERSION"
+            echo "DOCKERVERSION: $DOCKERVERSION"
+            test "$DOCKERVERSION" = "fmriprep v${THISVERSION}"
       - run:
           name: Docker save
           no_output_timeout: 40m
@@ -784,6 +791,8 @@ jobs:
             echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
             python setup.py sdist
             pip wheel --no-deps -w dist/ .
+      - store_artifacts:
+          path: /tmp/src/fmriprep/dist
       - run:
           name: Check sdist distribution
           command: |
@@ -795,7 +804,10 @@ jobs:
             pip install --upgrade "pip>=19.1" numpy
             pip install dist/fmriprep*.tar.gz
             which fmriprep | grep sdist\\/bin
-            test "$(fmriprep --version)" = "fmriprep v${THISVERSION}"
+            INSTALLED_VERSION=$(fmriprep --version)
+            echo "VERSION: $THISVERSION"
+            echo "INSTALLED: $INSTALLED_VERSION"
+            test "$INSTALLED_VERSION" = "fmriprep v${THISVERSION}"
       - run:
           name: Check wheel distribution
           command: |
@@ -806,7 +818,10 @@ jobs:
             source wheel/bin/activate
             pip install dist/fmriprep*.whl
             which fmriprep | grep wheel\\/bin
-            test "$(fmriprep --version)" = "fmriprep v${THISVERSION}"
+            INSTALLED_VERSION=$(fmriprep --version)
+            echo "VERSION: $THISVERSION"
+            echo "INSTALLED: $INSTALLED_VERSION"
+            test "$INSTALLED_VERSION" = "fmriprep v${THISVERSION}"
       - run:
           name: Build fmriprep-docker
           command: |
@@ -819,6 +834,8 @@ jobs:
             sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" fmriprep_docker.py
             python setup.py sdist
             pip wheel --no-deps -w dist/ .
+      - store_artifacts:
+          path: /tmp/src/fmriprep/wrapper/dist
       - run:
           name: Check sdist distribution
           command: |
@@ -831,8 +848,10 @@ jobs:
             pip install --upgrade "pip>=19.1"
             pip install dist/fmriprep*.tar.gz
             which fmriprep-docker | grep sdist\\/bin
-            test "$(yes n | fmriprep-docker --version | head -n 1)" \
-                = "fmriprep wrapper ${THISVERSION}"
+            INSTALLED_VERSION=$(yes n | fmriprep-docker --version | head -n 1)
+            echo "VERSION: $THISVERSION"
+            echo "INSTALLED: $INSTALLED_VERSION"
+            test "$INSTALLED_VERSION" = "fmriprep wrapper ${THISVERSION}"
       - run:
           name: Check wheel distribution
           command: |
@@ -844,8 +863,10 @@ jobs:
             source wheel/bin/activate
             pip install dist/fmriprep*.whl
             which fmriprep-docker | grep wheel\\/bin
-            test "$(yes n | fmriprep-docker --version | head -n 1)" \
-                = "fmriprep wrapper ${THISVERSION}"
+            INSTALLED_VERSION=$(yes n | fmriprep-docker --version | head -n 1)
+            echo "VERSION: $THISVERSION"
+            echo "INSTALLED: $INSTALLED_VERSION"
+            test "$INSTALLED_VERSION" = "fmriprep wrapper ${THISVERSION}"
 
   deploy_pypi:
     machine:
