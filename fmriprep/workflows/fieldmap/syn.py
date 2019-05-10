@@ -29,6 +29,7 @@ from nipype import logging
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl, utility as niu
 from nipype.interfaces.image import Rescale
+
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.fixes import (FixHeaderApplyTransforms as ApplyTransforms,
                                           FixHeaderRegistration as Registration)
@@ -74,7 +75,7 @@ def init_syn_sdc_wf(omp_nthreads, bold_pe=None,
             Name of template targeted by ``template`` output space
         t1_brain
             skull-stripped, bias-corrected structural image
-        t1_2_mni_reverse_transform
+        std2anat_xfm
             inverse registration transform of T1w image to MNI template
 
     **Outputs**
@@ -109,7 +110,7 @@ template [@fieldmapless3].
 """.format(ants_ver=Registration().version or '<ver>')
     inputnode = pe.Node(
         niu.IdentityInterface(['bold_ref', 'bold_ref_brain', 'template',
-                               't1_brain', 't1_2_mni_reverse_transform']),
+                               't1_brain', 'std2anat_xfm']),
         name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(['out_reference', 'out_reference_brain',
@@ -174,7 +175,7 @@ template [@fieldmapless3].
         (ref_2_t1, t1_2_ref, [('forward_transforms', 'transforms')]),
         (ref_2_t1, transform_list, [('forward_transforms', 'in1')]),
         (inputnode, transform_list, [
-            ('t1_2_mni_reverse_transform', 'in2'),
+            ('std2anat_xfm', 'in2'),
             (('template', _prior_path), 'in3')]),
         (inputnode, atlas_2_ref, [('bold_ref', 'reference_image')]),
         (transform_list, atlas_2_ref, [('out', 'transforms')]),
@@ -199,6 +200,7 @@ template [@fieldmapless3].
 
 
 def _prior_path(template):
+    """Selects an appropriate input xform, based on template"""
     from pkg_resources import resource_filename
     return resource_filename(
         'fmriprep', 'data/fmap_atlas_2_{}_affine.mat'.format(template))

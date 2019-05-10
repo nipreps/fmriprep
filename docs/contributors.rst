@@ -45,14 +45,14 @@ Note the ``-i`` flag allows you to specify an image.
 When invoking ``docker`` directly, the mount options must be specified
 with the ``-v`` flag::
 
-    -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro
-    -v $HOME/projects/niworkflows/niworkflows:/usr/local/miniconda/lib/python3.6/site-packages/niworkflows:ro
-    -v $HOME/projects/nipype/nipype:/usr/local/miniconda/lib/python3.6/site-packages/nipype:ro
+    -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro
+    -v $HOME/projects/niworkflows/niworkflows:/usr/local/miniconda/lib/python3.7/site-packages/niworkflows:ro
+    -v $HOME/projects/nipype/nipype:/usr/local/miniconda/lib/python3.7/site-packages/nipype:ro
 
 For example, ::
 
     $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out \
-        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro \
+        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
         poldracklab/fmriprep:latest /data /out/out participant \
         -w /out/work/
 
@@ -65,14 +65,14 @@ This is the equivalent of using ``--entrypoint=bash`` and omitting the fmriprep
 arguments in a ``docker`` command::
 
     $ docker run --rm -v $HOME/fullds005:/data:ro -v $HOME/dockerout:/out \
-        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep:ro --entrypoint=bash \
+        -v $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro --entrypoint=bash \
         poldracklab/fmriprep:latest
 
 Patching containers can be achieved in Singularity analogous to ``docker``
 using the ``--bind`` (``-B``) option: ::
 
     $ singularity run \
-        -B $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.6/site-packages/fmriprep \
+        -B $HOME/projects/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep \
         fmriprep.img \
         /scratch/dataset /scratch/out participant -w /out/work/
 
@@ -126,7 +126,7 @@ repository, located in ``~/projects/fmriprep``: ::
 To work in this image, replace ``poldracklab/fmriprep:latest`` with
 ``fmriprep`` in any of the above commands.
 This image may be accessed by the `fmriprep-docker`_ wrapper via the
-``-i`` flag, e.g. ::
+``-i`` flag, e.g., ::
 
     $ fmriprep-docker -i fmriprep --shell
 
@@ -151,7 +151,7 @@ You can then use the Bibtex handle within the Markdown text.
 For example, if the Bibtex handle is ``myreference``, a citation
 will be generated in Markdown language with ``@myreference``.
 To generate citations with parenthesis and/or additional content,
-brackets should be used: e.g. ``[see @myreference]`` will produce
+brackets should be used: e.g., ``[see @myreference]`` will produce
 a citation like *(see Doe J. et al 2018)*.
 
 

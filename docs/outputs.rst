@@ -173,7 +173,7 @@ motion-correction parameters estimated by fMRIPrep;
 if present, ``non_steady_state_outlier_XX`` columns indicate non-steady state volumes with a single
 ``1`` value and ``0`` elsewhere (*i.e.*, there is one ``non_steady_state_outlier_XX`` column per
 outlier/volume);
-six noise components are calculated using :abbr:`CompCor (Component Based Noise Correction)`, 
+additional noise components are calculated using :abbr:`CompCor (Component Based Noise Correction)`,
 according to both the anatomical (``a_comp_cor_XX``) and temporal (``t_comp_cor_XX``) variants;
 and the motion-related components identified by
 :abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)`

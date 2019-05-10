@@ -105,8 +105,9 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
                             output_inverse_warped_image=True, output_warped_image=True),
         name='fmap2ref_reg', n_procs=omp_nthreads)
 
-    ds_reg = pe.Node(DerivativesDataSink(suffix='fmap_reg'), name='ds_report_reg',
-                     mem_gb=0.01, run_without_submitting=True)
+    ds_report_reg = pe.Node(DerivativesDataSink(
+        desc='magnitude', suffix='bold'), name='ds_report_reg',
+        mem_gb=0.01, run_without_submitting=True)
 
     # Map the VSM into the EPI space
     fmap2ref_apply = pe.Node(ANTSApplyTransformsRPT(
@@ -118,8 +119,9 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
         float=True),
         name='fmap_mask2ref_apply')
 
-    ds_reg_vsm = pe.Node(DerivativesDataSink(suffix='fmap_reg_vsm'), name='ds_report_vsm',
-                         mem_gb=0.01, run_without_submitting=True)
+    ds_report_vsm = pe.Node(DerivativesDataSink(
+        desc='fieldmap', suffix='bold'), name='ds_report_vsm',
+        mem_gb=0.01, run_without_submitting=True)
 
     # Fieldmap to rads and then to voxels (VSM - voxel shift map)
     torads = pe.Node(FieldToRadS(fmap_range=0.5), name='torads')
@@ -159,9 +161,9 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
         (inputnode, fmap_mask2ref_apply, [('in_reference', 'reference_image')]),
         (fmap2ref_reg, fmap_mask2ref_apply, [
             ('composite_transform', 'transforms')]),
-        (fmap2ref_apply, ds_reg_vsm, [('out_report', 'in_file')]),
+        (fmap2ref_apply, ds_report_vsm, [('out_report', 'in_file')]),
         (inputnode, fmap2ref_reg, [('in_reference_brain', 'fixed_image')]),
-        (fmap2ref_reg, ds_reg, [('out_report', 'in_file')]),
+        (fmap2ref_reg, ds_report_reg, [('out_report', 'in_file')]),
         (inputnode, fmap2ref_apply, [('fmap', 'input_image')]),
         (inputnode, fmap_mask2ref_apply, [('fmap_mask', 'input_image')]),
         (fmap2ref_apply, torads, [('output_image', 'in_file')]),
@@ -211,7 +213,7 @@ def init_sdc_unwarp_wf(omp_nthreads, fmap_demean, debug, name='sdc_unwarp_wf'):
     return workflow
 
 
-def init_fmap_unwarp_report_wf(name='fmap_unwarp_report_wf', suffix='variant-hmcsdc_preproc'):
+def init_fmap_unwarp_report_wf(name='fmap_unwarp_report_wf', forcedsyn=False):
     """
     This workflow generates and saves a reportlet showing the effect of fieldmap
     unwarping a BOLD image.
@@ -227,8 +229,8 @@ def init_fmap_unwarp_report_wf(name='fmap_unwarp_report_wf', suffix='variant-hmc
 
         name : str, optional
             Workflow name (default: fmap_unwarp_report_wf)
-        suffix : str, optional
-            Suffix to be appended to this reportlet
+        forcedsyn : bool, optional
+            Whether SyN-SDC was forced.
 
     **Inputs**
 
@@ -264,7 +266,8 @@ def init_fmap_unwarp_report_wf(name='fmap_unwarp_report_wf', suffix='variant-hmc
     bold_rpt = pe.Node(SimpleBeforeAfter(), name='bold_rpt',
                        mem_gb=0.1)
     ds_report_sdc = pe.Node(
-        DerivativesDataSink(suffix=suffix), name='ds_report_sdc',
+        DerivativesDataSink(desc='sdc' if not forcedsyn else 'forcedsyn',
+                            suffix='bold'), name='ds_report_sdc',
         mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True
     )
 

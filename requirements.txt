@@ -1,3 +1,0 @@
-niworkflows>=0.5.2.post5,<0.5.3
-grabbit==0.2.3
-pybids==0.6.5

@@ -44,7 +44,7 @@ Source trees come from a variety of places:
 Within each source tree, the version identifier (either a string or a number,
 this tool is format-agnostic) can come from a variety of places:
 
-* ask the VCS tool itself, e.g. "git describe" (for checkouts), which knows
+* ask the VCS tool itself, e.g., "git describe" (for checkouts), which knows
   about recent "tags" and an absolute revision-id
 * the name of the directory into which the tarball was unpacked
 * an expanded VCS keyword ($Id$, etc)
@@ -52,7 +52,7 @@ this tool is format-agnostic) can come from a variety of places:
 
 For released software, the version identifier is closely related to a VCS
 tag. Some projects use tag names that include more than just the version
-string (e.g. "myproject-1.2" instead of just "1.2"), in which case the tool
+string (e.g., "myproject-1.2" instead of just "1.2"), in which case the tool
 needs to strip the tag prefix to extract the version identifier. For
 unreleased software (between tags), the version identifier should provide
 enough information to help developers recreate the same tree, while also
@@ -94,7 +94,7 @@ See [INSTALL.md](./INSTALL.md) for detailed installation instructions.
 
 Code which uses Versioneer can learn about its version string at runtime by
 importing `_version` from your main `__init__.py` file and running the
-`get_versions()` function. From the "outside" (e.g. in `setup.py`), you can
+`get_versions()` function. From the "outside" (e.g., in `setup.py`), you can
 import the top-level `versioneer.py` and run `get_versions()`.
 
 Both functions return a dictionary with different flavors of version
@@ -107,7 +107,7 @@ information:
   below for alternative styles.
 
 * `['full-revisionid']`: detailed revision identifier. For Git, this is the
-  full SHA1 commit id, e.g. "1076c978a8d3cfc70f408fe5974aa6c092c949ac".
+  full SHA1 commit id, e.g., "1076c978a8d3cfc70f408fe5974aa6c092c949ac".
 
 * `['date']`: Date and time of the latest `HEAD` commit. For Git, it is the
   commit date in ISO 8601 format. This will be None if the date is not
@@ -149,7 +149,7 @@ TAG[+DISTANCE.gHEX[.dirty]] , using information from `git describe --tags
 tree is like the "1076c97" commit but has uncommitted changes (".dirty"), and
 that this commit is two revisions ("+2") beyond the "0.11" tag. For released
 software (exactly equal to a known tag), the identifier will only contain the
-stripped tag, e.g. "0.11".
+stripped tag, e.g., "0.11".
 
 Other styles are available. See [details.md](details.md) in the Versioneer
 source tree for descriptions.
@@ -171,7 +171,7 @@ most significant ones. More can be found on Github
 ### Subprojects
 
 Versioneer has limited support for source trees in which `setup.py` is not in
-the root directory (e.g. `setup.py` and `.git/` are *not* siblings). The are
+the root directory (e.g., `setup.py` and `.git/` are *not* siblings). The are
 two common reasons why `setup.py` might not be in the root:
 
 * Source trees which contain multiple subprojects, such as
@@ -285,6 +285,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 
 class VersioneerConfig:
@@ -294,7 +295,7 @@ class VersioneerConfig:
 def get_root():
     """Get the project root directory.
 
-    We require that all commands are run from the project root, i.e. the
+    We require that all commands are run from the project root, i.e., the
     directory that contains setup.py, setup.cfg, and versioneer.py .
     """
     root = os.path.realpath(os.path.abspath(os.getcwd()))
@@ -614,7 +615,7 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
     if verbose:
         print("likely tags: %%s" %% ",".join(sorted(tags)))
     for ref in sorted(tags):
-        # sorting will prefer e.g. "2.0" over "2.0rc1"
+        # sorting will prefer e.g., "2.0" over "2.0rc1"
         if ref.startswith(tag_prefix):
             r = ref[len(tag_prefix):]
             if verbose:
@@ -1006,7 +1007,7 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
     if verbose:
         print("likely tags: %s" % ",".join(sorted(tags)))
     for ref in sorted(tags):
-        # sorting will prefer e.g. "2.0" over "2.0rc1"
+        # sorting will prefer e.g., "2.0" over "2.0rc1"
         if ref.startswith(tag_prefix):
             r = ref[len(tag_prefix):]
             if verbose:
@@ -1402,6 +1403,12 @@ def get_versions(verbose=False):
 
     Returns dict with two keys: 'version' and 'full'.
     """
+    ver_file = Path(__file__).parent / 'fmriprep' / 'VERSION'
+
+    if ver_file.is_file():
+        ver = ver_file.read_text().splitlines()[0].strip()
+        return {"version": ver, 'full': ver}
+
     if "versioneer" in sys.modules:
         # see the discussion in cmdclass.py:get_cmdclass()
         del sys.modules["versioneer"]
@@ -1419,7 +1426,7 @@ def get_versions(verbose=False):
 
     versionfile_abs = os.path.join(root, cfg.versionfile_source)
 
-    # extract version from first of: _version.py, VCS command (e.g. 'git
+    # extract version from first of: _version.py, VCS command (e.g., 'git
     # describe'), parentdir. This is meant to work for developers using a
     # source checkout, for users of a tarball created by 'setup.py sdist',
     # and for users of a tarball/zipball created by 'git archive' or github's

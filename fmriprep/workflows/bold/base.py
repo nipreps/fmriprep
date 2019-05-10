@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -11,6 +10,7 @@ Orchestrating the BOLD-preprocessing workflow
 """
 
 import os
+from collections import OrderedDict
 
 import nibabel as nb
 from nipype import logging
@@ -20,8 +20,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-from niworkflows.interfaces.cifti import GenerateCifti, CiftiNameSource
-from niworkflows.interfaces.surf import GiftiNameSource
+from niworkflows.interfaces.cifti import GenerateCifti
 
 from ...utils.meepi import combine_meepi_source
 
@@ -36,23 +35,51 @@ from .t2s import init_bold_t2s_wf
 from .registration import init_bold_t1_trans_wf, init_bold_reg_wf
 from .resampling import (
     init_bold_surf_wf,
-    init_bold_mni_trans_wf,
+    init_bold_std_trans_wf,
     init_bold_preproc_trans_wf,
 )
+from .outputs import init_func_derivatives_wf
 from .util import init_bold_reference_wf
 
 DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')
+FSAVERAGE_DENSITY = {
+    '642': 'fsaverage3',
+    '2562': 'fsaverage4',
+    '10k': 'fsaverage5',
+    '41k': 'fsaverage6',
+    '164k': 'fsaverage7',
+}
 
 
-def init_func_preproc_wf(bold_file, ignore, freesurfer,
-                         use_bbr, t2s_coreg, bold2t1w_dof, reportlets_dir,
-                         output_spaces, template, output_dir, omp_nthreads,
-                         fmap_bspline, fmap_demean, use_syn, force_syn,
-                         use_aroma, ignore_aroma_err, aroma_melodic_dim,
-                         medial_surface_nan, cifti_output,
-                         debug, low_mem, template_out_grid,
-                         layout=None, num_bold=1):
+def init_func_preproc_wf(
+    aroma_melodic_dim,
+    bold2t1w_dof,
+    bold_file,
+    cifti_output,
+    debug,
+    err_on_aroma_warn,
+    fmap_bspline,
+    fmap_demean,
+    force_syn,
+    freesurfer,
+    ignore,
+    low_mem,
+    medial_surface_nan,
+    omp_nthreads,
+    output_dir,
+    output_spaces,
+    regressors_all_comps,
+    regressors_dvars_th,
+    regressors_fd_th,
+    reportlets_dir,
+    t2s_coreg,
+    use_aroma,
+    use_bbr,
+    use_syn,
+    layout=None,
+    num_bold=1,
+):
     """
     This workflow controls the functional preprocessing stages of FMRIPREP.
 
@@ -61,92 +88,101 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         :simple_form: yes
 
         from fmriprep.workflows.bold import init_func_preproc_wf
-        wf = init_func_preproc_wf('/completely/made/up/path/sub-01_task-nback_bold.nii.gz',
-                                  omp_nthreads=1,
-                                  ignore=[],
-                                  freesurfer=True,
-                                  reportlets_dir='.',
-                                  output_dir='.',
-                                  template='MNI152NLin2009cAsym',
-                                  output_spaces=['T1w', 'fsnative',
-                                                 'template', 'fsaverage5'],
-                                  debug=False,
-                                  use_bbr=True,
-                                  t2s_coreg=False,
-                                  bold2t1w_dof=9,
-                                  fmap_bspline=True,
-                                  fmap_demean=True,
-                                  use_syn=True,
-                                  force_syn=True,
-                                  low_mem=False,
-                                  template_out_grid='native',
-                                  medial_surface_nan=False,
-                                  cifti_output=False,
-                                  use_aroma=False,
-                                  ignore_aroma_err=False,
-                                  aroma_melodic_dim=-200,
-                                  num_bold=1)
+        from collections import namedtuple, OrderedDict
+        BIDSLayout = namedtuple('BIDSLayout', ['root'])
+        wf = init_func_preproc_wf(
+            aroma_melodic_dim=-200,
+            bold2t1w_dof=9,
+            bold_file='/completely/made/up/path/sub-01_task-nback_bold.nii.gz',
+            cifti_output=False,
+            debug=False,
+            err_on_aroma_warn=False,
+            fmap_bspline=True,
+            fmap_demean=True,
+            force_syn=True,
+            freesurfer=True,
+            ignore=[],
+            low_mem=False,
+            medial_surface_nan=False,
+            omp_nthreads=1,
+            output_dir='.',
+            output_spaces=OrderedDict([
+                ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
+                ('T1w', {}), ('fsnative', {})]),
+            regressors_all_comps=False,
+            regressors_dvars_th=1.5,
+            regressors_fd_th=0.5,
+            reportlets_dir='.',
+            t2s_coreg=False,
+            use_aroma=False,
+            use_bbr=True,
+            use_syn=True,
+            layout=BIDSLayout('.'),
+            num_bold=1,
+        )
 
     **Parameters**
 
+        aroma_melodic_dim : int
+            Maximum number of components identified by MELODIC within ICA-AROMA
+            (default is -200, ie. no limitation).
+        bold2t1w_dof : 6, 9 or 12
+            Degrees-of-freedom for BOLD-T1w registration
         bold_file : str
             BOLD series NIfTI file
-        ignore : list
-            Preprocessing steps to skip (may include "slicetiming", "fieldmaps")
+        cifti_output : bool
+            Generate bold CIFTI file in output spaces
+        debug : bool
+            Enable debugging outputs
+        err_on_aroma_warn : bool
+            Do not crash on ICA-AROMA errors
+        fmap_bspline : bool
+            **Experimental**: Fit B-Spline field using least-squares
+        fmap_demean : bool
+            Demean voxel-shift map during unwarp
+        force_syn : bool
+            **Temporary**: Always run SyN-based SDC
         freesurfer : bool
             Enable FreeSurfer functional registration (bbregister) and resampling
             BOLD series to FreeSurfer surface meshes.
+        ignore : list
+            Preprocessing steps to skip (may include "slicetiming", "fieldmaps")
+        low_mem : bool
+            Write uncompressed .nii files in some cases to reduce memory usage
+        medial_surface_nan : bool
+            Replace medial wall values with NaNs on functional GIFTI files
+        omp_nthreads : int
+            Maximum number of threads an individual process may use
+        output_dir : str
+            Directory in which to save derivatives
+        output_spaces : OrderedDict
+            Ordered dictionary where keys are TemplateFlow ID strings (e.g. ``MNI152Lin``,
+            ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
+            nonstandard references (e.g. ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+            or paths pointing to custom templates organized in a TemplateFlow-like structure.
+            Values of the dictionary aggregate modifiers (e.g. the value for the key ``MNI152Lin``
+            could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
+            resolution version of the selected template).
+        regressors_all_comps
+            Return all CompCor component time series instead of the top fraction
+        regressors_dvars_th
+            Criterion for flagging DVARS outliers
+        regressors_fd_th
+            Criterion for flagging framewise displacement outliers
+        reportlets_dir : str
+            Absolute path of a directory in which reportlets will be temporarily stored
+        t2s_coreg : bool
+            For multiecho EPI, use the calculated T2*-map for T2*-driven coregistration
+        use_aroma : bool
+            Perform ICA-AROMA on MNI-resampled functional series
         use_bbr : bool or None
             Enable/disable boundary-based registration refinement.
             If ``None``, test BBR result for distortion before accepting.
             When using ``t2s_coreg``, BBR will be enabled by default unless
             explicitly specified otherwise.
-        t2s_coreg : bool
-            For multiecho EPI, use the calculated T2*-map for T2*-driven coregistration
-        bold2t1w_dof : 6, 9 or 12
-            Degrees-of-freedom for BOLD-T1w registration
-        reportlets_dir : str
-            Directory in which to save reportlets
-        output_spaces : list
-            List of output spaces functional images are to be resampled to.
-            Some parts of pipeline will only be instantiated for some output spaces.
-
-            Valid spaces:
-
-                - T1w
-                - template
-                - fsnative
-                - fsaverage (or other pre-existing FreeSurfer templates)
-        template : str
-            Name of template targeted by ``template`` output space
-        output_dir : str
-            Directory in which to save derivatives
-        omp_nthreads : int
-            Maximum number of threads an individual process may use
-        fmap_bspline : bool
-            **Experimental**: Fit B-Spline field using least-squares
-        fmap_demean : bool
-            Demean voxel-shift map during unwarp
         use_syn : bool
             **Experimental**: Enable ANTs SyN-based susceptibility distortion correction (SDC).
             If fieldmaps are present and enabled, this is not run, by default.
-        force_syn : bool
-            **Temporary**: Always run SyN-based SDC
-        use_aroma : bool
-            Perform ICA-AROMA on MNI-resampled functional series
-        ignore_aroma_err : bool
-            Do not fail on ICA-AROMA errors
-        medial_surface_nan : bool
-            Replace medial wall values with NaNs on functional GIFTI files
-        cifti_output : bool
-            Generate bold CIFTI file in output spaces
-        debug : bool
-            Enable debugging outputs
-        low_mem : bool
-            Write uncompressed .nii files in some cases to reduce memory usage
-        template_out_grid : str
-            Keyword ('native', '1mm' or '2mm') or path of custom reference
-            image for normalization
         layout : BIDSLayout
             BIDSLayout structure to enable metadata retrieval
         num_bold : int
@@ -168,9 +204,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
         t1_tpms
             List of tissue probability maps in T1w space
-        t1_2_mni_forward_transform
+        anat2std_xfm
             ANTs-compatible affine-and-warp transform file
-        t1_2_mni_reverse_transform
+        std2anat_xfm
             ANTs-compatible affine-and-warp transform file (inverse)
         subjects_dir
             FreeSurfer SUBJECTS_DIR
@@ -188,9 +224,9 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             BOLD series, resampled to T1w space
         bold_mask_t1
             BOLD series mask in T1w space
-        bold_mni
+        bold_std
             BOLD series, resampled to template space
-        bold_mask_mni
+        bold_mask_std
             BOLD series mask in template space
         confounds
             TSV of confounds
@@ -216,7 +252,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         * :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`
         * :py:func:`~fmriprep.workflows.bold.confounds.init_bold_confounds_wf`
         * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
-        * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_mni_trans_wf`
+        * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_std_trans_wf`
         * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_preproc_trans_wf`
         * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_surf_wf`
         * :py:func:`~fmriprep.workflows.fieldmap.pepolar.init_pepolar_unwarp_wf`
@@ -225,7 +261,16 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
         * :py:func:`~fmriprep.workflows.fieldmap.init_nonlinear_sdc_wf`
 
     """
+    from .resampling import NONSTANDARD_REFERENCES
     from ..fieldmap.base import init_sdc_wf  # Avoid circular dependency (#1066)
+
+    # Filter out standard spaces to a separate dict
+    std_spaces = OrderedDict([
+        (key, modifiers) for key, modifiers in output_spaces.items()
+        if key not in NONSTANDARD_REFERENCES])
+    volume_std_spaces = OrderedDict([
+        (key, modifiers) for key, modifiers in std_spaces.items()
+        if not key.startswith('fs')])
 
     ref_file = bold_file
     mem_gb = {'filesize': 1, 'resampled': 1, 'largemem': 1}
@@ -246,7 +291,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
     sbref_file = None
     # For doc building purposes
-    if layout is None or bold_file == 'bold_preprocesing':
+    if not hasattr(layout, 'parse_file_entities'):
         LOGGER.log(25, 'No valid layout: building empty workflow.')
         metadata = {
             'RepetitionTime': 2.0,
@@ -254,7 +299,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             'PhaseEncodingDirection': 'j',
         }
         fmaps = [{
-            'type': 'phasediff',
+            'suffix': 'phasediff',
             'phasediff': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_phasediff.nii.gz',
             'magnitude1': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude1.nii.gz',
             'magnitude2': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude2.nii.gz',
@@ -264,8 +309,8 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
     else:
         # Find associated sbref, if possible
         entities = layout.parse_file_entities(ref_file)
-        entities['type'] = 'sbref'
-        files = layout.get(**entities, extensions=['nii', 'nii.gz'])
+        entities['suffix'] = 'sbref'
+        files = layout.get(return_type='file', extensions=['nii', 'nii.gz'], **entities)
         refbase = os.path.basename(ref_file)
         if 'sbref' in ignore:
             LOGGER.info("Single-band reference files ignored.")
@@ -273,7 +318,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
             LOGGER.warning("Single-band reference found, but not supported in "
                            "multi-echo workflows at this time. Ignoring.")
         elif files:
-            sbref_file = files[0].filename
+            sbref_file = files[0]
             sbbase = os.path.basename(sbref_file)
             if len(files) > 1:
                 LOGGER.warning(
@@ -299,7 +344,7 @@ def init_func_preproc_wf(bold_file, ignore, freesurfer,
 
         # Run SyN if forced or in the absence of fieldmap correction
         if force_syn or (use_syn and not fmaps):
-            fmaps.append({'type': 'syn'})
+            fmaps.append({'suffix': 'syn'})
 
         # Short circuits: (True and True and (False or 'TooShort')) == 'TooShort'
         run_stc = ("SliceTiming" in metadata and
@@ -330,7 +375,7 @@ tasks and sessions), the following preprocessing was performed.
 All resamplings can be performed with *a single interpolation
 step* by composing all the pertinent transformations (i.e. head-motion
 transform matrices, susceptibility distortion correction when available,
-and co-registrations to anatomical and template spaces).
+and co-registrations to anatomical and output spaces).
 Gridded (volumetric) resamplings were performed using `antsApplyTransforms` (ANTs),
 configured with Lanczos interpolation to minimize the smoothing
 effects of other kernels [@lanczos].
@@ -339,21 +384,24 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 """
 
     inputnode = pe.Node(niu.IdentityInterface(
-        fields=['bold_file', 'sbref_file', 'subjects_dir', 'subject_id',
+        fields=['bold_file', 'subjects_dir', 'subject_id',
                 't1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
                 't1_aseg', 't1_aparc',
-                't1_2_mni_forward_transform', 't1_2_mni_reverse_transform',
+                'anat2std_xfm', 'std2anat_xfm', 'template',
+                'joint_anat2std_xfm', 'joint_std2anat_xfm', 'joint_template',
                 't1_2_fsnative_forward_transform', 't1_2_fsnative_reverse_transform']),
         name='inputnode')
     inputnode.inputs.bold_file = bold_file
     if sbref_file is not None:
-        inputnode.inputs.sbref_file = sbref_file
+        from niworkflows.interfaces.images import ValidateImage
+        val_sbref = pe.Node(ValidateImage(in_file=sbref_file), name='val_sbref')
 
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_t1', 'bold_t1_ref', 'bold_mask_t1', 'bold_aseg_t1', 'bold_aparc_t1',
-                'bold_mni', 'bold_mni_ref' 'bold_mask_mni', 'bold_aseg_mni', 'bold_aparc_mni',
+                'bold_std', 'bold_std_ref' 'bold_mask_std', 'bold_aseg_std', 'bold_aparc_std',
                 'bold_cifti', 'cifti_variant', 'cifti_variant_key', 'confounds', 'surfaces',
-                'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file']),
+                'aroma_noise_ics', 'melodic_mix', 'nonaggr_denoised_file',
+                'confounds_metadata']),
         name='outputnode')
 
     # BOLD buffer: an identity used as a pointer to either the original BOLD
@@ -361,32 +409,40 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     boldbuffer = pe.Node(niu.IdentityInterface(fields=['bold_file']), name='boldbuffer')
 
     summary = pe.Node(
-        FunctionalSummary(output_spaces=output_spaces,
-                          slice_timing=run_stc,
-                          registration='FreeSurfer' if freesurfer else 'FSL',
-                          registration_dof=bold2t1w_dof,
-                          pe_direction=metadata.get("PhaseEncodingDirection")),
+        FunctionalSummary(
+            slice_timing=run_stc,
+            registration='FreeSurfer' if freesurfer else 'FSL',
+            registration_dof=bold2t1w_dof,
+            pe_direction=metadata.get("PhaseEncodingDirection"),
+            tr=metadata.get("RepetitionTime")),
         name='summary', mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
 
-    func_derivatives_wf = init_func_derivatives_wf(output_dir=output_dir,
-                                                   output_spaces=output_spaces,
-                                                   template=template,
-                                                   freesurfer=freesurfer,
-                                                   use_aroma=use_aroma,
-                                                   cifti_output=cifti_output)
+    # CIfTI output: currently, we only support fsaverage{5,6}
+    cifti_spaces = set(s for s in output_spaces.keys() if s in ('fsaverage5', 'fsaverage6'))
+    fsaverage_den = output_spaces.get('fsaverage', {}).get('den')
+    if fsaverage_den:
+        cifti_spaces.add(FSAVERAGE_DENSITY[fsaverage_den])
+    cifti_output = cifti_output and cifti_spaces
+    func_derivatives_wf = init_func_derivatives_wf(
+        bids_root=layout.root,
+        cifti_output=cifti_output,
+        freesurfer=freesurfer,
+        metadata=metadata,
+        output_dir=output_dir,
+        output_spaces=output_spaces,
+        standard_spaces=list(std_spaces.keys()),
+        use_aroma=use_aroma,
+    )
 
     workflow.connect([
+        (inputnode, func_derivatives_wf, [
+            ('template', 'inputnode.template')]),
         (outputnode, func_derivatives_wf, [
             ('bold_t1', 'inputnode.bold_t1'),
             ('bold_t1_ref', 'inputnode.bold_t1_ref'),
             ('bold_aseg_t1', 'inputnode.bold_aseg_t1'),
             ('bold_aparc_t1', 'inputnode.bold_aparc_t1'),
             ('bold_mask_t1', 'inputnode.bold_mask_t1'),
-            ('bold_mni', 'inputnode.bold_mni'),
-            ('bold_mni_ref', 'inputnode.bold_mni_ref'),
-            ('bold_aseg_mni', 'inputnode.bold_aseg_mni'),
-            ('bold_aparc_mni', 'inputnode.bold_aparc_mni'),
-            ('bold_mask_mni', 'inputnode.bold_mask_mni'),
             ('confounds', 'inputnode.confounds'),
             ('surfaces', 'inputnode.surfaces'),
             ('aroma_noise_ics', 'inputnode.aroma_noise_ics'),
@@ -394,12 +450,17 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('nonaggr_denoised_file', 'inputnode.nonaggr_denoised_file'),
             ('bold_cifti', 'inputnode.bold_cifti'),
             ('cifti_variant', 'inputnode.cifti_variant'),
-            ('cifti_variant_key', 'inputnode.cifti_variant_key')
+            ('cifti_variant_key', 'inputnode.cifti_variant_key'),
+            ('confounds_metadata', 'inputnode.confounds_metadata'),
         ]),
     ])
 
     # Generate a tentative boldref
     bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+    if sbref_file is not None:
+        workflow.connect([
+            (val_sbref, bold_reference_wf, [('out_file', 'inputnode.sbref_file')]),
+        ])
 
     # Top-level BOLD splitter
     bold_split = pe.Node(FSLSplit(dimension='t'), name='bold_split',
@@ -432,6 +493,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     bold_confounds_wf = init_bold_confs_wf(
         mem_gb=mem_gb['largemem'],
         metadata=metadata,
+        regressors_all_comps=regressors_all_comps,
+        regressors_fd_th=regressors_fd_th,
+        regressors_dvars_th=regressors_dvars_th,
         name='bold_confounds_wf')
     bold_confounds_wf.get_node('inputnode').inputs.t1_transform_flags = [False]
 
@@ -475,19 +539,20 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     bold_sdc_wf = init_sdc_wf(
         fmaps, metadata, omp_nthreads=omp_nthreads,
         debug=debug, fmap_demean=fmap_demean, fmap_bspline=fmap_bspline)
-    bold_sdc_wf.inputs.inputnode.template = template
+    bold_sdc_wf.inputs.inputnode.template = 'MNI152NLin2009cAsym' \
+        if 'MNI152NLin2009cAsym' in volume_std_spaces else next(iter(volume_std_spaces))
 
     if not fmaps:
         LOGGER.warning('SDC: no fieldmaps found or they were ignored (%s).',
                        ref_file)
-    elif fmaps[0]['type'] == 'syn':
+    elif fmaps[0]['suffix'] == 'syn':
         LOGGER.warning(
             'SDC: no fieldmaps found or they were ignored. '
             'Using EXPERIMENTAL "fieldmap-less SyN" correction '
             'for dataset %s.', ref_file)
     else:
         LOGGER.log(25, 'SDC: fieldmap estimation of type "%s" intended for %s found.',
-                   fmaps[0]['type'], ref_file)
+                   fmaps[0]['suffix'], ref_file)
 
     # MULTI-ECHO EPI DATA #############################################
     if multiecho:
@@ -518,8 +583,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     # MAIN WORKFLOW STRUCTURE #######################################################
     workflow.connect([
         # Generate early reference
-        (inputnode, bold_reference_wf, [('bold_file', 'inputnode.bold_file'),
-                                        ('sbref_file', 'inputnode.sbref_file')]),
+        (inputnode, bold_reference_wf, [('bold_file', 'inputnode.bold_file')]),
         # BOLD buffer has slice-time corrected if it was run, original otherwise
         (boldbuffer, bold_split, [('bold_file', 'in_file')]),
         # HMC
@@ -551,8 +615,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
         # SDC (or pass-through workflow)
         (inputnode, bold_sdc_wf, [
-            ('t1_brain', 'inputnode.t1_brain'),
-            ('t1_2_mni_reverse_transform', 'inputnode.t1_2_mni_reverse_transform')]),
+            ('joint_template', 'inputnode.templates'),
+            ('joint_std2anat_xfm', 'inputnode.std2anat_xfm')]),
+        (inputnode, bold_sdc_wf, [('t1_brain', 'inputnode.t1_brain')]),
         (bold_reference_wf, bold_sdc_wf, [
             ('outputnode.ref_image', 'inputnode.bold_ref'),
             ('outputnode.ref_image_brain', 'inputnode.bold_ref_brain'),
@@ -580,6 +645,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('outputnode.skip_vols', 'inputnode.skip_vols')]),
         (bold_confounds_wf, outputnode, [
             ('outputnode.confounds_file', 'confounds'),
+        ]),
+        (bold_confounds_wf, outputnode, [
+            ('outputnode.confounds_metadata', 'confounds_metadata'),
         ]),
         # Connect bold_bold_trans_wf
         (bold_split, bold_bold_trans_wf, [
@@ -617,11 +685,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     if fmaps:
         from ..fieldmap.unwarp import init_fmap_unwarp_report_wf
-        sdc_type = fmaps[0]['type']
-
         # Report on BOLD correction
-        fmap_unwarp_report_wf = init_fmap_unwarp_report_wf(
-            suffix='sdc_%s' % sdc_type)
+        fmap_unwarp_report_wf = init_fmap_unwarp_report_wf()
         workflow.connect([
             (inputnode, fmap_unwarp_report_wf, [
                 ('t1_seg', 'inputnode.in_seg')]),
@@ -633,9 +698,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('outputnode.bold_ref', 'inputnode.in_post')]),
         ])
 
-        if force_syn and sdc_type != 'syn':
+        if force_syn and fmaps[0]['suffix'] != 'syn':
             syn_unwarp_report_wf = init_fmap_unwarp_report_wf(
-                suffix='forcedsyn', name='syn_unwarp_report_wf')
+                name='syn_unwarp_report_wf', forcedsyn=True)
             workflow.connect([
                 (inputnode, syn_unwarp_report_wf, [
                     ('t1_seg', 'inputnode.in_seg')]),
@@ -648,7 +713,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ])
 
     # Map final BOLD mask into T1w space (if required)
-    if 'T1w' in output_spaces:
+    if 'T1w' in output_spaces or 'anat' in output_spaces:
         from niworkflows.interfaces.fixes import (
             FixHeaderApplyTransforms as ApplyTransforms
         )
@@ -668,57 +733,69 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('output_image', 'bold_mask_t1')]),
         ])
 
-    if 'template' in output_spaces:
+    if volume_std_spaces:
         # Apply transforms in 1 shot
         # Only use uncompressed output if AROMA is to be run
-        bold_mni_trans_wf = init_bold_mni_trans_wf(
-            template=template,
-            freesurfer=freesurfer,
+        bold_std_trans_wf = init_bold_std_trans_wf(
+            standard_spaces=std_spaces,
             mem_gb=mem_gb['resampled'],
             omp_nthreads=omp_nthreads,
-            template_out_grid=template_out_grid,
             use_compression=not low_mem,
             use_fieldwarp=fmaps is not None,
-            name='bold_mni_trans_wf'
+            name='bold_std_trans_wf'
         )
-        carpetplot_wf = init_carpetplot_wf(
-            mem_gb=mem_gb['resampled'],
-            metadata=metadata,
-            name='carpetplot_wf')
-
         workflow.connect([
-            (inputnode, bold_mni_trans_wf, [
+            (inputnode, bold_std_trans_wf, [
+                ('joint_template', 'inputnode.templates'),
+                ('joint_anat2std_xfm', 'inputnode.anat2std_xfm'),
                 ('bold_file', 'inputnode.name_source'),
-                ('t1_2_mni_forward_transform', 'inputnode.t1_2_mni_forward_transform'),
                 ('t1_aseg', 'inputnode.bold_aseg'),
                 ('t1_aparc', 'inputnode.bold_aparc')]),
-            (bold_hmc_wf, bold_mni_trans_wf, [
+            (bold_hmc_wf, bold_std_trans_wf, [
                 ('outputnode.xforms', 'inputnode.hmc_xforms')]),
-            (bold_reg_wf, bold_mni_trans_wf, [
+            (bold_reg_wf, bold_std_trans_wf, [
                 ('outputnode.itk_bold_to_t1', 'inputnode.itk_bold_to_t1')]),
-            (bold_bold_trans_wf if not multiecho else bold_t2s_wf, bold_mni_trans_wf, [
+            (bold_bold_trans_wf if not multiecho else bold_t2s_wf, bold_std_trans_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-            (bold_sdc_wf, bold_mni_trans_wf, [
+            (bold_sdc_wf, bold_std_trans_wf, [
                 ('outputnode.out_warp', 'inputnode.fieldwarp')]),
-            (bold_mni_trans_wf, outputnode, [('outputnode.bold_mni', 'bold_mni'),
-                                             ('outputnode.bold_mni_ref', 'bold_mni_ref'),
-                                             ('outputnode.bold_mask_mni', 'bold_mask_mni'),
-                                             ('outputnode.bold_aseg_mni', 'bold_aseg_mni'),
-                                             ('outputnode.bold_aparc_mni', 'bold_aparc_mni')]),
-            (inputnode, carpetplot_wf, [
-                ('t1_2_mni_reverse_transform', 'inputnode.t1_2_mni_reverse_transform')]),
-            (bold_bold_trans_wf if not multiecho else bold_t2s_wf, carpetplot_wf, [
-                ('outputnode.bold', 'inputnode.bold'),
-                ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-            (bold_reg_wf, carpetplot_wf, [
-                ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
-            (bold_confounds_wf, carpetplot_wf, [
-                ('outputnode.confounds_file', 'inputnode.confounds_file')]),
+            (bold_std_trans_wf, outputnode, [('outputnode.bold_std', 'bold_std'),
+                                             ('outputnode.bold_std_ref', 'bold_std_ref'),
+                                             ('outputnode.bold_mask_std', 'bold_mask_std')]),
         ])
+
+        if freesurfer:
+            workflow.connect([
+                (bold_std_trans_wf, func_derivatives_wf, [
+                    ('poutputnode.bold_aseg_std', 'inputnode.bold_aseg_std'),
+                    ('poutputnode.bold_aparc_std', 'inputnode.bold_aparc_std'),
+                ]),
+                (bold_std_trans_wf, outputnode, [
+                    ('outputnode.bold_aseg_std', 'bold_aseg_std'),
+                    ('outputnode.bold_aparc_std', 'bold_aparc_std')]),
+            ])
+
+        if 'MNI152NLin2009cAsym' in std_spaces:
+            carpetplot_wf = init_carpetplot_wf(
+                standard_spaces=std_spaces,
+                mem_gb=mem_gb['resampled'],
+                metadata=metadata,
+                name='carpetplot_wf')
+            workflow.connect([
+                (inputnode, carpetplot_wf, [
+                    ('joint_std2anat_xfm', 'inputnode.std2anat_xfm')]),
+                (bold_bold_trans_wf if not multiecho else bold_t2s_wf, carpetplot_wf, [
+                    ('outputnode.bold', 'inputnode.bold'),
+                    ('outputnode.bold_mask', 'inputnode.bold_mask')]),
+                (bold_reg_wf, carpetplot_wf, [
+                    ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
+                (bold_confounds_wf, carpetplot_wf, [
+                    ('outputnode.confounds_file', 'inputnode.confounds_file')]),
+            ])
 
         if not multiecho:
             workflow.connect([
-                (bold_split, bold_mni_trans_wf, [
+                (bold_split, bold_std_trans_wf, [
                     ('out_files', 'inputnode.bold_split')])
             ])
         else:
@@ -726,28 +803,37 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             workflow.connect([
                 (bold_t2s_wf, split_opt_comb, [
                     ('outputnode.bold', 'in_file')]),
-                (split_opt_comb, bold_mni_trans_wf, [
+                (split_opt_comb, bold_std_trans_wf, [
                     ('out_files', 'inputnode.bold_split')
                 ])
             ])
 
-        if use_aroma:
-            # ICA-AROMA workflow
-            # Internally resamples to MNI152 Linear (2006)
+        # Artifacts resampled in MNI space can only be sinked if they
+        # were actually generated. See #1348.
+        # Uses the parameterized outputnode to generate all outputs
+        workflow.connect([
+            (bold_std_trans_wf, func_derivatives_wf, [
+                ('poutputnode.bold_std_ref', 'inputnode.bold_std_ref'),
+                ('poutputnode.bold_std', 'inputnode.bold_std'),
+                ('poutputnode.bold_mask_std', 'inputnode.bold_mask_std'),
+            ]),
+        ])
+
+        if use_aroma and 'MNI152NLin6Asym' in std_spaces:  # ICA-AROMA workflow
             from .confounds import init_ica_aroma_wf
-            from niworkflows.interfaces.utils import JoinTSVColumns
 
             ica_aroma_wf = init_ica_aroma_wf(
-                template=template,
                 metadata=metadata,
                 mem_gb=mem_gb['resampled'],
                 omp_nthreads=omp_nthreads,
                 use_fieldwarp=fmaps is not None,
-                ignore_aroma_err=ignore_aroma_err,
+                err_on_aroma_warn=err_on_aroma_warn,
                 aroma_melodic_dim=aroma_melodic_dim,
                 name='ica_aroma_wf')
 
-            join = pe.Node(JoinTSVColumns(), name='aroma_confounds')
+            join = pe.Node(niu.Function(output_names=["out_file"],
+                                        function=_to_join),
+                           name='aroma_confounds')
 
             workflow.disconnect([
                 (bold_confounds_wf, outputnode, [
@@ -755,20 +841,14 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ]),
             ])
             workflow.connect([
+                (bold_std_trans_wf, ica_aroma_wf, [
+                    ('outputnode.bold_std', 'inputnode.bold_std'),
+                    ('outputnode.bold_mask_std', 'inputnode.bold_mask_std'),
+                    ('outputnode.templates', 'inputnode.templates')]),
                 (inputnode, ica_aroma_wf, [
-                    ('bold_file', 'inputnode.name_source'),
-                    ('t1_2_mni_forward_transform', 'inputnode.t1_2_mni_forward_transform')]),
-                (bold_split, ica_aroma_wf, [
-                    ('out_files', 'inputnode.bold_split')]),
+                    ('bold_file', 'inputnode.name_source')]),
                 (bold_hmc_wf, ica_aroma_wf, [
-                    ('outputnode.movpar_file', 'inputnode.movpar_file'),
-                    ('outputnode.xforms', 'inputnode.hmc_xforms')]),
-                (bold_reg_wf, ica_aroma_wf, [
-                    ('outputnode.itk_bold_to_t1', 'inputnode.itk_bold_to_t1')]),
-                (bold_bold_trans_wf if not multiecho else bold_t2s_wf, ica_aroma_wf, [
-                    ('outputnode.bold_mask', 'inputnode.bold_mask')]),
-                (bold_sdc_wf, ica_aroma_wf, [
-                    ('outputnode.out_warp', 'inputnode.fieldwarp')]),
+                    ('outputnode.movpar_file', 'inputnode.movpar_file')]),
                 (bold_reference_wf, ica_aroma_wf, [
                     ('outputnode.skip_vols', 'inputnode.skip_vols')]),
                 (bold_confounds_wf, join, [
@@ -783,10 +863,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ])
 
     # SURFACES ##################################################################################
-    if freesurfer and any(space.startswith('fs') for space in output_spaces):
+    surface_spaces = [space for space in output_spaces.keys() if space.startswith('fs')]
+    if freesurfer and surface_spaces:
         LOGGER.log(25, 'Creating BOLD surface-sampling workflow.')
         bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
-                                         output_spaces=output_spaces,
+                                         output_spaces=surface_spaces,
                                          medial_surface_nan=medial_surface_nan,
                                          name='bold_surf_wf')
         workflow.connect([
@@ -799,22 +880,29 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])
 
-        # CIFTI output
-        if cifti_output and 'template' in output_spaces:
+        if cifti_output:
+            from niworkflows.interfaces.utility import KeySelect
             bold_surf_wf.__desc__ += """\
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
 """
+            select_std = pe.Node(KeySelect(fields=['bold_std']),
+                                 name='select_std', run_without_submitting=True)
+            select_std.inputs.key = 'MNI152NLin2009cAsym'
+
             gen_cifti = pe.MapNode(GenerateCifti(), iterfield=["surface_target", "gifti_files"],
                                    name="gen_cifti")
             gen_cifti.inputs.TR = metadata.get("RepetitionTime")
+            gen_cifti.inputs.surface_target = list(cifti_spaces)
 
             workflow.connect([
+                (bold_std_trans_wf, select_std, [
+                    ('outputnode.templates', 'keys'),
+                    ('outputnode.bold_std', 'bold_std')]),
                 (bold_surf_wf, gen_cifti, [
-                    ('targets.out', 'surface_target'),
                     ('outputnode.surfaces', 'gifti_files')]),
                 (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
-                (bold_mni_trans_wf, gen_cifti, [('outputnode.bold_mni', 'bold_file')]),
+                (select_std, gen_cifti, [('bold_std', 'bold_file')]),
                 (gen_cifti, outputnode, [('out_file', 'bold_cifti'),
                                          ('variant', 'cifti_variant'),
                                          ('variant_key', 'cifti_variant_key')]),
@@ -822,13 +910,13 @@ data and volume-sampled data, were also generated.
 
     # REPORTING ############################################################
     ds_report_summary = pe.Node(
-        DerivativesDataSink(suffix='summary'),
+        DerivativesDataSink(desc='summary', keep_dtype=True),
         name='ds_report_summary', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     ds_report_validation = pe.Node(
         DerivativesDataSink(base_directory=reportlets_dir,
-                            suffix='validation'),
+                            desc='validation', keep_dtype=True),
         name='ds_report_validation', run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB)
 
@@ -843,184 +931,6 @@ data and volume-sampled data, were also generated.
         if node.split('.')[-1].startswith('ds_report'):
             workflow.get_node(node).inputs.base_directory = reportlets_dir
             workflow.get_node(node).inputs.source_file = ref_file
-
-    return workflow
-
-
-def init_func_derivatives_wf(output_dir, output_spaces, template, freesurfer,
-                             use_aroma, cifti_output, name='func_derivatives_wf'):
-    """
-    Set up a battery of datasinks to store derivatives in the right location
-    """
-    workflow = Workflow(name=name)
-
-    inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['source_file',
-                    'bold_t1', 'bold_t1_ref', 'bold_mask_t1',
-                    'bold_mni', 'bold_mni_ref', 'bold_mask_mni',
-                    'bold_aseg_t1', 'bold_aparc_t1', 'bold_aseg_mni',
-                    'bold_aparc_mni', 'cifti_variant_key',
-                    'confounds', 'surfaces', 'aroma_noise_ics', 'melodic_mix',
-                    'nonaggr_denoised_file', 'bold_cifti', 'cifti_variant']),
-        name='inputnode')
-
-    ds_confounds = pe.Node(DerivativesDataSink(
-        base_directory=output_dir, desc='confounds', suffix='regressors'),
-        name="ds_confounds", run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
-    workflow.connect([
-        (inputnode, ds_confounds, [('source_file', 'source_file'),
-                                   ('confounds', 'in_file')]),
-    ])
-
-    # Resample to T1w space
-    if 'T1w' in output_spaces:
-        ds_bold_t1 = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space='T1w', desc='preproc',
-                                keep_dtype=True, compress=True),
-            name='ds_bold_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_bold_t1_ref = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space='T1w', suffix='boldref'),
-            name='ds_bold_t1_ref', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-        ds_bold_mask_t1 = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space='T1w', desc='brain',
-                                suffix='mask'),
-            name='ds_bold_mask_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        workflow.connect([
-            (inputnode, ds_bold_t1, [('source_file', 'source_file'),
-                                     ('bold_t1', 'in_file')]),
-            (inputnode, ds_bold_t1_ref, [('source_file', 'source_file'),
-                                         ('bold_t1_ref', 'in_file')]),
-            (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
-                                          ('bold_mask_t1', 'in_file')]),
-        ])
-        if freesurfer:
-            ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, space='T1w', desc='aseg', suffix='dseg'),
-                name='ds_bold_aseg_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            ds_bold_aparc_t1 = pe.Node(DerivativesDataSink(
-                base_directory=output_dir,  space='T1w', desc='aparcaseg', suffix='dseg'),
-                name='ds_bold_aparc_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            workflow.connect([
-                (inputnode, ds_bold_aseg_t1, [('source_file', 'source_file'),
-                                              ('bold_aseg_t1', 'in_file')]),
-                (inputnode, ds_bold_aparc_t1, [('source_file', 'source_file'),
-                                               ('bold_aparc_t1', 'in_file')]),
-            ])
-
-    # Resample to template (default: MNI)
-    if 'template' in output_spaces:
-        ds_bold_mni = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space=template, desc='preproc',
-                                keep_dtype=True, compress=True),
-            name='ds_bold_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_bold_mni_ref = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space=template, suffix='boldref'),
-            name='ds_bold_mni_ref', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-        ds_bold_mask_mni = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space=template, desc='brain',
-                                suffix='mask'),
-            name='ds_bold_mask_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        workflow.connect([
-            (inputnode, ds_bold_mni, [('source_file', 'source_file'),
-                                      ('bold_mni', 'in_file')]),
-            (inputnode, ds_bold_mni_ref, [('source_file', 'source_file'),
-                                          ('bold_mni_ref', 'in_file')]),
-            (inputnode, ds_bold_mask_mni, [('source_file', 'source_file'),
-                                           ('bold_mask_mni', 'in_file')]),
-        ])
-
-        if freesurfer:
-            ds_bold_aseg_mni = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, space=template, desc='aseg', suffix='dseg'),
-                name='ds_bold_aseg_mni', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            ds_bold_aparc_mni = pe.Node(DerivativesDataSink(
-                base_directory=output_dir,  space=template, desc='aparcaseg', suffix='dseg'),
-                name='ds_bold_aparc_mni', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            workflow.connect([
-                (inputnode, ds_bold_aseg_mni, [('source_file', 'source_file'),
-                                               ('bold_aseg_mni', 'in_file')]),
-                (inputnode, ds_bold_aparc_mni, [('source_file', 'source_file'),
-                                                ('bold_aparc_mni', 'in_file')]),
-            ])
-
-    # fsaverage space
-    if freesurfer and any(space.startswith('fs') for space in output_spaces):
-        name_surfs = pe.MapNode(GiftiNameSource(
-            pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii', template='space-{space}_hemi-{LR}.func'),
-            iterfield='in_file', name='name_surfs', mem_gb=DEFAULT_MEMORY_MIN_GB,
-            run_without_submitting=True)
-        ds_bold_surfs = pe.MapNode(DerivativesDataSink(base_directory=output_dir),
-                                   iterfield=['in_file', 'suffix'], name='ds_bold_surfs',
-                                   run_without_submitting=True,
-                                   mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-        workflow.connect([
-            (inputnode, name_surfs, [('surfaces', 'in_file')]),
-            (inputnode, ds_bold_surfs, [('source_file', 'source_file'),
-                                        ('surfaces', 'in_file')]),
-            (name_surfs, ds_bold_surfs, [('out_name', 'suffix')]),
-        ])
-
-        # CIFTI output
-        if cifti_output and 'template' in output_spaces:
-            name_cifti = pe.MapNode(
-                CiftiNameSource(), iterfield=['variant'], name='name_cifti',
-                mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
-            cifti_bolds = pe.MapNode(
-                DerivativesDataSink(base_directory=output_dir, compress=False),
-                iterfield=['in_file', 'suffix'], name='cifti_bolds',
-                run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-            cifti_key = pe.MapNode(DerivativesDataSink(
-                base_directory=output_dir), iterfield=['in_file', 'suffix'],
-                name='cifti_key', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            workflow.connect([
-                (inputnode, name_cifti, [('cifti_variant', 'variant')]),
-                (inputnode, cifti_bolds, [('bold_cifti', 'in_file'),
-                                          ('source_file', 'source_file')]),
-                (name_cifti, cifti_bolds, [('out_name', 'suffix')]),
-                (name_cifti, cifti_key, [('out_name', 'suffix')]),
-                (inputnode, cifti_key, [('source_file', 'source_file'),
-                                        ('cifti_variant_key', 'in_file')]),
-            ])
-
-    if use_aroma:
-        ds_aroma_noise_ics = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix='AROMAnoiseICs'),
-            name="ds_aroma_noise_ics", run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_melodic_mix = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, desc='MELODIC', suffix='mixing'),
-            name="ds_melodic_mix", run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_aroma_mni = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space=template,
-                                desc='smoothAROMAnonaggr', keep_dtype=True),
-            name='ds_aroma_mni', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-        workflow.connect([
-            (inputnode, ds_aroma_noise_ics, [('source_file', 'source_file'),
-                                             ('aroma_noise_ics', 'in_file')]),
-            (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
-                                         ('melodic_mix', 'in_file')]),
-            (inputnode, ds_aroma_mni, [('source_file', 'source_file'),
-                                       ('nonaggr_denoised_file', 'in_file')]),
-        ])
 
     return workflow
 
@@ -1066,3 +976,15 @@ def _get_wf_name(bold_fname):
         ".", "_").replace(" ", "").replace("-", "_").replace("_bold", "_wf")
 
     return name
+
+
+def _to_join(in_file, join_file):
+    """
+    Joins two tsv files if the join_file is not None
+    """
+    from niworkflows.interfaces.utils import JoinTSVColumns
+    if join_file is None:
+        return in_file
+    else:
+        res = JoinTSVColumns(in_file=in_file, join_file=join_file).run()
+        return res.outputs.out_file

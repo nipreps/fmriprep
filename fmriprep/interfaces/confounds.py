@@ -98,11 +98,13 @@ class GatherConfounds(SimpleInterface):
 class ICAConfoundsInputSpec(BaseInterfaceInputSpec):
     in_directory = Directory(mandatory=True, desc='directory where ICA derivatives are found')
     skip_vols = traits.Int(desc='number of non steady state volumes identified')
-    ignore_aroma_err = traits.Bool(False, usedefault=True, desc='ignore ICA-AROMA errors')
+    err_on_aroma_warn = traits.Bool(False, usedefault=True, desc='raise error if aroma fails')
 
 
 class ICAConfoundsOutputSpec(TraitedSpec):
-    aroma_confounds = File(exists=True, desc='output confounds file extracted from ICA-AROMA')
+    aroma_confounds = traits.Either(
+        None,
+        File(exists=True, desc='output confounds file extracted from ICA-AROMA'))
     aroma_noise_ics = File(exists=True, desc='ICA-AROMA noise components')
     melodic_mix = File(exists=True, desc='melodic mix file')
 
@@ -117,10 +119,10 @@ class ICAConfounds(SimpleInterface):
         aroma_confounds, motion_ics_out, melodic_mix_out = _get_ica_confounds(
             self.inputs.in_directory, self.inputs.skip_vols, newpath=runtime.cwd)
 
-        if aroma_confounds is not None:
-            self._results['aroma_confounds'] = aroma_confounds
-        elif not self.inputs.ignore_aroma_err:
+        if self.inputs.err_on_aroma_warn and aroma_confounds is None:
             raise RuntimeError('ICA-AROMA failed')
+
+        aroma_confounds = self._results['aroma_confounds'] = aroma_confounds
 
         self._results['aroma_noise_ics'] = motion_ics_out
         self._results['melodic_mix'] = melodic_mix_out
@@ -153,7 +155,7 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
     """
 
     def less_breakable(a_string):
-        ''' hardens the string to different envs (i.e. case insensitive, no whitespace, '#' '''
+        ''' hardens the string to different envs (i.e., case insensitive, no whitespace, '#' '''
         return ''.join(a_string.split()).strip('#')
 
     # Taken from https://stackoverflow.com/questions/1175208/
@@ -241,7 +243,7 @@ def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
         LOGGER.warning('No noise components were classified')
         return None, motion_ics_out, melodic_mix_out
 
-    # the "good" ics, (e.g. not motion related)
+    # the "good" ics, (e.g., not motion related)
     good_ic_arr = np.delete(melodic_mix_arr, motion_ic_indices, 1).T
 
     # return dummy lists of zeros if no signal components were found

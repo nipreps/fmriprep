@@ -1,4 +1,6 @@
 {
+  "title": "fMRIPrep: a robust preprocessing pipeline for functional MRI",
+  "description": "<p>fMRIPrep is a robust and easy-to-use pipeline for preprocessing of diverse fMRI data. The transparent workflow dispenses of manual intervention, thereby ensuring the reproducibility of the results.</p>",
   "creators": [
     {
       "name": "Esteban, Oscar",
@@ -7,7 +9,8 @@
     },
     {
       "name": "Blair, Ross",
-      "affiliation": "Department of Psychology, Stanford University"
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0003-3007-1056"
     },
     {
       "name": "Markiewicz, Christopher J.",
@@ -109,6 +112,26 @@
       "orcid": "0000-0002-1931-4734"
     },
     {
+      "name": "Halchenko, Yaroslav O.",
+      "affiliation": "Dartmouth College: Hanover, NH, United States",
+      "orcid": "0000-0003-3456-2493"
+    },
+    {
+      "name": "Rivera-Dompenciel, Adriana",
+      "affiliation": "Neuroscience Program, University of Iowa",
+      "orcid": "0000-0002-3339-4857"
+    },
+    {
+      "name": "Ciric, Rastko",
+      "affiliation": "Stanford University",
+      "orcid": "0000-0001-6347-7939"
+    },
+    {
+      "name": "Sneve, Markus H.",
+      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
+      "orcid": "0000-0001-7644-7915"
+    },
+    {
       "name": "Poldrack, Russell A.",
       "affiliation": "Department of Psychology, Stanford University",
       "orcid": "0000-0001-6755-0259"
@@ -126,6 +149,18 @@
     "preprocessing",
     "fMRI",
     "BIDS"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://fmriprep.org",
+      "relation": "documents",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1038/s41592-018-0235-4",
+      "relation": "isPartOf",
+      "scheme": "doi"
+    }
   ],
   "license": "BSD-3-Clause",
   "upload_type": "software"

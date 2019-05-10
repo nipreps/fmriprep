@@ -250,10 +250,6 @@ Presentations
 Other relevant references
 -------------------------
 
-  .. [Fonov2011] Fonov VS, Evans AC, Botteron K, Almli CR, McKinstry RC, Collins DL and BDCG,
-      Unbiased average age-appropriate atlases for pediatric studies, NeuroImage 54(1), 2011
-      doi:`10.1016/j.neuroimage.2010.07.033 <https://doi.org/10.1016/j.neuroimage.2010.07.033>`_.
-
   .. [Power2017] Power JD, Plitt M, Kundu P, Bandettini PA, Martin A (2017) Temporal interpolation alters
       motion in fMRI scans: Magnitudes and consequences for artifact detection. PLOS ONE 12(9): e0182939.
       doi:`10.1371/journal.pone.0182939 <https://doi.org/10.1371/journal.pone.0182939>`_.

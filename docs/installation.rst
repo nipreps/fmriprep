@@ -26,19 +26,32 @@ In order to run fmriprep in a Docker container, Docker must be `installed
 <https://docs.docker.com/engine/installation/>`_.
 Once Docker is installed, the recommended way to run fmriprep is to use the
 fmriprep-docker_ wrapper, which requires Python and an Internet connection.
+``fmriprep-docker`` is a command that allows you to write your command line 
+as if you were running ``fmriprep`` directly, and converts it into a ``docker`` 
+command.
 
 To install::
 
     $ pip install --user --upgrade fmriprep-docker
 
-When run, ``fmriprep-docker`` will generate a Docker command line for you,
-print it out for reporting purposes, and then run the command, e.g.::
+When you run ``fmriprep-docker``, it will generate a Docker command line for you,
+print it out for reporting purposes, and then execute it without further action
+needed, e.g.::
 
     $ fmriprep-docker /path/to/data/dir /path/to/output/dir participant
     RUNNING: docker run --rm -it -v /path/to/data/dir:/data:ro \
         -v /path/to_output/dir:/out poldracklab/fmriprep:1.0.0 \
         /data /out participant
     ...
+
+``fmriprep-docker`` accepts all of the typical options for ``fmriprep``,
+automatically translating directories into Docker mount points.
+
+We have published a `step-by-step tutorial
+<http://reproducibility.stanford.edu/fmriprep-tutorial-running-the-docker-image/>`_
+illustrating how to run ``fmriprep-docker``. 
+This tutorial also provides valuable troubleshooting insights and advice on 
+what to do after fmriprep has run.
 
 You may also invoke ``docker`` directly::
 
@@ -76,7 +89,7 @@ image directly on the HCP.
 This is as simple as: ::
 
     $ singularity build /my_images/fmriprep-<version>.simg docker://poldracklab/fmriprep:<version>
-    
+
 Where ``<version>`` should be replaced with the desired version of fMRIPrep that you want to download.
 
 

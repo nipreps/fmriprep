@@ -15,7 +15,9 @@ from pkg_resources import resource_filename as pkgr_fn
 
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu, fsl, afni, ants
-from niworkflows.data import get_template
+
+from templateflow.api import get as get_template
+
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.ants import AI
 from niworkflows.interfaces.fixes import (
@@ -113,8 +115,6 @@ using a custom methodology of *fMRIPrep*.
 
     gen_ref = pe.Node(EstimateReferenceImage(), name="gen_ref",
                       mem_gb=1)  # OE: 128x128x128x50 * 64 / 8 ~ 900MB.
-    # Re-run validation; no effect if no sbref; otherwise apply same validation to sbref as bold
-    validate_ref = pe.Node(ValidateImage(), name='validate_ref', mem_gb=DEFAULT_MEMORY_MIN_GB)
     enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(
         omp_nthreads=omp_nthreads, pre_mask=pre_mask)
 
@@ -123,12 +123,11 @@ using a custom methodology of *fMRIPrep*.
         (inputnode, validate, [('bold_file', 'in_file')]),
         (inputnode, gen_ref, [('sbref_file', 'sbref_file')]),
         (validate, gen_ref, [('out_file', 'in_file')]),
-        (gen_ref, validate_ref, [('ref_image', 'in_file')]),
-        (validate_ref, enhance_and_skullstrip_bold_wf, [('out_file', 'inputnode.in_file')]),
+        (gen_ref,  enhance_and_skullstrip_bold_wf, [('ref_image', 'inputnode.in_file')]),
         (validate, outputnode, [('out_file', 'bold_file'),
                                 ('out_report', 'validation_report')]),
         (gen_ref, outputnode, [('n_volumes_to_discard', 'skip_vols')]),
-        (validate_ref, outputnode, [('out_file', 'raw_ref_image')]),
+        (gen_ref, outputnode, [('ref_image', 'raw_ref_image')]),
         (enhance_and_skullstrip_bold_wf, outputnode, [
             ('outputnode.bias_corrected_file', 'ref_image'),
             ('outputnode.mask_file', 'bold_mask'),
@@ -153,7 +152,7 @@ def init_enhance_and_skullstrip_bold_wf(
         omp_nthreads=1):
     """
     This workflow takes in a :abbr:`BOLD (blood-oxygen level-dependant)`
-    :abbr:`fMRI (functional MRI)` average/summary (e.g. a reference image
+    :abbr:`fMRI (functional MRI)` average/summary (e.g., a reference image
     averaging non-steady-state timepoints), and sharpens the histogram
     with the application of the N4 algorithm for removing the
     :abbr:`INU (intensity non-uniformity)` bias field and calculates a signal
@@ -239,8 +238,9 @@ def init_enhance_and_skullstrip_bold_wf(
                         run_without_submitting=True)
 
     # Run N4 normally, force num_threads=1 for stability (images are small, no need for >1)
-    n4_correct = pe.Node(ants.N4BiasFieldCorrection(dimension=3, copy_header=True),
-                         name='n4_correct', n_procs=1)
+    n4_correct = pe.Node(ants.N4BiasFieldCorrection(
+        dimension=3, copy_header=True, bspline_fitting_distance=200),
+        name='n4_correct', n_procs=1)
 
     # Create a generous BET mask out of the bias-corrected EPI
     skullstrip_first_pass = pe.Node(fsl.BET(frac=0.2, mask=True),
@@ -273,9 +273,10 @@ def init_enhance_and_skullstrip_bold_wf(
     apply_mask = pe.Node(fsl.ApplyMask(), name='apply_mask')
 
     if not pre_mask:
-        bold_template = get_template('fMRIPrep') / 'tpl-fMRIPrep_space-MNI_res-02_boldref.nii.gz'
-        brain_mask = get_template('MNI152NLin2009cAsym') / \
-            'tpl-MNI152NLin2009cAsym_space-MNI_res-02_brainmask.nii.gz'
+        bold_template = get_template(
+            'MNI152NLin2009cAsym', resolution=2, desc='fMRIPrep', suffix='boldref')
+        brain_mask = get_template(
+            'MNI152NLin2009cAsym', resolution=2, desc='brain', suffix='mask')
 
         # Initialize transforms with antsAI
         init_aff = pe.Node(AI(
@@ -290,7 +291,8 @@ def init_enhance_and_skullstrip_bold_wf(
             name='init_aff',
             n_procs=omp_nthreads)
 
-        if parseversion(Registration().version) > Version('2.2.0'):
+        # Registration().version may be None
+        if parseversion(Registration().version or '0.0.0') > Version('2.2.0'):
             init_aff.inputs.search_grid = (40, (0, 40, 40))
 
         # Set up spatial normalization

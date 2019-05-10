@@ -41,6 +41,7 @@ from nipype.interfaces import utility as niu
 from nipype import logging
 
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+from niworkflows.interfaces.utility import KeySelect
 
 # Fieldmap workflows
 from .pepolar import init_pepolar_unwarp_wf
@@ -80,7 +81,7 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
         from fmriprep.workflows.fieldmap import init_sdc_wf
         wf = init_sdc_wf(
             fmaps=[{
-                'type': 'phasediff',
+                'suffix': 'phasediff',
                 'phasediff': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_phasediff.nii.gz',
                 'magnitude1': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude1.nii.gz',
                 'magnitude2': 'sub-03/ses-2/fmap/sub-03_ses-2_run-1_magnitude2.nii.gz',
@@ -118,11 +119,16 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
             Brain mask for the BOLD run
         t1_brain
             T1w image, brain-masked, for the fieldmap-less SyN method
-        t1_2_mni_reverse_transform
-            MNI-to-T1w transform to map prior knowledge to the T1w
-            fo the fieldmap-less SyN method
+        std2anat_xfm
+            List of standard-to-T1w transforms generated during spatial
+            normalization (only for the fieldmap-less SyN method).
         template : str
-            Name of template targeted by ``template`` output space
+            Name of template from which prior knowledge will be mapped
+            into the subject's T1w reference
+            (only for the fieldmap-less SyN method)
+        templates : str
+            Name of templates that index the ``std2anat_xfm`` input list
+            (only for the fieldmap-less SyN method).
 
 
     **Outputs**
@@ -141,12 +147,12 @@ def init_sdc_wf(fmaps, bold_meta, omp_nthreads=1,
     """
 
     # TODO: To be removed (filter out unsupported fieldmaps):
-    fmaps = [fmap for fmap in fmaps if fmap['type'] in FMAP_PRIORITY]
+    fmaps = [fmap for fmap in fmaps if fmap['suffix'] in FMAP_PRIORITY]
 
     workflow = Workflow(name='sdc_wf' if fmaps else 'sdc_bypass_wf')
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_ref', 'bold_ref_brain', 'bold_mask',
-                't1_brain', 't1_2_mni_reverse_transform', 'template']),
+                't1_brain', 'std2anat_xfm', 'template', 'templates']),
         name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(
@@ -171,15 +177,15 @@ co-registration with the anatomical reference.
 """
 
     # In case there are multiple fieldmaps prefer EPI
-    fmaps.sort(key=lambda fmap: FMAP_PRIORITY[fmap['type']])
+    fmaps.sort(key=lambda fmap: FMAP_PRIORITY[fmap['suffix']])
     fmap = fmaps[0]
 
     # PEPOLAR path
-    if fmap['type'] == 'epi':
+    if fmap['suffix'] == 'epi':
         outputnode.inputs.method = 'PEB/PEPOLAR (phase-encoding based / PE-POLARity)'
         # Get EPI polarities and their metadata
         epi_fmaps = [(fmap_['epi'], fmap_['metadata']["PhaseEncodingDirection"])
-                     for fmap_ in fmaps if fmap_['type'] == 'epi']
+                     for fmap_ in fmaps if fmap_['suffix'] == 'epi']
         sdc_unwarp_wf = init_pepolar_unwarp_wf(
             bold_meta=bold_meta,
             epi_fmaps=epi_fmaps,
@@ -198,7 +204,7 @@ co-registration with the anatomical reference.
         outputnode.inputs.method = 'FMB (%s-based)' % fmap['type']
         # Import specific workflows here, so we don't break everything with one
         # unused workflow.
-        if fmap['type'] == 'fieldmap':
+        if fmap['suffix'] == 'fieldmap':
             from .fmap import init_fmap_wf
             fmap_estimator_wf = init_fmap_wf(
                 omp_nthreads=omp_nthreads,
@@ -255,22 +261,32 @@ co-registration with the anatomical reference.
         ])
 
     # FIELDMAP-less path
-    if any(fm['type'] == 'syn' for fm in fmaps):
+    if any(fm['suffix'] == 'syn' for fm in fmaps):
+        # Select template
+        sdc_select_std = pe.Node(KeySelect(
+            fields=['std2anat_xfm']),
+            name='sdc_select_std', run_without_submitting=True)
+
         syn_sdc_wf = init_syn_sdc_wf(
             bold_pe=bold_meta.get('PhaseEncodingDirection', None),
             omp_nthreads=omp_nthreads)
 
         workflow.connect([
+            (inputnode, sdc_select_std, [
+                ('template', 'key'),
+                ('templates', 'keys'),
+                ('std2anat_xfm', 'std2anat_xfm')]),
+            (sdc_select_std, syn_sdc_wf, [
+                ('std2anat_xfm', 'inputnode.std2anat_xfm')]),
             (inputnode, syn_sdc_wf, [
                 ('t1_brain', 'inputnode.t1_brain'),
-                ('t1_2_mni_reverse_transform', 'inputnode.t1_2_mni_reverse_transform'),
                 ('bold_ref', 'inputnode.bold_ref'),
                 ('bold_ref_brain', 'inputnode.bold_ref_brain'),
                 ('template', 'inputnode.template')]),
         ])
 
         # XXX Eliminate branch when forcing isn't an option
-        if fmap['type'] == 'syn':  # No fieldmaps, but --use-syn
+        if fmap['suffix'] == 'syn':  # No fieldmaps, but --use-syn
             outputnode.inputs.method = 'FLB ("fieldmap-less", SyN-based)'
             sdc_unwarp_wf = syn_sdc_wf
         else:  # --force-syn was called when other fieldmap was present
