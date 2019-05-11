@@ -560,8 +560,8 @@ segmentation, the `discover_wf` sub-workflow calculates potential
 confounds per volume.
 
 Calculated confounds include the mean global signal, mean tissue class signal,
-tCompCor, aCompCor, Frame-wise Displacement, 6 motion parameters, DVARS, and, if
-the ``--use-aroma`` flag is enabled, the noise components identified by ICA-AROMA
+tCompCor, aCompCor, Frame-wise Displacement, 6 motion parameters, DVARS, spike regressors,
+and, if the ``--use-aroma`` flag is enabled, the noise components identified by ICA-AROMA
 (those to be removed by the "aggressive" denoising strategy).
 Particular details about ICA-AROMA are given below.
 

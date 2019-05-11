@@ -161,13 +161,18 @@ the aforementioned mask and the union of CSF and WM masks calculated
 in T1w space, after their projection to the native space of each
 functional run (using the inverse BOLD-to-T1w transformation). Components
 are also calculated separately within the WM and CSF masks.
+For each CompCor decomposition, the *k* components with the largest singular
+values are retained, such that the retained components' time series are
+sufficient to explain 50 percent of variance across the nuisance mask (CSF,
+WM, combined, or temporal). The remaining components are dropped from
+consideration.
 The head-motion estimates calculated in the correction step were also
 placed within the corresponding confounds file.
 The confound time series derived from head motion estimates and global
 signals were expanded with the inclusion of temporal derivatives and
 quadratic terms for each [@confounds_satterthwaite_2013].
 Frames that exceeded a threshold of {fd} mm FD or {dv} standardised DVARS
-were classified as motion outliers.
+were annotated as motion outliers.
 """.format(fd=regressors_fd_th, dv=regressors_dvars_th)
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold', 'bold_mask', 'movpar_file', 'skip_vols',
