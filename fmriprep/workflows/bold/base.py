@@ -336,10 +336,10 @@ def init_func_preproc_wf(
         if 'fieldmaps' not in ignore:
             fmaps = layout.get_fieldmap(ref_file, return_list=True)
             for fmap in fmaps:
-                if fmap['type'] == 'phase':
+                if fmap['suffix'] == 'phase':
                     fmap_key = 'phase1'
                 else:
-                    fmap_key = fmap['type']
+                    fmap_key = fmap['suffix']
                 fmap['metadata'] = layout.get_metadata(fmap[fmap_key])
 
         # Run SyN if forced or in the absence of fieldmap correction
