@@ -200,8 +200,8 @@ co-registration with the anatomical reference.
         ])
 
     # FIELDMAP path
-    if fmap['type'] in ['fieldmap', 'phasediff', 'phase']:
-        outputnode.inputs.method = 'FMB (%s-based)' % fmap['type']
+    if fmap['suffix'] in ['fieldmap', 'phasediff', 'phase']:
+        outputnode.inputs.method = 'FMB (%s-based)' % fmap['suffix']
         # Import specific workflows here, so we don't break everything with one
         # unused workflow.
         if fmap['suffix'] == 'fieldmap':
@@ -213,14 +213,14 @@ co-registration with the anatomical reference.
             fmap_estimator_wf.inputs.inputnode.fieldmap = fmap['fieldmap']
             fmap_estimator_wf.inputs.inputnode.magnitude = fmap['magnitude']
 
-        if fmap['type'] in ('phasediff', 'phase'):
+        if fmap['suffix'] in ('phasediff', 'phase'):
             from .phdiff import init_phdiff_wf
             fmap_estimator_wf = init_phdiff_wf(omp_nthreads=omp_nthreads,
-                                               phasetype=fmap['type'])
+                                               phasetype=fmap['suffix'])
             # set inputs
-            if fmap['type'] == 'phasediff':
+            if fmap['suffix'] == 'phasediff':
                 fmap_estimator_wf.inputs.inputnode.phasediff = fmap['phasediff']
-            elif fmap['type'] == 'phase':
+            elif fmap['suffix'] == 'phase':
                 # Check that fieldmap is not bipolar
                 fmap_polarity = fmap['metadata'].get('DiffusionScheme', None)
                 if fmap_polarity == 'Bipolar':

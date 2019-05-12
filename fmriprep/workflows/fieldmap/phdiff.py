@@ -143,9 +143,6 @@ The phase difference used for unwarping was calculated using two separate phase 
         (n4, prelude, [('output_image', 'magnitude_file')]),
         (n4, bet, [('output_image', 'in_file')]),
         (bet, prelude, [('mask_file', 'mask_file')]),
-        (inputnode, pha2rads, [('phasediff', 'in_file')]),
-        (pha2rads, prelude, [('out', 'phase_file')]),
-        (meta, compfmap, [('out_dict', 'metadata')]),
         (prelude, denoise, [('unwrapped_phase_file', 'in_file')]),
         (denoise, demean, [('out_file', 'in_file')]),
         (demean, cleanup_wf, [('out', 'inputnode.in_file')]),
@@ -154,7 +151,6 @@ The phase difference used for unwarping was calculated using two separate phase 
         (compfmap, outputnode, [('out_file', 'fmap')]),
         (bet, outputnode, [('mask_file', 'fmap_mask'),
                            ('out_file', 'fmap_ref')]),
-        (inputnode, ds_report_fmap_mask, [('phasediff', 'source_file')]),
         (bet, ds_report_fmap_mask, [('out_report', 'in_file')]),
     ])
 

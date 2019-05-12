@@ -580,7 +580,7 @@ def phases2fmap(phase_files, metadatas, newpath=None):
 
 
 def _delta_te(in_values, te1=None, te2=None):
-    """Read :math:`\Delta_\text{TE}` from BIDS metadata dict"""
+    r"""Read :math:`\Delta_\text{TE}` from BIDS metadata dict"""
     if isinstance(in_values, float):
         te2 = in_values
         te1 = 0.
