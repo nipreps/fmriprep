@@ -550,6 +550,13 @@ def phases2fmap(phase_files, metadatas, newpath=None):
     phase1 = image1.get_fdata()
 
     def rescale_image(img):
+        if np.any(img < -128):
+            # This happens sometimes on 7T fieldmaps
+            LOGGER.info("Found negative values in phase image: rescaling")
+            imax = img.max()
+            imin = img.min()
+            scaled = 2 * ((img - imin) / (imax - imin) - 0.5)
+            return np.pi * scaled
         mask = img > 0
         imax = img.max()
         imin = img.min()
