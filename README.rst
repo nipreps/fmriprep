@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpoldracklab%2Ffmriprep.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpoldracklab%2Ffmriprep?ref=badge_shield)
+
 fmriprep: A Robust Preprocessing Pipeline for fMRI Data
 =======================================================
 
@@ -134,3 +136,7 @@ Please acknowledge this work by mentioning explicitly the name of this software
 (fmriprep) and the version, along with a link to the `GitHub repository
 <https://github.com/poldracklab/fmriprep>`_ or the Zenodo reference.
 For more details, please see :ref:`citation`.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpoldracklab%2Ffmriprep.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpoldracklab%2Ffmriprep?ref=badge_large)
