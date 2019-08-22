@@ -9,6 +9,19 @@ the Center for Reproducible Neuroscience (http://reproducibility.stanford.edu/),
 as well as for open-source software distribution.
 """
 
+import atexit
+
+orig_register = atexit.register
+def print_stack_and_register(func, *args, **kwargs):
+    import traceback as tb
+    print(f"registering {func!r}(args={args!r}, kwargs={kwargs!r})")
+    tb.print_stack()
+    orig_register(func, *args, **kwargs)
+
+atexit.register = print_stack_and_register
+
+del atexit
+
 from .__about__ import (  # noqa
     __version__,
     __copyright__,
