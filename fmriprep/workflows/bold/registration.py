@@ -156,7 +156,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
 
     if write_report:
         ds_report_reg = pe.Node(
-            DerivativesDataSink(),
+            DerivativesDataSink(keep_dtype=True),
             name='ds_report_reg', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
 
@@ -168,7 +168,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         workflow.connect([
             (bbr_wf, ds_report_reg, [
                 ('outputnode.out_report', 'in_file'),
-                (('outputnode.fallback', _bold_reg_suffix, freesurfer), 'suffix')]),
+                (('outputnode.fallback', _bold_reg_suffix, freesurfer), 'desc')]),
         ])
 
     return workflow
@@ -433,9 +433,10 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
     workflow.__desc__ = """\
 The BOLD reference was then co-registered to the T1w reference using
 `bbregister` (FreeSurfer) which implements boundary-based registration [@bbr].
-Co-registration was configured with nine degrees of freedom to account
-for distortions remaining in the BOLD reference.
-"""
+Co-registration was configured with {dof} degrees of freedom{reason}.
+""".format(dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2t1w_dof],
+           reason='' if bold2t1w_dof == 6 else
+                  'to account for distortions remaining in the BOLD reference')
 
     inputnode = pe.Node(
         niu.IdentityInterface([

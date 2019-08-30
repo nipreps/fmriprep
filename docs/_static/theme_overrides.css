@@ -11,3 +11,11 @@
       overflow: visible !important;
    }
 }
+
+
+/* Fix parameter type style */
+.function .classifier {
+   margin: 0 0 0 5px;
+   padding: 3px;
+   background: rgba(0, 0, 0, .1);
+}

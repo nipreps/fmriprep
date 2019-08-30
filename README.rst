@@ -1,5 +1,3 @@
-.. include:: links.rst
-
 fmriprep: A Robust Preprocessing Pipeline for fMRI Data
 =======================================================
 
@@ -114,7 +112,7 @@ Limitations and reasons not to use ``fmriprep``
    Also, problems may arise when extracting the brain from these data.
    Supporting these particular images is already a future line of the development
    road-map.
-2. ``fmriprep`` may also underperform for particular populations (e.g. infants) and
+2. ``fmriprep`` may also underperform for particular populations (e.g., infants) and
    non-human brains, although appropriate templates can be provided to overcome the
    issue.
 3. The "EPInorm" approach is currently not supported, although we plan to implement
@@ -136,5 +134,3 @@ Please acknowledge this work by mentioning explicitly the name of this software
 (fmriprep) and the version, along with a link to the `GitHub repository
 <https://github.com/poldracklab/fmriprep>`_ or the Zenodo reference.
 For more details, please see :ref:`citation`.
-
-.. include:: license.rst

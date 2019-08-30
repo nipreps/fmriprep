@@ -7,7 +7,7 @@ Usage
    As of FMRIPREP 1.0.12, the software includes a tracking system
    to report usage statistics and errors. Users can opt-out using
    the ``--notrack`` command line argument.
-   
+
 
 Execution and the BIDS format
 =============================
@@ -85,7 +85,7 @@ make your data available within that system first.
 
 For instance, here at the Poldrack Lab we use Stanford's
 :abbr:`HPC (high-performance computing)` system, called Sherlock.
-Sherlock enables `the following data transfer options 
+Sherlock enables `the following data transfer options
 <https://www.sherlock.stanford.edu/docs/user-guide/storage/data-transfer/>`_.
 
 Alternatively, more comprehensive solutions such as `Datalad
