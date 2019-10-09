@@ -219,7 +219,9 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html""" % (
     g_ants.add_argument('--skull-strip-fixed-seed', action='store_true',
                         help='do not use a random seed for skull-stripping - will ensure '
                              'run-to-run replicability when used with --omp-nthreads 1')
-
+    g_ants.add_argument(
+        '--skip-brain-extraction', required=False, action='store_true',
+        default=False, help='Skip the brain extraction workflow (for pre-extracted T1ws))')
     # Fieldmap options
     g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
     g_fmap.add_argument('--fmap-bspline', action='store_true', default=False,
@@ -668,6 +670,7 @@ def build_workflow(opts, retval):
         regressors_dvars_th=opts.dvars_spike_threshold,
         skull_strip_fixed_seed=opts.skull_strip_fixed_seed,
         skull_strip_template=opts.skull_strip_template,
+        skip_brain_extraction=opts.skip_brain_extraction,
         subject_list=subject_list,
         t2s_coreg=opts.t2s_coreg,
         task_id=opts.task_id,

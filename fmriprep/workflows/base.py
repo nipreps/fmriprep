@@ -62,6 +62,7 @@ def init_fmriprep_wf(
     run_uuid,
     skull_strip_fixed_seed,
     skull_strip_template,
+    skip_brain_extraction,
     subject_list,
     t2s_coreg,
     task_id,
@@ -251,6 +252,7 @@ def init_fmriprep_wf(
             reportlets_dir=reportlets_dir,
             skull_strip_fixed_seed=skull_strip_fixed_seed,
             skull_strip_template=skull_strip_template,
+            skip_brain_extraction=skip_brain_extraction,
             subject_id=subject_id,
             t2s_coreg=t2s_coreg,
             task_id=task_id,
@@ -302,6 +304,7 @@ def init_single_subject_wf(
     regressors_fd_th,
     skull_strip_fixed_seed,
     skull_strip_template,
+    skip_brain_extraction,
     subject_id,
     t2s_coreg,
     task_id,
@@ -435,6 +438,8 @@ def init_single_subject_wf(
         skull_strip_template : tuple
             Name of target template for brain extraction with ANTs' ``antsBrainExtraction``,
             and corresponding dictionary of output-space modifiers.
+        skip_brain_extraction : bool
+            Skip ants brain extraction workflow, and instead use n4-only workflow
         subject_id : str
             List of subject labels
         t2s_coreg : bool
@@ -557,6 +562,7 @@ It is released under the [CC0]\
         reportlets_dir=reportlets_dir,
         skull_strip_fixed_seed=skull_strip_fixed_seed,
         skull_strip_template=skull_strip_template,
+        skip_brain_extraction=skip_brain_extraction
     )
 
     workflow.connect([
