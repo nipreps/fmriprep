@@ -101,7 +101,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
-        t1_2_fsnative_reverse_transform
+        fsnative2t1w_xfm
             LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
 
     **Outputs**
@@ -124,7 +124,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['ref_bold_brain', 't1w_brain', 't1w_dseg',
-                    'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform']),
+                    'subjects_dir', 'subject_id', 'fsnative2t1w_xfm']),
         name='inputnode'
     )
 
@@ -143,7 +143,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     workflow.connect([
         (inputnode, bbr_wf, [
             ('ref_bold_brain', 'inputnode.in_file'),
-            ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform'),
+            ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
             ('t1w_dseg', 'inputnode.t1w_dseg'),
@@ -404,7 +404,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
 
         in_file
             Reference BOLD image to be registered
-        t1_2_fsnative_reverse_transform
+        fsnative2t1w_xfm
             FSL-style affine matrix translating from FreeSurfer T1.mgz to T1w
         subjects_dir
             FreeSurfer SUBJECTS_DIR
@@ -440,7 +440,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     inputnode = pe.Node(
         niu.IdentityInterface([
             'in_file',
-            't1_2_fsnative_reverse_transform', 'subjects_dir', 'subject_id',  # BBRegister
+            'fsnative2t1w_xfm', 'subjects_dir', 'subject_id',  # BBRegister
             't1w_dseg', 't1w_brain']),  # FLIRT BBR
         name='inputnode')
     outputnode = pe.Node(
@@ -467,7 +467,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
                                 ('subject_id', 'subject_id'),
                                 ('in_file', 'source_file')]),
         # Output ITK transforms
-        (inputnode, lta_concat, [('t1_2_fsnative_reverse_transform', 'in_lta2')]),
+        (inputnode, lta_concat, [('fsnative2t1w_xfm', 'in_lta2')]),
         (lta_concat, lta2fsl_fwd, [('out_file', 'in_lta')]),
         (lta_concat, lta2fsl_inv, [('out_file', 'in_lta')]),
         (inputnode, fsl2itk_fwd, [('t1w_brain', 'reference_file'),
@@ -586,7 +586,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
             Skull-stripped T1-weighted structural image
         t1w_dseg
             FAST segmentation of ``t1w_brain``
-        t1_2_fsnative_reverse_transform
+        fsnative2t1w_xfm
             Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
         subjects_dir
             Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
@@ -618,7 +618,7 @@ for distortions remaining in the BOLD reference.
     inputnode = pe.Node(
         niu.IdentityInterface([
             'in_file',
-            't1_2_fsnative_reverse_transform', 'subjects_dir', 'subject_id',  # BBRegister
+            'fsnative2t1w_xfm', 'subjects_dir', 'subject_id',  # BBRegister
             't1w_dseg', 't1w_brain']),  # FLIRT BBR
         name='inputnode')
     outputnode = pe.Node(
