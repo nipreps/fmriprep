@@ -627,18 +627,18 @@ It is released under the [CC0]\
               ('outputnode.t1w_aparc', 'inputnode.t1w_aparc'),
               ('outputnode.t1w_tpms', 'inputnode.t1w_tpms'),
               ('outputnode.template', 'inputnode.template'),
-              ('outputnode.forward_transform', 'inputnode.anat2std_xfm'),
-              ('outputnode.reverse_transform', 'inputnode.std2anat_xfm'),
+              ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
+              ('outputnode.std2anat_xfm', 'inputnode.std2anat_xfm'),
               ('outputnode.joint_template', 'inputnode.joint_template'),
-              ('outputnode.joint_forward_transform', 'inputnode.joint_anat2std_xfm'),
-              ('outputnode.joint_reverse_transform', 'inputnode.joint_std2anat_xfm'),
+              ('outputnode.joint_anat2std_xfm', 'inputnode.joint_anat2std_xfm'),
+              ('outputnode.joint_std2anat_xfm', 'inputnode.joint_std2anat_xfm'),
               # Undefined if --no-freesurfer, but this is safe
               ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
               ('outputnode.subject_id', 'inputnode.subject_id'),
-              ('outputnode.t1_2_fsnative_forward_transform',
-               'inputnode.t1_2_fsnative_forward_transform'),
-              ('outputnode.t1_2_fsnative_reverse_transform',
-               'inputnode.t1_2_fsnative_reverse_transform')]),
+              ('outputnode.t1w2fsnative_xfm',
+               'inputnode.t1w2fsnative_xfm'),
+              ('outputnode.fsnative2t1w_xfm',
+               'inputnode.fsnative2t1w_xfm')]),
         ])
 
     return workflow

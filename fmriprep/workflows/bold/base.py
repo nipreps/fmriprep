@@ -217,9 +217,9 @@ def init_func_preproc_wf(
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
-        t1_2_fsnative_forward_transform
+        t1w2fsnative_xfm
             LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
-        t1_2_fsnative_reverse_transform
+        fsnative2t1w_xfm
             LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
 
 
@@ -398,7 +398,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 't1w_aseg', 't1w_aparc',
                 'anat2std_xfm', 'std2anat_xfm', 'template',
                 'joint_anat2std_xfm', 'joint_std2anat_xfm', 'joint_template',
-                't1_2_fsnative_forward_transform', 't1_2_fsnative_reverse_transform']),
+                't1w2fsnative_xfm', 'fsnative2t1w_xfm']),
         name='inputnode')
     inputnode.inputs.bold_file = bold_file
     if sbref_file is not None:
@@ -617,7 +617,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             # Undefined if --no-freesurfer, but this is safe
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
-            ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform')]),
+            ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
         (inputnode, bold_t1_trans_wf, [
             ('bold_file', 'inputnode.name_source'),
             ('t1w_brain', 'inputnode.t1w_brain'),
@@ -929,7 +929,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('t1w_preproc', 'inputnode.t1w_preproc'),
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id'),
-                ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),
+                ('t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm')]),
             (bold_t1_trans_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])

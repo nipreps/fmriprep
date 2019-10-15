@@ -76,7 +76,7 @@ def init_bold_surf_wf(mem_gb, output_spaces, medial_surface_nan, name='bold_surf
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID
-        t1_2_fsnative_forward_transform
+        t1w2fsnative_xfm
             LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
 
     **Outputs**
@@ -97,7 +97,7 @@ spaces: {out_spaces}.
 """.format(out_spaces=', '.join(['*%s*' % s for s in spaces]))
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['source_file', 't1w_preproc', 'subject_id', 'subjects_dir',
-                                      't1_2_fsnative_forward_transform']),
+                                      't1w2fsnative_xfm']),
         name='inputnode')
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['surfaces']), name='outputnode')
@@ -144,7 +144,7 @@ spaces: {out_spaces}.
         (inputnode, rename_src, [('source_file', 'in_file')]),
         (inputnode, resampling_xfm, [('source_file', 'source_file'),
                                      ('t1w_preproc', 'target_file')]),
-        (inputnode, set_xfm_source, [('t1_2_fsnative_forward_transform', 'in_lta2')]),
+        (inputnode, set_xfm_source, [('t1w2fsnative_xfm', 'in_lta2')]),
         (resampling_xfm, set_xfm_source, [('out_lta', 'in_lta1')]),
         (inputnode, sampler, [('subjects_dir', 'subjects_dir'),
                               ('subject_id', 'subject_id')]),
