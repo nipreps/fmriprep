@@ -93,9 +93,9 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
         ref_bold_brain
             Reference image to which BOLD series is aligned
             If ``fieldwarp == True``, ``ref_bold_brain`` should be unwarped
-        t1_brain
-            Skull-stripped ``t1_preproc``
-        t1_seg
+        t1w_brain
+            Skull-stripped ``t1w_preproc``
+        t1w_dseg
             Segmentation of preprocessed structural image, including
             gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
         subjects_dir
@@ -124,7 +124,7 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
     workflow = Workflow(name=name)
     inputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['ref_bold_brain', 't1_brain', 't1_seg',
+            fields=['ref_bold_brain', 't1w_brain', 't1w_dseg',
                     'subjects_dir', 'subject_id', 't1_2_fsnative_reverse_transform']),
         name='inputnode'
     )
@@ -147,8 +147,8 @@ def init_bold_reg_wf(freesurfer, use_bbr, bold2t1w_dof, mem_gb, omp_nthreads,
             ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform'),
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
-            ('t1_seg', 'inputnode.t1_seg'),
-            ('t1_brain', 'inputnode.t1_brain')]),
+            ('t1w_dseg', 'inputnode.t1w_dseg'),
+            ('t1w_brain', 'inputnode.t1w_brain')]),
         (bbr_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
                               ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
                               ('outputnode.fallback', 'fallback')]),
@@ -216,14 +216,14 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, multiecho=False, use
             If ``fieldwarp == True``, ``ref_bold_brain`` should be unwarped
         ref_bold_mask
             Skull-stripping mask of reference image
-        t1_brain
+        t1w_brain
             Skull-stripped bias-corrected structural template image
-        t1_mask
+        t1w_mask
             Mask of the skull-stripped template image
-        t1_aseg
+        t1w_aseg
             FreeSurfer's ``aseg.mgz`` atlas projected into the T1w reference
             (only if ``recon-all`` was run).
-        t1_aparc
+        t1w_aparc
             FreeSurfer's ``aparc+aseg.mgz`` atlas projected into the T1w reference
             (only if ``recon-all`` was run).
         bold_split
@@ -262,7 +262,7 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, multiecho=False, use
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=['name_source', 'ref_bold_brain', 'ref_bold_mask',
-                    't1_brain', 't1_mask', 't1_aseg', 't1_aparc',
+                    't1w_brain', 't1w_mask', 't1w_aseg', 't1w_aparc',
                     'bold_split', 'fieldwarp', 'hmc_xforms',
                     'itk_bold_to_t1']),
         name='inputnode'
@@ -285,8 +285,8 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, multiecho=False, use
 
     workflow.connect([
         (inputnode, gen_ref, [('ref_bold_brain', 'moving_image'),
-                              ('t1_brain', 'fixed_image'),
-                              ('t1_mask', 'fov_mask')]),
+                              ('t1w_brain', 'fixed_image'),
+                              ('t1w_mask', 'fov_mask')]),
         (inputnode, mask_t1w_tfm, [('ref_bold_mask', 'input_image')]),
         (gen_ref, mask_t1w_tfm, [('out_file', 'reference_image')]),
         (inputnode, mask_t1w_tfm, [('itk_bold_to_t1', 'transforms')]),
@@ -303,8 +303,8 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, multiecho=False, use
             name='aparc_t1w_tfm', mem_gb=0.1)
 
         workflow.connect([
-            (inputnode, aseg_t1w_tfm, [('t1_aseg', 'input_image')]),
-            (inputnode, aparc_t1w_tfm, [('t1_aparc', 'input_image')]),
+            (inputnode, aseg_t1w_tfm, [('t1w_aseg', 'input_image')]),
+            (inputnode, aparc_t1w_tfm, [('t1w_aparc', 'input_image')]),
             (gen_ref, aseg_t1w_tfm, [('out_file', 'reference_image')]),
             (gen_ref, aparc_t1w_tfm, [('out_file', 'reference_image')]),
             (aseg_t1w_tfm, outputnode, [('output_image', 'bold_aseg_t1')]),
@@ -411,9 +411,9 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, omp_nthreads, name='bbreg_wf'):
             FreeSurfer SUBJECTS_DIR
         subject_id
             FreeSurfer subject ID (must have folder in SUBJECTS_DIR)
-        t1_brain
+        t1w_brain
             Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
-        t1_seg
+        t1w_dseg
             Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
 
 
@@ -442,7 +442,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         niu.IdentityInterface([
             'in_file',
             't1_2_fsnative_reverse_transform', 'subjects_dir', 'subject_id',  # BBRegister
-            't1_seg', 't1_brain']),  # FLIRT BBR
+            't1w_dseg', 't1w_brain']),  # FLIRT BBR
         name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback']),
@@ -471,10 +471,10 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (inputnode, lta_concat, [('t1_2_fsnative_reverse_transform', 'in_lta2')]),
         (lta_concat, lta2fsl_fwd, [('out_file', 'in_lta')]),
         (lta_concat, lta2fsl_inv, [('out_file', 'in_lta')]),
-        (inputnode, fsl2itk_fwd, [('t1_brain', 'reference_file'),
+        (inputnode, fsl2itk_fwd, [('t1w_brain', 'reference_file'),
                                   ('in_file', 'source_file')]),
         (inputnode, fsl2itk_inv, [('in_file', 'reference_file'),
-                                  ('t1_brain', 'source_file')]),
+                                  ('t1w_brain', 'source_file')]),
         (lta2fsl_fwd, fsl2itk_fwd, [('out_fsl', 'transform_file')]),
         (lta2fsl_inv, fsl2itk_inv, [('out_fsl', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
@@ -583,10 +583,10 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, name='fsl_bbr_wf'):
 
         in_file
             Reference BOLD image to be registered
-        t1_brain
+        t1w_brain
             Skull-stripped T1-weighted structural image
-        t1_seg
-            FAST segmentation of ``t1_brain``
+        t1w_dseg
+            FAST segmentation of ``t1w_brain``
         t1_2_fsnative_reverse_transform
             Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
         subjects_dir
@@ -620,7 +620,7 @@ for distortions remaining in the BOLD reference.
         niu.IdentityInterface([
             'in_file',
             't1_2_fsnative_reverse_transform', 'subjects_dir', 'subject_id',  # BBRegister
-            't1_seg', 't1_brain']),  # FLIRT BBR
+            't1w_dseg', 't1w_brain']),  # FLIRT BBR
         name='inputnode')
     outputnode = pe.Node(
         niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'out_report', 'fallback']),
@@ -642,11 +642,11 @@ for distortions remaining in the BOLD reference.
 
     workflow.connect([
         (inputnode, flt_bbr_init, [('in_file', 'in_file'),
-                                   ('t1_brain', 'reference')]),
-        (inputnode, fsl2itk_fwd, [('t1_brain', 'reference_file'),
+                                   ('t1w_brain', 'reference')]),
+        (inputnode, fsl2itk_fwd, [('t1w_brain', 'reference_file'),
                                   ('in_file', 'source_file')]),
         (inputnode, fsl2itk_inv, [('in_file', 'reference_file'),
-                                  ('t1_brain', 'source_file')]),
+                                  ('t1w_brain', 'source_file')]),
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
@@ -676,9 +676,9 @@ for distortions remaining in the BOLD reference.
         flt_bbr.inputs.schedule = pkgr.resource_filename('fmriprep', 'data/flirtsch/bbr.sch')
 
     workflow.connect([
-        (inputnode, wm_mask, [('t1_seg', 'in_seg')]),
+        (inputnode, wm_mask, [('t1w_dseg', 'in_seg')]),
         (inputnode, flt_bbr, [('in_file', 'in_file'),
-                              ('t1_brain', 'reference')]),
+                              ('t1w_brain', 'reference')]),
         (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
         (wm_mask, flt_bbr, [('out', 'wm_seg')]),
     ])
@@ -710,7 +710,7 @@ for distortions remaining in the BOLD reference.
         (flt_bbr_init, transforms, [('out_matrix_file', 'in2')]),
         # Convert FSL transforms to LTA (RAS2RAS) transforms and compare
         (inputnode, fsl_to_lta, [('in_file', 'source_file'),
-                                 ('t1_brain', 'target_file')]),
+                                 ('t1w_brain', 'target_file')]),
         (transforms, fsl_to_lta, [('out', 'in_fsl')]),
         (fsl_to_lta, compare_transforms, [('out_lta', 'lta_list')]),
         (compare_transforms, outputnode, [('out', 'fallback')]),
