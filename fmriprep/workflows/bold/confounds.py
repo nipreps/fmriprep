@@ -119,9 +119,9 @@ def init_bold_confs_wf(
             SPM-formatted motion parameters file
         skip_vols
             number of non steady state volumes
-        t1_mask
+        t1w_mask
             Mask of the skull-stripped template image
-        t1_tpms
+        t1w_tpms
             List of tissue probability maps in T1w space
         t1_bold_xform
             Affine matrix that maps the T1w space into alignment with
@@ -177,7 +177,7 @@ were annotated as motion outliers.
 """.format(fd=regressors_fd_th, dv=regressors_dvars_th)
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold', 'bold_mask', 'movpar_file', 'skip_vols',
-                't1_mask', 't1_tpms', 't1_bold_xform']),
+                't1w_mask', 't1w_tpms', 't1_bold_xform']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['confounds_file', 'confounds_metadata']),
@@ -329,12 +329,12 @@ were annotated as motion outliers.
 
     workflow.connect([
         # Massage ROIs (in T1w space)
-        (inputnode, acc_tpm, [('t1_tpms', 'in_files')]),
-        (inputnode, csf_roi, [(('t1_tpms', _pick_csf), 'in_tpm'),
-                              ('t1_mask', 'in_mask')]),
-        (inputnode, wm_roi, [(('t1_tpms', _pick_wm), 'in_tpm'),
-                             ('t1_mask', 'in_mask')]),
-        (inputnode, acc_roi, [('t1_mask', 'in_mask')]),
+        (inputnode, acc_tpm, [('t1w_tpms', 'in_files')]),
+        (inputnode, csf_roi, [(('t1w_tpms', _pick_csf), 'in_tpm'),
+                              ('t1w_mask', 'in_mask')]),
+        (inputnode, wm_roi, [(('t1w_tpms', _pick_wm), 'in_tpm'),
+                             ('t1w_mask', 'in_mask')]),
+        (inputnode, acc_roi, [('t1w_mask', 'in_mask')]),
         (acc_tpm, acc_roi, [('out_file', 'in_tpm')]),
         # Map ROIs to BOLD
         (inputnode, csf_tfm, [('bold_mask', 'reference_image'),
