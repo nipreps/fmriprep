@@ -46,6 +46,8 @@ def get_parser():
     from ..workflows.bold.resampling import NONSTANDARD_REFERENCES
     from .version import check_latest, is_flagged
 
+    if __version__ == '':
+        __version__ = '0+unknown'
     verstr = 'fmriprep v{}'.format(__version__)
     currentv = Version(__version__)
     is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
