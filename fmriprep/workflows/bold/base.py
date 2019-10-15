@@ -637,7 +637,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (inputnode, bold_sdc_wf, [
             ('joint_template', 'inputnode.templates'),
             ('joint_std2anat_xfm', 'inputnode.std2anat_xfm')]),
-        (inputnode, bold_sdc_wf, [('t1w_brain', 'inputnode.t1w_brain')]),
+        (inputnode, bold_sdc_wf, [('t1w_brain', 'inputnode.t1_brain')]),
         (bold_reference_wf, bold_sdc_wf, [
             ('outputnode.ref_image', 'inputnode.bold_ref'),
             ('outputnode.ref_image_brain', 'inputnode.bold_ref_brain'),
