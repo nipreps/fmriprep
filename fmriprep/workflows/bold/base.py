@@ -199,16 +199,16 @@ def init_func_preproc_wf(
 
         bold_file
             BOLD series NIfTI file
-        t1_preproc
+        t1w_preproc
             Bias-corrected structural template image
-        t1_brain
-            Skull-stripped ``t1_preproc``
-        t1_mask
+        t1w_brain
+            Skull-stripped ``t1w_preproc``
+        t1w_mask
             Mask of the skull-stripped template image
-        t1_seg
+        t1w_dseg
             Segmentation of preprocessed structural image, including
             gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
-        t1_tpms
+        t1w_tpms
             List of tissue probability maps in T1w space
         anat2std_xfm
             ANTs-compatible affine-and-warp transform file
@@ -395,8 +395,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_file', 'subjects_dir', 'subject_id',
-                't1_preproc', 't1_brain', 't1_mask', 't1_seg', 't1_tpms',
-                't1_aseg', 't1_aparc',
+                't1w_preproc', 't1w_brain', 't1w_mask', 't1w_dseg', 't1w_tpms',
+                't1w_aseg', 't1w_aparc',
                 'anat2std_xfm', 'std2anat_xfm', 'template',
                 'joint_anat2std_xfm', 'joint_std2anat_xfm', 'joint_template',
                 't1_2_fsnative_forward_transform', 't1_2_fsnative_reverse_transform']),
@@ -613,18 +613,18 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('outputnode.algo_dummy_scans', 'algo_dummy_scans')]),
         # EPI-T1 registration workflow
         (inputnode, bold_reg_wf, [
-            ('t1_brain', 'inputnode.t1_brain'),
-            ('t1_seg', 'inputnode.t1_seg'),
+            ('t1w_brain', 'inputnode.t1w_brain'),
+            ('t1w_dseg', 'inputnode.t1w_dseg'),
             # Undefined if --no-freesurfer, but this is safe
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
             ('t1_2_fsnative_reverse_transform', 'inputnode.t1_2_fsnative_reverse_transform')]),
         (inputnode, bold_t1_trans_wf, [
             ('bold_file', 'inputnode.name_source'),
-            ('t1_brain', 'inputnode.t1_brain'),
-            ('t1_mask', 'inputnode.t1_mask'),
-            ('t1_aseg', 'inputnode.t1_aseg'),
-            ('t1_aparc', 'inputnode.t1_aparc')]),
+            ('t1w_brain', 'inputnode.t1w_brain'),
+            ('t1w_mask', 'inputnode.t1w_mask'),
+            ('t1w_aseg', 'inputnode.t1w_aseg'),
+            ('t1w_aparc', 'inputnode.t1w_aparc')]),
         # unused if multiecho, but this is safe
         (bold_hmc_wf, bold_t1_trans_wf, [('outputnode.xforms', 'inputnode.hmc_xforms')]),
         (bold_reg_wf, bold_t1_trans_wf, [
@@ -638,7 +638,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (inputnode, bold_sdc_wf, [
             ('joint_template', 'inputnode.templates'),
             ('joint_std2anat_xfm', 'inputnode.std2anat_xfm')]),
-        (inputnode, bold_sdc_wf, [('t1_brain', 'inputnode.t1_brain')]),
+        (inputnode, bold_sdc_wf, [('t1w_brain', 'inputnode.t1w_brain')]),
         (bold_reference_wf, bold_sdc_wf, [
             ('outputnode.ref_image', 'inputnode.bold_ref'),
             ('outputnode.ref_image_brain', 'inputnode.bold_ref_brain'),
@@ -656,8 +656,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('outputnode.bold_mask', 'inputnode.bold_mask')]),
         (bold_sdc_wf, summary, [('outputnode.method', 'distortion_correction')]),
         # Connect bold_confounds_wf
-        (inputnode, bold_confounds_wf, [('t1_tpms', 'inputnode.t1_tpms'),
-                                        ('t1_mask', 'inputnode.t1_mask')]),
+        (inputnode, bold_confounds_wf, [('t1w_tpms', 'inputnode.t1w_tpms'),
+                                        ('t1w_mask', 'inputnode.t1w_mask')]),
         (bold_hmc_wf, bold_confounds_wf, [
             ('outputnode.movpar_file', 'inputnode.movpar_file')]),
         (bold_reg_wf, bold_confounds_wf, [
@@ -710,7 +710,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         fmap_unwarp_report_wf = init_fmap_unwarp_report_wf()
         workflow.connect([
             (inputnode, fmap_unwarp_report_wf, [
-                ('t1_seg', 'inputnode.in_seg')]),
+                ('t1w_dseg', 'inputnode.in_seg')]),
             (bold_reference_wf, fmap_unwarp_report_wf, [
                 ('outputnode.ref_image', 'inputnode.in_pre')]),
             (bold_reg_wf, fmap_unwarp_report_wf, [
@@ -729,7 +729,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 name='syn_unwarp_report_wf', forcedsyn=True)
             workflow.connect([
                 (inputnode, syn_unwarp_report_wf, [
-                    ('t1_seg', 'inputnode.in_seg')]),
+                    ('t1w_dseg', 'inputnode.in_seg')]),
                 (bold_reference_wf, syn_unwarp_report_wf, [
                     ('outputnode.ref_image', 'inputnode.in_pre')]),
                 (bold_reg_wf, syn_unwarp_report_wf, [
@@ -790,8 +790,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('joint_template', 'inputnode.templates'),
                 ('joint_anat2std_xfm', 'inputnode.anat2std_xfm'),
                 ('bold_file', 'inputnode.name_source'),
-                ('t1_aseg', 'inputnode.bold_aseg'),
-                ('t1_aparc', 'inputnode.bold_aparc')]),
+                ('t1w_aseg', 'inputnode.bold_aseg'),
+                ('t1w_aparc', 'inputnode.bold_aparc')]),
             (bold_hmc_wf, bold_std_trans_wf, [
                 ('outputnode.xforms', 'inputnode.hmc_xforms')]),
             (bold_reg_wf, bold_std_trans_wf, [
@@ -927,7 +927,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                                          name='bold_surf_wf')
         workflow.connect([
             (inputnode, bold_surf_wf, [
-                ('t1_preproc', 'inputnode.t1_preproc'),
+                ('t1w_preproc', 'inputnode.t1w_preproc'),
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id'),
                 ('t1_2_fsnative_forward_transform', 'inputnode.t1_2_fsnative_forward_transform')]),

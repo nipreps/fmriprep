@@ -68,7 +68,7 @@ def init_bold_surf_wf(mem_gb, output_spaces, medial_surface_nan, name='bold_surf
 
         source_file
             Motion-corrected BOLD series in T1 space
-        t1_preproc
+        t1w_preproc
             Bias-corrected structural template image
         subjects_dir
             FreeSurfer SUBJECTS_DIR
@@ -94,7 +94,7 @@ The BOLD time-series, were resampled to surfaces on the following
 spaces: {out_spaces}.
 """.format(out_spaces=', '.join(['*%s*' % s for s in spaces]))
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['source_file', 't1_preproc', 'subject_id', 'subjects_dir',
+        niu.IdentityInterface(fields=['source_file', 't1w_preproc', 'subject_id', 'subjects_dir',
                                       't1_2_fsnative_forward_transform']),
         name='inputnode')
 
@@ -141,7 +141,7 @@ spaces: {out_spaces}.
         (inputnode, targets, [('subject_id', 'subject_id')]),
         (inputnode, rename_src, [('source_file', 'in_file')]),
         (inputnode, resampling_xfm, [('source_file', 'source_file'),
-                                     ('t1_preproc', 'target_file')]),
+                                     ('t1w_preproc', 'target_file')]),
         (inputnode, set_xfm_source, [('t1_2_fsnative_forward_transform', 'in_lta2')]),
         (resampling_xfm, set_xfm_source, [('out_lta', 'in_lta1')]),
         (inputnode, sampler, [('subjects_dir', 'subjects_dir'),
