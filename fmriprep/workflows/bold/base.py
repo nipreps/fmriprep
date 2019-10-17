@@ -950,7 +950,7 @@ data and volume-sampled data, were also generated.
             gen_cifti.inputs.surface_target = list(cifti_spaces)
 
             workflow.connect([
-                (bold_std_trans_wf, select_std, [
+                ((bold_std_trans_wf, lambda x: [a[0] for a in x]), select_std, [
                     ('outputnode.templates', 'keys'),
                     ('outputnode.bold_std', 'bold_std')]),
                 (bold_surf_wf, gen_cifti, [
