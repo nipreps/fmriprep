@@ -361,6 +361,7 @@ def init_single_subject_wf(
             regressors_fd_th=0.5,
             skull_strip_fixed_seed=False,
             skull_strip_template=('OASIS30ANTs', {}),
+            skip_brain_extraction=False,
             subject_id='test',
             t2s_coreg=False,
             task_id='',
