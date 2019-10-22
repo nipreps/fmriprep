@@ -15,13 +15,15 @@ Contents
    :maxdepth: 3
 
    installation
-   changes
    usage
+   docker
+   singularity
    workflows
    sdc
-   spaces
    outputs
+   spaces
    faq
    contributors
    citing
    api/index.rst
+   changes

@@ -6,10 +6,8 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.cifti import CiftiNameSource
 from niworkflows.interfaces.surf import GiftiNameSource
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
-
-
-DEFAULT_MEMORY_MIN_GB = 0.01
 
 
 def init_func_derivatives_wf(
@@ -238,7 +236,7 @@ def init_func_derivatives_wf(
             name="ds_melodic_mix", run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_aroma_std = pe.Node(
-            DerivativesDataSink(base_directory=output_dir,
+            DerivativesDataSink(base_directory=output_dir, space='MNI152NLin6Asym',
                                 desc='smoothAROMAnonaggr', keep_dtype=True),
             name='ds_aroma_std', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
@@ -249,8 +247,7 @@ def init_func_derivatives_wf(
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
             (inputnode, ds_aroma_std, [('source_file', 'source_file'),
-                                       ('nonaggr_denoised_file', 'in_file'),
-                                       ('template', 'space')]),
+                                       ('nonaggr_denoised_file', 'in_file')]),
         ])
 
     return workflow

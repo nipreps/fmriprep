@@ -19,7 +19,7 @@ from copy import deepcopy
 from nipype import __version__ as nipype_ver
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
-from nilearn import __version__ as nilearn_ver
+from niworkflows.interfaces.nilearn import NILEARN_VERSION
 
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.bids import (
@@ -457,7 +457,7 @@ def init_single_subject_wf(
             FreeSurfer SUBJECTS_DIR
 
     """
-    from .bold.resampling import NONSTANDARD_REFERENCES
+    from ..config import NONSTANDARD_REFERENCES
     if name in ('single_subject_wf', 'single_subject_fmripreptest_wf'):
         # for documentation purposes
         subject_data = {
@@ -507,7 +507,7 @@ It is released under the [CC0]\
 
 ### References
 
-""".format(nilearn_ver=nilearn_ver)
+""".format(nilearn_ver=NILEARN_VERSION)
 
     # Filter out standard spaces to a separate dict
     std_spaces = OrderedDict([

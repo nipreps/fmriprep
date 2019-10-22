@@ -2,11 +2,11 @@
 
 .. _citation:
 
-===============
-Citing FMRIPREP
-===============
+=================
+Citing *fMRIPrep*
+=================
 
-Select which options you have run FMRIPREP with to generate custom language
+Select which options you have run *fMRIPrep* with to generate custom language
 we recommend to include in your paper.
 
 

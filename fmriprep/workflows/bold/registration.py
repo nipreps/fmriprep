@@ -33,12 +33,11 @@ from niworkflows.interfaces.images import extract_wm
 from niworkflows.interfaces.itk import MultiApplyTransforms
 from niworkflows.interfaces.registration import FLIRTRPT
 from niworkflows.interfaces.utils import GenerateSamplingReference
+from niworkflows.interfaces.nilearn import Merge
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
-from ...interfaces.nilearn import Merge
 
-
-DEFAULT_MEMORY_MIN_GB = 0.01
 
 LOGGER = logging.getLogger('nipype.workflow')
 

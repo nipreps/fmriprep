@@ -226,6 +226,7 @@ jobs:
           no_output_timeout: 2h
           command: |
             docker run -ti --rm=false \
+              -e TEST_READONLY_FILESYSTEM=1 -v $HOME:/home/readonly:ro \
               --entrypoint="pytest" poldracklab/fmriprep:latest \
               /src/fmriprep/fmriprep -svx --doctest-modules
 
@@ -260,7 +261,7 @@ jobs:
 
   build_docs:
     docker:
-      - image: python:latest
+      - image: python:3.7.4
     working_directory: /tmp/src/fmriprep
     environment:
       - FSLOUTPUTTYPE: 'NIFTI'
@@ -853,11 +854,10 @@ jobs:
             THISVERSION=$( python get_version.py )
             virtualenv --python=python build
             source build/bin/activate
-            pip install --upgrade "pip>=19.1" numpy
+            pip install --upgrade "pip>=19.1"
             echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
             python setup.py sdist
-            docker run --rm=false -e PLAT='manylinux1_x86_64' -e PKGNAME='fmriprep' -v `pwd`:/io \
-                quay.io/pypa/manylinux1_x86_64 /io/.circleci/pypi_wheel/build-wheels.sh
+            pip wheel --no-deps -w dist/ .
       - run:
           name: Build fmriprep-docker
           command: |

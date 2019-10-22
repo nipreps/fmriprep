@@ -26,14 +26,12 @@ from niworkflows.interfaces.itk import MultiApplyTransforms
 from niworkflows.interfaces.utils import GenerateSamplingReference
 from niworkflows.interfaces.utility import KeySelect
 from niworkflows.interfaces.surf import GiftiSetAnatomicalStructure
+from niworkflows.interfaces.nilearn import Merge
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
-from ...interfaces.nilearn import Merge
 
 from .util import init_bold_reference_wf
-
-DEFAULT_MEMORY_MIN_GB = 0.01
-NONSTANDARD_REFERENCES = ['anat', 'T1w', 'run', 'func', 'sbref', 'fsnative']
 
 
 def init_bold_surf_wf(mem_gb, output_spaces, medial_surface_nan, name='bold_surf_wf'):
