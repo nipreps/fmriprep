@@ -6,7 +6,6 @@ FAQ, Tips, and Tricks
 
 Should I run quality control of my images before running *fMRIPrep*?
 --------------------------------------------------------------------
-
 Yes. You should do so before any processing/analysis takes place.
 
 Oftentimes (more often than we would like), images have fatal artifacts and problems.
@@ -27,7 +26,6 @@ some kind of preprocessing (see next question).
 
 What if I find some images have undergone some pre-processing already (e.g., my T1w image is already skull-stripped)?
 ---------------------------------------------------------------------------------------------------------------------
-
 These images imply an unknown level of preprocessing (e.g. was it already bias-field corrected?),
 which makes it difficult to decide on best-practices for further processing.
 Hence, supporting such images was considered very low priority for *fMRIPrep*.
@@ -40,7 +38,6 @@ reverting to the original, defaced, T1w images to ensure more uniform preprocess
 
 My *fMRIPrep* run is hanging...
 -------------------------------
-
 When running on Linux platforms (or containerized environments, because they are built around
 Ubuntu), there is a Python bug that affects *fMRIPrep* that drives the Linux kernel to kill
 processes as a response to running out of memory.
@@ -62,7 +59,6 @@ Additionally, consider using the ``--low-mem`` flag, which will make some memory
 
 ERROR: it appears that ``recon-all`` is already running
 -------------------------------------------------------
-
 When running FreeSurfer_'s ``recon-all``, an error may say *it appears it is already running*.
 FreeSurfer creates files (called ``IsRunning.{rh,lh,lh+rh}``, under the ``scripts/`` folder)
 to determine whether it is already executing ``recon-all`` on that particular subject
@@ -117,7 +113,6 @@ In general, please be cautious of deleting files and mindful why a file may exis
 
 Running subjects in parallel
 ----------------------------
-
 When running several subjects in parallel, and depending on your settings, fMRIPrep may
 fall into race conditions.
 A symptomatic output looks like: ::
@@ -155,7 +150,6 @@ number of CPUs divided by the number of subjects is most efficient.
 
 A new version of *fMRIPrep* has been published, when should I upgrade?
 ----------------------------------------------------------------------
-
 We follow a philosophy of releasing very often, although the pace is slowing down
 with the maturation of the software.
 It is very likely that your version gets outdated over the extent of your study.
@@ -169,3 +163,16 @@ using the latest version of the tool.
 In any case, if you can find your release listed as *flagged* in `this file
 of our repo <https://github.com/poldracklab/fmriprep/blob/master/.versions.json>`__,
 then please update as soon as possible.
+
+What is *TemplateFlow* for?
+---------------------------
+*TemplateFlow* enables *fMRIPrep* to generate preprocessed outputs spatially normalized to
+a number of different neuroimaging templates (e.g. MNI).
+For further details, please check `its documentation section <spaces.html#templateflow>`__.
+
+I'm running *fMRIPrep* via Singularity containers - how can I troubleshoot problems?
+------------------------------------------------------------------------------------
+We have extended `this documentation <singularity.html>`__ to cover some of the most
+frequent issues other Singularity users have been faced with.
+Generally, users have found it hard to `get TemplateFlow and Singularity to work
+together <singularity.html#singularity-tf>`__.

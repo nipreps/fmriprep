@@ -11,7 +11,6 @@ RUN apt-get update && \
                     bzip2 \
                     ca-certificates \
                     xvfb \
-                    cython3 \
                     build-essential \
                     autoconf \
                     libtool \
@@ -109,11 +108,11 @@ RUN npm install -g bids-validator@1.2.3
 
 # Installing and setting up ICA_AROMA
 RUN mkdir -p /opt/ICA-AROMA && \
-  curl -sSL "https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.4-beta.tar.gz" \
+  curl -sSL "https://github.com/oesteban/ICA-AROMA/archive/v0.4.5.tar.gz" \
   | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
   chmod +x /opt/ICA-AROMA/ICA_AROMA.py
 ENV PATH="/opt/ICA-AROMA:$PATH" \
-    AROMA_VERSION="0.4.4-beta"
+    AROMA_VERSION="0.4.5"
 
 # Installing and setting up miniconda
 RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh && \

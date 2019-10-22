@@ -43,7 +43,7 @@ def get_parser():
     from templateflow.api import templates
     from packaging.version import Version
     from ..__about__ import __version__
-    from ..workflows.bold.resampling import NONSTANDARD_REFERENCES
+    from ..config import NONSTANDARD_REFERENCES
     from .version import check_latest, is_flagged
 
     if __version__ == '':

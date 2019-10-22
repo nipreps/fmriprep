@@ -14,8 +14,7 @@ from nipype.interfaces import utility as niu, fsl
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces import NormalizeMotionParams
 from niworkflows.interfaces.itk import MCFLIRT2ITK
-
-DEFAULT_MEMORY_MIN_GB = 0.01
+from ...config import DEFAULT_MEMORY_MIN_GB
 
 
 # pylint: disable=R0914

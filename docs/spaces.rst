@@ -1,4 +1,4 @@
-
+.. include:: links.rst
 
 .. _output-spaces:
 
@@ -106,3 +106,61 @@ identifier not be found within the ``--output-spaces`` list already.
 In other words, running fMRIPrep with ``--output-spaces MNI152NLin6Asym:res-2
 --use-syn-sdc`` will expand the list of output spaces to be
 ``MNI152NLin6Asym:res-2 MNI152NLin2009cAsym``.
+
+.. _TemplateFlow:
+
+*TemplateFlow*
+""""""""""""""
+Group inference and reporting of neuroimaging studies require that individual's
+features are spatially aligned into a common frame where their location can be
+called *standard*.
+To that end, a multiplicity of brain templates with anatomical annotations
+(i.e., atlases) have been published.
+However, a centralized resource that allows programmatic access to templates
+was lacking.
+*TemplateFlow* is a modular, version-controlled resource that allows researchers
+to use templates "off-the-shelf" and share new ones.
+
+In addition to the repository from which neuroimaging templates are redistributed,
+*TemplateFlow* also comprehends a Python client tool to access them programmatically
+when used as a library by other software, or interactively by humans.
+Therefore *TemplateFlow* is the software module that allows *fMRIPrep* to flexibly
+change, and dynamically pull down, new standardized template information.
+
+.. _tf_no_internet:
+
+**How do you use TemplateFlow in the absence of access to the Internet?**.
+This is a fairly common situation in :abbr:`HPCs (high-performance computing)`
+systems, where the so-called login nodes have access to the Internet but
+compute nodes are isolated, or in PC/laptop enviroments if you are travelling.
+*TemplateFlow* will require Internet access the first time it receives a
+query for a template resource that has not been previously accessed.
+If you know what are the templates you are planning to use, you could
+prefetch them using the Python client.
+To do so, follow the next steps.
+
+  1. By default, a mirror of *TemplateFlow* to store the resources will be
+     created in ``$HOME/.cache/templateflow``.
+     You can modify such a configuration with the ``TEMPLATEFLOW_HOME``
+     environment variable, e.g.:
+     ::
+  
+       $ export TEMPLATEFLOW_HOME=$HOME/.templateflow
+  
+  2. Install the client within your favorite Python 3 environment (this can
+     be done in your login-node, or in a host with Internet access, 
+     without need for Docker/Singularity):
+     ::
+       
+       $ python -m pip install -U templateflow
+  
+  3. Use the ``get()`` utility of the client to pull down all the templates you'll
+     want to use. For example:
+     ::
+  
+       $ python -c "from templateflow.api import get; get(['MNI152NLin2009cAsym', 'MNI152NLin6Asym', 'OASIS30ANTs', 'MNIPediatricAsym', 'MNIInfant'])"
+
+After pulling down the resources you'll need, you will just need to make sure your
+runtime environment is able to access the filesystem, at the location of your
+*TemplateFlow home* directory.
+If you are a Singularity user, please check out :ref:`singularity_tf`.

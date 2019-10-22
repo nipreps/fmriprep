@@ -24,7 +24,8 @@ Patching working repositories
 In order to test new code without rebuilding the Docker image, it is
 possible to mount working repositories as source directories within the
 container.
-The `fmriprep-docker`_ script simplifies this for the most common repositories::
+The `Docker wrapper`_ script simplifies this
+for the most common repositories::
 
     -f PATH, --patch-fmriprep PATH
                           working fmriprep repository (default: None)
@@ -131,8 +132,8 @@ version string from the current repository state.
 
 To work in this image, replace ``poldracklab/fmriprep:latest`` with
 ``fmriprep`` in any of the above commands.
-This image may be accessed by the `fmriprep-docker`_ wrapper via the
-``-i`` flag, e.g., ::
+This image may be accessed by the `Docker wrapper`_
+via the ``-i`` flag, e.g., ::
 
     $ fmriprep-docker -i fmriprep --shell
 

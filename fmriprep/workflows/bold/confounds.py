@@ -33,12 +33,11 @@ from niworkflows.interfaces.utils import (
     TPM2ROI, AddTPMs, AddTSVHeader, TSV2JSON, DictMerge
 )
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import (
     GatherConfounds, ICAConfounds,
     FMRISummary, DerivativesDataSink
 )
-
-DEFAULT_MEMORY_MIN_GB = 0.01
 
 
 def init_bold_confs_wf(
@@ -680,8 +679,8 @@ in the corresponding confounds file.
 
     # ica_aroma node
     ica_aroma = pe.Node(ICA_AROMARPT(
-        denoise_type='nonaggr', generate_report=True, TR=metadata['RepetitionTime']),
-        name='ica_aroma')
+        denoise_type='nonaggr', generate_report=True, TR=metadata['RepetitionTime'],
+        args='-np'), name='ica_aroma')
 
     add_non_steady_state = pe.Node(niu.Function(function=_add_volumes,
                                                 output_names=['bold_add']),

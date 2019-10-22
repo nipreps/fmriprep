@@ -15,7 +15,6 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.utils import CopyXForm
 
 
-DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')
 
 

@@ -23,6 +23,7 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.cifti import GenerateCifti
 from niworkflows.interfaces.utils import DictMerge
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...utils.meepi import combine_meepi_source
 
 from ...interfaces import DerivativesDataSink
@@ -42,7 +43,7 @@ from .resampling import (
 from .outputs import init_func_derivatives_wf
 from .util import init_bold_reference_wf
 
-DEFAULT_MEMORY_MIN_GB = 0.01
+
 LOGGER = logging.getLogger('nipype.workflow')
 FSAVERAGE_DENSITY = {
     '642': 'fsaverage3',
@@ -266,7 +267,7 @@ def init_func_preproc_wf(
         * :py:func:`~fmriprep.workflows.fieldmap.init_nonlinear_sdc_wf`
 
     """
-    from .resampling import NONSTANDARD_REFERENCES
+    from ...config import NONSTANDARD_REFERENCES
     from ..fieldmap.base import init_sdc_wf  # Avoid circular dependency (#1066)
 
     # Filter out standard spaces to a separate dict
