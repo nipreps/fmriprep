@@ -117,6 +117,7 @@ def init_fmriprep_wf(
             run_uuid='X',
             skull_strip_fixed_seed=False,
             skull_strip_template=('OASIS30ANTs', {}),
+            skip_brain_extraction=False,
             subject_list=['fmripreptest'],
             t2s_coreg=False,
             task_id='',
