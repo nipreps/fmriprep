@@ -176,3 +176,7 @@ We have extended `this documentation <singularity.html>`__ to cover some of the 
 frequent issues other Singularity users have been faced with.
 Generally, users have found it hard to `get TemplateFlow and Singularity to work
 together <singularity.html#singularity-tf>`__.
+
+Skipping the FreeSurfer `reconall` step
+-----------------------------------------
+We have added a flag called `--fs-no-reconall` to pass through. This will skip the FreeSurfer reconall processing.
