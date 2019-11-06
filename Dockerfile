@@ -11,7 +11,6 @@ RUN apt-get update && \
                     bzip2 \
                     ca-certificates \
                     xvfb \
-                    cython3 \
                     build-essential \
                     autoconf \
                     libtool \
@@ -73,6 +72,7 @@ RUN curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     fsl-core=5.0.9-5~nd16.04+1 \
+                    fsl-mni152-templates=5.0.7-2 \
                     afni=16.2.07~dfsg.1-5~nd16.04+1 \
                     convert3d \
                     git-annex-standalone && \
@@ -98,11 +98,6 @@ RUN mkdir -p $ANTSPATH && \
     | tar -xzC $ANTSPATH --strip-components 1
 ENV PATH=$ANTSPATH:$PATH
 
-# Create a shared $HOME directory
-RUN useradd -m -s /bin/bash -G users fmriprep
-WORKDIR /home/fmriprep
-ENV HOME="/home/fmriprep"
-
 # Installing SVGO
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
@@ -113,11 +108,11 @@ RUN npm install -g bids-validator@1.2.3
 
 # Installing and setting up ICA_AROMA
 RUN mkdir -p /opt/ICA-AROMA && \
-  curl -sSL "https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.4-beta.tar.gz" \
+  curl -sSL "https://github.com/oesteban/ICA-AROMA/archive/v0.4.5.tar.gz" \
   | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
   chmod +x /opt/ICA-AROMA/ICA_AROMA.py
-
-ENV PATH=/opt/ICA-AROMA:$PATH
+ENV PATH="/opt/ICA-AROMA:$PATH" \
+    AROMA_VERSION="0.4.5"
 
 # Installing and setting up miniconda
 RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh && \
@@ -133,6 +128,7 @@ ENV PATH="/usr/local/miniconda/bin:$PATH" \
 
 # Installing precomputed python packages
 RUN conda install -y python=3.7.1 \
+                     pip=19.1 \
                      mkl=2018.0.3 \
                      mkl-service \
                      numpy=1.15.4 \
@@ -155,24 +151,28 @@ RUN conda install -y python=3.7.1 \
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
+# Create a shared $HOME directory
+RUN useradd -m -s /bin/bash -G users fmriprep
+WORKDIR /home/fmriprep
+ENV HOME="/home/fmriprep"
+
 # Precaching fonts, set 'Agg' as default backend for matplotlib
 RUN python -c "from matplotlib import font_manager" && \
     sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
 
 # Precaching atlases
-ENV TEMPLATEFLOW_HOME="/opt/templateflow"
-RUN mkdir -p $TEMPLATEFLOW_HOME
-RUN pip install --no-cache-dir "templateflow>=0.1.3,<0.2.0a0" && \
+COPY setup.cfg fmriprep-setup.cfg
+RUN pip install --no-cache-dir "$( grep templateflow fmriprep-setup.cfg | xargs )" && \
     python -c "from templateflow import api as tfapi; \
-               tfapi.get('MNI152Lin'); \
-               tfapi.get('MNI152NLin2009cAsym'); \
-               tfapi.get('OASIS30ANTs'); \
-               tfapi.get('NKI');"
-
-# Installing dev requirements (packages that are not in pypi)
-WORKDIR /src/
-COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+               tfapi.get('MNI152NLin6Asym', atlas=None, resolution=[1, 2], \
+                         desc=None, extension=['.nii', '.nii.gz']); \
+               tfapi.get('MNI152NLin6Asym', atlas=None, resolution=[1, 2], \
+                         desc='brain', extension=['.nii', '.nii.gz']); \
+               tfapi.get('MNI152NLin2009cAsym', atlas=None, extension=['.nii', '.nii.gz']); \
+               tfapi.get('OASIS30ANTs', extension=['.nii', '.nii.gz']);" && \
+    rm fmriprep-setup.cfg && \
+    find $HOME/.cache/templateflow -type d -exec chmod go=u {} + && \
+    find $HOME/.cache/templateflow -type f -exec chmod go=u {} +
 
 # Installing FMRIPREP
 COPY . /src/fmriprep
@@ -180,15 +180,15 @@ ARG VERSION
 # Force static versioning within container
 RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
     echo "include fmriprep/VERSION" >> /src/fmriprep/MANIFEST.in && \
-    cd /src/fmriprep && \
-    pip install --no-cache-dir .[all]
+    pip install --no-cache-dir "/src/fmriprep[all]"
 
 RUN install -m 0755 \
     /src/fmriprep/scripts/generate_reference_mask.py \
     /usr/local/bin/generate_reference_mask
 
 RUN find $HOME -type d -exec chmod go=u {} + && \
-    find $HOME -type f -exec chmod go=u {} +
+    find $HOME -type f -exec chmod go=u {} + && \
+    rm -rf $HOME/.npm $HOME/.conda $HOME/.empty
 
 ENV IS_DOCKER_8395080871=1
 

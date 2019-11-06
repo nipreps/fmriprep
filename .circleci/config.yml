@@ -9,19 +9,27 @@ jobs:
       - image: docker:18.01.0-ce-git
     working_directory: /tmp/src/fmriprep
     steps:
+      - checkout
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
+
       - run:
           name: Install parallel gzip and python3
           command: |
             apk add --no-cache pigz python3
       - restore_cache:
           keys:
-            - docker-v3-{{ .Branch }}-{{ epoch }}
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
             - docker-v3-{{ .Branch }}-
             - docker-v3-master-
             - docker-v3-
           paths:
             - /tmp/cache/docker.tar.gz
-      - checkout
       - setup_remote_docker
       - run:
           name: Load Docker image layer cache
@@ -59,20 +67,43 @@ jobs:
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" . \
               && e=0 && break || sleep 15
             done && [ "$e" -eq "0" ]
-
+            # test if development image should be built
+            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[build[ _]?devel\]' )" != "" ]]; then
+              echo "building development container"
+              docker tag poldracklab/fmriprep poldracklab/fmriprep:unstable
+              docker build \
+                --rm=false \
+                -t poldracklab/fmriprep_devel \
+                -f Dockerfile_devel .
+            fi
+      - run:
+          name: Smoke test Docker image
+          command: |
+            THISVERSION=$( python3 get_version.py )
+            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=${CIRCLE_TAG:-$THISVERSION}
+            DOCKERVERSION=$(docker run --rm -it poldracklab/fmriprep:latest --version)
+            DOCKERVERSION=${DOCKERVERSION%$'\r'}
+            DOCKERVERSION=${DOCKERVERSION#*"fmriprep v"}
+            echo "VERSION: \"$THISVERSION\""
+            echo "DOCKERVERSION: \"${DOCKERVERSION}\""
+            test "$DOCKERVERSION" = "$THISVERSION"
       - run:
           name: Docker save
           no_output_timeout: 40m
           command: |
             mkdir -p /tmp/cache
             docker save ubuntu:xenial-20161213 poldracklab/fmriprep:latest \
-            | pigz -8 -p 3 > /tmp/cache/docker.tar.gz
+            | pigz -3 > /tmp/cache/docker.tar.gz
 
       - persist_to_workspace:
           root: /tmp
           paths:
-            - cache/docker.tar.gz
             - src/fmriprep
+      - save_cache:
+         key: docker-v3-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         paths:
+            - /tmp/cache/docker.tar.gz
 
   get_data:
     machine:
@@ -82,7 +113,7 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v6-{{ epoch }}
+            - data-v6-{{ .Revision }}
             - data-v6-
       - run:
           name: Get test data from ds000005
@@ -144,70 +175,15 @@ jobs:
       - persist_to_workspace:
           root: /tmp
           paths:
-            - data
             - fslicense
             - ds005/nipype.cfg
-            - ds005/derivatives
             - ds054/nipype.cfg
             - ds210/nipype.cfg
       - save_cache:
-         key: data-v6-{{ epoch }}
+         key: data-v6-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/data
             - /tmp/ds005/derivatives/freesurfer
-
-  get_regression_data:
-    machine:
-      # Ubuntu 14.04 with Docker 17.10.0-ce
-      image: circleci/classic:201711-01
-    working_directory: /home/circleci/data
-    steps:
-      - restore_cache:
-          keys:
-            - regression-v3-{{ epoch }}
-            - regression-v3-
-      - run:
-          name: Get truncated BOLD series
-          command: |
-            mkdir -p /tmp/data
-            if [[ ! -d /tmp/data/fmriprep_bold_truncated ]]; then
-              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O fmriprep_bold_truncated.tar.gz "https://osf.io/286yr/download"
-              tar xvzf fmriprep_bold_truncated.tar.gz -C /tmp/data/
-            else
-              echo "Truncated BOLD series were cached"
-            fi
-      - run:
-          name: Get pre-computed masks
-          command: |
-            if [[ ! -d /tmp/data/fmriprep_bold_mask ]]; then
-              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O fmriprep_bold_mask.tar.gz "https://osf.io/s4f7b/download"
-              tar xvzf fmriprep_bold_mask.tar.gz -C /tmp/data/
-            else
-              echo "Pre-computed masks were cached"
-            fi
-      - persist_to_workspace:
-          root: /tmp
-          paths:
-            - data
-      - save_cache:
-         key: regression-v3-{{ epoch }}
-         paths:
-            - /tmp/data
-
-  update_cache:
-    machine:
-      # Ubuntu 14.04 with Docker 17.10.0-ce
-      image: circleci/classic:201711-01
-    working_directory: /tmp/src/fmriprep
-    steps:
-      - attach_workspace:
-          at: /tmp
-      - save_cache:
-         key: docker-v3-{{ .Branch }}-{{ epoch }}
-         paths:
-            - /tmp/cache/docker.tar.gz
 
   test_pytest:
     machine:
@@ -220,6 +196,10 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
             if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?tests\]' )" != "" ]]; then
               echo "Skipping pytest job"
               circleci step halt
@@ -227,14 +207,9 @@ jobs:
 
       - attach_workspace:
           at: /tmp
-      - run:
-          name: Check PyPi preconditions
-          command: |
-            pyenv global 3.5.2
-            virtualenv venv
-            pip install "setuptools>=27.0" cython numpy twine docutils
-            python setup.py check -r -s
-            python setup.py sdist
+      - restore_cache:
+          keys:
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
       - run:
           name: Load Docker image layer cache
           no_output_timeout: 30m
@@ -250,21 +225,11 @@ jobs:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
           command: |
-            mkdir /tmp/data/reports && \
             docker run -ti --rm=false \
-              -v /tmp/data:/tmp/data \
-              -e FMRIPREP_REGRESSION_SOURCE=/tmp/data/fmriprep_bold_truncated \
-              -e FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
-              -e FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
-              --entrypoint="py.test" poldracklab/fmriprep:latest \
-              /src/fmriprep/ \
-              -svx --doctest-modules --ignore=/src/fmriprep/docs --ignore=setup.py
-      - run:
-          name: Package new masks
-          no_output_timeout: 10m
-          working_directory: /tmp/data/reports
-          command: |
-            tar cfz fmriprep_bold_mask.tar.gz fmriprep_bold_mask/*/*.nii.gz
+              -e TEST_READONLY_FILESYSTEM=1 -v $HOME:/home/readonly:ro \
+              --entrypoint="pytest" poldracklab/fmriprep:latest \
+              /src/fmriprep/fmriprep -svx --doctest-modules
+
       - run:
           name: Test fmriprep-wrapper (Python 2)
           command: |
@@ -273,6 +238,7 @@ jobs:
             pyenv local $PY2
             echo -n "Python version: "
             python --version
+            pip install --upgrade pip setuptools
             pip install --upgrade wrapper/
             which fmriprep-docker
             fmriprep-docker -i poldracklab/fmriprep:latest --help
@@ -285,6 +251,7 @@ jobs:
             pyenv local $PY3
             echo -n "Python version: "
             python --version
+            pip install --upgrade pip setuptools
             pip install --upgrade wrapper/
             which fmriprep-docker
             fmriprep-docker -i poldracklab/fmriprep:latest --help
@@ -292,49 +259,39 @@ jobs:
       - store_artifacts:
           path: /tmp/data/reports
 
-
   build_docs:
-    machine:
-      image: circleci/classic:201711-01
-    working_directory: /home/circleci/out/docs
+    docker:
+      - image: python:3.7.4
+    working_directory: /tmp/src/fmriprep
+    environment:
+      - FSLOUTPUTTYPE: 'NIFTI'
     steps:
-      - checkout:
-          path: /home/circleci/src/fmriprep
+      - checkout
       - run:
           name: Check whether build should be skipped
           command: |
-            cd /home/circleci/src/fmriprep
             if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?docs\]' )" != "" ]]; then
-              echo "Skipping pytest job"
+              echo "Skipping doc building job"
               circleci step halt
             fi
-
-      - attach_workspace:
-          at: /tmp
       - run:
-          name: Load Docker image layer cache
-          no_output_timeout: 30m
+          name: Check Python version and upgrade pip
           command: |
-            docker info
-            set +o pipefail
-            if [ -f /tmp/cache/docker.tar.gz ]; then
-              sudo apt update && sudo apt -y install pigz
-              pigz -d --stdout /tmp/cache/docker.tar.gz | docker load
-              docker images
-            fi
+            python --version
+            python -m pip install -U pip
       - run:
-          name: Build fMRIPrep documentation
-          no_output_timeout: 2h
+          name: Install graphviz
           command: |
-            docker run -ti --rm=false -v $PWD:/_build_html \
-              --entrypoint=sphinx-build poldracklab/fmriprep:latest \
-              -T -E -b html -d _build/doctrees-readthedocs -W -D \
-              language=en /src/fmriprep/docs/ /_build_html 2>&1 \
-              | tee $PWD/builddocs.log
-            cat $PWD/builddocs.log
-            grep -qv "ERROR" $PWD/builddocs.log
+              apt-get update
+              apt-get install -y graphviz
+      - run:
+          name: Install fMRIPrep
+          command: python -m pip install ".[doc]"
+      - run:
+          name: Build documentation
+          command: make SPHINXOPTS="-W" -C docs html
       - store_artifacts:
-          path: /home/circleci/out/docs
+          path: /tmp/src/fmriprep/docs/_build/html
 
   ds005:
     machine:
@@ -349,6 +306,10 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
             if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds005\]' )" != "" ]]; then
               echo "Skipping ds000005 build"
               circleci step halt
@@ -358,15 +319,21 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds005-anat-v14-{{ .Branch }}-{{ epoch }}
-            - ds005-anat-v14-{{ .Branch }}
-            - ds005-anat-v14-master
-            - ds005-anat-v14-
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - data-v6-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - ds005-anat-v15-{{ .Branch }}-{{ .Revision }}
+            - ds005-anat-v15-{{ .Branch }}
+            - ds005-anat-v15-master
+            - ds005-anat-v15-
       - run:
           name: Setting up test
           command: |
             mkdir -p /tmp/ds005/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds005/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds005/derivatives
-            pip install future numpy
+            pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
           name: Load Docker image layer cache
@@ -392,10 +359,18 @@ jobs:
                 -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
+                --skull-strip-template OASIS30ANTs:res-1 \
+                --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
                 --sloppy --write-graph --mem_mb 4096 \
                 --nthreads 2 --anat-only -vv
+      - run:
+          name: Clean-up after anatomical run
+          command: |
+            rm -rf /tmp/ds005/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/ds005/work/reportlets
+            rm -rf /tmp/ds005/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v14-{{ .Branch }}-{{ epoch }}
+         key: ds005-anat-v15-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
 
@@ -413,8 +388,8 @@ jobs:
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --use-aroma \
-                --output-space T1w template fsaverage5 fsnative \
-                --template-resampling-grid native \
+                --skull-strip-template OASIS30ANTs:res-1 \
+                --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 2 --cifti-output -vv
       - run:
@@ -441,9 +416,8 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds005/work_partial \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
-                --output-space T1w template fsaverage5 fsnative \
+                --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --aroma-melodic-dimensionality 2 --use-aroma \
-                --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
       - run:
           name: Checking outputs of partial fMRIPrep run
@@ -455,14 +429,20 @@ jobs:
             exit $?
       - run:
           name: Clean working directory
-          when: always
+          when: on_success
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds005
-            find /tmp/ds005/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
-                -not -name "*.mat" -not -name "*.lta" -not -name "*.json" -not -name "*.txt" -not -name "*.pklz" -type f -delete
-            find /tmp/ds005/work_partial -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
-                -not -name "*.mat" -not -name "*.lta" -not -name "*.json" -not -name "*.txt" -not -name "*.pklz" -type f -delete
-            # tar cf - work_partial/ | pigz -2 -p 2 > ds005_workdir.tar.gz && sudo rm -fr work work_partial
+            sudo rm -rf /tmp/ds005/work
+            sudo rm -rf /tmp/ds005/work_partial
+      - run:
+          name: Clean working directory
+          when: on_fail
+          command: |
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds005
+            find /tmp/ds005/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+                -exec sh -c 'rm -f {}; touch {}' \;
+            find /tmp/ds005/work_partial \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+                -exec sh -c 'rm -f {}; touch {}' \;
 
       - store_artifacts:
           path: /tmp/ds005
@@ -480,6 +460,10 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
             if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds054\]' )" != "" ]]; then
               echo "Skipping ds000054 build"
               circleci step halt
@@ -489,15 +473,21 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds054-anat-v12-{{ .Branch }}-{{ epoch }}
-            - ds054-anat-v12-{{ .Branch }}
-            - ds054-anat-v12-master
-            - ds054-anat-v12-
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - data-v6-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - ds054-anat-v13-{{ .Branch }}-{{ .Revision }}
+            - ds054-anat-v13-{{ .Branch }}
+            - ds054-anat-v13-master
+            - ds054-anat-v13-
       - run:
           name: Setting up test
           command: |
             mkdir -p /tmp/ds054/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds054/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds054/derivatives
-            pip install future numpy
+            pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
           name: Load Docker image layer cache
@@ -525,8 +515,14 @@ jobs:
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
+      - run:
+          name: Clean-up after anatomical run
+          command: |
+            rm -rf /tmp/ds054/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/ds054/work/reportlets
+            rm -rf /tmp/ds054/derivatives/fmriprep
       - save_cache:
-         key: ds054-anat-v12-{{ .Branch }}-{{ epoch }}
+         key: ds054-anat-v13-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
 
@@ -543,8 +539,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --sloppy \
-                --output-space T1w template \
-                --template-resampling-grid 2mm \
+                --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
@@ -568,20 +563,24 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
-                --output-space T1w template \
-                --template-resampling-grid 2mm \
+                --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --reports-only --run-uuid $UUID
             RET=$?
             set -e
             [[ "$RET" -eq "1" ]]
       - run:
-          name: Clean-up work directory
-          when: always
+          name: Clean working directory
+          when: on_success
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds054
-            find /tmp/ds054/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
-                -not -name "*.mat" -not -name "*.lta" -not -name "*.json" -not -name "*.txt" -not -name "*.pklz" -type f -delete
-            # tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
+            sudo rm -rf /tmp/ds054/work
+      - run:
+          name: Clean working directory
+          when: on_fail
+          command: |
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds054
+            find /tmp/ds054/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+                -exec sh -c 'rm -f {}; touch {}' \;
       - store_artifacts:
           path: /tmp/ds054
 
@@ -598,6 +597,10 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
             if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds210\]' )" != "" ]]; then
               echo "Skipping ds000210 build"
               circleci step halt
@@ -607,15 +610,21 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - ds210-anat-v10-{{ .Branch }}-{{ epoch }}
-            - ds210-anat-v10-{{ .Branch }}
-            - ds210-anat-v10-master
-            - ds210-anat-v10-
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - data-v6-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - ds210-anat-v11-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v11-{{ .Branch }}-
+            - ds210-anat-v11-master
+            - ds210-anat-v11-
       - run:
           name: Setting up test
           command: |
             mkdir -p /tmp/ds210/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/ds210/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/ds210/derivatives
-            pip install future numpy
+            pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
           name: Load Docker image layer cache
@@ -643,8 +652,14 @@ jobs:
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
+      - run:
+          name: Clean-up after anatomical run
+          command: |
+            rm -rf /tmp/ds210/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/ds210/work/reportlets
+            rm -rf /tmp/ds210/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v10-{{ .Branch }}-{{ epoch }}
+         key: ds210-anat-v11-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds210/work
 
@@ -657,7 +672,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds210/work \
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --t2s-coreg --use-syn-sdc \
-                --template-resampling-grid native \
+                --template-resampling-grid native --dummy-scans 1 \
                 --sloppy --write-graph --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
@@ -667,13 +682,18 @@ jobs:
             diff /tmp/src/fmriprep/.circleci/ds210_outputs.txt /tmp/ds210/test/outputs.out
             exit $?
       - run:
-          name: Clean-up work directory
-          when: always
+          name: Clean working directory
+          when: on_success
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds210
-            find /tmp/ds210/work -not -name "*.svg" -not -name "*.html" -not -name "*.rst" \
-                -not -name "*.mat" -not -name "*.lta" -not -name "*.json" -not -name "*.txt" -not -name "*.pklz" -type f -delete
-            # tar cf - work/ | pigz -2 -p 2 > ds054_workdir.tar.gz && sudo rm -fr work
+            sudo rm -rf /tmp/ds210/work
+      - run:
+          name: Clean working directory
+          when: on_fail
+          command: |
+            sudo chown $(id -un):$(id -gn) -R /tmp/ds210
+            find /tmp/ds210/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+                -exec sh -c 'rm -f {}; touch {}' \;
       - store_artifacts:
           path: /tmp/ds210
 
@@ -683,8 +703,9 @@ jobs:
     working_directory: /tmp/src/fmriprep
     steps:
 
-      - attach_workspace:
-          at: /tmp
+      - restore_cache:
+          keys:
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
       - run:
           name: Load Docker image layer cache
           no_output_timeout: 30m
@@ -711,9 +732,19 @@ jobs:
       image: circleci/classic:201711-01
     working_directory: /tmp/src/fmriprep
     steps:
-
-      - attach_workspace:
-          at: /tmp
+      - checkout:
+          path: /home/circleci/src/fmriprep
+      - run:
+          name: Check whether build should be skipped
+          command: |
+            cd /home/circleci/src/fmriprep
+            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+              echo "Only docs build"
+              circleci step halt
+            fi
+      - restore_cache:
+          keys:
+            - docker-v3-{{ .Branch }}-{{ .Revision }}
       - run:
           name: Load Docker image layer cache
           no_output_timeout: 30m
@@ -740,26 +771,115 @@ jobs:
               fi
             fi
 
-  deploy_pypi:
-    machine:
-      image: circleci/classic:201711-01
+  test_deploy_pypi:
+    docker:
+      - image: circleci/python:3.7.4
     working_directory: /tmp/src/fmriprep
     steps:
-      - attach_workspace:
-          at: /tmp
+      - checkout
       - run:
-          name: Deploy to PyPi
+          name: Build fMRIPrep
           command: |
-            pyenv global 3.5.2
-            virtualenv venv
-            pip install "setuptools>=27.0" cython numpy twine docutils
-            echo "${CIRCLE_TAG}" > fmriprep/VERSION
-            echo "include fmriprep/VERSION" >> MANIFEST.in
-            python setup.py check -r -s
+            pip install --user twine  # For use in checking distributions
+            THISVERSION=$( python get_version.py )
+            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=${CIRCLE_TAG:-$THISVERSION}
+            virtualenv --python=python build
+            source build/bin/activate
+            pip install --upgrade "pip>=19.1" numpy
+            echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
             python setup.py sdist
-            twine upload dist/*
-            cd wrapper && python setup.py sdist
-            twine upload dist/*
+            pip wheel --no-deps -w dist/ .
+      - store_artifacts:
+          path: /tmp/src/fmriprep/dist
+      - run:
+          name: Check sdist distribution
+          command: |
+            THISVERSION=$( python get_version.py )
+            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=${CIRCLE_TAG:-$THISVERSION}
+            twine check dist/fmriprep*.tar.gz
+            virtualenv --python=python sdist
+            source sdist/bin/activate
+            pip install --upgrade "pip>=19.1" numpy
+            pip install dist/fmriprep*.tar.gz
+            which fmriprep | grep sdist\\/bin
+            INSTALLED_VERSION=$(fmriprep --version)
+            INSTALLED_VERSION=${INSTALLED_VERSION%$'\r'}
+            INSTALLED_VERSION=${INSTALLED_VERSION#*"fmriprep v"}
+            echo "VERSION: \"$THISVERSION\""
+            echo "INSTALLED: \"$INSTALLED_VERSION\""
+            test "$INSTALLED_VERSION" = "$THISVERSION"
+      - run:
+          name: Check wheel distribution
+          command: |
+            THISVERSION=$( python get_version.py )
+            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=${CIRCLE_TAG:-$THISVERSION}
+            twine check dist/fmriprep*.whl
+            virtualenv --python=python wheel
+            source wheel/bin/activate
+            pip install dist/fmriprep*.whl
+            which fmriprep | grep wheel\\/bin
+            INSTALLED_VERSION=$(fmriprep --version)
+            INSTALLED_VERSION=${INSTALLED_VERSION%$'\r'}
+            INSTALLED_VERSION=${INSTALLED_VERSION#*"fmriprep v"}
+            echo "VERSION: \"$THISVERSION\""
+            echo "INSTALLED: \"$INSTALLED_VERSION\""
+            test "$INSTALLED_VERSION" = "$THISVERSION"
+      - run:
+          name: Build fmriprep-docker
+          command: |
+            THISVERSION=$( python get_version.py )
+            THISVERSION=${THISVERSION%.dirty*}
+            cd wrapper
+            virtualenv --python=python build
+            source build/bin/activate
+            pip install --upgrade "pip>=19.1"
+            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" fmriprep_docker.py
+            python setup.py sdist
+            pip wheel --no-deps -w dist/ .
+      - store_artifacts:
+          path: /tmp/src/fmriprep/wrapper/dist
+
+  deploy_pypi:
+    docker:
+      - image: circleci/python:3.7.4
+    working_directory: /tmp/src/fmriprep
+    steps:
+      - checkout
+      - run:
+          name: Build fMRIPrep
+          command: |
+            THISVERSION=$( python get_version.py )
+            virtualenv --python=python build
+            source build/bin/activate
+            pip install --upgrade "pip>=19.1"
+            echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
+            python setup.py sdist
+            pip wheel --no-deps -w dist/ .
+      - run:
+          name: Build fmriprep-docker
+          command: |
+            THISVERSION=$( python get_version.py )
+            cd wrapper
+            virtualenv --python=python build
+            source build/bin/activate
+            pip install --upgrade "pip>=19.1"
+            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" fmriprep_docker.py
+            python setup.py sdist
+            pip wheel --no-deps -w dist/ .
+      - run:
+          name: Upload packages to PyPI
+          command: |
+            pip install --user twine
+            twine upload dist/fmriprep* wrapper/dist/fmriprep*
+
+  deployable:
+    docker:
+      - image: busybox:latest
+    steps:
+      - run: echo Deploying!
 
 workflows:
   version: 2
@@ -767,6 +887,9 @@ workflows:
     jobs:
       - build:
           filters:
+            branches:
+              ignore:
+                - /docs?\/.*/
             tags:
               only: /.*/
 
@@ -780,21 +903,7 @@ workflows:
             tags:
               only: /.*/
 
-      - get_regression_data:
-          filters:
-            branches:
-              ignore:
-                - /docs?\/.*/
-                - /ds005\/.*/
-                - /ds054\/.*/
-                - /ds210\/.*/
-                - /docker\/.*/
-            tags:
-              only: /.*/
-
       - build_docs:
-          requires:
-            - build
           filters:
             branches:
               ignore:
@@ -806,14 +915,11 @@ workflows:
             tags:
               only: /.*/
 
-      - update_cache:
-          requires:
-            - build
+      - test_deploy_pypi:
           filters:
             branches:
               ignore:
-                - /docs?\/.*/
-                - /tests?\/.*/
+                - /docs\/.*/
                 - /docker\/.*/
             tags:
               only: /.*/
@@ -821,7 +927,6 @@ workflows:
       - test_pytest:
           requires:
             - build
-            - get_regression_data
           filters:
             branches:
               ignore:
@@ -886,9 +991,9 @@ workflows:
             branches:
               only: /docker\/.*/
 
-      - deploy_docker:
+      - deployable:
           requires:
-            - build
+            - test_deploy_pypi
             - test_pytest
             - build_docs
             - ds005
@@ -900,14 +1005,18 @@ workflows:
             tags:
               only: /.*/
 
+      - deploy_docker:
+          requires:
+            - deployable
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /.*/
+
       - deploy_pypi:
           requires:
-            - build
-            - test_pytest
-            - build_docs
-            - ds005
-            - ds054
-            - ds210
+            - deployable
           filters:
             branches:
               ignore: /.*/

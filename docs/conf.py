@@ -76,7 +76,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'fmriprep'
-author = 'The FMRIPREP developers'
+author = 'The fMRIPrep developers'
 copyright = '2016-%s, %s' % (datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
@@ -213,7 +213,7 @@ html_static_path = ['_static']
 # base URL from which the finished HTML is served.
 # html_use_opensearch = ''
 
-# This is the file name suffix for HTML files (e.g. ".xhtml").
+# This is the file name suffix for HTML files (e.g., ".xhtml").
 # html_file_suffix = None
 
 # Language to be used for generating the HTML full-text search index.

@@ -112,6 +112,36 @@
       "orcid": "0000-0003-3456-2493"
     },
     {
+      "name": "Rivera-Dompenciel, Adriana",
+      "affiliation": "Neuroscience Program, University of Iowa",
+      "orcid": "0000-0002-3339-4857"
+    },
+    {
+      "name": "Ciric, Rastko",
+      "affiliation": "Stanford University",
+      "orcid": "0000-0001-6347-7939"
+    },
+    {
+      "name": "Sneve, Markus H.",
+      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
+      "orcid": "0000-0001-7644-7915"
+    },
+    {
+      "name": "Heinsfeld, Anibal S.",
+      "affiliation": "Child Mind Institute",
+      "orcid": "0000-0002-2050-0614"
+    },
+    {
+      "name": "Thompson, William H",
+      "affiliation": "Department of Psychology, Stanford University",
+      "orcid": "0000-0002-0533-6035"
+    },
+    {
+      "name": "Tooley, Ursula A.",
+      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
+      "orcid": "0000-0001-6377-3885"
+    },
+    {
       "name": "Poldrack, Russell A.",
       "affiliation": "Department of Psychology, Stanford University",
       "orcid": "0000-0001-6755-0259"
@@ -145,3 +175,4 @@
   "license": "BSD-3-Clause",
   "upload_type": "software"
 }
+

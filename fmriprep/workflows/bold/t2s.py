@@ -17,7 +17,6 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from ...interfaces import T2SMap
 from .util import init_skullstrip_bold_wf
 
-DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')
 
 

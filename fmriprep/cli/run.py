@@ -7,23 +7,17 @@ fMRI preprocessing workflow
 """
 
 import os
+import re
 from pathlib import Path
 import logging
 import sys
 import gc
-import re
 import uuid
-import json
-import tempfile
-import psutil
-import hashlib
 import warnings
-import subprocess
 from argparse import ArgumentParser
-from argparse import RawTextHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter
 from multiprocessing import cpu_count
 from time import strftime
-from glob import glob
 
 logging.addLevelName(25, 'IMPORTANT')  # Add a new level between INFO and WARNING
 logging.addLevelName(15, 'VERBOSE')  # Add a new level between INFO and DEBUG
@@ -45,12 +39,19 @@ def check_deps(workflow):
 
 def get_parser():
     """Build parser object"""
+    from smriprep.cli.utils import ParseTemplates, output_space as _output_space
+    from templateflow.api import templates
+    from packaging.version import Version
     from ..__about__ import __version__
+    from ..config import NONSTANDARD_REFERENCES
+    from .version import check_latest, is_flagged
 
     verstr = 'fmriprep v{}'.format(__version__)
+    currentv = Version(__version__)
+    is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
 
     parser = ArgumentParser(description='FMRIPREP: fMRI PREProcessing workflows',
-                            formatter_class=RawTextHelpFormatter)
+                            formatter_class=ArgumentDefaultsHelpFormatter)
 
     # Arguments as specified by BIDS-Apps
     # required, positional arguments
@@ -110,7 +111,7 @@ def get_parser():
     g_perfm.add_argument('--error-on-aroma-warnings', action='store_true',
                          default=False,
                          help='Raise an error if ICA_AROMA does not produce sensible output '
-                              '(e.g. if all the components are classified as signal or noise)')
+                              '(e.g., if all the components are classified as signal or noise)')
     g_perfm.add_argument("-v", "--verbose", dest="verbose_count", action="count", default=0,
                          help="increases log verbosity for each occurence, debug level is -vvv")
     g_perfm.add_argument('--debug', action='store_true', default=False,
@@ -131,21 +132,46 @@ def get_parser():
              'T2*-driven coregistration. When multi-echo data is provided and this '
              'option is not enabled, standard EPI-T1 coregistration is performed '
              'using the middle echo.')
+    g_conf.add_argument(
+        '--output-spaces', nargs='+', action=ParseTemplates,
+        help="""\
+Standard and non-standard spaces to resample anatomical and functional images to. \
+Standard spaces may be specified by the form \
+``<TEMPLATE>[:res-<resolution>][:cohort-<label>][...]``, where ``<TEMPLATE>`` is \
+a keyword (valid keywords: %s) or path pointing to a user-supplied template, and \
+may be followed by optional, colon-separated parameters. \
+Non-standard spaces (valid keywords: %s) imply specific orientations and sampling \
+grids. \
+Important to note, the ``res-*`` modifier does not define the resolution used for \
+the spatial normalization.
+For further details, please check out \
+https://fmriprep.readthedocs.io/en/%s/spaces.html""" % (
+            ', '.join('"%s"' % s for s in templates()), ', '.join(NONSTANDARD_REFERENCES),
+            currentv.base_version if is_release else 'latest'))
+
+    g_conf.add_argument(
+        '--output-space', required=False, action='store', type=str, nargs='+',
+        choices=['T1w', 'template', 'fsnative', 'fsaverage', 'fsaverage6', 'fsaverage5'],
+        help='DEPRECATED: please use ``--output-spaces`` instead.'
+    )
+    g_conf.add_argument(
+        '--template', required=False, action='store', type=str,
+        choices=['MNI152NLin2009cAsym'],
+        help='volume template space (default: MNI152NLin2009cAsym). '
+             'DEPRECATED: please use ``--output-spaces`` instead.')
+    g_conf.add_argument(
+        '--template-resampling-grid', required=False, action='store',
+        help='Keyword ("native", "1mm", or "2mm") or path to an existing file. '
+             'Allows to define a reference grid for the resampling of BOLD images in template '
+             'space. Keyword "native" will use the original BOLD grid as reference. '
+             'Keywords "1mm" and "2mm" will use the corresponding isotropic template '
+             'resolutions. If a path is given, the grid of that image will be used. '
+             'It determines the field of view and resolution of the output images, '
+             'but is not used in normalization. '
+             'DEPRECATED: please use ``--output-spaces`` instead.')
     g_conf.add_argument('--bold2t1w-dof', action='store', default=6, choices=[6, 9, 12], type=int,
                         help='Degrees of freedom when registering BOLD to T1w images. '
                              '6 degrees (rotation and translation) are used by default.')
-    g_conf.add_argument(
-        '--output-space', required=False, action='store',
-        choices=['T1w', 'template', 'fsnative', 'fsaverage', 'fsaverage6', 'fsaverage5'],
-        nargs='+', default=['template', 'fsaverage5'],
-        help='volume and surface spaces to resample functional series into\n'
-             ' - T1w: subject anatomical volume\n'
-             ' - template: normalization target specified by --template\n'
-             ' - fsnative: individual subject surface\n'
-             ' - fsaverage*: FreeSurfer average meshes\n'
-             'this argument can be single value or a space delimited list,\n'
-             'for example: --output-space T1w fsnative'
-    )
     g_conf.add_argument(
         '--force-bbr', action='store_true', dest='use_bbr', default=None,
         help='Always use boundary-based registration (no goodness-of-fit checks)')
@@ -153,25 +179,12 @@ def get_parser():
         '--force-no-bbr', action='store_false', dest='use_bbr', default=None,
         help='Do not use boundary-based registration (no goodness-of-fit checks)')
     g_conf.add_argument(
-        '--template', required=False, action='store',
-        choices=['MNI152NLin2009cAsym'], default='MNI152NLin2009cAsym',
-        help='volume template space (default: MNI152NLin2009cAsym)')
-    g_conf.add_argument(
-        '--output-grid-reference', required=False, action='store',
-        help='Deprecated after FMRIPREP 1.0.8. Please use --template-resampling-grid instead.')
-    g_conf.add_argument(
-        '--template-resampling-grid', required=False, action='store', default='native',
-        help='Keyword ("native", "1mm", or "2mm") or path to an existing file. '
-             'Allows to define a reference grid for the resampling of BOLD images in template '
-             'space. Keyword "native" will use the original BOLD grid as reference. '
-             'Keywords "1mm" and "2mm" will use the corresponding isotropic template '
-             'resolutions. If a path is given, the grid of that image will be used. '
-             'It determines the field of view and resolution of the output images, '
-             'but is not used in normalization.')
-    g_conf.add_argument(
         '--medial-surface-nan', required=False, action='store_true', default=False,
         help='Replace medial wall values with NaNs on functional GIFTI files. Only '
         'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).')
+    g_conf.add_argument(
+        '--dummy-scans', required=False, action='store', default=None, type=int,
+        help='Number of non steady state volumes.')
 
     # ICA_AROMA options
     g_aroma = parser.add_argument_group('Specific options for running ICA_AROMA')
@@ -182,11 +195,27 @@ def get_parser():
                          help='Exact or maximum number of MELODIC components to estimate '
                          '(positive = exact, negative = maximum)')
 
+    # Confounds options
+    g_confounds = parser.add_argument_group('Specific options for estimating confounds')
+    g_confounds.add_argument(
+        '--return-all-components', required=False, action='store_true', default=False,
+        help='Include all components estimated in CompCor decomposition in the confounds '
+             'file instead of only the components sufficient to explain 50 percent of '
+             'BOLD variance in each CompCor mask')
+    g_confounds.add_argument(
+        '--fd-spike-threshold', required=False, action='store', default=0.5, type=float,
+        help='Threshold for flagging a frame as an outlier on the basis of framewise '
+             'displacement')
+    g_confounds.add_argument(
+        '--dvars-spike-threshold', required=False, action='store', default=1.5, type=float,
+        help='Threshold for flagging a frame as an outlier on the basis of standardised '
+             'DVARS')
+
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
-    g_ants.add_argument('--skull-strip-template', action='store', default='OASIS30ANTs',
-                        choices=['OASIS30ANTs', 'NKI', 'MNI152NLin2009cAsym'],
-                        help='select ANTs skull-stripping template (default: OASIS30ANTs))')
+    g_ants.add_argument(
+        '--skull-strip-template', action='store', default='OASIS30ANTs', type=_output_space,
+        help='select a template for skull-stripping with antsBrainExtraction')
     g_ants.add_argument('--skull-strip-fixed-seed', action='store_true',
                         help='do not use a random seed for skull-stripping - will ensure '
                              'run-to-run replicability when used with --omp-nthreads 1')
@@ -209,7 +238,7 @@ def get_parser():
     # FreeSurfer options
     g_fs = parser.add_argument_group('Specific options for FreeSurfer preprocessing')
     g_fs.add_argument(
-        '--fs-license-file', metavar='PATH', type=os.path.abspath,
+        '--fs-license-file', metavar='PATH', type=Path,
         help='Path to FreeSurfer license key file. Get it (for free) by registering'
              ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
 
@@ -253,6 +282,23 @@ def get_parser():
     g_other.add_argument('--sloppy', action='store_true', default=False,
                          help='Use low-quality tools for speed - TESTING ONLY')
 
+    latest = check_latest()
+    if latest is not None and currentv < latest:
+        print("""\
+You are using fMRIPrep-%s, and a newer version of fMRIPrep is available: %s.
+Please check out our documentation about how and when to upgrade:
+https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""" % (
+            __version__, latest), file=sys.stderr)
+
+    _blist = is_flagged()
+    if _blist[0]:
+        _reason = _blist[1] or 'unknown'
+        print("""\
+WARNING: Version %s of fMRIPrep (current) has been FLAGGED
+(reason: %s).
+That means some severe flaw was found in it and we strongly
+discourage its usage.""" % (__version__, _reason), file=sys.stderr)
+
     return parser
 
 
@@ -260,10 +306,8 @@ def main():
     """Entry point"""
     from nipype import logging as nlogging
     from multiprocessing import set_start_method, Process, Manager
-    from ..viz.reports import generate_reports
-    from ..utils.bids import write_derivative_description
+    from ..utils.bids import write_derivative_description, validate_input_dir
     set_start_method('forkserver')
-
     warnings.showwarning = _warn_redirect
     opts = get_parser().parse_args()
 
@@ -281,100 +325,30 @@ def main():
     sentry_sdk = None
     if not opts.notrack:
         import sentry_sdk
-        from ..__about__ import __version__
-        environment = "prod"
-        release = __version__
-        if not __version__:
-            environment = "dev"
-            release = "dev"
-        elif bool(int(os.getenv('FMRIPREP_DEV', 0))) or ('+' in __version__):
-            environment = "dev"
+        from ..utils.sentry import sentry_setup
+        sentry_setup(opts, exec_env)
 
-        def before_send(event, hints):
-            # Filtering log messages about crashed nodes
-            if 'logentry' in event and 'message' in event['logentry']:
-                msg = event['logentry']['message']
-                if msg.startswith("could not run node:"):
-                    return None
-                elif msg.startswith("Saving crash info to "):
-                    return None
-                elif re.match("Node .+ failed to run on host .+", msg):
-                    return None
-
-            if 'breadcrumbs' in event and isinstance(event['breadcrumbs'], list):
-                fingerprints_to_propagate = ['no-disk-space', 'memory-error', 'permission-denied',
-                                             'keyboard-interrupt']
-                for bc in event['breadcrumbs']:
-                    msg = bc.get('message', 'empty-msg')
-                    if msg in fingerprints_to_propagate:
-                        event['fingerprint'] = [msg]
-                        break
-
-            return event
-
-        sentry_sdk.init("https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
-                        release=release,
-                        environment=environment,
-                        before_send=before_send)
-        with sentry_sdk.configure_scope() as scope:
-            scope.set_tag('exec_env', exec_env)
-
-            if exec_env == 'fmriprep-docker':
-                scope.set_tag('docker_version', os.getenv('DOCKER_VERSION_8395080871'))
-
-            dset_desc_path = opts.bids_dir / 'dataset_description.json'
-            if dset_desc_path.exists():
-                desc_content = dset_desc_path.read_bytes()
-                scope.set_tag('dset_desc_sha256', hashlib.sha256(desc_content).hexdigest())
-
-            free_mem_at_start = round(psutil.virtual_memory().free / 1024**3, 1)
-            scope.set_tag('free_mem_at_start', free_mem_at_start)
-            scope.set_tag('cpu_count', cpu_count())
-
-            # Memory policy may have a large effect on types of errors experienced
-            overcommit_memory = Path('/proc/sys/vm/overcommit_memory')
-            if overcommit_memory.exists():
-                policy = {'0': 'heuristic',
-                          '1': 'always',
-                          '2': 'never'}.get(overcommit_memory.read_text().strip(), 'unknown')
-                scope.set_tag('overcommit_memory', policy)
-                if policy == 'never':
-                    overcommit_kbytes = Path('/proc/sys/vm/overcommit_memory')
-                    kb = overcommit_kbytes.read_text().strip()
-                    if kb != '0':
-                        limit = '{}kB'.format(kb)
-                    else:
-                        overcommit_ratio = Path('/proc/sys/vm/overcommit_ratio')
-                        limit = '{}%'.format(overcommit_ratio.read_text().strip())
-                    scope.set_tag('overcommit_limit', limit)
-                else:
-                    scope.set_tag('overcommit_limit', 'n/a')
-            else:
-                scope.set_tag('overcommit_memory', 'n/a')
-                scope.set_tag('overcommit_limit', 'n/a')
-
-            for k, v in vars(opts).items():
-                scope.set_tag(k, v)
+    if opts.debug:
+        print('WARNING: Option --debug is deprecated and has no effect',
+              file=sys.stderr)
 
     # Validate inputs
     if not opts.skip_bids_validation:
         print("Making sure the input data is BIDS compliant (warnings can be ignored in most "
               "cases).")
-        validate_input_dir(exec_env, str(opts.bids_dir), opts.participant_label)
+        validate_input_dir(exec_env, opts.bids_dir, opts.participant_label)
 
     # FreeSurfer license
     default_license = str(Path(os.getenv('FREESURFER_HOME')) / 'license.txt')
     # Precedence: --fs-license-file, $FS_LICENSE, default_license
-    license_file = opts.fs_license_file or os.getenv('FS_LICENSE', default_license)
-    if not os.path.exists(license_file):
-        raise RuntimeError(
-            'ERROR: a valid license file is required for FreeSurfer to run. '
-            'FMRIPREP looked for an existing license file at several paths, in this '
-            'order: 1) command line argument ``--fs-license-file``; 2) ``$FS_LICENSE`` '
-            'environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. '
-            'Get it (for free) by registering at https://'
-            'surfer.nmr.mgh.harvard.edu/registration.html')
-    os.environ['FS_LICENSE'] = license_file
+    license_file = opts.fs_license_file or Path(os.getenv('FS_LICENSE', default_license))
+    if not license_file.exists():
+        raise RuntimeError("""\
+ERROR: a valid license file is required for FreeSurfer to run. fMRIPrep looked for an existing \
+license file at several paths, in this order: 1) command line argument ``--fs-license-file``; \
+2) ``$FS_LICENSE`` environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. Get it \
+(for free) by registering at https://surfer.nmr.mgh.harvard.edu/registration.html""")
+    os.environ['FS_LICENSE'] = str(license_file.resolve())
 
     # Retrieve logging level
     log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
@@ -383,8 +357,6 @@ def main():
     nlogging.getLogger('nipype.workflow').setLevel(log_level)
     nlogging.getLogger('nipype.interface').setLevel(log_level)
     nlogging.getLogger('nipype.utils').setLevel(log_level)
-
-    errno = 0
 
     # Call build_workflow(opts, retval)
     with Manager() as mgr:
@@ -395,9 +367,9 @@ def main():
 
         retcode = p.exitcode or retval.get('return_code', 0)
 
-        bids_dir = retval.get('bids_dir')
-        output_dir = retval.get('output_dir')
-        work_dir = retval.get('work_dir')
+        bids_dir = Path(retval.get('bids_dir'))
+        output_dir = Path(retval.get('output_dir'))
+        work_dir = Path(retval.get('work_dir'))
         plugin_settings = retval.get('plugin_settings', None)
         subject_list = retval.get('subject_list', None)
         fmriprep_wf = retval.get('workflow', None)
@@ -419,7 +391,7 @@ def main():
     # Check workflow for missing commands
     missing = check_deps(fmriprep_wf)
     if missing:
-        print("Cannot run fMRIPrep. Missing dependencies:")
+        print("Cannot run fMRIPrep. Missing dependencies:", file=sys.stderr)
         for iface, cmd in missing:
             print("\t{} (Interface: {})".format(cmd, iface))
         sys.exit(2)
@@ -428,131 +400,95 @@ def main():
 
     # Sentry tracking
     if not opts.notrack:
-        with sentry_sdk.configure_scope() as scope:
-            if run_uuid:
-                scope.set_tag('run_uuid', run_uuid)
-            if subject_list:
-                scope.set_tag('npart', len(subject_list))
-        sentry_sdk.add_breadcrumb(message='fMRIPrep started', level='info')
-        sentry_sdk.capture_message('fMRIPrep started', level='info')
+        from ..utils.sentry import start_ping
+        start_ping(run_uuid, len(subject_list))
 
+    errno = 1  # Default is error exit unless otherwise set
     try:
         fmriprep_wf.run(**plugin_settings)
-    except RuntimeError as e:
-        errno = 1
-        if "Workflow did not execute cleanly" not in str(e):
-            sentry_sdk.capture_exception(e)
-            raise
+    except Exception as e:
+        if not opts.notrack:
+            from ..utils.sentry import process_crashfile
+            crashfolders = [output_dir / 'fmriprep' / 'sub-{}'.format(s) / 'log' / run_uuid
+                            for s in subject_list]
+            for crashfolder in crashfolders:
+                for crashfile in crashfolder.glob('crash*.*'):
+                    process_crashfile(crashfile)
+
+            if "Workflow did not execute cleanly" not in str(e):
+                sentry_sdk.capture_exception(e)
+        logger.critical('fMRIPrep failed: %s', e)
+        raise
     else:
         if opts.run_reconall:
             from templateflow import api
             from niworkflows.utils.misc import _copy_any
-            dseg_tsv = str(api.get('fsaverage', suffix='dseg', extensions=['.tsv']))
+            dseg_tsv = str(api.get('fsaverage', suffix='dseg', extension=['.tsv']))
             _copy_any(dseg_tsv,
-                      str(Path(output_dir) / 'fmriprep' / 'desc-aseg_dseg.tsv'))
+                      str(output_dir / 'fmriprep' / 'desc-aseg_dseg.tsv'))
             _copy_any(dseg_tsv,
-                      str(Path(output_dir) / 'fmriprep' / 'desc-aparcaseg_dseg.tsv'))
+                      str(output_dir / 'fmriprep' / 'desc-aparcaseg_dseg.tsv'))
+        errno = 0
         logger.log(25, 'fMRIPrep finished without errors')
+        if not opts.notrack:
+            sentry_sdk.capture_message('fMRIPrep finished without errors',
+                                       level='info')
     finally:
-        # Generate reports phase
-        errno += generate_reports(subject_list, output_dir, work_dir, run_uuid,
-                                  sentry_sdk=sentry_sdk)
-        write_derivative_description(bids_dir, str(Path(output_dir) / 'fmriprep'))
+        from niworkflows.reports import generate_reports
+        from subprocess import check_call, CalledProcessError, TimeoutExpired
+        from pkg_resources import resource_filename as pkgrf
+        from shutil import copyfile
 
-    if not opts.notrack and errno == 0:
-        sentry_sdk.capture_message('fMRIPrep finished without errors', level='info')
-    sys.exit(int(errno > 0))
+        citation_files = {
+            ext: output_dir / 'fmriprep' / 'logs' / ('CITATION.%s' % ext)
+            for ext in ('bib', 'tex', 'md', 'html')
+        }
 
+        if citation_files['md'].exists():
+            # Generate HTML file resolving citations
+            cmd = ['pandoc', '-s', '--bibliography',
+                   pkgrf('fmriprep', 'data/boilerplate.bib'),
+                   '--filter', 'pandoc-citeproc',
+                   '--metadata', 'pagetitle="fMRIPrep citation boilerplate"',
+                   str(citation_files['md']),
+                   '-o', str(citation_files['html'])]
 
-def validate_input_dir(exec_env, bids_dir, participant_label):
-    # Ignore issues and warnings that should not influence FMRIPREP
-    validator_config_dict = {
-        "ignore": [
-            "EVENTS_COLUMN_ONSET",
-            "EVENTS_COLUMN_DURATION",
-            "TSV_EQUAL_ROWS",
-            "TSV_EMPTY_CELL",
-            "TSV_IMPROPER_NA",
-            "VOLUME_COUNT_MISMATCH",
-            "BVAL_MULTIPLE_ROWS",
-            "BVEC_NUMBER_ROWS",
-            "DWI_MISSING_BVAL",
-            "INCONSISTENT_SUBJECTS",
-            "INCONSISTENT_PARAMETERS",
-            "BVEC_ROW_LENGTH",
-            "B_FILE",
-            "PARTICIPANT_ID_COLUMN",
-            "PARTICIPANT_ID_MISMATCH",
-            "TASK_NAME_MUST_DEFINE",
-            "PHENOTYPE_SUBJECTS_MISSING",
-            "STIMULUS_FILE_MISSING",
-            "DWI_MISSING_BVEC",
-            "EVENTS_TSV_MISSING",
-            "TSV_IMPROPER_NA",
-            "ACQTIME_FMT",
-            "Participants age 89 or higher",
-            "DATASET_DESCRIPTION_JSON_MISSING",
-            "FILENAME_COLUMN",
-            "WRONG_NEW_LINE",
-            "MISSING_TSV_COLUMN_CHANNELS",
-            "MISSING_TSV_COLUMN_IEEG_CHANNELS",
-            "MISSING_TSV_COLUMN_IEEG_ELECTRODES",
-            "UNUSED_STIMULUS",
-            "CHANNELS_COLUMN_SFREQ",
-            "CHANNELS_COLUMN_LOWCUT",
-            "CHANNELS_COLUMN_HIGHCUT",
-            "CHANNELS_COLUMN_NOTCH",
-            "CUSTOM_COLUMN_WITHOUT_DESCRIPTION",
-            "ACQTIME_FMT",
-            "SUSPICIOUSLY_LONG_EVENT_DESIGN",
-            "SUSPICIOUSLY_SHORT_EVENT_DESIGN",
-            "MALFORMED_BVEC",
-            "MALFORMED_BVAL",
-            "MISSING_TSV_COLUMN_EEG_ELECTRODES",
-            "MISSING_SESSION"
-        ],
-        "error": ["NO_T1W"],
-        "ignoredFiles": ['/dataset_description.json', '/participants.tsv']
-    }
-    # Limit validation only to data from requested participants
-    if participant_label:
-        all_subs = set([os.path.basename(i)[4:] for i in glob(os.path.join(bids_dir,
-                                                                           "sub-*"))])
-        selected_subs = []
-        for selected_sub in participant_label:
-            if selected_sub.startswith("sub-"):
-                selected_subs.append(selected_sub[4:])
+            logger.info('Generating an HTML version of the citation boilerplate...')
+            try:
+                check_call(cmd, timeout=10)
+            except (FileNotFoundError, CalledProcessError, TimeoutExpired):
+                logger.warning('Could not generate CITATION.html file:\n%s',
+                               ' '.join(cmd))
+
+            # Generate LaTex file resolving citations
+            cmd = ['pandoc', '-s', '--bibliography',
+                   pkgrf('fmriprep', 'data/boilerplate.bib'),
+                   '--natbib', str(citation_files['md']),
+                   '-o', str(citation_files['tex'])]
+            logger.info('Generating a LaTeX version of the citation boilerplate...')
+            try:
+                check_call(cmd, timeout=10)
+            except (FileNotFoundError, CalledProcessError, TimeoutExpired):
+                logger.warning('Could not generate CITATION.tex file:\n%s',
+                               ' '.join(cmd))
             else:
-                selected_subs.append(selected_sub)
-        selected_subs = set(selected_subs)
-        bad_labels = selected_subs.difference(all_subs)
-        if bad_labels:
-            error_msg = 'Data for requested participant(s) label(s) not found. Could ' \
-                        'not find data for participant(s): %s. Please verify the requested ' \
-                        'participant labels.'
-            if exec_env == 'docker':
-                error_msg += ' This error can be caused by the input data not being ' \
-                             'accessible inside the docker container. Please make sure all ' \
-                             'volumes are mounted properly (see https://docs.docker.com/' \
-                             'engine/reference/commandline/run/#mount-volume--v---read-only)'
-            if exec_env == 'singularity':
-                error_msg += ' This error can be caused by the input data not being ' \
-                             'accessible inside the singularity container. Please make sure ' \
-                             'all paths are mapped properly (see https://www.sylabs.io/' \
-                             'guides/3.0/user-guide/bind_paths_and_mounts.html)'
-            raise RuntimeError(error_msg % ','.join(bad_labels))
+                copyfile(pkgrf('fmriprep', 'data/boilerplate.bib'),
+                         citation_files['bib'])
+        else:
+            logger.warning('fMRIPrep could not find the markdown version of '
+                           'the citation boilerplate (%s). HTML and LaTeX versions'
+                           ' of it will not be available', citation_files['md'])
 
-        ignored_subs = all_subs.difference(selected_subs)
-        if ignored_subs:
-            for sub in ignored_subs:
-                validator_config_dict["ignoredFiles"].append("/sub-%s/**" % sub)
-    with tempfile.NamedTemporaryFile('w+') as temp:
-        temp.write(json.dumps(validator_config_dict))
-        temp.flush()
-        try:
-            subprocess.check_call(['bids-validator', bids_dir, '-c', temp.name])
-        except FileNotFoundError:
-            logger.error("bids-validator does not appear to be installed")
+        # Generate reports phase
+        failed_reports = generate_reports(
+            subject_list, output_dir, work_dir, run_uuid, packagename='fmriprep')
+        write_derivative_description(bids_dir, output_dir / 'fmriprep')
+
+        if failed_reports and not opts.notrack:
+            sentry_sdk.capture_message(
+                'Report generation failed for %d subjects' % failed_reports,
+                level='error')
+        sys.exit(int((errno + failed_reports) > 0))
 
 
 def build_workflow(opts, retval):
@@ -567,18 +503,15 @@ def build_workflow(opts, retval):
     a hard-limited memory-scope.
 
     """
-    from subprocess import check_call, CalledProcessError, TimeoutExpired
-    from pkg_resources import resource_filename as pkgrf
-    from shutil import copyfile
     from bids import BIDSLayout
 
-    from nipype import logging, config as ncfg
+    from nipype import logging as nlogging, config as ncfg
     from niworkflows.utils.bids import collect_participants
+    from niworkflows.reports import generate_reports
     from ..__about__ import __version__
     from ..workflows.base import init_fmriprep_wf
-    from ..viz.reports import generate_reports
 
-    logger = logging.getLogger('nipype.workflow')
+    build_log = nlogging.getLogger('nipype.workflow')
 
     INIT_MSG = """
     Running fMRIPREP version {version}:
@@ -598,62 +531,23 @@ def build_workflow(opts, retval):
     retval['work_dir'] = str(work_dir)
 
     if output_dir == bids_dir:
-        logger.error(
+        build_log.error(
             'The selected output folder is the same as the input BIDS folder. '
             'Please modify the output path (suggestion: %s).',
             bids_dir / 'derivatives' / ('fmriprep-%s' % __version__.split('+')[0]))
         retval['return_code'] = 1
         return retval
 
-    # Reduce to unique space identifiers
-    output_spaces = sorted(set(opts.output_space))
-
-    # If FS is not run, drop all fs* output spaces
-    if not opts.run_reconall:
-        output_spaces = [item for item in output_spaces if not item.startswith('fs')]
-
-    # Validity of some inputs
-    # ERROR check if use_aroma was specified, but the correct template was not
-    if opts.use_aroma and (opts.template != 'MNI152NLin2009cAsym' or
-                           'template' not in output_spaces):
-        output_spaces.append('template')
-        logger.warning(
-            'Option "--use-aroma" requires functional images to be resampled to MNI space. '
-            'The argument "template" has been automatically added to the list of output '
-            'spaces (option "--output-space").'
-        )
-
-    if opts.cifti_output:
-        if 'template' not in output_spaces:
-            output_spaces.append('template')
-            logger.warning(
-                'Option "--cifti-output" requires functional images to be resampled to MNI '
-                'space. The argument "template" has been automatically added to the list of '
-                'output spaces (option "--output-space").')
-        if not [s for s in output_spaces if s in ('fsaverage5', 'fsaverage6')]:
-            output_spaces = sorted(output_spaces + ['fsaverage5'])
-            logger.warning(
-                'Option "--cifti-output" requires functional images to be resampled to fsaverage '
-                'space. The argument "fsaverage5" has been automatically added to the list of '
-                'output spaces (option "--output-space").')
-
-    # Check output_space
-    if 'template' not in output_spaces and (opts.use_syn_sdc or opts.force_syn):
-        msg = ['SyN SDC correction requires T1 to MNI registration, but '
-               '"template" is not specified in "--output-space" arguments.',
-               'Option --use-syn will be cowardly dismissed.']
-        if opts.force_syn:
-            output_spaces.append('template')
-            msg[1] = (' Since --force-syn has been requested, "template" has been added to'
-                      ' the "--output-space" list.')
-        logger.warning(' '.join(msg))
+    output_spaces = parse_spaces(opts)
 
     # Set up some instrumental utilities
     run_uuid = '%s_%s' % (strftime('%Y%m%d-%H%M%S'), uuid.uuid4())
     retval['run_uuid'] = run_uuid
 
     # First check that bids_dir looks like a BIDS folder
-    layout = BIDSLayout(str(bids_dir), validate=False)
+    layout = BIDSLayout(str(bids_dir), validate=False,
+                        ignore=("code", "stimuli", "sourcedata", "models",
+                                "derivatives", re.compile(r'^\.')))
     subject_list = collect_participants(
         layout, participant_label=opts.participant_label)
     retval['subject_list'] = subject_list
@@ -693,7 +587,7 @@ def build_workflow(opts, retval):
         omp_nthreads = min(nthreads - 1 if nthreads > 1 else cpu_count(), 8)
 
     if 1 < nthreads < omp_nthreads:
-        logger.warning(
+        build_log.warning(
             'Per-process threads (--omp-nthreads=%d) exceed total '
             'threads (--nthreads/--n_cpus=%d)', omp_nthreads, nthreads)
     retval['plugin_settings'] = plugin_settings
@@ -729,64 +623,58 @@ def build_workflow(opts, retval):
 
     # Called with reports only
     if opts.reports_only:
-        logger.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
+        build_log.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
         if opts.run_uuid is not None:
             run_uuid = opts.run_uuid
             retval['run_uuid'] = run_uuid
         retval['return_code'] = generate_reports(
-            subject_list, str(output_dir), str(work_dir), run_uuid)
+            subject_list, output_dir, work_dir, run_uuid,
+            packagename='fmriprep')
         return retval
 
     # Build main workflow
-    logger.log(25, INIT_MSG(
+    build_log.log(25, INIT_MSG(
         version=__version__,
         bids_dir=bids_dir,
         subject_list=subject_list,
         uuid=run_uuid)
     )
 
-    template_out_grid = opts.template_resampling_grid
-    if opts.output_grid_reference is not None:
-        logger.warning(
-            'Option --output-grid-reference is deprecated, please use '
-            '--template-resampling-grid')
-        template_out_grid = template_out_grid or opts.output_grid_reference
-    if opts.debug:
-        logger.warning('Option --debug is deprecated and has no effect')
-
     retval['workflow'] = init_fmriprep_wf(
-        layout=layout,
-        subject_list=subject_list,
-        task_id=opts.task_id,
-        echo_idx=opts.echo_idx,
-        run_uuid=run_uuid,
-        ignore=opts.ignore,
-        debug=opts.sloppy,
-        low_mem=opts.low_mem,
         anat_only=opts.anat_only,
-        longitudinal=opts.longitudinal,
-        t2s_coreg=opts.t2s_coreg,
-        omp_nthreads=omp_nthreads,
-        skull_strip_template=opts.skull_strip_template,
-        skull_strip_fixed_seed=opts.skull_strip_fixed_seed,
-        work_dir=str(work_dir),
-        output_dir=str(output_dir),
-        freesurfer=opts.run_reconall,
-        output_spaces=output_spaces,
-        template=opts.template,
-        medial_surface_nan=opts.medial_surface_nan,
-        cifti_output=opts.cifti_output,
-        template_out_grid=template_out_grid,
-        hires=opts.hires,
-        use_bbr=opts.use_bbr,
+        aroma_melodic_dim=opts.aroma_melodic_dimensionality,
         bold2t1w_dof=opts.bold2t1w_dof,
+        cifti_output=opts.cifti_output,
+        debug=opts.sloppy,
+        dummy_scans=opts.dummy_scans,
+        echo_idx=opts.echo_idx,
+        err_on_aroma_warn=opts.error_on_aroma_warnings,
         fmap_bspline=opts.fmap_bspline,
         fmap_demean=opts.fmap_no_demean,
-        use_syn=opts.use_syn_sdc,
         force_syn=opts.force_syn,
+        freesurfer=opts.run_reconall,
+        hires=opts.hires,
+        ignore=opts.ignore,
+        layout=layout,
+        longitudinal=opts.longitudinal,
+        low_mem=opts.low_mem,
+        medial_surface_nan=opts.medial_surface_nan,
+        omp_nthreads=omp_nthreads,
+        output_dir=str(output_dir),
+        output_spaces=output_spaces,
+        run_uuid=run_uuid,
+        regressors_all_comps=opts.return_all_components,
+        regressors_fd_th=opts.fd_spike_threshold,
+        regressors_dvars_th=opts.dvars_spike_threshold,
+        skull_strip_fixed_seed=opts.skull_strip_fixed_seed,
+        skull_strip_template=opts.skull_strip_template,
+        subject_list=subject_list,
+        t2s_coreg=opts.t2s_coreg,
+        task_id=opts.task_id,
         use_aroma=opts.use_aroma,
-        aroma_melodic_dim=opts.aroma_melodic_dimensionality,
-        err_on_aroma_warn=opts.error_on_aroma_warnings,
+        use_bbr=opts.use_bbr,
+        use_syn=opts.use_syn_sdc,
+        work_dir=str(work_dir),
     )
     retval['return_code'] = 0
 
@@ -794,49 +682,96 @@ def build_workflow(opts, retval):
     boilerplate = retval['workflow'].visit_desc()
 
     if boilerplate:
-        # To please git-annex users and also to guarantee consistency
-        # among different renderings of the same file, first remove any
-        # existing one
         citation_files = {
             ext: logs_path / ('CITATION.%s' % ext)
             for ext in ('bib', 'tex', 'md', 'html')
         }
+        # To please git-annex users and also to guarantee consistency
+        # among different renderings of the same file, first remove any
+        # existing one
         for citation_file in citation_files.values():
-            if citation_file.exists() or citation_file.is_symlink():
+            try:
                 citation_file.unlink()
+            except FileNotFoundError:
+                pass
 
         citation_files['md'].write_text(boilerplate)
-        logger.log(25, 'Works derived from this fMRIPrep execution should '
-                   'include the following boilerplate:\n\n%s', boilerplate)
-
-        # Generate HTML file resolving citations
-        cmd = ['pandoc', '-s', '--bibliography',
-               pkgrf('fmriprep', 'data/boilerplate.bib'),
-               '--filter', 'pandoc-citeproc',
-               '--metadata', 'pagetitle="fMRIPrep citation boilerplate"',
-               str(citation_files['md']),
-               '-o', str(citation_files['html'])]
-        try:
-            check_call(cmd, timeout=10)
-        except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            logger.warning('Could not generate CITATION.html file:\n%s',
-                           ' '.join(cmd))
-
-        # Generate LaTex file resolving citations
-        cmd = ['pandoc', '-s', '--bibliography',
-               pkgrf('fmriprep', 'data/boilerplate.bib'),
-               '--natbib', str(citation_files['md']),
-               '-o', str(citation_files['tex'])]
-        try:
-            check_call(cmd, timeout=10)
-        except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            logger.warning('Could not generate CITATION.tex file:\n%s',
-                           ' '.join(cmd))
-        else:
-            copyfile(pkgrf('fmriprep', 'data/boilerplate.bib'),
-                     citation_files['bib'])
-
+        build_log.log(25, 'Works derived from this fMRIPrep execution should '
+                      'include the following boilerplate:\n\n%s', boilerplate)
     return retval
+
+
+def parse_spaces(opts):
+    """Ensures the spaces are correctly parsed"""
+    from sys import stderr
+    from collections import OrderedDict
+    from templateflow.api import templates as get_templates
+    # Set the default template to 'MNI152NLin2009cAsym'
+    output_spaces = opts.output_spaces or OrderedDict([('MNI152NLin2009cAsym', {})])
+
+    if opts.template:
+        print("""\
+The ``--template`` option has been deprecated in version 1.4.0. Your selected template \
+"%s" will be inserted at the front of the ``--output-spaces`` argument list. Please update \
+your scripts to use ``--output-spaces``.""" % opts.template, file=stderr)
+        deprecated_tpl_arg = [(opts.template, {})]
+        # If output_spaces is not set, just replate the default - append otherwise
+        if opts.output_spaces is not None:
+            deprecated_tpl_arg += list(output_spaces.items())
+        output_spaces = OrderedDict(deprecated_tpl_arg)
+
+    if opts.output_space:
+        print("""\
+The ``--output_space`` option has been deprecated in version 1.4.0. Your selection of spaces \
+"%s" will be inserted at the front of the ``--output-spaces`` argument list. Please update \
+your scripts to use ``--output-spaces``.""" % ', '.join(opts.output_space), file=stderr)
+        missing = set(opts.output_space)
+        if 'template' in missing:
+            missing.remove('template')
+            if not opts.template:
+                missing.add('MNI152NLin2009cAsym')
+        missing = missing - set(output_spaces.keys())
+        output_spaces.update({tpl: {} for tpl in missing})
+
+    FS_SPACES = set(['fsnative', 'fsaverage', 'fsaverage6', 'fsaverage5'])
+    if opts.run_reconall and not list(FS_SPACES.intersection(output_spaces.keys())):
+        print("""\
+Although ``--fs-no-reconall`` was not set (i.e., FreeSurfer is to be run), no FreeSurfer \
+output space (valid values are: %s) was selected. Adding default "fsaverage5" to the \
+list of output spaces.""" % ', '.join(FS_SPACES), file=stderr)
+        output_spaces['fsaverage5'] = {}
+
+    # Validity of some inputs
+    # ERROR check if use_aroma was specified, but the correct template was not
+    if opts.use_aroma and 'MNI152NLin6Asym' not in output_spaces:
+        output_spaces['MNI152NLin6Asym'] = {'res': 2}
+        print("""\
+Option "--use-aroma" requires functional images to be resampled to MNI152NLin6Asym space. \
+The argument "MNI152NLin6Asym:res-2" has been automatically added to the list of output spaces \
+(option ``--output-spaces``).""", file=stderr)
+
+    if opts.cifti_output and 'MNI152NLin2009cAsym' not in output_spaces:
+        if 'MNI152NLin2009cAsym' not in output_spaces:
+            output_spaces['MNI152NLin2009cAsym'] = {'res': 2}
+            print("""Option ``--cifti-output`` requires functional images to be resampled to \
+``MNI152NLin2009cAsym`` space. Such template identifier has been automatically added to the \
+list of output spaces (option "--output-space").""", file=stderr)
+        if not [s for s in output_spaces if s in ('fsaverage5', 'fsaverage6')]:
+            output_spaces['fsaverage5'] = {}
+            print("""Option ``--cifti-output`` requires functional images to be resampled to \
+``fsaverage`` space. The argument ``fsaverage:den-10k`` (a.k.a ``fsaverage5``) has been \
+automatically added to the list of output spaces (option ``--output-space``).""", file=stderr)
+
+    if opts.template_resampling_grid is not None:
+        print("""Option ``--template-resampling-grid`` is deprecated, please specify \
+resampling grid options as modifiers to templates listed in ``--output-spaces``. \
+The configuration value will be applied to ALL output standard spaces.""")
+        if opts.template_resampling_grid != 'native':
+            for key in output_spaces.keys():
+                if key in get_templates():
+                    output_spaces[key]['res'] = opts.template_resampling_grid[0]
+
+    return output_spaces
 
 
 if __name__ == '__main__':

@@ -1,0 +1,90 @@
+FROM poldracklab/fmriprep:unstable
+
+# net-tools needed for code-server
+# wget necessary for data downloads
+RUN apt-get update &&\
+    apt-get install -y \
+        net-tools \
+        wget
+
+# necessary to find fmriprep in /src/fmriprep
+ENV PYTHONNOUSERSITE=0
+
+RUN cd /src/fmriprep &&\
+    pip install --no-use-pep517 -e .[all] &&\
+    cp -R /src/fmriprep/fmriprep.egg-info /src/
+
+# create freesurfer license
+RUN cd /tmp &&\
+    echo 'cHJpbnRmICJrcnp5c3p0b2YuZ29yZ29sZXdza2lAZ21haWwuY29tXG41MTcyXG4gKkN2dW12RVYzelRmZ1xuRlM1Si8yYzFhZ2c0RVxuIiA+IGxpY2Vuc2UudHh0Cg==' | base64 -d | sh
+
+ENV FS_LICENSE=/tmp/license.txt
+
+# set the fmriprep development variables
+ENV FMRIPREP_REGRESSION_SOURCE=/tmp/data/fmriprep_bold_truncated \
+    FMRIPREP_REGRESSION_TARGETS=/tmp/data/fmriprep_bold_mask \
+    FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
+    FMRIPREP_DEV=1
+
+# use flake8 as linter
+RUN conda install -y flake8
+
+RUN mkdir -p /tmp/data
+
+# Download ds005
+RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O ds005_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32a429ad5a101f977eb75" &&\
+    tar xvzf ds005_downsampled.tar.gz -C /tmp/data/ &&\
+    rm ds005_downsampled.tar.gz
+
+# Download ds210
+RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O ds210_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5ae9e37b9a64d7000ce66c21" &&\
+    tar xvzf ds210_downsampled.tar.gz -C /tmp/data &&\
+    rm ds210_downsampled.tar.gz
+
+# Download ds054
+RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O ds054_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32c22594d9001ef91bf9e" &&\
+    tar xvzf ds054_downsampled.tar.gz -C /tmp/data &&\
+    rm ds054_downsampled.tar.gz
+
+# Download freesurfer results for ds005
+RUN mkdir -p /tmp/ds005/derivatives &&\
+    wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180" &&\
+   tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005/derivatives &&\
+   rm ds005_derivatives_freesurfer.tar.gz
+
+# Download truncated bold images
+RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O fmriprep_bold_truncated.tar.gz "https://osf.io/286yr/download" &&\
+    tar xvzf fmriprep_bold_truncated.tar.gz -C /tmp/data &&\
+    rm fmriprep_bold_truncated.tar.gz
+
+# Download precomputed masks
+RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
+         -O fmriprep_bold_mask.tar.gz "https://osf.io/s4f7b/download" &&\
+    tar xvzf fmriprep_bold_mask.tar.gz -C /tmp/data &&\
+    rm fmriprep_bold_mask.tar.gz
+
+# set up code-server (need net-tools for initialization) - V2.1665-vsc1.39.2
+RUN curl -o /tmp/code-server.tar.gz -SL https://github.com/cdr/code-server/releases/download/2.1665-vsc1.39.2/code-server2.1665-vsc1.39.2-linux-x86_64.tar.gz
+
+RUN mkdir /src/codeserver &&\
+    tar -xvf /tmp/code-server.tar.gz -C /src/codeserver --strip-components=1
+
+RUN /src/codeserver/code-server --install-extension eamodio.gitlens &&\
+    /src/codeserver/code-server --install-extension ms-python.python
+    
+
+ENTRYPOINT ["/src/codeserver/code-server", "--auth", "none", "/src/fmriprep"]
+
+# usage example (assuming in local fmriprep directory):
+#
+# docker run -it \
+# -p 127.0.0.1:8445:8080 \
+# -v ${PWD}:/src/fmriprep \
+# fmriprep_devel:latest
+#
+# then type 127.0.0.1:8445 in your browser address bar

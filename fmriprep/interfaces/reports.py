@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -16,18 +14,20 @@ import re
 from collections import Counter
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec,
-    File, Directory, InputMultiPath, Str, isdefined,
+    File, Directory, InputMultiObject, Str, isdefined,
     SimpleInterface)
 from nipype.interfaces import freesurfer as fs
 from niworkflows.utils.bids import BIDS_NAME
 
 
-SUBJECT_TEMPLATE = """\t<ul class="elem-desc">
+SUBJECT_TEMPLATE = """\
+\t<ul class="elem-desc">
 \t\t<li>Subject ID: {subject_id}</li>
 \t\t<li>Structural images: {n_t1s:d} T1-weighted {t2w}</li>
 \t\t<li>Functional series: {n_bold:d}</li>
 {tasks}
-\t\t<li>Resampling targets: {output_spaces}
+\t\t<li>Standard output spaces: {std_spaces}</li>
+\t\t<li>Non-standard output spaces: {nstd_spaces}</li>
 \t\t<li>FreeSurfer reconstruction: {freesurfer_status}</li>
 \t</ul>
 """
@@ -39,14 +39,14 @@ FUNCTIONAL_TEMPLATE = """\t\t<h3 class="elem-title">Summary</h3>
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
-\t\t\t<li>Functional series resampled to spaces: {output_spaces}</li>
 \t\t\t<li>Confounds collected: {confounds}</li>
+\t\t\t<li>Non-steady-state volumes: {dummy_scan_desc}</li>
 \t\t</ul>
 """
 
 ABOUT_TEMPLATE = """\t<ul>
-\t\t<li>FMRIPrep version: {version}</li>
-\t\t<li>FMRIPrep command: <code>{command}</code></li>
+\t\t<li>fMRIPrep version: {version}</li>
+\t\t<li>fMRIPrep command: <code>{command}</code></li>
 \t\t<li>Date preprocessed: {date}</li>
 \t</ul>
 </div>
@@ -68,17 +68,20 @@ class SummaryInterface(SimpleInterface):
         self._results['out_report'] = fname
         return runtime
 
+    def _generate_segment(self):
+        raise NotImplementedError
+
 
 class SubjectSummaryInputSpec(BaseInterfaceInputSpec):
-    t1w = InputMultiPath(File(exists=True), desc='T1w structural images')
-    t2w = InputMultiPath(File(exists=True), desc='T2w structural images')
+    t1w = InputMultiObject(File(exists=True), desc='T1w structural images')
+    t2w = InputMultiObject(File(exists=True), desc='T2w structural images')
     subjects_dir = Directory(desc='FreeSurfer subjects directory')
     subject_id = Str(desc='Subject ID')
-    bold = InputMultiPath(traits.Either(File(exists=True),
-                                        traits.List(File(exists=True))),
-                          desc='BOLD functional series')
-    output_spaces = traits.List(desc='Target spaces')
-    template = traits.Enum('MNI152NLin2009cAsym', desc='Template space')
+    bold = InputMultiObject(traits.Either(
+        File(exists=True), traits.List(File(exists=True))),
+        desc='BOLD functional series')
+    std_spaces = traits.List(Str, desc='list of standard spaces')
+    nstd_spaces = traits.List(Str, desc='list of non-standard spaces')
 
 
 class SubjectSummaryOutputSpec(SummaryOutputSpec):
@@ -109,9 +112,6 @@ class SubjectSummary(SummaryInterface):
             else:
                 freesurfer_status = 'Run by fMRIPrep'
 
-        output_spaces = [self.inputs.template if space == 'template' else space
-                         for space in self.inputs.output_spaces]
-
         t2w_seg = ''
         if self.inputs.t2w:
             t2w_seg = '(+ {:d} T2-weighted)'.format(len(self.inputs.t2w))
@@ -132,13 +132,15 @@ class SubjectSummary(SummaryInterface):
                      for task_id, n_runs in sorted(counts.items())]
             tasks = '\n'.join([header] + lines + [footer])
 
-        return SUBJECT_TEMPLATE.format(subject_id=self.inputs.subject_id,
-                                       n_t1s=len(self.inputs.t1w),
-                                       t2w=t2w_seg,
-                                       n_bold=len(bold_series),
-                                       tasks=tasks,
-                                       output_spaces=', '.join(output_spaces),
-                                       freesurfer_status=freesurfer_status)
+        return SUBJECT_TEMPLATE.format(
+            subject_id=self.inputs.subject_id,
+            n_t1s=len(self.inputs.t1w),
+            t2w=t2w_seg,
+            n_bold=len(bold_series),
+            tasks=tasks,
+            std_spaces=', '.join(self.inputs.std_spaces),
+            nstd_spaces=', '.join(self.inputs.nstd_spaces),
+            freesurfer_status=freesurfer_status)
 
 
 class FunctionalSummaryInputSpec(BaseInterfaceInputSpec):
@@ -153,9 +155,10 @@ class FunctionalSummaryInputSpec(BaseInterfaceInputSpec):
     fallback = traits.Bool(desc='Boundary-based registration rejected')
     registration_dof = traits.Enum(6, 9, 12, desc='Registration degrees of freedom',
                                    mandatory=True)
-    output_spaces = traits.List(desc='Target spaces')
     confounds_file = File(exists=True, desc='Confounds file')
     tr = traits.Float(desc='Repetition time', mandatory=True)
+    dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
+    algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
 
 
 class FunctionalSummary(SummaryInterface):
@@ -184,10 +187,28 @@ class FunctionalSummary(SummaryInterface):
         if isdefined(self.inputs.confounds_file):
             with open(self.inputs.confounds_file) as cfh:
                 conflist = cfh.readline().strip('\n').strip()
+
+        dummy_scan_tmp = "{n_dum}"
+        if self.inputs.dummy_scans == self.inputs.algo_dummy_scans:
+            dummy_scan_msg = (
+                ' '.join([dummy_scan_tmp, "(Confirmed: {n_alg} automatically detected)"])
+                .format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
+            )
+        # the number of dummy scans was specified by the user and
+        # it is not equal to the number detected by the algorithm
+        elif self.inputs.dummy_scans is not None:
+            dummy_scan_msg = (
+                ' '.join([dummy_scan_tmp, "(Warning: {n_alg} automatically detected)"])
+                .format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
+            )
+        # the number of dummy scans was not specified by the user
+        else:
+            dummy_scan_msg = dummy_scan_tmp.format(n_dum=self.inputs.algo_dummy_scans)
+
         return FUNCTIONAL_TEMPLATE.format(
             pedir=pedir, stc=stc, sdc=self.inputs.distortion_correction, registration=reg,
-            output_spaces=', '.join(self.inputs.output_spaces),
-            confounds=re.sub(r'[\t ]+', ', ', conflist), tr=self.inputs.tr)
+            confounds=re.sub(r'[\t ]+', ', ', conflist), tr=self.inputs.tr,
+            dummy_scan_desc=dummy_scan_msg)
 
 
 class AboutSummaryInputSpec(BaseInterfaceInputSpec):
