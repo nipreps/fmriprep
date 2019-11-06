@@ -179,4 +179,4 @@ together <singularity.html#singularity-tf>`__.
 
 Skipping the FreeSurfer `reconall` step
 -----------------------------------------
-We have added a flag called `--fs-no-reconall` to pass through. This will skip the FreeSurfer reconall processing.
+We have added a flag called `--fs-no-reconall` to pass through. This will skip the FreeSurfer reconall processing. Please be aware that providng *fMRIPrep* the FreeSurfer license with the `--fs-license-path` flag is still required. 
