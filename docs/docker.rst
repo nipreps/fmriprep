@@ -113,3 +113,11 @@ executable in a bare-metal installation: ::
         /data /out/fmriprep-<latest-version> \   | These lines
         participant \                            | correspond to
         -w /work                                 | fmriprep arguments.
+
+.. warning::
+
+   When using docker with big datasets (+10GB) docker might fail. 
+   Changing the maximum size of the container will solve it: ::
+
+    $ service docker stop
+    $ dockerd --storage-opt dm.basesize=30G
