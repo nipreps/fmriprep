@@ -16,6 +16,7 @@ fmriprep/sub-01/anat/sub-01_desc-brain_mask.nii.gz
 fmriprep/sub-01/anat/sub-01_desc-preproc_T1w.json
 fmriprep/sub-01/anat/sub-01_desc-preproc_T1w.nii.gz
 fmriprep/sub-01/anat/sub-01_dseg.nii.gz
+fmriprep/sub-01/anat/sub-01_from-fsnative_to-T1w_mode-image_xfm.txt
 fmriprep/sub-01/anat/sub-01_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5
 fmriprep/sub-01/anat/sub-01_from-MNI152NLin6Asym_to-T1w_mode-image_xfm.h5
 fmriprep/sub-01/anat/sub-01_from-T1w_to-fsnative_mode-image_xfm.txt
