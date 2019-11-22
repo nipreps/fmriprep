@@ -285,6 +285,9 @@ jobs:
               apt-get update
               apt-get install -y graphviz
       - run:
+          name: Install Requirements (may contain pinned versions)
+          command: python -m pip install -r docs/requirements.txt
+      - run:
           name: Install fMRIPrep
           command: python -m pip install ".[doc]"
       - run:
