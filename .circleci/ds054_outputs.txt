@@ -13,7 +13,6 @@ fmriprep/sub-100185/anat/sub-100185_desc-preproc_T1w.json
 fmriprep/sub-100185/anat/sub-100185_desc-preproc_T1w.nii.gz
 fmriprep/sub-100185/anat/sub-100185_dseg.nii.gz
 fmriprep/sub-100185/anat/sub-100185_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5
-fmriprep/sub-100185/anat/sub-100185_from-orig_to-T1w_mode-image_xfm.txt
 fmriprep/sub-100185/anat/sub-100185_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5
 fmriprep/sub-100185/anat/sub-100185_label-CSF_probseg.nii.gz
 fmriprep/sub-100185/anat/sub-100185_label-GM_probseg.nii.gz

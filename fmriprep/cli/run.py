@@ -39,12 +39,18 @@ def check_deps(workflow):
 
 def get_parser():
     """Build parser object"""
-    from smriprep.cli.utils import ParseTemplates, output_space as _output_space
+    from smriprep.cli.utils import (
+        ParseTemplates,
+        output_space as _output_space,
+        set_nonstandard_spaces
+    )
     from templateflow.api import templates
     from packaging.version import Version
     from ..__about__ import __version__
     from ..config import NONSTANDARD_REFERENCES
     from .version import check_latest, is_flagged
+
+    set_nonstandard_spaces(tuple(NONSTANDARD_REFERENCES))
 
     verstr = 'fmriprep v{}'.format(__version__)
     currentv = Version(__version__)
