@@ -44,6 +44,7 @@ extensions = [
     'sphinxarg.ext',  # argparse extension
     'nipype.sphinxext.plot_workflow',
     'nbsphinx',
+    'sphinxcontrib.napoleon',
 ]
 
 # Mock modules in autodoc:
@@ -62,6 +63,16 @@ if pver.parse(sphinxversion) >= pver.parse('1.7.0'):
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# Accept custom section names to be parsed for numpy-style docstrings
+# of parameters.
+# Requires pinning sphinxcontrib-napoleon to a specific commit while
+# https://github.com/sphinx-contrib/napoleon/pull/10 is merged.
+napoleon_use_param = False
+napoleon_custom_sections = [
+    ('Inputs', 'Parameters'),
+    ('Outputs', 'Parameters'),
+]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
