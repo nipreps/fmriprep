@@ -5,3 +5,11 @@ include LICENSE
 # versioneer
 include versioneer.py
 include fmriprep/_version.py
+
+# package data
+include data/*.json
+include data/*.nii.gz
+include data/*.mat
+include data/boilerplate.bib
+include data/itkIdentityTransform.txt
+include data/flirtsch/bbr.sch
