@@ -7,9 +7,10 @@ include versioneer.py
 include fmriprep/_version.py
 
 # package data
-include data/*.json
-include data/*.nii.gz
-include data/*.mat
-include data/boilerplate.bib
-include data/itkIdentityTransform.txt
-include data/flirtsch/bbr.sch
+include fmriprep/data/*.json
+include fmriprep/data/*.mat
+include fmriprep/data/*.nii.gz
+include fmriprep/data/boilerplate.bib
+include fmriprep/data/flirtsch/bbr.sch
+include fmriprep/data/itkIdentityTransform.txt
+include fmriprep/data/reports-spec.yml
