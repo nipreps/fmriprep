@@ -704,10 +704,11 @@ def parse_spaces(opts):
     These spaces are labeled with a unique key ``no-output`` set to ``True``,
     and will not be included in the final outputs.
     """
-    from sys import stderr
     from collections import OrderedDict
     # Set the default template to 'MNI152NLin2009cAsym'
-    target_spaces = opts.output_spaces or OrderedDict([('MNI152NLin2009cAsym', {'no-output': True})])
+    target_spaces = opts.output_spaces or OrderedDict(
+        [('MNI152NLin2009cAsym', {'no-output': True})]
+    )
 
     # Validity of some inputs
     # ERROR check if use_aroma was specified, but the correct template was not

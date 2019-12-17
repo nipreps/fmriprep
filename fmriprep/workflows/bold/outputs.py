@@ -159,7 +159,8 @@ def init_func_derivatives_wf(
     if volume_std_spaces:
 
         select_std = pe.MapNode(KeySelect(fields=['bold_std', 'bold_std_ref', 'bold_mask_std']),
-            iterfield=['key'], name='select_std', run_without_submitting=True)
+                                iterfield=['key'], name='select_std', run_without_submitting=True,
+                                mem_gb=DEFAULT_MEMORY_MIN_GB)
         select_std.inputs.key = standard_spaces
 
         ds_bold_std = pe.MapNode(
@@ -198,7 +199,8 @@ def init_func_derivatives_wf(
 
         if freesurfer:
             select_fs_std = pe.MapNode(KeySelect(fields=['bold_aseg_std', 'bold_aparc_std']),
-                iterfield=['key'], name='select_fs_std', run_without_submitting=True)
+                                       iterfield=['key'], name='select_fs_std',
+                                       run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
             select_fs_std.inputs.key = standard_spaces
 
             ds_bold_aseg_std = pe.MapNode(DerivativesDataSink(
@@ -271,9 +273,9 @@ def init_func_derivatives_wf(
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         workflow.connect([
             (inputnode, name_cifti, [('cifti_variant', 'variant'),
-                                    ('cifti_density', 'density')]),
+                                     ('cifti_density', 'density')]),
             (inputnode, cifti_bolds, [('bold_cifti', 'in_file'),
-                                    ('source_file', 'source_file')]),
+                                      ('source_file', 'source_file')]),
             (name_cifti, cifti_bolds, [('out_name', 'suffix')]),
             (name_cifti, cifti_key, [('out_name', 'suffix')]),
             (inputnode, cifti_key, [('source_file', 'source_file'),
