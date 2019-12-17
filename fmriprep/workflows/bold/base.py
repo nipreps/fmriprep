@@ -944,7 +944,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     if freesurfer and surface_spaces:
         LOGGER.log(25, 'Creating BOLD surface-sampling workflow.')
         bold_surf_wf = init_bold_surf_wf(mem_gb=mem_gb['resampled'],
-                                         output_spaces=surface_spaces,
+                                         target_spaces=surface_spaces,
                                          medial_surface_nan=medial_surface_nan,
                                          fslr_density=fslr_density,
                                          name='bold_surf_wf')

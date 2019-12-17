@@ -156,12 +156,13 @@ def init_func_derivatives_wf(
 
     # Resample to template (default: MNI)
     volume_std_spaces = [space for space in standard_spaces if not space.startswith('fs')]
+    surface_spaces = [space for space in output_spaces.keys() if space.startswith('fs')]
     if volume_std_spaces:
 
         select_std = pe.MapNode(KeySelect(fields=['bold_std', 'bold_std_ref', 'bold_mask_std']),
                                 iterfield=['key'], name='select_std', run_without_submitting=True,
                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
-        select_std.inputs.key = standard_spaces
+        select_std.inputs.key = volume_std_spaces
 
         ds_bold_std = pe.MapNode(
             DerivativesDataSink(base_directory=output_dir, desc='preproc',
@@ -201,7 +202,7 @@ def init_func_derivatives_wf(
             select_fs_std = pe.MapNode(KeySelect(fields=['bold_aseg_std', 'bold_aparc_std']),
                                        iterfield=['key'], name='select_fs_std',
                                        run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-            select_fs_std.inputs.key = standard_spaces
+            select_fs_std.inputs.key = volume_std_spaces
 
             ds_bold_aseg_std = pe.MapNode(DerivativesDataSink(
                 base_directory=output_dir, desc='aseg', suffix='dseg'),
@@ -223,8 +224,6 @@ def init_func_derivatives_wf(
                 (inputnode, ds_bold_aparc_std, [('source_file', 'source_file')])
             ])
 
-    # fsaverage space
-    surface_spaces = [space for space in output_spaces.keys() if space.startswith('fs')]
     if freesurfer and surface_spaces:
 
         filter_surfaces = pe.Node(niu.Function(function=_filter_surfaces),

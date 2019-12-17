@@ -36,7 +36,7 @@ from .util import init_bold_reference_wf
 
 def init_bold_surf_wf(
     mem_gb,
-    output_spaces,
+    target_spaces,
     medial_surface_nan,
     fslr_density=None,
     name='bold_surf_wf'
@@ -55,13 +55,13 @@ def init_bold_surf_wf(
 
             from fmriprep.workflows.bold import init_bold_surf_wf
             wf = init_bold_surf_wf(mem_gb=0.1,
-                                   output_spaces=['T1w', 'fsnative',
-                                                 'template', 'fsaverage5'],
+                                   target_spaces=['T1w', 'fsnative',
+                                                  'template', 'fsaverage5'],
                                    medial_surface_nan=False)
 
     Parameters
     ----------
-    output_spaces : list
+    target_spaces : list
         List of output spaces functional images are to be resampled to
         Target spaces beginning with ``fs`` will be selected for resampling,
         such as ``fsaverage`` or related template spaces
@@ -95,7 +95,7 @@ def init_bold_surf_wf(
 
     """
     # Ensure volumetric spaces do not sneak into this workflow
-    spaces = [space for space in output_spaces if space.startswith('fs')]
+    spaces = [space for space in target_spaces if space.startswith('fs')]
 
     workflow = Workflow(name=name)
 
@@ -110,8 +110,8 @@ spaces: {out_spaces}.
         name='inputnode')
 
     to_fslr = False
-    if 'fsLR' in output_spaces:
-        to_fslr = 'fsaverage' in output_spaces and fslr_density
+    if 'fsLR' in spaces:
+        to_fslr = 'fsaverage' in spaces and fslr_density
         spaces.pop(spaces.index('fsLR'))
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['surfaces']), name='outputnode')
