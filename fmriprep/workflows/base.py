@@ -32,6 +32,7 @@ from smriprep.workflows.anatomical import init_anat_preproc_wf
 from ..interfaces import SubjectSummary, AboutSummary, DerivativesDataSink
 from ..__about__ import __version__
 from .bold import init_func_preproc_wf
+from .bold.outputs import _remove_internal_spaces
 
 
 def init_fmriprep_wf(
@@ -56,7 +57,6 @@ def init_fmriprep_wf(
     medial_surface_nan,
     omp_nthreads,
     output_dir,
-    output_spaces,
     regressors_all_comps,
     regressors_dvars_th,
     regressors_fd_th,
@@ -65,6 +65,7 @@ def init_fmriprep_wf(
     skull_strip_template,
     subject_list,
     t2s_coreg,
+    target_spaces,
     task_id,
     use_aroma,
     use_bbr,
@@ -111,9 +112,6 @@ def init_fmriprep_wf(
                 medial_surface_nan=False,
                 omp_nthreads=1,
                 output_dir='.',
-                output_spaces=OrderedDict([
-                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-                    ('T1w', {}), ('fsnative', {})]),
                 regressors_all_comps=False,
                 regressors_dvars_th=1.5,
                 regressors_fd_th=0.5,
@@ -122,6 +120,9 @@ def init_fmriprep_wf(
                 skull_strip_template=('OASIS30ANTs', {}),
                 subject_list=['fmripreptest'],
                 t2s_coreg=False,
+                target_spaces=OrderedDict([
+                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
+                    ('T1w', {}), ('fsnative', {})]),
                 task_id='',
                 use_aroma=False,
                 use_bbr=True,
@@ -172,14 +173,6 @@ def init_fmriprep_wf(
         Maximum number of threads an individual process may use
     output_dir : str
         Directory in which to save derivatives
-    output_spaces : OrderedDict
-        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
-        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
-        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
-        or paths pointing to custom templates organized in a TemplateFlow-like structure.
-        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
-        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
-        resolution version of the selected template).
     regressors_all_comps
         Return all CompCor component time series instead of the top fraction
     regressors_dvars_th
@@ -198,6 +191,14 @@ def init_fmriprep_wf(
         List of subject labels
     t2s_coreg : bool
         For multi-echo EPI, use the calculated T2*-map for T2*-driven coregistration
+    target_spaces : OrderedDict
+        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
+        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
+        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+        or paths pointing to custom templates organized in a TemplateFlow-like structure.
+        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
+        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
+        resolution version of the selected template).
     task_id : str or None
         Task ID of BOLD series to preprocess, or ``None`` to preprocess all
     use_aroma : bool
@@ -220,8 +221,8 @@ def init_fmriprep_wf(
             BIDSFreeSurferDir(
                 derivatives=output_dir,
                 freesurfer_home=os.getenv('FREESURFER_HOME'),
-                spaces=[s for s in output_spaces.keys() if s.startswith('fsaverage')] + [
-                    'fsnative'] * ('fsnative' in output_spaces)),
+                spaces=[s for s in target_spaces.keys() if s.startswith('fsaverage')] + [
+                    'fsnative'] * ('fsnative' in target_spaces)),
             name='fsdir_run_' + run_uuid.replace('-', '_'), run_without_submitting=True)
         if fs_subjects_dir is not None:
             fsdir.inputs.subjects_dir = str(fs_subjects_dir.absolute())
@@ -250,7 +251,6 @@ def init_fmriprep_wf(
             name="single_subject_" + subject_id + "_wf",
             omp_nthreads=omp_nthreads,
             output_dir=output_dir,
-            output_spaces=output_spaces,
             regressors_all_comps=regressors_all_comps,
             regressors_dvars_th=regressors_dvars_th,
             regressors_fd_th=regressors_fd_th,
@@ -259,6 +259,7 @@ def init_fmriprep_wf(
             skull_strip_template=skull_strip_template,
             subject_id=subject_id,
             t2s_coreg=t2s_coreg,
+            target_spaces=target_spaces,
             task_id=task_id,
             use_aroma=use_aroma,
             use_bbr=use_bbr,
@@ -301,7 +302,6 @@ def init_single_subject_wf(
     name,
     omp_nthreads,
     output_dir,
-    output_spaces,
     reportlets_dir,
     regressors_all_comps,
     regressors_dvars_th,
@@ -310,6 +310,7 @@ def init_single_subject_wf(
     skull_strip_template,
     subject_id,
     t2s_coreg,
+    target_spaces,
     task_id,
     use_aroma,
     use_bbr,
@@ -355,9 +356,6 @@ def init_single_subject_wf(
                 name='single_subject_wf',
                 omp_nthreads=1,
                 output_dir='.',
-                output_spaces=OrderedDict([
-                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-                    ('T1w', {}), ('fsnative', {})]),
                 reportlets_dir='.',
                 regressors_all_comps=False,
                 regressors_dvars_th=1.5,
@@ -366,6 +364,9 @@ def init_single_subject_wf(
                 skull_strip_template=('OASIS30ANTs', {}),
                 subject_id='test',
                 t2s_coreg=False,
+                target_spaces=OrderedDict([
+                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
+                    ('T1w', {}), ('fsnative', {})]),
                 task_id='',
                 use_aroma=False,
                 use_bbr=True,
@@ -419,14 +420,6 @@ def init_single_subject_wf(
         Maximum number of threads an individual process may use
     output_dir : str
         Directory in which to save derivatives
-    output_spaces : OrderedDict
-        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
-        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
-        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
-        or paths pointing to custom templates organized in a TemplateFlow-like structure.
-        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
-        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
-        resolution version of the selected template).
     reportlets_dir : str
         Directory in which to save reportlets
     regressors_all_comps
@@ -445,6 +438,14 @@ def init_single_subject_wf(
         List of subject labels
     t2s_coreg : bool
         For multi-echo EPI, use the calculated T2*-map for T2*-driven coregistration
+    target_spaces : OrderedDict
+        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
+        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
+        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+        or paths pointing to custom templates organized in a TemplateFlow-like structure.
+        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
+        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
+        resolution version of the selected template).
     task_id : str or None
         Task ID of BOLD series to preprocess, or ``None`` to preprocess all
     use_aroma : bool
@@ -514,10 +515,11 @@ It is released under the [CC0]\
 
 """.format(nilearn_ver=NILEARN_VERSION)
 
-    # Filter out standard spaces to a separate dict
-    std_spaces = OrderedDict([
-        (key, modifiers) for key, modifiers in output_spaces.items()
-        if key not in NONSTANDARD_REFERENCES])
+    output_spaces = _remove_internal_spaces(target_spaces)
+    target_std_spaces = OrderedDict([
+        (key, modifiers) for key, modifiers in target_spaces.items()
+        if key not in NONSTANDARD_REFERENCES])  # includes internal spaces
+    output_std_spaces = _remove_internal_spaces(target_std_spaces)
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']),
                         name='inputnode')
@@ -529,7 +531,7 @@ It is released under the [CC0]\
         bids_dir=layout.root, bids_validate=False), name='bids_info')
 
     summary = pe.Node(SubjectSummary(
-        std_spaces=list(std_spaces.keys()),
+        std_spaces=list(output_std_spaces.keys()),
         nstd_spaces=sorted(set(NONSTANDARD_REFERENCES).intersection(output_spaces.keys()))),
         name='summary', run_without_submitting=True)
 
@@ -558,7 +560,7 @@ It is released under the [CC0]\
         num_t1w=len(subject_data['t1w']),
         omp_nthreads=omp_nthreads,
         output_dir=output_dir,
-        output_spaces=std_spaces,
+        output_spaces=target_std_spaces,
         reportlets_dir=reportlets_dir,
         skull_strip_fixed_seed=skull_strip_fixed_seed,
         skull_strip_template=skull_strip_template,
@@ -611,12 +613,12 @@ It is released under the [CC0]\
             num_bold=len(subject_data['bold']),
             omp_nthreads=omp_nthreads,
             output_dir=output_dir,
-            output_spaces=output_spaces,
             reportlets_dir=reportlets_dir,
             regressors_all_comps=regressors_all_comps,
             regressors_fd_th=regressors_fd_th,
             regressors_dvars_th=regressors_dvars_th,
             t2s_coreg=t2s_coreg,
+            target_spaces=target_spaces,
             use_aroma=use_aroma,
             use_bbr=use_bbr,
             use_syn=use_syn,

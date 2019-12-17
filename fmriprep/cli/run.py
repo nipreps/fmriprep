@@ -529,7 +529,7 @@ def build_workflow(opts, retval):
         retval['return_code'] = 1
         return retval
 
-    output_spaces = parse_spaces(opts)
+    target_spaces = parse_spaces(opts)
 
     # Set up some instrumental utilities
     run_uuid = '%s_%s' % (strftime('%Y%m%d-%H%M%S'), uuid.uuid4())
@@ -656,7 +656,7 @@ def build_workflow(opts, retval):
         medial_surface_nan=opts.medial_surface_nan,
         omp_nthreads=omp_nthreads,
         output_dir=str(output_dir),
-        output_spaces=output_spaces,
+        target_spaces=target_spaces,
         run_uuid=run_uuid,
         regressors_all_comps=opts.return_all_components,
         regressors_fd_th=opts.fd_spike_threshold,
@@ -697,48 +697,40 @@ def build_workflow(opts, retval):
 
 
 def parse_spaces(opts):
-    """Ensures the spaces are correctly parsed"""
+    """
+    Ensures user defined output spaces are correctly parsed.
+
+    Certain options require normalization to a space not explicitly defined by users.
+    These spaces are labeled with a unique key ``no-output`` set to ``True``,
+    and will not be included in the final outputs.
+    """
     from sys import stderr
     from collections import OrderedDict
     # Set the default template to 'MNI152NLin2009cAsym'
-    output_spaces = opts.output_spaces or OrderedDict([('MNI152NLin2009cAsym', {})])
+    target_spaces = opts.output_spaces or OrderedDict([('MNI152NLin2009cAsym', {'no-output': True})])
 
     # Validity of some inputs
     # ERROR check if use_aroma was specified, but the correct template was not
-    if opts.use_aroma and 'MNI152NLin6Asym' not in output_spaces:
-        output_spaces['MNI152NLin6Asym'] = {'res': 2}
-        print("""\
-Option "--use-aroma" requires functional images to be resampled to MNI152NLin6Asym space. \
-The argument "MNI152NLin6Asym:res-2" has been automatically added to the list of output spaces \
-(option ``--output-spaces``).""", file=stderr)
+    if opts.use_aroma and 'MNI152NLin6Asym' not in target_spaces:
+        target_spaces['MNI152NLin6Asym'] = {'res': 2, 'no-output': True}
+
+    if 'fsLR' in target_spaces:
+        target_spaces['fsLR'] = {'den': target_spaces.get('fsLR', {}).get('den') or '32k'}
 
     if opts.cifti_output:
         grayords = {'91k': '32k', '170k': '59k'}  # CIFTI total grayords to surface densities
-        output_spaces['fsLR'] = {'den': grayords[opts.cifti_output]}
-        if 'MNI152NLin6Asym' not in output_spaces:
-            output_spaces['MNI152NLin6Asym'] = {'res': '2'}
-            print("""\
-Option ``--cifti-output`` requires functional images to be resampled to \
-``MNI152NLin6Asym`` space. This space has been automatically added to the list of output \
-spaces (option ``--output-spaces``).""", file=stderr)
+        if 'fsLR' not in target_spaces:
+            target_spaces['fsLR'] = {'den': grayords[opts.cifti_output], 'no-output': True}
+        if 'MNI152NLin6Asym' not in target_spaces:
+            target_spaces['MNI152NLin6Asym'] = {'res': 2, 'no-output': True}
 
-    if 'fsLR' in output_spaces:
-        output_spaces['fsLR'] = {'den': output_spaces.get('fsLR', {}).get('den') or '32k'}
-        # resample to fsLR from highest density fsaverage
-        output_spaces['fsaverage'] = {'den': '164k'}
-        print("""\
-To generate "fsLR" surfaces, functional images are first resampled to ``fsaverage:den-164k``. \
-This space has been automatically added to the list of output spaces \
-(option ``--output-spaces``).""", file=stderr)
+    if 'fsLR' in target_spaces:
+        if 'fsaverage' not in target_spaces:
+            target_spaces['fsaverage'] = {'den': '164k', 'no-output': True}
+        else:
+            target_spaces['fsaverage'] = {'den': '164k'}
 
-    FS_SPACES = set(('fsnative', 'fsaverage', 'fsaverage6', 'fsaverage5'))
-    if opts.run_reconall and not FS_SPACES.intersection(output_spaces.keys()):
-        print("""\
-Although ``--fs-no-reconall`` was not set (i.e., FreeSurfer is to be run), no FreeSurfer \
-output space (valid values are: %s) was selected. Adding default "fsaverage5" to the \
-list of output spaces.""" % ', '.join(FS_SPACES), file=stderr)
-        output_spaces['fsaverage5'] = {}
-    return output_spaces
+    return target_spaces
 
 
 if __name__ == '__main__':
