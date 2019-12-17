@@ -43,9 +43,6 @@ is presented below:
         name='single_subject_wf',
         omp_nthreads=1,
         output_dir='.',
-        output_spaces=OrderedDict([
-            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-            ('T1w', {}), ('fsnative', {})]),
         reportlets_dir='.',
         regressors_all_comps=False,
         regressors_dvars_th=1.5,
@@ -54,6 +51,9 @@ is presented below:
         skull_strip_template=('OASIS30ANTs', {}),
         subject_id='test',
         t2s_coreg=False,
+        target_spaces=OrderedDict([
+            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
+            ('T1w', {}), ('fsnative', {})]),
         task_id='',
         use_aroma=False,
         use_bbr=True,
@@ -288,6 +288,7 @@ BOLD preprocessing
         bold_file='/completely/made/up/path/sub-01_task-nback_bold.nii.gz',
         cifti_output=False,
         debug=False,
+        dummy_scans=None,
         err_on_aroma_warn=False,
         fmap_bspline=True,
         fmap_demean=True,
@@ -298,18 +299,17 @@ BOLD preprocessing
         medial_surface_nan=False,
         omp_nthreads=1,
         output_dir='.',
-        output_spaces=OrderedDict([
-            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-            ('T1w', {}), ('fsnative', {})]),
-        reportlets_dir='.',
-        t2s_coreg=False,
-        use_aroma=False,
         regressors_all_comps=False,
         regressors_fd_th=0.5,
         regressors_dvars_th=1.5,
+        reportlets_dir='.',
+        t2s_coreg=False,
+        target_spaces=OrderedDict([
+            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
+            ('T1w', {}), ('fsnative', {})]),
+        use_aroma=False,
         use_bbr=True,
         use_syn=True,
-        dummy_scans=None,
         layout=BIDSLayout('.'),
         num_bold=1,
     )
@@ -524,7 +524,7 @@ EPI sampled to FreeSurfer surfaces
     from fmriprep.workflows.bold import init_bold_surf_wf
     wf = init_bold_surf_wf(
         mem_gb=1,
-        output_spaces=['T1w', 'fsnative',
+        target_spaces=['T1w', 'fsnative',
                        'template', 'fsaverage5'],
         medial_surface_nan=False)
 
