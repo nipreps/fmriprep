@@ -56,8 +56,6 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-confounds_regresso
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-MELODIC_mixing.tsv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage5_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage5_hemi-R.func.gii
-fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage_hemi-L.func.gii
-fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsaverage_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsLR_den-32k_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsLR_den-32k_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-01_space-fsLR_den-91k_bold.dtseries.json
@@ -92,8 +90,6 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-confounds_regresso
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-MELODIC_mixing.tsv
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage5_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage5_hemi-R.func.gii
-fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage_hemi-L.func.gii
-fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsaverage_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-32k_hemi-L.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-32k_hemi-R.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-91k_bold.dtseries.json
