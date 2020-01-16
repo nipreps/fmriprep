@@ -13,7 +13,6 @@ fMRIprep base processing workflows
 
 import sys
 import os
-from collections import OrderedDict
 from copy import deepcopy
 
 from nipype import __version__ as nipype_ver
@@ -32,7 +31,7 @@ from smriprep.workflows.anatomical import init_anat_preproc_wf
 from ..interfaces import SubjectSummary, AboutSummary, DerivativesDataSink
 from ..__about__ import __version__
 from .bold import init_func_preproc_wf
-from .bold.outputs import _remove_internal_spaces
+# from .bold.outputs import _remove_internal_spaces
 
 
 def init_fmriprep_wf(
@@ -63,9 +62,9 @@ def init_fmriprep_wf(
     run_uuid,
     skull_strip_fixed_seed,
     skull_strip_template,
+    spaces,
     subject_list,
     t2s_coreg,
-    target_spaces,
     task_id,
     use_aroma,
     use_bbr,
@@ -89,6 +88,7 @@ def init_fmriprep_wf(
             from collections import namedtuple, OrderedDict
             BIDSLayout = namedtuple('BIDSLayout', ['root'])
             from fmriprep.workflows.base import init_fmriprep_wf
+            from fmriprep.utils import Spaces
             os.environ['FREESURFER_HOME'] = os.getcwd()
             wf = init_fmriprep_wf(
                 anat_only=False,
@@ -191,7 +191,7 @@ def init_fmriprep_wf(
         List of subject labels
     t2s_coreg : bool
         For multi-echo EPI, use the calculated T2*-map for T2*-driven coregistration
-    target_spaces : OrderedDict
+    spaces : Spaces
         Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
         ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
         nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
@@ -221,8 +221,8 @@ def init_fmriprep_wf(
             BIDSFreeSurferDir(
                 derivatives=output_dir,
                 freesurfer_home=os.getenv('FREESURFER_HOME'),
-                spaces=[s for s in target_spaces.keys() if s.startswith('fsaverage')] + [
-                    'fsnative'] * ('fsnative' in target_spaces)),
+                spaces=[s for s in spaces.unique()
+                        if s.startswith('fsaverage') or s == 'fsnative']),
             name='fsdir_run_' + run_uuid.replace('-', '_'), run_without_submitting=True)
         if fs_subjects_dir is not None:
             fsdir.inputs.subjects_dir = str(fs_subjects_dir.absolute())
@@ -257,9 +257,9 @@ def init_fmriprep_wf(
             reportlets_dir=reportlets_dir,
             skull_strip_fixed_seed=skull_strip_fixed_seed,
             skull_strip_template=skull_strip_template,
+            spaces=spaces,
             subject_id=subject_id,
             t2s_coreg=t2s_coreg,
-            target_spaces=target_spaces,
             task_id=task_id,
             use_aroma=use_aroma,
             use_bbr=use_bbr,
@@ -308,9 +308,9 @@ def init_single_subject_wf(
     regressors_fd_th,
     skull_strip_fixed_seed,
     skull_strip_template,
+    spaces,
     subject_id,
     t2s_coreg,
-    target_spaces,
     task_id,
     use_aroma,
     use_bbr,
@@ -463,7 +463,6 @@ def init_single_subject_wf(
         FreeSurfer's ``$SUBJECTS_DIR``.
 
     """
-    from ..config import NONSTANDARD_REFERENCES
     if name in ('single_subject_wf', 'single_subject_fmripreptest_wf'):
         # for documentation purposes
         subject_data = {
@@ -515,12 +514,6 @@ It is released under the [CC0]\
 
 """.format(nilearn_ver=NILEARN_VERSION)
 
-    output_spaces = _remove_internal_spaces(target_spaces)
-    target_std_spaces = OrderedDict([
-        (key, modifiers) for key, modifiers in target_spaces.items()
-        if key not in NONSTANDARD_REFERENCES])  # includes internal spaces
-    output_std_spaces = _remove_internal_spaces(target_std_spaces)
-
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']),
                         name='inputnode')
 
@@ -531,8 +524,8 @@ It is released under the [CC0]\
         bids_dir=layout.root, bids_validate=False), name='bids_info')
 
     summary = pe.Node(SubjectSummary(
-        std_spaces=list(output_std_spaces.keys()),
-        nstd_spaces=sorted(set(NONSTANDARD_REFERENCES).intersection(output_spaces.keys()))),
+            std_spaces=spaces.filtered('std', 'output', name_only=True) or [],
+            nstd_spaces=spaces.filtered('nstd', 'output', name_only=True) or []),
         name='summary', run_without_submitting=True)
 
     about = pe.Node(AboutSummary(version=__version__,
@@ -560,8 +553,10 @@ It is released under the [CC0]\
         num_t1w=len(subject_data['t1w']),
         omp_nthreads=omp_nthreads,
         output_dir=output_dir,
-        output_spaces=target_std_spaces,
+        # output_spaces={sp: {} for sp in spaces.standard},
+        # output_spaces={k: v for k, v in spaces.filtered('std', 'output')}, # TODO: RF smriprep
         reportlets_dir=reportlets_dir,
+        spaces=spaces.filtered('std_vol', 'all'),
         skull_strip_fixed_seed=skull_strip_fixed_seed,
         skull_strip_template=skull_strip_template,
     )
@@ -617,8 +612,9 @@ It is released under the [CC0]\
             regressors_all_comps=regressors_all_comps,
             regressors_fd_th=regressors_fd_th,
             regressors_dvars_th=regressors_dvars_th,
+            spaces=spaces,
             t2s_coreg=t2s_coreg,
-            target_spaces=target_spaces,
+            # target_spaces=target_spaces,
             use_aroma=use_aroma,
             use_bbr=use_bbr,
             use_syn=use_syn,
@@ -636,7 +632,7 @@ It is released under the [CC0]\
               ('outputnode.template', 'inputnode.template'),
               ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
               ('outputnode.std2anat_xfm', 'inputnode.std2anat_xfm'),
-              ('outputnode.joint_template', 'inputnode.joint_template'),
+              ('outputnode.joint_template_and_spec', 'inputnode.joint_template'),
               ('outputnode.joint_anat2std_xfm', 'inputnode.joint_anat2std_xfm'),
               ('outputnode.joint_std2anat_xfm', 'inputnode.joint_std2anat_xfm'),
               # Undefined if --fs-no-reconall, but this is safe

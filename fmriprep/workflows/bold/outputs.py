@@ -21,8 +21,8 @@ def init_func_derivatives_wf(
     freesurfer,
     metadata,
     output_dir,
-    output_spaces,
-    standard_spaces,
+    spaces,
+    # standard_spaces,
     use_aroma,
     fslr_density=None,
     name='func_derivatives_wf',
@@ -55,9 +55,6 @@ def init_func_derivatives_wf(
     from smriprep.workflows.outputs import _bids_relative
     workflow = Workflow(name=name)
 
-    # remove intermediate spaces
-    output_spaces = _remove_internal_spaces(output_spaces)
-
     inputnode = pe.Node(niu.IdentityInterface(fields=[
         'aroma_noise_ics', 'bold_aparc_std', 'bold_aparc_t1', 'bold_aseg_std',
         'bold_aseg_t1', 'bold_cifti', 'bold_mask_std', 'bold_mask_t1', 'bold_std',
@@ -81,7 +78,7 @@ def init_func_derivatives_wf(
                                    ('confounds_metadata', 'meta_dict')]),
     ])
 
-    if set(('func', 'run', 'bold', 'boldref', 'sbref')).intersection(output_spaces):
+    if spaces.unique('output').intersection(('func', 'run', 'bold', 'boldref', 'sbref')):
         ds_bold_native = pe.Node(
             DerivativesDataSink(base_directory=output_dir, desc='preproc',
                                 keep_dtype=True, compress=True, SkullStripped=False,
@@ -110,7 +107,7 @@ def init_func_derivatives_wf(
         ])
 
     # Resample to T1w space
-    if 'T1w' in output_spaces or 'anat' in output_spaces:
+    if spaces.unique('output').intersection(('T1w', 'anat')):
         ds_bold_t1 = pe.Node(
             DerivativesDataSink(base_directory=output_dir, space='T1w', desc='preproc',
                                 keep_dtype=True, compress=True, SkullStripped=False,
@@ -155,10 +152,10 @@ def init_func_derivatives_wf(
             ])
 
     # Resample to template (default: MNI)
-    volume_std_spaces = [space for space in standard_spaces if not space.startswith('fs')]
-    surface_spaces = [space for space in output_spaces.keys() if space.startswith('fs')]
-    if volume_std_spaces:
+    volume_std_spaces = spaces.filtered('std_vol', 'output')
+    surface_spaces = spaces.filtered('surf', 'output')
 
+    if volume_std_spaces:
         select_std = pe.MapNode(KeySelect(fields=['bold_std', 'bold_std_ref', 'bold_mask_std']),
                                 iterfield=['key'], name='select_std', run_without_submitting=True,
                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
@@ -227,17 +224,21 @@ def init_func_derivatives_wf(
     if freesurfer and surface_spaces:
 
         filter_surfaces = pe.Node(niu.Function(function=_filter_surfaces),
-                                  name='filter_surfaces', mem_gb=DEFAULT_MEMORY_MIN_GB,
-                                  run_with_submitting=True)
-        filter_surfaces.inputs.surface_spaces = surface_spaces
+                                  name='filter_surfaces',
+                                  #  iterfield=['space', 'density'],
+                                  mem_gb=DEFAULT_MEMORY_MIN_GB, run_with_submitting=True)
+        filter_surfaces.iterables = [('space', [space for space, _ in surface_spaces]),
+                                     ('density', [spec.get('den') for _, spec in surface_spaces])]
+        filter_surfaces.synchronize = True
+        # filter_surfaces.inputs.space = [space for space, spec in surface_spaces]
+        # filter_surfaces.inputs.density = [spec.get('den') for space, spec in surface_spaces]
 
         extract_surf_info = pe.MapNode(niu.Function(function=_extract_surf_info),
                                        iterfield=['in_file'], name='extract_surf_info',
                                        mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
-        extract_surf_info.inputs.density = fslr_density
 
         name_surfs = pe.MapNode(GiftiNameSource(
-            pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii',
+            pattern=r'(?P<LR>[lr])h.\w+',
             template='space-{space}{den}_hemi-{LR}.func'),
             iterfield=['in_file', 'template_kwargs'], name='name_surfs',
             mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
@@ -308,23 +309,29 @@ def init_func_derivatives_wf(
     return workflow
 
 
-def _extract_surf_info(in_file, density):
+def _filter_surfaces(surface_files, space, density=None):
+    import os
+    output_surfaces = [
+        fl for fl in surface_files
+        if "{space}.{density}".format(space=space, density=density or '')
+        in os.path.basename(fl)
+    ]
+    return output_surfaces
+
+
+def _extract_surf_info(in_file):
     import os
     info = {'den': ''}
-    if 'fsLR' in os.path.basename(in_file):
-        info['den'] = '_den-{}'.format(density)
+    splits = os.path.basename(in_file).split('.')
+    assert 4 >= len(splits[:3]) >= 3
+    # parse surface filename
+    # hemi
+    # info['LR'] = splits[0][0].upper()
+    # template
+    info['space'] = splits[1]
+    if len(splits) == 4:
+        info['den'] = '_den-{}'.format(splits[3])
     return info
-
-
-def _filter_surfaces(surface_files, surface_spaces):
-    import os
-    output_surfaces = []
-    for fl in surface_files:
-        if any(
-            "{}.".format(space) in os.path.basename(fl) for space in surface_spaces
-        ):
-            output_surfaces.append(fl)
-    return output_surfaces
 
 
 def _remove_internal_spaces(spaces):

@@ -529,7 +529,7 @@ def build_workflow(opts, retval):
         retval['return_code'] = 1
         return retval
 
-    target_spaces = parse_spaces(opts)
+    spaces = parse_spaces(opts)
 
     # Set up some instrumental utilities
     run_uuid = '%s_%s' % (strftime('%Y%m%d-%H%M%S'), uuid.uuid4())
@@ -656,13 +656,13 @@ def build_workflow(opts, retval):
         medial_surface_nan=opts.medial_surface_nan,
         omp_nthreads=omp_nthreads,
         output_dir=str(output_dir),
-        target_spaces=target_spaces,
         run_uuid=run_uuid,
         regressors_all_comps=opts.return_all_components,
         regressors_fd_th=opts.fd_spike_threshold,
         regressors_dvars_th=opts.dvars_spike_threshold,
         skull_strip_fixed_seed=opts.skull_strip_fixed_seed,
-        skull_strip_template=opts.skull_strip_template,
+        skull_strip_template=opts.skull_strip_template[0],
+        spaces=spaces,
         subject_list=subject_list,
         t2s_coreg=opts.t2s_coreg,
         task_id=opts.task_id,
@@ -701,37 +701,37 @@ def parse_spaces(opts):
     Ensures user defined output spaces are correctly parsed.
 
     Certain options require normalization to a space not explicitly defined by users.
-    These spaces are labeled with a unique key ``no-output`` set to ``True``,
-    and will not be included in the final outputs.
+    These spaces will not be included in the final outputs.
     """
-    from collections import OrderedDict
-    # Set the default template to 'MNI152NLin2009cAsym'
-    target_spaces = opts.output_spaces or OrderedDict(
-        [('MNI152NLin2009cAsym', {'no-output': True})]
-    )
+    from ..utils import Spaces
+    spaces = Spaces(output=opts.output_spaces)
+    outputs = spaces.unique('output')
 
-    # Validity of some inputs
+    # These arguments implicitly signal expected output
+    if not outputs:
+        if not any((opts.use_aroma, opts.cifti_output)):
+            raise RuntimeError(
+                "No outputs are expected from this fMRIPrep run. Please add desired outputs using "
+                "`--output-spaces`"
+            )
+        # ensure a standard space is defined
+        spaces.add_space('MNI152NLin2009cAsym', output=False)
+
     # ERROR check if use_aroma was specified, but the correct template was not
-    if opts.use_aroma and 'MNI152NLin6Asym' not in target_spaces:
-        target_spaces['MNI152NLin6Asym'] = {'res': 2, 'no-output': True}
-
-    if 'fsLR' in target_spaces:
-        target_spaces['fsLR'] = {'den': target_spaces.get('fsLR', {}).get('den') or '32k'}
+    if opts.use_aroma and 'MNI152NLin6Asym' not in outputs:
+        spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
 
     if opts.cifti_output:
         grayords = {'91k': '32k', '170k': '59k'}  # CIFTI total grayords to surface densities
-        if 'fsLR' not in target_spaces:
-            target_spaces['fsLR'] = {'den': grayords[opts.cifti_output], 'no-output': True}
-        if 'MNI152NLin6Asym' not in target_spaces:
-            target_spaces['MNI152NLin6Asym'] = {'res': 2, 'no-output': True}
+        if 'fsLR' not in outputs:
+            spaces.add_space('fsLR', specs={'den': grayords[opts.cifti_output]}, output=False)
+        if 'MNI152NLin6Asym' not in outputs:
+            spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
 
-    if 'fsLR' in target_spaces:
-        if 'fsaverage' not in target_spaces:
-            target_spaces['fsaverage'] = {'den': '164k', 'no-output': True}
-        else:
-            target_spaces['fsaverage'] = {'den': '164k'}
+    if 'fsLR' in spaces.unique() and 'fsaverge' not in outputs:
+        spaces.add_space('fsaverage', specs={'den': '164k'}, output=False)
 
-    return target_spaces
+    return spaces
 
 
 if __name__ == '__main__':

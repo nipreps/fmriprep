@@ -704,7 +704,7 @@ in the corresponding confounds file.
 
     # connect the nodes
     workflow.connect([
-        (inputnode, select_std, [('templates', 'keys'),
+        (inputnode, select_std, [('templates', 'items'),
                                  ('bold_std', 'bold_std'),
                                  ('bold_mask_std', 'bold_mask_std')]),
         (inputnode, ica_aroma, [('movpar_file', 'motion_parameters')]),

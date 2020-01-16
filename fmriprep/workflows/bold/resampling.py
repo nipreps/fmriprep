@@ -36,9 +36,8 @@ from .util import init_bold_reference_wf
 
 def init_bold_surf_wf(
     mem_gb,
-    target_spaces,
+    surface_spaces,
     medial_surface_nan,
-    fslr_density=None,
     name='bold_surf_wf'
 ):
     """
@@ -61,7 +60,7 @@ def init_bold_surf_wf(
 
     Parameters
     ----------
-    target_spaces : list
+    surface_spaces : list
         List of output spaces functional images are to be resampled to
         Target spaces beginning with ``fs`` will be selected for resampling,
         such as ``fsaverage`` or related template spaces
@@ -95,8 +94,8 @@ def init_bold_surf_wf(
 
     """
     # Ensure volumetric spaces do not sneak into this workflow
-    spaces = [space for space in target_spaces if space.startswith('fs')]
-
+    print(surface_spaces)
+    spaces = [space for space, specs in surface_spaces if space.startswith('fs')]
     workflow = Workflow(name=name)
 
     if spaces:
@@ -104,17 +103,17 @@ def init_bold_surf_wf(
 The BOLD time-series, were resampled to surfaces on the following
 spaces: {out_spaces}.
 """.format(out_spaces=', '.join(['*%s*' % s for s in spaces]))
+    spaces, fslr_density = _remove_fslr(surface_spaces)
+    to_fslr = 'fsaverage' in spaces and fslr_density
+
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['source_file', 't1w_preproc', 'subject_id', 'subjects_dir',
                                       't1w2fsnative_xfm']),
         name='inputnode')
 
-    to_fslr = False
-    if 'fsLR' in spaces:
-        to_fslr = 'fsaverage' in spaces and fslr_density
-        spaces.pop(spaces.index('fsLR'))
-
-    outputnode = pe.Node(niu.IdentityInterface(fields=['surfaces']), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=['surfaces', 'fslr_density']),
+                         name='outputnode')
+    outputnode.inputs.fslr_density = fslr_density
 
     def select_target(subject_id, space):
         """Get the target subject ID, given a source subject ID and a target space."""
@@ -149,41 +148,47 @@ spaces: {out_spaces}.
                                name='filter_fsavg', mem_gb=DEFAULT_MEMORY_MIN_GB,
                                run_without_submitting=True)
 
-        rename_fslr = pe.Node(niu.Rename(format_string="%(hemi)s.fsLR", keep_ext=True,
-                                         parse_string=r'^(?P<hemi>\w+)'),
-                              name='rename_fslr', mem_gb=DEFAULT_MEMORY_MIN_GB,
-                              run_without_submitting=True)
+        rename_fslr = pe.MapNode(niu.Rename(format_string="%(hemi)s.fsLR.%(density)s",
+                                            keep_ext=True,
+                                            parse_string=r'^(?P<hemi>\w+)'),
+                                 name='rename_fslr', mem_gb=DEFAULT_MEMORY_MIN_GB,
+                                 iterfield=['density'], run_without_submitting=True)
+        rename_fslr.inputs.density = list(fslr_density)
 
-        fetch_fslr_tpls = pe.Node(niu.Function(function=_fetch_fslr_templates,
-                                               output_names=[
-                                                   'fsaverage_sphere',
-                                                   'fslr_sphere',
-                                                   'fsaverage_midthick',
-                                                   'fslr_midthick'
-                                                ]),
-                                  name='fetch_fslr_tpls', mem_gb=DEFAULT_MEMORY_MIN_GB,
-                                  overwrite=True)
-        fetch_fslr_tpls.inputs.den = fslr_density
+        fetch_fsaverage_tpls = pe.Node(niu.Function(function=_fetch_fsaverage_templates,
+                                                    output_names=['fsaverage_sphere',
+                                                                  'fsaverage_midthick']),
+                                       name='fetch_fsaverage_tpls', mem_gb=DEFAULT_MEMORY_MIN_GB,
+                                       overwrite=True)
 
-        resample_fslr = pe.Node(wb.MetricResample(method='ADAP_BARY_AREA', area_metrics=True),
-                                name='resample_fslr')
+        fetch_fslr_tpls = pe.MapNode(niu.Function(function=_fetch_fslr_templates,
+                                                  output_names=['fslr_sphere',
+                                                                'fslr_midthick']),
+                                     name='fetch_fslr_tpls', mem_gb=DEFAULT_MEMORY_MIN_GB,
+                                     iterfield=['density'], overwrite=True)
+        fetch_fslr_tpls.inputs.density = list(fslr_density)
+
+        resample_fslr = pe.MapNode(wb.MetricResample(method='ADAP_BARY_AREA', area_metrics=True),
+                                   iterfield=['in_file', 'out_file', 'new_sphere', 'new_area'],
+                                   name='resample_fslr')
 
         merge_fslr = pe.Node(niu.Merge(2), name='merge_fslr', mem_gb=DEFAULT_MEMORY_MIN_GB,
                              run_without_submitting=True)
 
-        def _basename(in_file):
+        def _basename(in_files):
             import os
-            return os.path.basename(in_file)
+            return list(map(os.path.basename, in_files))
 
         workflow.connect([
             (sampler, filter_fsavg, [('out_file', 'in_files')]),
             (filter_fsavg, fetch_fslr_tpls, [('hemi', 'hemi')]),
+            (filter_fsavg, fetch_fsaverage_tpls, [('hemi', 'hemi')]),
             (filter_fsavg, rename_fslr, [('fsaverage_bold', 'in_file')]),
             (rename_fslr, resample_fslr, [('out_file', 'in_file')]),
             (rename_fslr, resample_fslr, [(('out_file', _basename), 'out_file')]),
-            (fetch_fslr_tpls, resample_fslr, [('fsaverage_sphere', 'current_sphere'),
-                                              ('fslr_sphere', 'new_sphere'),
-                                              ('fsaverage_midthick', 'current_area'),
+            (fetch_fsaverage_tpls, resample_fslr, [('fsaverage_sphere', 'current_sphere'),
+                                                   ('fsaverage_midthick', 'current_area')]),
+            (fetch_fslr_tpls, resample_fslr, [('fslr_sphere', 'new_sphere'),
                                               ('fslr_midthick', 'new_area')]),
             (sampler, merge_fslr, [('out_file', 'in1')]),
             (resample_fslr, merge_fslr, [('out_file', 'in2')]),
@@ -339,8 +344,7 @@ def init_bold_std_trans_wf(
 
     """
     # Filter ``standard_spaces``
-    vol_std_spaces = [k for k in standard_spaces.keys() if not k.startswith('fs')]
-
+    vol_std_spaces = [space[0] for space in standard_spaces]
     workflow = Workflow(name=name)
 
     if len(vol_std_spaces) == 1:
@@ -372,17 +376,15 @@ preprocessed BOLD runs*: {tpl}.
     )
 
     select_std = pe.Node(KeySelect(
-        fields=['resolution', 'anat2std_xfm']),
+        fields=['anat2std_xfm', 'resolution'], no_hash=True),
         name='select_std', run_without_submitting=True)
-
-    select_std.inputs.resolution = [v.get('resolution') or v.get('res') or 'native'
-                                    for k, v in list(standard_spaces.items())
-                                    if k in vol_std_spaces]
-    select_std.iterables = ('key', vol_std_spaces)
+    select_std.inputs.resolution = [
+        specs.get('resolution') or specs.get('res') or 'native' for tpl, specs in standard_spaces
+    ]
+    select_std.iterables = ('key', standard_spaces)
 
     select_tpl = pe.Node(niu.Function(function=_select_template),
                          name='select_tpl', run_without_submitting=True)
-    select_tpl.inputs.template_specs = standard_spaces
 
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref',
                       mem_gb=0.3)  # 256x256x256 * 64 / 8 ~ 150MB)
@@ -712,9 +714,9 @@ def init_bold_preproc_report_wf(mem_gb, reportlets_dir, name='bold_preproc_repor
     return workflow
 
 
-def _select_template(template, template_specs):
+def _select_template(template):
     from niworkflows.utils.misc import get_template_specs
-    specs = template_specs[template]
+    template, specs = template
     specs['suffix'] = specs.get('suffix', 'T1w')
     return get_template_specs(template, template_spec=specs)[0]
 
@@ -749,16 +751,36 @@ def _select_fsaverage_hemi(in_files):
     raise OSError
 
 
-def _fetch_fslr_templates(hemi, den):
-    """Fetch the necessary templates for fsaverage to fsLR transform"""
+def _fetch_fsaverage_templates(hemi):
     import templateflow.api as tf
 
     fsaverage_sphere = str(tf.get(
         'fsLR', space='fsaverage', suffix='sphere', hemi=hemi, density='164k'
     ))
-    fslr_sphere = str(tf.get('fsLR', space=None, suffix='sphere', hemi=hemi, density=den))
     fsaverage_midthick = str(tf.get(
         'fsLR', space='fsaverage', suffix='midthickness', hemi=hemi, density='164k'
     ))
-    fslr_midthick = str(tf.get('fsLR', space=None, suffix='midthickness', hemi=hemi, density=den))
-    return fsaverage_sphere, fslr_sphere, fsaverage_midthick, fslr_midthick
+
+    return fsaverage_sphere, fsaverage_midthick
+
+
+def _fetch_fslr_templates(hemi, density):
+    """Fetch the necessary fsLR templates for fsaverage to fsLR transform"""
+    import templateflow.api as tf
+
+    fslr_sphere = str(tf.get('fsLR', space=None, suffix='sphere', hemi=hemi, density=density))
+    fslr_midthick = str(
+        tf.get('fsLR', space=None, suffix='midthickness', hemi=hemi, density=density)
+    )
+    return fslr_sphere, fslr_midthick
+
+
+def _remove_fslr(spaces):
+    nspaces = []
+    dens = set()
+    for space, specs in spaces:
+        if space == 'fsLR':
+            dens.add(specs.get('den', '32k'))
+        else:
+            nspaces.append(space)
+    return nspaces, sorted(list(dens))
