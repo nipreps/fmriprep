@@ -35,7 +35,6 @@ class Spaces:
 
     @output.setter
     def output(self, vals):
-        print(vals)
         if not hasattr(vals, '__iter__'):
             return
         for tpl, specs in vals:
@@ -82,6 +81,16 @@ class Spaces:
         if name_only:
             filtered_spaces = [space for space, specs in filtered_spaces]
         return filtered_spaces
+
+    def get_space(self, template, spaces='all', specs=None):
+        """
+        Query ``spaces`` and return the first matching ``template`` entry.
+        If no matches are found, returns ``None``.
+        """
+        for space in getattr(self, spaces):
+            if space[0] == template:
+                if specs is None or space[1] == specs:
+                    return space
 
 
 def _filter_std(space):
