@@ -465,6 +465,8 @@ def init_carpetplot_wf(mem_gb, metadata, name="bold_carpet_wf"):
         Path of the generated SVG file
 
     """
+    std_vol_spaces = spaces.filtered('std_vol', 'all')
+
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold', 'bold_mask', 'confounds_file',
                 't1_bold_xform', 'std2anat_xfm']),
@@ -518,7 +520,7 @@ def init_carpetplot_wf(mem_gb, metadata, name="bold_carpet_wf"):
     return workflow
 
 
-def init_ica_aroma_wf(metadata, mem_gb, omp_nthreads,
+def init_ica_aroma_wf(spaces, metadata, mem_gb, omp_nthreads,
                       name='ica_aroma_wf',
                       susan_fwhm=6.0,
                       err_on_aroma_warn=False,
@@ -653,7 +655,7 @@ in the corresponding confounds file.
     select_std = pe.Node(KeySelect(
         fields=['bold_mask_std', 'bold_std']),
         name='select_std', run_without_submitting=True)
-    select_std.inputs.key = 'MNI152NLin6Asym'
+    select_std.inputs.key = spaces.get_space('MNI152NLin6Asym')
 
     rm_non_steady_state = pe.Node(niu.Function(function=_remove_volumes,
                                                output_names=['bold_cut']),
