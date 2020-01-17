@@ -19,6 +19,7 @@ is presented below:
     :simple_form: yes
 
     from fmriprep.workflows.base import init_single_subject_wf
+    from fmriprep.utils import Spaces
     from collections import namedtuple, OrderedDict
     BIDSLayout = namedtuple('BIDSLayout', ['root'])
     wf = init_single_subject_wf(
@@ -49,11 +50,12 @@ is presented below:
         regressors_fd_th=0.5,
         skull_strip_fixed_seed=False,
         skull_strip_template=('OASIS30ANTs', {}),
+        spaces=Spaces(output=[('MNI152Lin', {}),
+                              ('fsaverage', {'density': '10k'}),
+                              ('T1w', {}),
+                              ('fsnative', {})]),
         subject_id='test',
         t2s_coreg=False,
-        target_spaces=OrderedDict([
-            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-            ('T1w', {}), ('fsnative', {})]),
         task_id='',
         use_aroma=False,
         use_bbr=True,
@@ -281,6 +283,7 @@ BOLD preprocessing
 
     from collections import namedtuple, OrderedDict
     from fmriprep.workflows.bold.base import init_func_preproc_wf
+    from fmriprep.utils import Spaces
     BIDSLayout = namedtuple('BIDSLayout', ['root'])
     wf = init_func_preproc_wf(
         aroma_melodic_dim=-200,
@@ -304,9 +307,10 @@ BOLD preprocessing
         regressors_dvars_th=1.5,
         reportlets_dir='.',
         t2s_coreg=False,
-        target_spaces=OrderedDict([
-            ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-            ('T1w', {}), ('fsnative', {})]),
+        spaces=Spaces(output=[('MNI152Lin', {}),
+                              ('fsaverage', {'density': '10k'}),
+                              ('T1w', {}),
+                              ('fsnative', {})]),
         use_aroma=False,
         use_bbr=True,
         use_syn=True,
@@ -524,8 +528,7 @@ EPI sampled to FreeSurfer surfaces
     from fmriprep.workflows.bold import init_bold_surf_wf
     wf = init_bold_surf_wf(
         mem_gb=1,
-        target_spaces=['T1w', 'fsnative',
-                       'template', 'fsaverage5'],
+        surface_spaces=[('fsnative', {}), ('fsaverage5', {}), ('fsLR', {'den': '32k'})],
         medial_surface_nan=False)
 
 If FreeSurfer processing is enabled, the motion-corrected functional series
