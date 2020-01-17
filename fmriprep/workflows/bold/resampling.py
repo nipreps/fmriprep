@@ -54,24 +54,23 @@ def init_bold_surf_wf(
 
             from fmriprep.workflows.bold import init_bold_surf_wf
             wf = init_bold_surf_wf(mem_gb=0.1,
-                                   target_spaces=['T1w', 'fsnative',
+                                   surface_spaces=['T1w', 'fsnative',
                                                   'template', 'fsaverage5'],
                                    medial_surface_nan=False)
 
     Parameters
     ----------
     surface_spaces : list
-        List of output spaces functional images are to be resampled to
-        Target spaces beginning with ``fs`` will be selected for resampling,
+        List of (`name`, `space specs`) tuples of spaces functional images
+        are to be resampled to.
+        Target spaces with name beginning with ``fs`` will be selected for resampling,
         such as ``fsaverage`` or related template spaces
-        If the list contains ``fsnative``, images will be resampled to the
-        individual subject's native surface
-        If the list contains ``fsLR``, images will be resampled twice;
+        For ``fsnative`` space, images will be resampled to the individual
+        subject's native surface
+        For ``fsLR`` space, images will be resampled twice;
         first to ``fsaverage`` and then to ``fsLR``.
     medial_surface_nan : bool
         Replace medial wall values with NaNs on functional GIFTI files
-    fslr_density : str, optional
-        Density of fsLR surface (32k or 59k)
 
 
     Inputs
@@ -94,7 +93,6 @@ def init_bold_surf_wf(
 
     """
     # Ensure volumetric spaces do not sneak into this workflow
-    print(surface_spaces)
     spaces = [space for space, specs in surface_spaces if space.startswith('fs')]
     workflow = Workflow(name=name)
 

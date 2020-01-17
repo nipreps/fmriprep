@@ -71,7 +71,6 @@ def init_func_preproc_wf(
     reportlets_dir,
     spaces,
     t2s_coreg,
-    # target_spaces,
     use_aroma,
     use_bbr,
     use_syn,
@@ -87,6 +86,7 @@ def init_func_preproc_wf(
             :simple_form: yes
 
             from fmriprep.workflows.bold import init_func_preproc_wf
+            from fmriprep.utils import Spaces
             from collections import namedtuple, OrderedDict
             BIDSLayout = namedtuple('BIDSLayout', ['root'])
             wf = init_func_preproc_wf(
@@ -110,10 +110,11 @@ def init_func_preproc_wf(
                 regressors_dvars_th=1.5,
                 regressors_fd_th=0.5,
                 reportlets_dir='.',
+                spaces=Spaces(output=[('MNI152Lin', {}),
+                                      ('fsaverage', {'density': '10k'}),
+                                      ('T1w', {}),
+                                      ('fsnative', {})]),
                 t2s_coreg=False,
-                target_spaces=OrderedDict([
-                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-                    ('T1w', {}), ('fsnative', {})]),
                 use_aroma=False,
                 use_bbr=True,
                 use_syn=True,
@@ -165,16 +166,17 @@ def init_func_preproc_wf(
         Criterion for flagging framewise displacement outliers
     reportlets_dir : str
         Absolute path of a directory in which reportlets will be temporarily stored
+    spaces : :obj:`Spaces`
+        Organize and filter spatial normalizations. Composed of internal and output lists
+        of spaces in the form of (Template, Specs). `Template` is a string of either
+        TemplateFlow IDs (e.g., ``MNI152Lin``, ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or
+        ``fsLR``), nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+        or paths pointing to custom templates organized in a TemplateFlow-like structure.
+        Specs is a dictionary with template specifications (e.g., the specs for the template
+        ``MNI152Lin`` could be ``{'resolution': 2}`` if one wants the resampling to be done on
+        the 2mm resolution version of the selected template).
     t2s_coreg : bool
         For multiecho EPI, use the calculated T2*-map for T2*-driven coregistration
-    target_spaces : OrderedDict
-        Ordered dictionary where keys are TemplateFlow ID strings (e.g. ``MNI152Lin``,
-        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
-        nonstandard references (e.g. ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
-        or paths pointing to custom templates organized in a TemplateFlow-like structure.
-        Values of the dictionary aggregate modifiers (e.g. the value for the key ``MNI152Lin``
-        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
-        resolution version of the selected template).
     use_aroma : bool
         Perform ICA-AROMA on MNI-resampled functional series
     use_bbr : bool or None
@@ -710,7 +712,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             sdc_select_std = pe.Node(
                 KeySelect(fields=['std2anat_xfm'], no_hash=True),
                 name='sdc_select_std', run_without_submitting=True)
-            sdc_select_std.inputs.key = {'MNI152NLin2009cAsym', {}}
+            sdc_select_std.inputs.key = spaces.get_space('MNI152NLin2009cAsym')
             workflow.connect([
                 (inputnode, sdc_select_std, [('joint_std2anat_xfm', 'std2anat_xfm'),
                                              ('joint_template', 'items')]),
@@ -866,6 +868,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             from .confounds import init_ica_aroma_wf
 
             ica_aroma_wf = init_ica_aroma_wf(
+                spaces=spaces,
                 metadata=metadata,
                 mem_gb=mem_gb['resampled'],
                 omp_nthreads=omp_nthreads,
@@ -942,8 +945,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 *Grayordinates* files [@hcppipelines], which combine surface-sampled
 data and volume-sampled data, were also generated.
 """
-            # TODO: make dynamic
-            cifti_volume = ("MNI152NLin6Asym", {'res': 2}) if 'fsLR' in cifti_spaces else None
+            cifti_volume = spaces.get_space("MNI152NLin6Asym")
             select_std = pe.Node(KeySelect(fields=['bold_std']),
                                  name='select_std', run_without_submitting=True)
             select_std.inputs.key = cifti_volume

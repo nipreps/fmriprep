@@ -118,11 +118,12 @@ def init_fmriprep_wf(
                 run_uuid='X',
                 skull_strip_fixed_seed=False,
                 skull_strip_template=('OASIS30ANTs', {}),
+                spaces=Spaces(output=[('MNI152Lin', {}),
+                                      ('fsaverage', {'density': '10k'}),
+                                      ('T1w', {}),
+                                      ('fsnative', {})]),
                 subject_list=['fmripreptest'],
                 t2s_coreg=False,
-                target_spaces=OrderedDict([
-                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-                    ('T1w', {}), ('fsnative', {})]),
                 task_id='',
                 use_aroma=False,
                 use_bbr=True,
@@ -187,18 +188,19 @@ def init_fmriprep_wf(
     skull_strip_fixed_seed : bool
         Do not use a random seed for skull-stripping - will ensure
         run-to-run replicability when used with --omp-nthreads 1
+    spaces : :obj:`Spaces`
+        Organize and filter spatial normalizations. Composed of internal and output lists
+        of spaces in the form of (Template, Specs). `Template` is a string of either
+        TemplateFlow IDs (e.g., ``MNI152Lin``, ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or
+        ``fsLR``), nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+        or paths pointing to custom templates organized in a TemplateFlow-like structure.
+        Specs is a dictionary with template specifications (e.g., the specs for the template
+        ``MNI152Lin`` could be ``{'resolution': 2}`` if one wants the resampling to be done on
+        the 2mm resolution version of the selected template).
     subject_list : list
         List of subject labels
     t2s_coreg : bool
         For multi-echo EPI, use the calculated T2*-map for T2*-driven coregistration
-    spaces : Spaces
-        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
-        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
-        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
-        or paths pointing to custom templates organized in a TemplateFlow-like structure.
-        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
-        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
-        resolution version of the selected template).
     task_id : str or None
         Task ID of BOLD series to preprocess, or ``None`` to preprocess all
     use_aroma : bool
@@ -332,6 +334,7 @@ def init_single_subject_wf(
             :simple_form: yes
 
             from fmriprep.workflows.base import init_single_subject_wf
+            from fmriprep.utils import Spaces
             from collections import namedtuple, OrderedDict
             BIDSLayout = namedtuple('BIDSLayout', ['root'])
             wf = init_single_subject_wf(
@@ -362,11 +365,12 @@ def init_single_subject_wf(
                 regressors_fd_th=0.5,
                 skull_strip_fixed_seed=False,
                 skull_strip_template=('OASIS30ANTs', {}),
+                spaces=Spaces(output=[('MNI152Lin', {}),
+                                      ('fsaverage', {'density': '10k'}),
+                                      ('T1w', {}),
+                                      ('fsnative', {})]),
                 subject_id='test',
                 t2s_coreg=False,
-                target_spaces=OrderedDict([
-                    ('MNI152Lin', {}), ('fsaverage', {'density': '10k'}),
-                    ('T1w', {}), ('fsnative', {})]),
                 task_id='',
                 use_aroma=False,
                 use_bbr=True,
@@ -438,14 +442,15 @@ def init_single_subject_wf(
         List of subject labels
     t2s_coreg : bool
         For multi-echo EPI, use the calculated T2*-map for T2*-driven coregistration
-    target_spaces : OrderedDict
-        Ordered dictionary where keys are TemplateFlow ID strings (e.g., ``MNI152Lin``,
-        ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or ``fsLR``) strings designating
-        nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
+    spaces : :obj:`Spaces`
+        Organize and filter spatial normalizations. Composed of internal and output lists
+        of spaces in the form of (Template, Specs). `Template` is a string of either
+        TemplateFlow IDs (e.g., ``MNI152Lin``, ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or
+        ``fsLR``), nonstandard references (e.g., ``T1w`` or ``anat``, ``sbref``, ``run``, etc.),
         or paths pointing to custom templates organized in a TemplateFlow-like structure.
-        Values of the dictionary aggregate modifiers (e.g., the value for the key ``MNI152Lin``
-        could be ``{'resolution': 2}`` if one wants the resampling to be done on the 2mm
-        resolution version of the selected template).
+        Specs is a dictionary with template specifications (e.g., the specs for the template
+        ``MNI152Lin`` could be ``{'resolution': 2}`` if one wants the resampling to be done on
+        the 2mm resolution version of the selected template).
     task_id : str or None
         Task ID of BOLD series to preprocess, or ``None`` to preprocess all
     use_aroma : bool
@@ -553,8 +558,6 @@ It is released under the [CC0]\
         num_t1w=len(subject_data['t1w']),
         omp_nthreads=omp_nthreads,
         output_dir=output_dir,
-        # output_spaces={sp: {} for sp in spaces.standard},
-        # output_spaces={k: v for k, v in spaces.filtered('std', 'output')}, # TODO: RF smriprep
         reportlets_dir=reportlets_dir,
         spaces=spaces.filtered('std_vol', 'all'),
         skull_strip_fixed_seed=skull_strip_fixed_seed,
@@ -614,7 +617,6 @@ It is released under the [CC0]\
             regressors_dvars_th=regressors_dvars_th,
             spaces=spaces,
             t2s_coreg=t2s_coreg,
-            # target_spaces=target_spaces,
             use_aroma=use_aroma,
             use_bbr=use_bbr,
             use_syn=use_syn,
