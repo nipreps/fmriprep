@@ -559,7 +559,7 @@ It is released under the [CC0]\
         omp_nthreads=omp_nthreads,
         output_dir=output_dir,
         reportlets_dir=reportlets_dir,
-        spaces=spaces.filtered('std_vol', 'all'),
+        spaces=spaces,
         skull_strip_fixed_seed=skull_strip_fixed_seed,
         skull_strip_template=skull_strip_template,
     )
