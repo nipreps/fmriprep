@@ -814,7 +814,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         if 'MNI152NLin2009cAsym' in std_spaces:
             # Extract out the 'MNI152NLin2009cAsym' transform from normalizations
             carpetplot_select_std = pe.Node(
-                KeySelect(fields=['std2anat_xfm'], key='MNI152NLin2009cAsym'),
+                KeySelect(fields=['std2anat_xfm'],
+                          key=spaces.get_space('MNI152NLin2009cAsym'),
+                          no_hash=True),
                 name='carpetplot_select_std', run_without_submitting=True)
 
             carpetplot_wf = init_carpetplot_wf(
@@ -946,7 +948,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 data and volume-sampled data, were also generated.
 """
             cifti_volume = spaces.get_space("MNI152NLin6Asym")
-            select_std = pe.Node(KeySelect(fields=['bold_std']),
+            select_std = pe.Node(KeySelect(fields=['bold_std'], no_hash=True),
                                  name='select_std', run_without_submitting=True)
             select_std.inputs.key = cifti_volume
 

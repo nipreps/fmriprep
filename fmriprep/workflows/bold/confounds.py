@@ -654,7 +654,7 @@ in the corresponding confounds file.
 
     select_std = pe.Node(KeySelect(
         fields=['bold_mask_std', 'bold_std']),
-        name='select_std', run_without_submitting=True)
+        name='select_std', run_without_submitting=True, no_hash=True)
     select_std.inputs.key = spaces.get_space('MNI152NLin6Asym')
 
     rm_non_steady_state = pe.Node(niu.Function(function=_remove_volumes,

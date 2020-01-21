@@ -1,8 +1,6 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """Writing out derivative files."""
-from collections import OrderedDict
-
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
@@ -22,7 +20,6 @@ def init_func_derivatives_wf(
     metadata,
     output_dir,
     spaces,
-    # standard_spaces,
     use_aroma,
     fslr_density=None,
     name='func_derivatives_wf',
@@ -156,7 +153,8 @@ def init_func_derivatives_wf(
     surface_spaces = spaces.filtered('surf', 'output')
 
     if volume_std_spaces:
-        select_std = pe.MapNode(KeySelect(fields=['bold_std', 'bold_std_ref', 'bold_mask_std']),
+        select_std = pe.MapNode(KeySelect(fields=['bold_std', 'bold_std_ref', 'bold_mask_std'],
+                                          no_hash=True),
                                 iterfield=['key'], name='select_std', run_without_submitting=True,
                                 mem_gb=DEFAULT_MEMORY_MIN_GB)
         select_std.inputs.key = volume_std_spaces
@@ -230,8 +228,6 @@ def init_func_derivatives_wf(
         filter_surfaces.iterables = [('space', [space for space, _ in surface_spaces]),
                                      ('density', [spec.get('den') for _, spec in surface_spaces])]
         filter_surfaces.synchronize = True
-        # filter_surfaces.inputs.space = [space for space, spec in surface_spaces]
-        # filter_surfaces.inputs.density = [spec.get('den') for space, spec in surface_spaces]
 
         extract_surf_info = pe.MapNode(niu.Function(function=_extract_surf_info),
                                        iterfield=['in_file'], name='extract_surf_info',
@@ -323,19 +319,9 @@ def _extract_surf_info(in_file):
     import os
     info = {'den': ''}
     splits = os.path.basename(in_file).split('.')
-    assert 4 >= len(splits[:3]) >= 3
-    # parse surface filename
-    # hemi
-    # info['LR'] = splits[0][0].upper()
-    # template
+    if not 4 >= len(splits[:3]) >= 3:
+        raise IndexError("Invalid filename")
     info['space'] = splits[1]
     if len(splits) == 4:
-        info['den'] = '_den-{}'.format(splits[3])
+        info['den'] = '_den-{}'.format(splits[2])
     return info
-
-
-def _remove_internal_spaces(spaces):
-    return OrderedDict([
-        (key, modifiers) for key, modifiers in spaces.items()
-        if not modifiers.get('no-output')]
-    )
