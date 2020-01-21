@@ -1,3 +1,3 @@
-from niworkflows.utils import Spaces
+from niworkflows.utils.spaces import Spaces
 
 __all__ = ['Spaces']
