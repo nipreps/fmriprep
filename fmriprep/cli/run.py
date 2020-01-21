@@ -705,10 +705,10 @@ def parse_spaces(opts):
     """
     from ..utils import Spaces
     spaces = Spaces(output=opts.output_spaces)
-    outputs = spaces.unique('output')
+    target_spaces = spaces.unique()  # outputs + internal spaces
 
     # These arguments implicitly signal expected output
-    if not outputs:
+    if not target_spaces:
         if not any((opts.use_aroma, opts.cifti_output)):
             raise RuntimeError(
                 "No outputs are expected from this fMRIPrep run. Please add desired outputs using "
@@ -718,17 +718,17 @@ def parse_spaces(opts):
         spaces.add_space('MNI152NLin2009cAsym', output=False)
 
     # ERROR check if use_aroma was specified, but the correct template was not
-    if opts.use_aroma and 'MNI152NLin6Asym' not in outputs:
+    if opts.use_aroma and 'MNI152NLin6Asym' not in target_spaces:
         spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
 
     if opts.cifti_output:
         grayords = {'91k': '32k', '170k': '59k'}  # CIFTI total grayords to surface densities
-        if 'fsLR' not in outputs:
+        if 'fsLR' not in target_spaces:
             spaces.add_space('fsLR', specs={'den': grayords[opts.cifti_output]}, output=False)
-        if 'MNI152NLin6Asym' not in outputs:
+        if 'MNI152NLin6Asym' not in target_spaces:
             spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
 
-    if 'fsLR' in spaces.unique() and 'fsaverge' not in outputs:
+    if 'fsLR' in target_spaces and 'fsaverge' not in target_spaces:
         spaces.add_space('fsaverage', specs={'den': '164k'}, output=False)
 
     return spaces
