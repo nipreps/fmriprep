@@ -79,7 +79,6 @@ class GrandMeanScaling(SimpleInterface):
 
     def _run_interface(self, runtime):
         import nibabel as nib
-        from nipype.utils.filemanip import fname_presuffix
         func_img = nib.load(self.inputs.in_func)
         func_mask = nib.load(self.inputs.in_mask).get_fdata().astype(bool)
 
