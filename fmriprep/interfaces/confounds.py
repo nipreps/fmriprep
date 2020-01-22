@@ -7,6 +7,8 @@ Handling confounds
 
     >>> import os
     >>> import pandas as pd
+    >>> import numpy as np
+    >>> import nibabel as nib
 
 """
 import os
@@ -23,6 +25,76 @@ from nipype.interfaces.base import (
 from niworkflows.viz.plots import fMRIPlot
 
 LOGGER = logging.getLogger('nipype.interface')
+
+
+class GrandMeanScalingInputSpec(BaseInterfaceInputSpec):
+    in_func = File(exists=True, mandatory=True,
+                   desc='input BOLD time-series (4D file)')
+    in_mask = File(exists=True, mandatory=True,
+                   desc='3D brain mask')
+    grand_mean = traits.Int(desc='grand mean scale value')
+
+
+class GrandMeanScalingOutputSpec(TraitedSpec):
+    out_func = File(exists=True, desc='scaled BOLD time-series (4D file)')
+
+
+class GrandMeanScaling(SimpleInterface):
+    """
+    Scale voxel values in every image by dividing
+    the average global mean intensity of the whole session.
+
+    .. testsetup::
+
+    >>> from tempfile import TemporaryDirectory
+    >>> tmpdir = TemporaryDirectory()
+    >>> os.chdir(tmpdir.name)
+    >>> import nibabel as nib
+
+    .. doctest::
+
+    >>> np.random.seed(0)
+    >>> affine = np.eye(4)
+    >>> func_data = np.random.random((10, 10))
+    >>> nib.Nifti1Image(func_data, affine).to_filename('func.nii.gz')
+    >>> func_mask = np.eye(10).astype(int)
+    >>> nib.Nifti1Image(func_mask, affine).to_filename('func_mask.nii.gz')
+
+    >>> scale = GrandMeanScaling()
+    >>> scale.inputs.in_func = 'func.nii.gz'
+    >>> scale.inputs.in_mask = 'func_mask.nii.gz'
+    >>> scale.inputs.grand_mean = 10000
+    >>> res = scale.run()
+    >>> scaled_data = nib.load(res.outputs.out_func).get_fdata()
+    >>> round(scaled_data[func_mask.astype(bool)].mean())
+    10000.0
+
+    .. testcleanup::
+
+    >>> tmpdir.cleanup()
+    """
+
+    input_spec = GrandMeanScalingInputSpec
+    output_spec = GrandMeanScalingOutputSpec
+
+    def _run_interface(self, runtime):
+        import nibabel as nib
+        from nipype.utils.filemanip import fname_presuffix
+        func_img = nib.load(self.inputs.in_func)
+        func_mask = nib.load(self.inputs.in_mask).get_fdata().astype(bool)
+
+        func_data = func_img.get_fdata()
+
+        scaling_factor = self.inputs.grand_mean / func_data[func_mask].mean()
+
+        func_data[func_mask] = func_data[func_mask] * scaling_factor
+
+        out = fname_presuffix(self.inputs.in_func, suffix='_scaled')
+        func_img.__class__(func_data, func_img.affine, func_img.header).to_filename(out)
+
+        self._results['out_func'] = out
+
+        return runtime
 
 
 class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
