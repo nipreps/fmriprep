@@ -709,7 +709,7 @@ across sessions and participants
             (bold_t2s_wf, scale, [
                 ('outputnode.bold', 'in_func'),
                 ('outputnode.bold_mask', 'in_mask')]),
-            (bold_bold_trans_wf, bold_confounds_wf, [
+            (bold_t2s_wf, bold_confounds_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_t2s_wf, bold_t1_trans_wf, [
                 ('outputnode.bold', 'inputnode.bold_split')]),
