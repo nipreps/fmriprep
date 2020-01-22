@@ -29,6 +29,7 @@ from ...utils.meepi import combine_meepi_source
 
 from ...interfaces import DerivativesDataSink
 from ...interfaces.reports import FunctionalSummary
+from ...interfaces.confounds import GrandMeanScaling
 
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
@@ -378,6 +379,11 @@ def init_func_preproc_wf(
     if t2s_coreg and use_bbr is None:
         use_bbr = True
 
+    # apply grand mean scaling
+    GRAND_MEAN = 10000
+    scale = pe.Node(GrandMeanScaling(grand_mean=GRAND_MEAN),
+                    name='grand_mean_scale')
+
     # Build workflow
     workflow = Workflow(name=wf_name)
     workflow.__desc__ = """
@@ -398,7 +404,9 @@ configured with Lanczos interpolation to minimize the smoothing
 effects of other kernels [@lanczos].
 Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 (FreeSurfer).
-"""
+The functional data were grand mean scaled to {mean} for normalization
+across sessions and participants
+""".format(mean=GRAND_MEAN)
 
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold_file', 'subjects_dir', 'subject_id',
@@ -683,8 +691,10 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         workflow.connect([
             (inputnode, func_derivatives_wf, [
                 ('bold_file', 'inputnode.source_file')]),
+            (bold_bold_trans_wf, scale, [
+                ('outputnode.bold', 'in_func'),
+                ('outputnode.bold_mask', 'in_mask')]),
             (bold_bold_trans_wf, bold_confounds_wf, [
-                ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_split, bold_t1_trans_wf, [
                 ('out_files', 'inputnode.bold_split')]),
@@ -696,12 +706,20 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 (('bold_file', combine_meepi_source), 'inputnode.source_file')]),
             (bold_bold_trans_wf, skullstrip_bold_wf, [
                 ('outputnode.bold', 'inputnode.in_file')]),
-            (bold_t2s_wf, bold_confounds_wf, [
-                ('outputnode.bold', 'inputnode.bold'),
+            (bold_t2s_wf, scale, [
+                ('outputnode.bold', 'in_func'),
+                ('outputnode.bold_mask', 'in_mask')]),
+            (bold_bold_trans_wf, bold_confounds_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_t2s_wf, bold_t1_trans_wf, [
                 ('outputnode.bold', 'inputnode.bold_split')]),
         ])
+
+    # connect scaled bold to confounds_wf
+    workflow.connect([
+        (scale, bold_confounds_wf, [
+            ('out_func', 'inputnode.bold')])
+    ])
 
     if fmaps:
         from sdcflows.workflows.outputs import init_sdc_unwarp_report_wf
