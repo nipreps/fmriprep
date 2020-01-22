@@ -446,6 +446,8 @@ correction workflows (:abbr:`HMC (head-motion correction)` and
 :abbr:`SDC (susceptibility-derived distortion correction)` if excecuted)
 for a one-shot interpolation process.
 Interpolation uses a Lanczos kernel.
+After the one-shot interpolation process, the data are grand mean scaled to a
+value of 10,000.
 
 .. _bold_reg:
 
