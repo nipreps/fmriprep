@@ -715,7 +715,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             sdc_select_std.inputs.key = spaces.get_space('MNI152NLin2009cAsym')
             workflow.connect([
                 (inputnode, sdc_select_std, [('joint_std2anat_xfm', 'std2anat_xfm'),
-                                             ('joint_template', 'items')]),
+                                             ('joint_template', 'keys')]),
                 (sdc_select_std, bold_sdc_wf, [('std2anat_xfm', 'inputnode.std2anat_xfm')]),
             ])
 
