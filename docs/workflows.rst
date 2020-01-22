@@ -72,6 +72,7 @@ T1w/T2w preprocessing
 
     from collections import OrderedDict
     from fmriprep.workflows.anatomical import init_anat_preproc_wf
+    from fmriprep.utils import Spaces
     wf = init_anat_preproc_wf(
         bids_root='.',
         freesurfer=True,
@@ -80,8 +81,7 @@ T1w/T2w preprocessing
         num_t1w=1,
         omp_nthreads=1,
         output_dir='.',
-        output_spaces=OrderedDict([
-            ('MNI152NLin2009cAsym', {}), ('fsaverage5', {})]),
+        spaces=Spaces(output=[('MNI152NLin2009cAsym', {}), ('fsaverage5', {})]),
         reportlets_dir='.',
         skull_strip_template=('MNI152NLin2009cAsym', {}),
         skull_strip_fixed_seed=False,
