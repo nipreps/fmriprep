@@ -520,6 +520,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds054/work \
                 /tmp/data/ds054 /tmp/ds054/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
+                --output-spaces MNI152NLin2009cAsym \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - run:
           name: Clean-up after anatomical run
@@ -657,6 +658,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds210/work \
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
+                --output-spaces MNI152NLin2009cAsym \
                 --mem_mb 4096 --nthreads 2 --anat-only -vv
       - run:
           name: Clean-up after anatomical run
