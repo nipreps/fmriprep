@@ -19,21 +19,25 @@ def check_latest():
     date = None
     outdated = None
     cachefile = Path.home() / '.cache' / 'fmriprep' / 'latest'
-    cachefile.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        latest, date = cachefile.read_text().split('|')
-    except Exception:
-        pass
-    else:
+        cachefile.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        cachefile = None
+
+    if cachefile and cachefile.exists():
         try:
-            latest = Version(latest)
-            date = datetime.strptime(date, DATE_FMT)
-        except (InvalidVersion, ValueError):
-            latest = None
+            latest, date = cachefile.read_text().split('|')
+        except Exception:
+            pass
         else:
-            if abs((datetime.now() - date).days) > RELEASE_EXPIRY_DAYS:
-                outdated = True
+            try:
+                latest = Version(latest)
+                date = datetime.strptime(date, DATE_FMT)
+            except (InvalidVersion, ValueError):
+                latest = None
+            else:
+                if abs((datetime.now() - date).days) > RELEASE_EXPIRY_DAYS:
+                    outdated = True
 
     if latest is None or outdated is True:
         try:
@@ -49,7 +53,7 @@ def check_latest():
         else:
             latest = None
 
-    if latest is not None:
+    if cachefile is not None and latest is not None:
         try:
             cachefile.write_text('|'.join(('%s' % latest, datetime.now().strftime(DATE_FMT))))
         except Exception:

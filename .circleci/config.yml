@@ -113,8 +113,9 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v6-{{ .Revision }}
-            - data-v6-
+            - data-v7-{{ .Branch }}-{{ .Revision }}
+            - data-v7-{{ .Branch }}
+            - data-v7-
       - run:
           name: Get test data from ds000005
           command: |
@@ -149,11 +150,11 @@ jobs:
       - run:
           name: Get FreeSurfer derivatives for ds000005
           command: |
-            if [[ ! -d /tmp/ds005/derivatives/freesurfer ]]; then
-              mkdir -p /tmp/ds005/derivatives
+            if [[ ! -d /tmp/ds005/freesurfer ]]; then
+              mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005/derivatives
+              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005
             else
               echo "FreeSurfer derivatives of ds000005 were cached"
             fi
@@ -180,10 +181,10 @@ jobs:
             - ds054/nipype.cfg
             - ds210/nipype.cfg
       - save_cache:
-         key: data-v6-{{ .Revision }}-{{ epoch }}
+         key: data-v7-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/data
-            - /tmp/ds005/derivatives/freesurfer
+            - /tmp/ds005/freesurfer
 
   test_pytest:
     machine:
@@ -226,6 +227,7 @@ jobs:
           no_output_timeout: 2h
           command: |
             docker run -ti --rm=false \
+              -e TEST_READONLY_FILESYSTEM=1 -v $HOME:/home/readonly:ro \
               --entrypoint="pytest" poldracklab/fmriprep:latest \
               /src/fmriprep/fmriprep -svx --doctest-modules
 
@@ -260,7 +262,7 @@ jobs:
 
   build_docs:
     docker:
-        - image: python:latest
+      - image: python:3.7.4
     working_directory: /tmp/src/fmriprep
     environment:
       - FSLOUTPUTTYPE: 'NIFTI'
@@ -283,6 +285,9 @@ jobs:
           command: |
               apt-get update
               apt-get install -y graphviz
+      - run:
+          name: Install Requirements (may contain pinned versions)
+          command: python -m pip install -r docs/requirements.txt
       - run:
           name: Install fMRIPrep
           command: python -m pip install ".[doc]"
@@ -321,13 +326,13 @@ jobs:
             - docker-v3-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - data-v6-{{ .Revision }}
+            - data-v7-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds005-anat-v15-{{ .Branch }}-{{ .Revision }}
-            - ds005-anat-v15-{{ .Branch }}
-            - ds005-anat-v15-master
-            - ds005-anat-v15-
+            - ds005-anat-v17-{{ .Branch }}-{{ .Revision }}
+            - ds005-anat-v17-{{ .Branch }}
+            - ds005-anat-v17-master
+            - ds005-anat-v17-
       - run:
           name: Setting up test
           command: |
@@ -358,6 +363,7 @@ jobs:
                 -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
+                --fs-subjects-dir /tmp/ds005/freesurfer \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
                 --sloppy --write-graph --mem_mb 4096 \
@@ -369,7 +375,7 @@ jobs:
             rm -rf /tmp/ds005/work/reportlets
             rm -rf /tmp/ds005/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v15-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds005-anat-v17-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds005/work
 
@@ -385,18 +391,17 @@ jobs:
                 -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work \
                 /tmp/data/ds005 /tmp/ds005/derivatives participant \
+                --fs-subjects-dir /tmp/ds005/freesurfer \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --use-aroma \
                 --skull-strip-template OASIS30ANTs:res-1 \
-                --output-space T1w template fsaverage5 fsnative \
-                --template-resampling-grid native \
+                --output-spaces fsLR MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 2 --cifti-output -vv
       - run:
           name: Move intermediate results for second run
           command: |
             mkdir -p /tmp/ds005/derivatives_partial
-            sudo mv /tmp/ds005/derivatives/freesurfer /tmp/ds005/derivatives_partial
             sudo cp -a /tmp/ds005/work /tmp/ds005/work_partial
             sudo rm -rf /tmp/ds005/work_partial/fmriprep_wf/single_subject_01_wf/func_preproc_task_mixedgamblestask_run_02_wf/ica_aroma_wf
       - run:
@@ -415,10 +420,10 @@ jobs:
                 -e FMRIPREP_DEV 1 -u $(id -u) \
                 --config $PWD/nipype.cfg -w /tmp/ds005/work_partial \
                 /tmp/data/ds005 /tmp/ds005/derivatives_partial participant \
+                --fs-subjects-dir /tmp/ds005/freesurfer \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
-                --output-space T1w template fsaverage5 fsnative \
+                --output-spaces fsLR MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --aroma-melodic-dimensionality 2 --use-aroma \
-                --template-resampling-grid native \
                 --nthreads 2 --cifti-output -vv
       - run:
           name: Checking outputs of partial fMRIPrep run
@@ -477,13 +482,13 @@ jobs:
             - docker-v3-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - data-v6-{{ .Revision }}
+            - data-v7-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds054-anat-v13-{{ .Branch }}-{{ .Revision }}
-            - ds054-anat-v13-{{ .Branch }}
-            - ds054-anat-v13-master
-            - ds054-anat-v13-
+            - ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
+            - ds054-anat-v14-{{ .Branch }}
+            - ds054-anat-v14-master
+            - ds054-anat-v14-
       - run:
           name: Setting up test
           command: |
@@ -523,7 +528,7 @@ jobs:
             rm -rf /tmp/ds054/work/reportlets
             rm -rf /tmp/ds054/derivatives/fmriprep
       - save_cache:
-         key: ds054-anat-v13-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds054-anat-v14-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds054/work
 
@@ -614,13 +619,13 @@ jobs:
             - docker-v3-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - data-v6-{{ .Revision }}
+            - data-v7-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds210-anat-v11-{{ .Branch }}-{{ .Revision }}
-            - ds210-anat-v11-{{ .Branch }}-
-            - ds210-anat-v11-master
-            - ds210-anat-v11-
+            - ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v12-{{ .Branch }}-
+            - ds210-anat-v12-master
+            - ds210-anat-v12-
       - run:
           name: Setting up test
           command: |
@@ -660,7 +665,7 @@ jobs:
             rm -rf /tmp/ds210/work/reportlets
             rm -rf /tmp/ds210/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v11-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds210-anat-v12-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
          paths:
             - /tmp/ds210/work
 
@@ -673,8 +678,8 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/ds210/work \
                 /tmp/data/ds210 /tmp/ds210/derivatives participant \
                 --fs-no-reconall --t2s-coreg --use-syn-sdc \
-                --template-resampling-grid native --dummy-scans 1 \
-                --sloppy --write-graph --mem_mb 4096 --nthreads 2 -vv
+                --dummy-scans 1 --sloppy --write-graph \
+                --mem_mb 4096 --nthreads 2 -vv
       - run:
           name: Checking outputs of fMRIPrep
           command: |
@@ -773,16 +778,15 @@ jobs:
             fi
 
   test_deploy_pypi:
-    machine:
-      image: circleci/classic:201711-01
+    docker:
+      - image: circleci/python:3.7.4
     working_directory: /tmp/src/fmriprep
     steps:
       - checkout
       - run:
           name: Build fMRIPrep
           command: |
-            pyenv local 3.5.2
-            pip install twine  # For use in checking distributions
+            pip install --user twine  # For use in checking distributions
             THISVERSION=$( python get_version.py )
             THISVERSION=${THISVERSION%.dirty*}
             THISVERSION=${CIRCLE_TAG:-$THISVERSION}
@@ -797,7 +801,6 @@ jobs:
       - run:
           name: Check sdist distribution
           command: |
-            pyenv local 3.5.2
             THISVERSION=$( python get_version.py )
             THISVERSION=${THISVERSION%.dirty*}
             THISVERSION=${CIRCLE_TAG:-$THISVERSION}
@@ -816,7 +819,6 @@ jobs:
       - run:
           name: Check wheel distribution
           command: |
-            pyenv local 3.5.2
             THISVERSION=$( python get_version.py )
             THISVERSION=${THISVERSION%.dirty*}
             THISVERSION=${CIRCLE_TAG:-$THISVERSION}
@@ -834,7 +836,6 @@ jobs:
       - run:
           name: Build fmriprep-docker
           command: |
-            pyenv local 3.5.2
             THISVERSION=$( python get_version.py )
             THISVERSION=${THISVERSION%.dirty*}
             cd wrapper
@@ -848,27 +849,24 @@ jobs:
           path: /tmp/src/fmriprep/wrapper/dist
 
   deploy_pypi:
-    machine:
-      image: circleci/classic:201711-01
+    docker:
+      - image: circleci/python:3.7.4
     working_directory: /tmp/src/fmriprep
     steps:
       - checkout
       - run:
           name: Build fMRIPrep
           command: |
-            pyenv local 3.5.2
             THISVERSION=$( python get_version.py )
             virtualenv --python=python build
             source build/bin/activate
-            pip install --upgrade "pip>=19.1" numpy
+            pip install --upgrade "pip>=19.1"
             echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
             python setup.py sdist
-            docker run --rm=false -e PLAT='manylinux1_x86_64' -e PKGNAME='fmriprep' -v `pwd`:/io \
-                quay.io/pypa/manylinux1_x86_64 /io/.circleci/pypi_wheel/build-wheels.sh
+            pip wheel --no-deps -w dist/ .
       - run:
           name: Build fmriprep-docker
           command: |
-            pyenv local 3.5.2
             THISVERSION=$( python get_version.py )
             cd wrapper
             virtualenv --python=python build
@@ -880,8 +878,7 @@ jobs:
       - run:
           name: Upload packages to PyPI
           command: |
-            pyenv local 3.5.2
-            pip install twine
+            pip install --user twine
             twine upload dist/fmriprep* wrapper/dist/fmriprep*
 
   deployable:

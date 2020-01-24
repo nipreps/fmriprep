@@ -18,7 +18,6 @@ import sys
 import os
 import re
 import subprocess
-from warnings import warn
 
 __version__ = '99.99.99'
 __copyright__ = 'Copyright 2019, Center for Reproducible Neuroscience, Stanford University'
@@ -31,6 +30,30 @@ MISSING = """
 Image '{}' is missing
 Would you like to download? [Y/n] """
 PKG_PATH = '/usr/local/miniconda/lib/python3.7/site-packages'
+TF_TEMPLATES = (
+    'MNI152Lin',
+    'MNI152NLin2009cAsym',
+    'MNI152NLin6Asym',
+    'MNI152NLin6Sym',
+    'MNIInfant',
+    'MNIPediatricAsym',
+    'NKI',
+    'OASIS30ANTs',
+    'PNC',
+    'UNCInfant',
+    'fsLR',
+    'fsaverage',
+    'fsaverage5',
+    'fsaverage6',
+)
+NONSTANDARD_REFERENCES = (
+    'anat',
+    'T1w',
+    'run',
+    'func',
+    'sbref',
+    'fsnative'
+)
 
 # Monkey-patch Py2 subprocess
 if not hasattr(subprocess, 'DEVNULL'):
@@ -141,8 +164,8 @@ def merge_help(wrapper_help, target_help):
 
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
-    expected_overlap = set(['h', 'version', 'w', 'template-resampling-grid',
-                            'fs-license-file', 'use-plugin'])
+    expected_overlap = set(['h', 'version', 'w', 'output-spaces',
+                            'fs-license-file', 'fs-subjects-dir', 'use-plugin'])
 
     assert overlap == expected_overlap, "Clobbering options: {}".format(
         ', '.join(overlap - expected_overlap))
@@ -187,6 +210,11 @@ def merge_help(wrapper_help, target_help):
     return '\n\n'.join(sections)
 
 
+def is_in_directory(filepath, directory):
+    return os.path.realpath(filepath).startswith(
+        os.path.realpath(directory) + os.sep)
+
+
 def get_parser():
     """Defines the command line interface of the wrapper"""
     import argparse
@@ -221,22 +249,28 @@ def get_parser():
     g_wrap.add_argument('-w', '--work-dir', action='store', type=os.path.abspath,
                         help='path where intermediate results should be stored')
     g_wrap.add_argument(
-        '--output-grid-reference', required=False, action='store', type=os.path.abspath,
-        help='Deprecated after FMRIPREP 1.0.8. Please use --template-resampling-grid instead.')
-    g_wrap.add_argument(
-        '--template-resampling-grid', required=False, action='store', type=str,
-        help='Keyword ("native", "1mm", or "2mm") or path to an existing file. '
-             'Allows to define a reference grid for the resampling of BOLD images in template '
-             'space. Keyword "native" will use the original BOLD grid as reference. '
-             'Keywords "1mm" and "2mm" will use the corresponding isotropic template '
-             'resolutions. If a path is given, the grid of that image will be used. '
-             'It determines the field of view and resolution of the output images, '
-             'but is not used in normalization.')
+        '--output-spaces', nargs="+",
+        help="""\
+Standard and non-standard spaces to resample anatomical and functional images to. \
+Standard spaces may be specified by the form \
+``<TEMPLATE>[:res-<resolution>][:cohort-<label>][...]``, where ``<TEMPLATE>`` is \
+a keyword (valid keywords: %s) or path pointing to a user-supplied template, and \
+may be followed by optional, colon-separated parameters. \
+Non-standard spaces (valid keywords: %s) imply specific orientations and sampling \
+grids. \
+Important to note, the ``res-*`` modifier does not define the resolution used for \
+the spatial normalization.""" % (', '.join('"%s"' % s for s in TF_TEMPLATES),
+                                 ', '.join(NONSTANDARD_REFERENCES)))
+
     g_wrap.add_argument(
         '--fs-license-file', metavar='PATH', type=os.path.abspath,
         default=os.getenv('FS_LICENSE', None),
         help='Path to FreeSurfer license key file. Get it (for free) by registering'
              ' at https://surfer.nmr.mgh.harvard.edu/registration.html')
+    g_wrap.add_argument(
+        '--fs-subjects-dir', metavar='PATH', type=os.path.abspath,
+        help='Path to existing FreeSurfer subjects directory to reuse. '
+             '(default: OUTPUT_DIR/freesurfer)')
     g_wrap.add_argument(
         '--use-plugin', metavar='PATH', action='store', default=None,
         type=os.path.abspath, help='nipype plugin configuration file')
@@ -361,9 +395,21 @@ def main():
         main_args.append('/out')
     main_args.append(opts.analysis_level)
 
+    if opts.fs_subjects_dir:
+        command.extend(['-v', '{}:/opt/subjects'.format(opts.fs_subjects_dir)])
+        unknown_args.extend(['--fs-subjects-dir', '/opt/subjects'])
+
     if opts.work_dir:
         command.extend(['-v', ':'.join((opts.work_dir, '/scratch'))])
         unknown_args.extend(['-w', '/scratch'])
+
+    # Check that work_dir is not a child of bids_dir
+    if opts.work_dir and opts.bids_dir:
+        if is_in_directory(opts.work_dir, opts.bids_dir):
+            print(
+                'The selected working directory is a subdirectory of the input BIDS folder. '
+                'Please modify the output path.')
+            return 1
 
     if opts.config:
         command.extend(['-v', ':'.join((
@@ -374,16 +420,16 @@ def main():
                                         'ro'))])
         unknown_args.extend(['--use-plugin', '/tmp/plugin.yml'])
 
-    template_target = opts.template_resampling_grid or opts.output_grid_reference
-    if template_target is not None:
-        if opts.output_grid_reference is not None:
-            warn('Option --output-grid-reference is deprecated, please use '
-                 '--template-resampling-grid', DeprecationWarning)
-        if template_target not in ['native', '2mm' '1mm']:
-            target = '/imports/' + os.path.basename(template_target)
-            command.extend(['-v', ':'.join((os.path.abspath(
-                template_target), target, 'ro'))])
-        unknown_args.extend(['--template-resampling-grid', template_target])
+    if opts.output_spaces:
+        spaces = []
+        for space in opts.output_spaces:
+            if space.split(':')[0] not in (TF_TEMPLATES + NONSTANDARD_REFERENCES):
+                target = '/imports/' + os.path.basename(space)
+                command.extend(['-v', ':'.join((os.path.abspath(space), target, 'ro'))])
+                spaces.append(target)
+            else:
+                spaces.append(space)
+        unknown_args.extend(['--output-spaces'] + spaces)
 
     if opts.shell:
         command.append('--entrypoint=bash')

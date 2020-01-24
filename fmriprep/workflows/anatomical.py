@@ -10,7 +10,7 @@ Anatomical reference preprocessing workflows
 Surface preprocessing
 +++++++++++++++++++++
 
-``fmriprep`` uses FreeSurfer_ to reconstruct surfaces from T1w/T2w
+*fMRIPrep* uses FreeSurfer_ to reconstruct surfaces from T1w/T2w
 structural images.
 
 .. autofunction:: init_surface_recon_wf

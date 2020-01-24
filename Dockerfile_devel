@@ -68,8 +68,8 @@ RUN wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -
     tar xvzf fmriprep_bold_mask.tar.gz -C /tmp/data &&\
     rm fmriprep_bold_mask.tar.gz
 
-# set up code-server (need net-tools for initialization)
-RUN curl -o /tmp/code-server.tar.gz -SL https://github.com/cdr/code-server/releases/download/2.preview.9-vsc1.37.0/code-server2.preview.9-vsc1.37.0-linux-x86_64.tar.gz
+# set up code-server (need net-tools for initialization) - V2.1665-vsc1.39.2
+RUN curl -o /tmp/code-server.tar.gz -SL https://github.com/cdr/code-server/releases/download/2.1665-vsc1.39.2/code-server2.1665-vsc1.39.2-linux-x86_64.tar.gz
 
 RUN mkdir /src/codeserver &&\
     tar -xvf /tmp/code-server.tar.gz -C /src/codeserver --strip-components=1
@@ -78,7 +78,7 @@ RUN /src/codeserver/code-server --install-extension eamodio.gitlens &&\
     /src/codeserver/code-server --install-extension ms-python.python
     
 
-ENTRYPOINT ["/src/codeserver/code-server", "/src/fmriprep"]
+ENTRYPOINT ["/src/codeserver/code-server", "--auth", "none", "/src/fmriprep"]
 
 # usage example (assuming in local fmriprep directory):
 #

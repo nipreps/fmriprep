@@ -3,29 +3,22 @@
 # Comment to be posted to on PRs from first time contributors in your repository
 newPRWelcomeComment: >
   Thanks for opening this pull request!
-  We have detected this is the first time for you to contribute
-  to *fMRIPrep*.
-  Please check out our [contributing guidelines](https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md).
+  It looks like this is your first time contributing to *fMRIPrep*. :smile:
   
-  We invite you to list yourself as a *fMRIPrep* contributor, so if your name
-  is not already mentioned, please modify the
-  [``.zenodo.json``](https://github.com/poldracklab/fmriprep/blob/master/.zenodo.json)
-  file with your data right above Russ' entry. Example:
+  We invite you to list yourself as an *fMRIPrep* contributor.
+  To learn more about what that entails and how we credit our contributors,
+  please check out the
+  [contributing guidelines](https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md#recognizing-contributions).
+  If your name is not already on the list, please insert it, in alphabetical order, into the
+  [``contributors.json`` file](https://github.com/poldracklab/fmriprep/blob/master/.maint/contributors.json).
+  Example:
 
-  ```
-
+  ```JSON
   {
      "name": "Contributor, New FMRIPrep",
      "affiliation": "Department of fMRI prep'ing, Open Science Made-Up University",
      "orcid": "<your id>"
   },
-
-  {
-     "name": "Poldrack, Russell A.",
-     "affiliation": "Department of Psychology, Stanford University",
-     "orcid": "0000-0001-6755-0259"
-  },
-
   ```
 
 

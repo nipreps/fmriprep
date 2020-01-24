@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -15,44 +14,45 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.utils import CopyXForm
 
 
-DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')
 
 
-# pylint: disable=R0914
 def init_bold_stc_wf(metadata, name='bold_stc_wf'):
     """
+    Create a workflow for :abbr:`STC (slice-timing correction)`.
+
     This workflow performs :abbr:`STC (slice-timing correction)` over the input
     :abbr:`BOLD (blood-oxygen-level dependent)` image.
 
-    .. workflow::
-        :graph2use: orig
-        :simple_form: yes
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
 
-        from fmriprep.workflows.bold import init_bold_stc_wf
-        wf = init_bold_stc_wf(
-            metadata={"RepetitionTime": 2.0,
-                      "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
-            )
+            from fmriprep.workflows.bold import init_bold_stc_wf
+            wf = init_bold_stc_wf(
+                metadata={"RepetitionTime": 2.0,
+                          "SliceTiming": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
+                )
 
-    **Parameters**
+    Parameters
+    ----------
+    metadata : dict
+        BIDS metadata for BOLD file
+    name : str
+        Name of workflow (default: ``bold_stc_wf``)
 
-        metadata : dict
-            BIDS metadata for BOLD file
-        name : str
-            Name of workflow (default: ``bold_stc_wf``)
+    Inputs
+    ------
+    bold_file
+        BOLD series NIfTI file
+    skip_vols
+        Number of non-steady-state volumes detected at beginning of ``bold_file``
 
-    **Inputs**
-
-        bold_file
-            BOLD series NIfTI file
-        skip_vols
-            Number of non-steady-state volumes detected at beginning of ``bold_file``
-
-    **Outputs**
-
-        stc_file
-            Slice-timing corrected BOLD series NIfTI file
+    Outputs
+    -------
+    stc_file
+        Slice-timing corrected BOLD series NIfTI file
 
     """
     workflow = Workflow(name=name)

@@ -29,6 +29,7 @@
 | Framewise displacement | | https://nipype.readthedocs.io/en/latest/interfaces/generated/nipype.algorithms.confounds.html#framewisedisplacement |
 | **Other**
 | a/tCompCor | https://doi.org/10.1016/j.neuroimage.2007.04.042 | http://nipype.readthedocs.io/en/latest/interfaces/generated/nipype.algorithms.confounds.html#compcor |
+| Connectome Workbench | | https://humanconnectome.org/software/connectome-workbench
 | phdiff2fmap | https://doi.org/10.1006/nimg.2001.1054 | https://fmriprep.readthedocs.io/en/stable/sdc/estimation.html#fmriprep.interfaces.fmap.phdiff2fmap |
 | nibabel | https://doi.org/10.5281/zenodo.60808 | https://github.com/nipy/nibabel/ |
 | nilearn | https://doi.org/10.3389/fninf.2014.00014 | https://github.com/nilearn/nilearn/ |

@@ -2,227 +2,378 @@
 
 .. _outputs:
 
--------------------
-Outputs of fMRIPrep
--------------------
-
-FMRIPrep generates three broad classes of outcomes:
-
-  1. **Visual QA (quality assessment) reports**:
-     one :abbr:`HTML (hypertext markup language)` per subject,
-     that allows the user a thorough visual assessment of the quality
-     of processing and ensures the transparency of fMRIPrep operation.
-
-  2. **Pre-processed imaging data** which are derivatives of the original
-     anatomical and functional images after various preparation procedures
-     have been applied. For example,
-     :abbr:`INU (intensity non-uniformity)`-corrected versions of the T1-weighted
-     image (per subject), the brain mask, or :abbr:`BOLD (blood-oxygen level dependent)`
-     images after head-motion correction, slice-timing correction and aligned into
-     the same-subject's T1w space or into MNI space.
-
-  3. **Additional data for subsequent analysis**, for instance the transformations
-     between different spaces or the estimated confounds.
-
-
-fMRIPrep outputs conform to the :abbr:`BIDS (brain imaging data structure)`
+---------------------
+Outputs of *fMRIPrep*
+---------------------
+*fMRIPrep* outputs conform to the :abbr:`BIDS (brain imaging data structure)`
 Derivatives specification (see `BIDS Derivatives RC1`_).
+*fMRIPrep* generates three broad classes of outcomes:
+
+1. **Visual QA (quality assessment) reports**:
+   one :abbr:`HTML (hypertext markup language)` per subject,
+   that allows the user a thorough visual assessment of the quality
+   of processing and ensures the transparency of *fMRIPrep* operation.
+
+2. **Derivatives (preprocessed data)** the input fMRI data ready for
+   analysis, i.e., after the various preparation procedures
+   have been applied.
+   For example, :abbr:`INU (intensity non-uniformity)`-corrected versions
+   of the T1-weighted image (per subject), the brain mask,
+   or :abbr:`BOLD (blood-oxygen level dependent)`
+   images after head-motion correction, slice-timing correction and aligned into
+   the same-subject's T1w space or in some standard space.
+
+3. **Confounds**: this is a special family of derivatives that can be utilized
+   to inform subsequent denoising steps.
+
+   .. important::
+       In order to remain agnostic to any possible subsequent analysis,
+       *fMRIPrep* does not perform any denoising (e.g., spatial smoothing) itself.
+       There are two exceptions to this principle (described in their corresponding
+       sections below):
+
+         - ICA-AROMA's *non-aggressive* denoised outputs, and
+         - CompCor regressors, which are calculated after temporal high-pass filtering.
 
 Visual Reports
 --------------
-
-FMRIPrep outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
+*fMRIPrep* outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
 These reports provide a quick way to make visual inspection of the results easy.
 Each report is self contained and thus can be easily shared with collaborators (for example via email).
 `View a sample report. <_static/sample_report.html>`_
 
-
-Preprocessed data (fMRIPrep *derivatives*)
-------------------------------------------
-
+Derivatives of *fMRIPrep* (preprocessed data)
+---------------------------------------------
 Preprocessed, or derivative, data are written to
 ``<output dir>/fmriprep/sub-<subject_label>/``.
 The `BIDS Derivatives RC1`_ specification describes the naming and metadata conventions we follow.
 
-Anatomical derivatives are placed in each subject's ``anat`` subfolder:
+Anatomical derivatives
+~~~~~~~~~~~~~~~~~~~~~~
+Anatomical derivatives are placed in each subject's ``anat`` subfolder::
 
-- ``anat/sub-<subject_label>_[space-<space_label>_]desc-preproc_T1w.nii.gz``
-- ``anat/sub-<subject_label>_[space-<space_label>_]desc-brain_mask.nii.gz``
-- ``anat/sub-<subject_label>_[space-<space_label>_]dseg.nii.gz``
-- ``anat/sub-<subject_label>_[space-<space_label>_]label-CSF_probseg.nii.gz``
-- ``anat/sub-<subject_label>_[space-<space_label>_]label-GM_probseg.nii.gz``
-- ``anat/sub-<subject_label>_[space-<space_label>_]label-WM_probseg.nii.gz``
+  sub-<subject_label>/
+    anat/
+      sub-<subject_label>[_space-<space_label>]_desc-preproc_T1w.nii.gz
+      sub-<subject_label>[_space-<space_label>]_desc-brain_mask.nii.gz
+      sub-<subject_label>[_space-<space_label>]_dseg.nii.gz
+      sub-<subject_label>[_space-<space_label>]_label-CSF_probseg.nii.gz
+      sub-<subject_label>[_space-<space_label>]_label-GM_probseg.nii.gz
+      sub-<subject_label>[_space-<space_label>]_label-WM_probseg.nii.gz
 
-Template-normalized derivatives use the space label ``MNI152NLin2009cAsym``, while derivatives in
+Spatially-standardized derivatives are denoted with a space label,
+such as ``MNI152NLin2009cAsym``, while derivatives in
 the original ``T1w`` space omit the ``space-`` keyword.
 
-Additionally, the following transforms are saved:
+Additionally, the following transforms are saved::
 
-- ``anat/sub-<subject_label>_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5`` 
-- ``anat/sub-<subject_label>_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5`` 
+  sub-<subject_label>/
+    anat/
+      sub-<subject_label>_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5
+      sub-<subject_label>_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5
 
-If FreeSurfer reconstructions are used, the following surface files are generated:
+If FreeSurfer reconstructions are used, the following surface files are generated::
 
-- ``anat/sub-<subject_label>_hemi-[LR]_smoothwm.surf.gii``
-- ``anat/sub-<subject_label>_hemi-[LR]_pial.surf.gii``
-- ``anat/sub-<subject_label>_hemi-[LR]_midthickness.surf.gii``
-- ``anat/sub-<subject_label>_hemi-[LR]_inflated.surf.gii``
+  sub-<subject_label>/
+    anat/
+      sub-<subject_label>_hemi-[LR]_smoothwm.surf.gii
+      sub-<subject_label>_hemi-[LR]_pial.surf.gii
+      sub-<subject_label>_hemi-[LR]_midthickness.surf.gii
+      sub-<subject_label>_hemi-[LR]_inflated.surf.gii
 
-And the affine translation between ``T1w`` space and FreeSurfer's reconstruction (``fsnative``) is
-stored in:
+And the affine translation (and inverse) between the original T1w sampling and FreeSurfer's
+conformed space for surface reconstruction (``fsnative``) is stored in::
 
-- ``anat/sub-<subject_label>_from-T1w_to-fsnative_mode-image_xfm.txt``
-
-Functional derivatives are stored in the ``func`` subfolder.
-All derivatives contain ``task-<task_label>`` (mandatory) and ``run-<run_index>`` (optional), and
-these will be indicated with ``[specifiers]``.
-
-- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_boldref.nii.gz``
-- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_desc-brain_mask.nii.gz``
-- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_desc-preproc_bold.nii.gz``
-
-Volumetric output spaces include ``T1w`` and ``MNI152NLin2009cAsym`` (default).
-
-Confounds are saved as a :abbr:`TSV (tab-separated value)` file:
-
-- ``func/sub-<subject_label>_[specifiers]_desc-confounds_regressors.nii.gz``
-
-If FreeSurfer reconstructions are used, the ``(aparc+)aseg`` segmentations are aligned to the
-subject's T1w space and resampled to the BOLD grid, and the BOLD series are resampled to the
-midthickness surface mesh:
-
-- ``func/sub-<subject_label>_[specifiers]_space-T1w_desc-aparcaseg_dseg.nii.gz``
-- ``func/sub-<subject_label>_[specifiers]_space-T1w_desc-aseg_dseg.nii.gz``
-- ``func/sub-<subject_label>_[specifiers]_space-<space_label>_hemi-[LR].func.gii``
-
-Surface output spaces include ``fsnative`` (full density subject-specific mesh),
-``fsaverage`` and the down-sampled meshes ``fsaverage6`` (41k vertices) and
-``fsaverage5`` (10k vertices, default).
-
-If CIFTI outputs are requested, the BOLD series is also saved as ``dtseries.nii`` CIFTI2 files:
-
-- ``func/sub-<subject_label>_[specifiers]_bold.dtseries.nii``
-
-Sub-cortical time series are volumetric (supported spaces: ``MNI152NLin2009cAsym``), while cortical
-time series are sampled to surface (supported spaces: ``fsaverage5``, ``fsaverage6``)
-
-Finally, if ICA-AROMA is used, the MELODIC mixing matrix and the components classified as noise
-are saved:
-
-- ``func/sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv``
-- ``func/sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv``
-
+  sub-<subject_label>/
+    anat/
+      sub-<subject_label>_from-fsnative_to-T1w_mode-image_xfm.txt
+      sub-<subject_label>_from-T1w_to-fsnative_mode-image_xfm.txt
 
 .. _fsderivs:
 
-FreeSurfer Derivatives
-----------------------
+FreeSurfer derivatives
+~~~~~~~~~~~~~~~~~~~~~~
+A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``, or the
+directory indicated with the ``--fs-subjects-dir`` flag. ::
 
-A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``.
-
-::
-
-    freesurfer/
-        fsaverage{,5,6}/
-            mri/
-            surf/
+    <output_dir>/
+        fmriprep/
             ...
-        sub-<subject_label>/
-            mri/
-            surf/
+        freesurfer/
+            fsaverage{,5,6}/
+                mri/
+                surf/
+                ...
+            sub-<subject_label>/
+                mri/
+                surf/
+                ...
             ...
-        ...
 
 Copies of the ``fsaverage`` subjects distributed with the running version of
 FreeSurfer are copied into this subjects directory, if any functional data are
 sampled to those subject spaces.
 
+Functional derivatives
+~~~~~~~~~~~~~~~~~~~~~~
+Functional derivatives are stored in the ``func/`` subfolder.
+All derivatives contain ``task-<task_label>`` (mandatory) and ``run-<run_index>`` (optional), and
+these will be indicated with ``[specifiers]``::
 
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_space-<space_label>_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_space-<space_label>_desc-brain_mask.nii.gz
+      sub-<subject_label>_[specifiers]_space-<space_label>_desc-preproc_bold.nii.gz
+
+**Regularly gridded outputs (images)**.
+Volumetric output spaces labels (``<space_label>`` above, and in the following) include
+``T1w`` and ``MNI152NLin2009cAsym`` (default).
+
+**Surfaces, segmentations and parcellations from FreeSurfer**.
+If FreeSurfer reconstructions are used, the ``(aparc+)aseg`` segmentations are aligned to the
+subject's T1w space and resampled to the BOLD grid, and the BOLD series are resampled to the
+mid-thickness surface mesh::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_space-T1w_desc-aparcaseg_dseg.nii.gz
+      sub-<subject_label>_[specifiers]_space-T1w_desc-aseg_dseg.nii.gz
+      sub-<subject_label>_[specifiers]_space-<space_label>_hemi-[LR].func.gii
+
+Surface output spaces include ``fsnative`` (full density subject-specific mesh),
+``fsaverage`` and the down-sampled meshes ``fsaverage6`` (41k vertices) and
+``fsaverage5`` (10k vertices, default). Additionally, the BOLD can be resampled to
+``fsLR`` surfaces, a hybrid version of the ``fsaverage`` atlas with both hemispheres
+in precise geographic correspondence, with varying mesh densities: 32k (default), 59k, and 164k.
+
+**Grayordinates files**.
+CIFTI is a container format that holds both volumetric (regularly sampled in a grid)
+and surface (sampled on a triangular mesh) samples.
+Sub-cortical time series are volumetric (supported spaces: ``MNI152NLin6Asym``), while cortical
+time series are sampled to surface (supported spaces: ``fsLR``).
+If CIFTI outputs are requested (with the ``--cifti-outputs`` argument), the BOLD series are also
+saved as ``dtseries.nii`` CIFTI2 files::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_bold.dtseries.nii
+
+CIFTI output resolution can be specified as an optional parameter after ``--cifti-output``.
+By default, '91k' outputs are produced and match up to the standard `HCP Pipelines`_ CIFTI
+output (91282 grayordinates @ 2mm). However, '170k' outputs are also possible, and produce
+higher resolution CIFTI output (170494 grayordinates @ 1.6mm).
+
+**Extracted confounding time series**.
+For each :abbr:`BOLD (blood-oxygen level dependent)` run processed with *fMRIPrep*, an
+accompanying *confounds* file will be generated.
+Confounds_ are saved as a :abbr:`TSV (tab-separated value)` file::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_desc-confounds_regressors.tsv
+      sub-<subject_label>_[specifiers]_desc-confounds_regressors.json
+
+These :abbr:`TSV (tab-separated values)` tables look like the example below,
+where each row of the file corresponds to one time point found in the
+corresponding :abbr:`BOLD (blood-oxygen level dependent)` time series::
+
+  csf white_matter  global_signal std_dvars dvars framewise_displacement  t_comp_cor_00 t_comp_cor_01 t_comp_cor_02 t_comp_cor_03 t_comp_cor_04 t_comp_cor_05 a_comp_cor_00 a_comp_cor_01 a_comp_cor_02 a_comp_cor_03 a_comp_cor_04 a_comp_cor_05 non_steady_state_outlier00  trans_x trans_y trans_z rot_x rot_y rot_z aroma_motion_02 aroma_motion_04
+  682.75275 0.0 491.64752000000004  n/a n/a n/a 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 -0.00017029 -0.0  0.0 0.0 0.0
+  669.14166 0.0 489.4421  1.168398  17.575331 0.07211929999999998 -0.4506846719 0.1191909139  -0.0945884724 0.1542023065  -0.2302324641 0.0838194238  -0.032426848599999995 0.4284323184  -0.5809158299 0.1382414008  -0.1203486637 0.3783661265  0.0 0.0 0.0207752 0.0463124 -0.000270924  -0.0  0.0 -2.402958171  -0.7574011893
+  665.3969  0.0 488.03  1.085204  16.323903999999995  0.0348966 0.010819676200000001  0.0651895837  -0.09556632150000001  -0.033148835  -0.4768871111 0.20641088559999998 0.2818768463  0.4303863764  0.41323714850000004 -0.2115232212 -0.0037154909000000004  0.10636180070000001 0.0 0.0 0.0 0.0457372 0.0 -0.0  0.0 -1.341359143  0.1636017242
+  662.82715 0.0 487.37302 1.01591 15.281561 0.0333937 0.3328022893  -0.2220965269 -0.0912891436 0.2326688125  0.279138129 -0.111878887  0.16901660629999998 0.0550480212  0.1798747037  -0.25383302620000003  0.1646403629  0.3953613889  0.0 0.010164  -0.0103568  0.0424513 0.0 -0.0  0.00019174  -0.1554834655 0.6451987913
+
+Finally, if ICA-AROMA is used, the MELODIC mixing matrix and the components classified as noise
+are saved::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv
+      sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv
 
 Confounds
 ---------
+The :abbr:`BOLD (blood-oxygen level dependent)` signal measured with fMRI is a mixture of fluctuations
+of both neuronal and non-neuronal origin.
+Neuronal signals are measured indirectly as changes in the local concentration of oxygenated hemoglobin.
+Non-neuronal fluctuations in fMRI data may appear as a result of head motion, scanner noise,
+or physiological fluctuations (related to cardiac or respiratory effects).
+For a detailed review of the possible sources of noise in the BOLD signal, refer to [Greve2013]_.
 
-See implementation on :mod:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`.
+*Confounds* (or nuisance regressors) are variables representing fluctuations with a potential
+non-neuronal origin.
+Such non-neuronal fluctuations may drive spurious results in fMRI data analysis,
+including standard activation :abbr:`GLM (General Linear Model)` and functional connectivity analyses.
+It is possible to minimize confounding effects of non-neuronal signals by including
+them as nuisance regressors in the GLM design matrix or regressing them out from
+the fMRI data - a procedure known as *denoising*.
+There is currently no consensus on an optimal denoising strategy in the fMRI community.
+Rather, different strategies have been proposed, which achieve different compromises between
+how much of the non-neuronal fluctuations are effectively removed, and how much of neuronal fluctuations
+are damaged in the process.
+The *fMRIPrep* pipeline generates a large array of possible confounds.
 
+The most well established confounding variables in neuroimaging are the six head-motion parameters
+(three rotations and three translations) - the common output of the head-motion correction
+(also known as *realignment*) of popular fMRI preprocessing software
+such as SPM_ or FSL_.
+Beyond the standard head-motion parameters, the fMRIPrep pipeline generates a large array
+of possible confounds, which enable researchers to choose the most suitable denoising
+strategy for their downstream analyses.
 
-For each :abbr:`BOLD (blood-oxygen level dependent)` run processed with fMRIPrep, a
-``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_desc-confounds_regressors.tsv``
-file will be generated.
-These are :abbr:`TSV (tab-separated values)` tables, which look like the example below: ::
+Confounding variables calculated in *fMRIPrep* are stored separately for each subject,
+session and run in :abbr:`TSV (tab-separated value)` files - one column for each confound variable.
+Such tabular files may include over 100 columns of potential confound regressors.
 
-  csf	white_matter	global_signal	std_dvars	dvars	framewise_displacement	t_comp_cor_00	t_comp_cor_01	t_comp_cor_02	t_comp_cor_03	t_comp_cor_04	t_comp_cor_05	a_comp_cor_00	a_comp_cor_01	a_comp_cor_02	a_comp_cor_03	a_comp_cor_04	a_comp_cor_05	non_steady_state_outlier00	trans_x	trans_y	trans_z	rot_x	rot_y	rot_z	aroma_motion_02	aroma_motion_04
-  682.75275	0.0	491.64752000000004	n/a	n/a	n/a	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	1.0	0.0	0.0	0.0	-0.00017029	-0.0	0.0	0.0	0.0
-  669.14166	0.0	489.4421	1.168398	17.575331	0.07211929999999998	-0.4506846719	0.1191909139	-0.0945884724	0.1542023065	-0.2302324641	0.0838194238	-0.032426848599999995	0.4284323184	-0.5809158299	0.1382414008	-0.1203486637	0.3783661265	0.0	0.0	0.0207752	0.0463124	-0.000270924	-0.0	0.0	-2.402958171	-0.7574011893
-  665.3969	0.0	488.03	1.085204	16.323903999999995	0.0348966	0.010819676200000001	0.0651895837	-0.09556632150000001	-0.033148835	-0.4768871111	0.20641088559999998	0.2818768463	0.4303863764	0.41323714850000004	-0.2115232212	-0.0037154909000000004	0.10636180070000001	0.0	0.0	0.0	0.0457372	0.0	-0.0	0.0	-1.341359143	0.1636017242
-  662.82715	0.0	487.37302	1.01591	15.281561	0.0333937	0.3328022893	-0.2220965269	-0.0912891436	0.2326688125	0.279138129	-0.111878887	0.16901660629999998	0.0550480212	0.1798747037	-0.25383302620000003	0.1646403629	0.3953613889	0.0	0.010164	-0.0103568	0.0424513	0.0	-0.0	0.00019174	-0.1554834655	0.6451987913
+.. danger::
+   Do not include all columns of ``~_desc-confounds_regressors.tsv`` table
+   into your design matrix or denoising procedure.
+   Filter the table first, to include only the confounds (or components thereof)
+   you want to remove from your fMRI signal.
+   The choice of confounding variables may depend on the analysis you want to perform,
+   and may be not straightforward as no gold standard procedure exists.
+   For a detailed description of various denoising strategies and their performance,
+   see [Parkes2018]_ and [Ciric2017]_.
 
+Confound regressors description
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Basic confounds**. The most commonly used confounding time series:
 
-Each row of the file corresponds to one time point found in the
-corresponding :abbr:`BOLD (blood-oxygen level dependent)` time-series
-(stored in ``<output_folder>/fmriprep/sub-<sub_id>/func/sub-<sub_id>_task-<task_id>_run-<run_id>_desc-preproc_bold.nii.gz``).
+- Estimated head-motion parameters:
+  ``trans_x``, ``trans_y``, ``trans_z``, ``rot_x``, ``rot_y``, ``rot_z`` - the 6 rigid-body motion
+  parameters (3 translations and 3 rotation), estimated relative to a reference image;
 
-Columns represent the different confounds: ``csf`` and ``white_matter`` are the average signal
-inside the anatomically-derived :abbr:`CSF (cerebro-spinal fluid)` and :abbr:`WM (white matter)`
-masks across time;
-``global_signal`` corresponds to the mean time series within the brain mask; two columns relate to
-the derivative of RMS variance over voxels (or :abbr:`DVARS (defined in Power, et al. 2012)`), and
-both the original (``dvars``) and standardized (``std_dvars``) are provided;
-``framewise_displacement`` is a quantification of the estimated bulk-head motion;
-``trans_x``, ``trans_y``, ``trans_z``, ``rot_x``, ``rot_y``, ``rot_z`` are the 6 rigid-body
-motion-correction parameters estimated by fMRIPrep;
-if present, ``non_steady_state_outlier_XX`` columns indicate non-steady state volumes with a single
-``1`` value and ``0`` elsewhere (*i.e.*, there is one ``non_steady_state_outlier_XX`` column per
-outlier/volume);
-additional noise components are calculated using :abbr:`CompCor (Component Based Noise Correction)`,
-according to both the anatomical (``a_comp_cor_XX``) and temporal (``t_comp_cor_XX``) variants;
-and the motion-related components identified by
-:abbr:`ICA (independent components analysis)`-:abbr:`AROMA (Automatic Removal Of Motion Artifacts)`
-(if enabled) are indicated with ``aroma_motion_XX``.
+- Global signals:
 
-Four separate CompCor decompositions are performed to compute noise components: one temporal
-decomposition and three anatomical decompositions across three different noise ROIs: an eroded
-white matter compartment, an eroded CSF compartment, and a combined mask derived from the union
-of these.
-In general, only a subset of these decompositions should be used for further denoising.
-The original Behzadi aCompCor implementation ([Behzadi2007]_) can be applied using
-components from the combined ROI, while the more recent Muschelli implementation
-([Muschelli2014]_) can be applied using the WM and CSF ROIs.
-To determine the provenance of each component, consult the metadata file (see below).
+  - ``csf`` - the average signal within anatomically-derived eroded :abbr:`CSF (cerebro-spinal fluid)` mask;
+  - ``white_matter`` - the average signal within  the anatomically-derived eroded :abbr:`WM (white matter)` masks;
+  - ``global_signal`` -  the average signal within the brain mask.
 
-All these confounds can be used to perform *scrubbing* and *censoring* of outliers,
-in the subsequent first-level analysis when building the design matrix,
-and in group level analysis.
-*Spike regressors* for outlier censoring can also be generated from within fMRIPrep using
-the command line options ``--fd-spike-threshold`` and ``--dvars-spike-threshold``.
+**Parameter expansion of basic confounds**.
+The standard six-motion parameters may not account for all the variance related
+to head-motion.
+[Friston1996]_ and [Satterthwaite2013]_ proposed an expansion of the six fundamental
+head-motion parameters.
+To make this technique more accessible, *fMRIPrep* automatically calculates motion parameter
+expansion [Satterthwaite2013]_, providing time series corresponding to the first
+*temporal derivatives* of the six base motion parameters, together with their
+*quadratic terms*, resulting in the total 24 head motion parameters
+(six base motion parameters + six temporal derivatives of six motion parameters +
+12 quadratic terms of six motion parameters and their six temporal derivatives).
+Additionally, *fMRIPrep* returns temporal derivatives and quadratic terms for the 
+three global signals (``csf``, ``white_matter`` and ``global_signal``)
+to enable applying the 36-parameter denoising strategy proposed by [Satterthwaite2013]_.
+
+Derivatives and quadratic terms are stored under column names with
+suffixes: ``_derivative1`` and powers ``_power2``.
+These are calculated for head-motion estimates (``trans_`` and ``rot_``) and global signals
+(``white_matter``, ``csf``, and ``global_signal``).
+
+**Outlier detection**.
+These confounds can be used to detect potential outlier time points -
+frames with sudden and large motion or intensity spikes.
+
+- ``framewise_displacement`` - is a quantification of the estimated bulk-head motion calculated using
+  formula proposed by [Power2012]_;
+- ``dvars`` - the derivative of RMS variance over voxels (or :abbr:`DVARS (derivative of
+  RMS variance over voxels)`) [Power2012]_;
+- ``std_dvars`` - standardized :abbr:`DVARS (derivative of RMS variance over voxels)`;
+- ``non_steady_state_outlier_XX`` - columns indicate non-steady state volumes with a single
+  ``1`` value and ``0`` elsewhere (*i.e.*, there is one ``non_steady_state_outlier_XX`` column per
+  outlier/volume).
+
+Detected outliers can be further removed from time series using methods such as:
+volume *censoring* - entirely discarding problematic time points [Power2012]_,
+regressing signal from outlier points in denoising procedure, or
+including outlier points in the subsequent first-level analysis when building
+the design matrix.
+Averaged value of confound (for example, mean ``framewise_displacement``)
+can also be added as regressors in group level analysis [Yan2013]_.
+*Spike regressors* for outlier censoring can also be generated from within *fMRIPrep* using
+the command line options ``--fd-spike-threshold`` and ``--dvars-spike-threshold``
+(default: FD > 0.5 mm or DVARS > 1.5).
 Spike regressors are stored in separate ``motion_outlier_XX`` columns.
 
-Each confounds data file will also have a corresponding metadata file (``~desc-confounds_regressors.json``).
-Metadata files contain additional information about columns in the confounds TSV file: ::
+**Discrete cosine-basis regressors**.
+Physiological and instrumental (scanner) noise sources are generally present in fMRI
+data, typically taking the form of low-frequency signal drifts.
+To account for these drifts, temporal high-pass filtering is the immediate option.
+Alternatively, low-frequency regressors can be included in the statistical model to account
+for these confounding signals.
+Using the :abbr:`DCT (discrete cosine transform)` basis functions, *fMRIPrep* generates
+these low-frequency predictors:
 
-  {
-    "a_comp_cor_00": {
-      "CumulativeVarianceExplained": 0.1081970825,
-      "Mask": "combined",
-      "Method": "aCompCor",
-      "Retained": true,
-      "SingularValue": 25.8270209974,
-      "VarianceExplained": 0.1081970825
-    },
-    "dropped_0": {
-      "CumulativeVarianceExplained": 0.5965809597,
-      "Mask": "combined",
-      "Method": "aCompCor",
-      "Retained": false,
-      "SingularValue": 20.7955177198,
-      "VarianceExplained": 0.0701465624
+- ``cosine_XX`` - DCT-basis regressors.
+
+One characteristic of the cosine regressors is that they are identical for two different
+datasets with the same :abbr:`TR (repetition time)` and the same *effective* number of
+time points (*effective* length).
+It is relevant to mention *effective* because initial time points identified as *nonsteady
+states* are removed before generating the cosine regressors.
+
+.. caution::
+    If your analysis includes separate high-pass filtering, do not include 
+    ``cosine_XX`` regressors in your design matrix.
+
+.. admonition:: See also
+
+    - A detailed explanation about temporal high-pass filtering is provided with
+      the `BrainVoyager User Guide
+      <https://www.brainvoyager.com/bvqx/doc/UsersGuide/Preprocessing/TemporalHighPassFiltering.html>`_.
+    - `This comment
+      <https://github.com/poldracklab/fmriprep/issues/1899#issuecomment-561687460>`__
+      on an issue regarding CompCor regressors.
+
+**CompCor confounds**.
+:abbr:`CompCor (Component Based Noise Correction)` is a :abbr:`PCA (principal component analysis)`,
+hence component-based, noise pattern recognition method.
+In the method, principal components are calculated within an :abbr:`ROI (Region of Interest)`
+that is unlikely to include signal related to neuronal activity, such as :abbr:`CSF (cerebro-spinal fluid)`
+and :abbr:`WM (white matter)` masks.
+Signals extracted from CompCor components can be further regressed out from the fMRI data with a
+denoising procedure [Behzadi2007]_.
+
+- ``a_comp_cor_XX`` - additional noise components are calculated using anatomical :abbr:`CompCor
+  (Component Based Noise Correction)`;
+- ``t_comp_cor_XX`` - additional noise components are calculated using temporal :abbr:`CompCor
+  (Component Based Noise Correction)`.
+
+Four separate CompCor decompositions are performed to compute noise components: one temporal
+decomposition (``t_comp_cor_XX``) and three anatomical decompositions (``a_comp_cor_XX``) across
+three different noise ROIs: an eroded white matter mask, an eroded CSF mask, and a combined mask derived
+from the union of these.
+
+Each confounds data file will also have a corresponding metadata file
+(``~desc-confounds_regressors.json``).
+Metadata files contain additional information about columns in the confounds TSV file:
+
+.. code-block:: json
+
+    {
+      "a_comp_cor_00": {
+        "CumulativeVarianceExplained": 0.1081970825,
+        "Mask": "combined",
+        "Method": "aCompCor",
+        "Retained": true,
+        "SingularValue": 25.8270209974,
+        "VarianceExplained": 0.1081970825
+      },
+      "dropped_0": {
+        "CumulativeVarianceExplained": 0.5965809597,
+        "Mask": "combined",
+        "Method": "aCompCor",
+        "Retained": false,
+        "SingularValue": 20.7955177198,
+        "VarianceExplained": 0.0701465624
+      }
     }
-  }
 
 For CompCor decompositions, entries include:
 
   - ``Method``: anatomical or temporal CompCor.
-  - ``Mask``: denotes the ROI where the decomposition that generated the component
-    was performed: ``CSF``, ``WM``, or ``combined`` for anatomical CompCor.
+  - ``Mask``: denotes the :abbr:`ROI (region of interest)` where the decomposition that generated
+    the component was performed: ``CSF``, ``WM``, or ``combined`` for anatomical CompCor.
   - ``SingularValue``: singular value of the component.
   - ``VarianceExplained``: the fraction of variance explained by the component across the decomposition ROI mask.
   - ``CumulativeVarianceExplained``: the total fraction of variance explained by this particular component
@@ -232,14 +383,74 @@ For CompCor decompositions, entries include:
     Entries that are not saved in the data file for denoising are still stored in metadata with the
     ``dropped`` prefix.
 
+.. caution::
+    Only a subset of these CompCor decompositions should be used for further denoising.
+    The original Behzadi aCompCor implementation [Behzadi2007]_ can be applied using
+    components from the combined masks, while the more recent Muschelli implementation
+    [Muschelli2014]_ can be applied using
+    the :abbr:`WM (white matter)` and :abbr:`CSF (cerebro-spinal fluid)` masks.
+    To determine the provenance of each component, consult the metadata file (described above).
+
+    There are many valid ways of selecting CompCor components for further denoising.
+    In general, the components with the largest singular values (i.e., those that
+    explain the largest fraction of variance in the data) should be selected.
+    *fMRIPrep* outputs components in descending order of singular value.
+    Common approaches include selecting a fixed number of components (e.g., the
+    first 5 or 6), using a quantitative or qualitative criterion (e.g., elbow, broken
+    stick, or condition number), or using sufficiently many components that a minimum
+    cumulative fraction of variance is explained (e.g., 50%).
+
+.. caution::
+    Similarly, if you are using anatomical or temporal CompCor it may not make sense
+    to use the ``csf``, or ``white_matter`` global regressors -
+    see `#1049 <https://github.com/poldracklab/fmriprep/issues/1049>`_.
+    Conversely, using the overall ``global_signal`` confound in addition to CompCor's
+    regressors can be beneficial (see [Parkes2018]_).
+
+.. danger::
+    *fMRIPrep* does high-pass filtering before running anatomical or temporal CompCor.
+    Therefore, when using CompCor regressors, the corresponding ``cosine_XX`` regressors
+    should also be included in the design matrix.
+
+.. admonition:: See also
+
+    This didactic `discussion on NeuroStars.org
+    <https://neurostars.org/t/fmrirep-outputs-very-high-number-of-acompcors-up-to-1000/5451>`__
+    where Patrick Sadil gets into details about PCA and how that base technique applies
+    to CompCor in general and *fMRIPrep*'s implementation in particular.
+
+**AROMA confounds**.
+:abbr:`AROMA (Automatic Removal Of Motion Artifacts)` is an :abbr:`ICA (independent components analysis)`
+based procedure to identify confounding time series related to head-motion [Prium2015]_.
+ICA-AROMA can be enabled with the flag ``--use-aroma``.
+
+- ``aroma_motion_XX`` - the motion-related components identified by ICA-AROMA.
+
+.. danger::
+    If you are already using AROMA-cleaned data (``~desc-smoothAROMAnonaggr_bold.nii.gz``),
+    do not include ICA-AROMA confounds during your design specification or denoising procedure.
+
+    Additionally, as per [Hallquist2013]_ and [Lindquist2019]_, when using AROMA-cleaned data
+    most of the confound regressors should be recalculated (this feature is a work-in-progress,
+    follow up on `#1905 <https://github.com/poldracklab/fmriprep/issues/1905>`__).
+    Surprisingly, `our simulations
+    <https://github.com/poldracklab/fmriprep-notebooks/blob/9933a628dfb759dc73e61701c144d67898b92de0/05%20-%20Discussion%20AROMA%20confounds%20-%20issue-817%20%5BJ.%20Kent%5D.ipynb>`__
+    (with thanks to JD. Kent) suggest that using the confounds as currently calculated by
+    *fMRIPrep* --before denoising-- would be just fine.
+
+.. caution::
+    *Nonsteady-states* (or *dummy scans*) in the beginning of every run
+    are dropped **before** ICA-AROMA is performed.
+    Therefore, any subsequent analysis of ICA-AROMA outputs must drop the same
+    number of *nonsteady-states*.
+
 Confounds and "carpet"-plot on the visual reports
--------------------------------------------------
-
-Some of the estimated confounds, as well as a "carpet" visualization of the
-:abbr:`BOLD (blood-oxygen level-dependent)` time-series (see [Power2016]_).
-This plot is included for each run within the corresponding visual report.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The visual reports provide several sections per task and run to aid designing
+a denoising strategy for subsequent analysis.
+Some of the estimated confounds are plotted with a "carpet" visualization of the
+:abbr:`BOLD (blood-oxygen level-dependent)` time series [Power2016]_.
 An example of these plots follows:
-
 
 .. figure:: _static/sub-01_task-mixedgamblestask_run-01_bold_carpetplot.svg
     :scale: 100%
@@ -248,7 +459,7 @@ An example of these plots follows:
     global signals ('GlobalSignal', 'WM', 'GM'), standardized DVARS ('stdDVARS'),
     and framewise-displacement ('FramewiseDisplacement').
     At the bottom, a 'carpetplot' summarizing the BOLD series.
-    The colormap on the left-side of the carpetplot denotes signals located
+    The color-map on the left-side of the carpetplot denotes signals located
     in cortical gray matter regions (blue), subcortical gray matter (orange),
     cerebellum (green) and the union of white-matter and CSF compartments (red).
 
@@ -283,7 +494,7 @@ to which tissue-specific regressors correlate with global signal.
     :scale: 100%
 
     The left-hand panel shows the matrix of correlations among selected confound
-    time series as a heatmap.
+    time series as a heat-map.
     Note the zero-correlation blocks near the diagonal; these correspond to each
     CompCor decomposition.
     The right-hand panel displays the correlation of selected confound time series
@@ -291,15 +502,63 @@ to which tissue-specific regressors correlate with global signal.
     are those with greatest correlation with the global signal.
     This information can be used to diagnose partial volume effects.
 
+See implementation on :mod:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`.
+
 .. topic:: References
 
-  .. [Behzadi2007] Behzadi Y, Restom K, Liau J, Liu TT,
-     A component-based noise correction method (CompCor) for BOLD and perfusion-based fMRI.
-     NeuroImage. 2007. doi: `10.1016/j.neuroimage.2007.04.042 <http://doi.org/10.1016/j.neuroimage.2007.04.042>`_
+  .. [Behzadi2007] Behzadi Y, Restom K, Liau J, Liu TT, A component-based noise correction method
+     (CompCor) for BOLD and perfusion-based fMRI. NeuroImage. 2007.
+     doi:`10.1016/j.neuroimage.2007.04.042 <http://doi.org/10.1016/j.neuroimage.2007.04.042>`_
+
+  .. [Ciric2017] Ciric R, Wolf DH, Power JD, Roalf DR, Baum GL, Ruparel K, Shinohara RT, Elliott MA,
+     Eickhoff SB, Davatzikos C., Gur RC, Gur RE, Bassett DS, Satterthwaite TD.
+     Benchmarking of participant-level confound regression strategies for the control of motion
+     artifact in studies of functional connectivity. Neuroimage. 2017.
+     doi:`10.1016/j.neuroimage.2017.03.020 <https://doi.org/10.1016/j.neuroimage.2017.03.020>`_
+
+  .. [Greve2013] Greve DN, Brown GG, Mueller BA, Glover G, Liu TT,
+     A Survey of the Sources of Noise in fMRI. Psychometrika. 2013.
+     doi:`10.1007/s11336-013-9344-2 <http://dx.doi.org/10.1007/s11336-013-9344-2>`_
+
+  .. [Friston1996] Friston KJ1, Williams S, Howard R, Frackowiak RS, Turner R,
+     Movement‐Related effects in fMRI time‐series. Magnetic Resonance in Medicine. 1996.
+     doi:`10.1002/mrm.191035031 <https://doi.org/10.1002/mrm.1910350312>`_
+
+  .. [Hallquist2013] Hallquist MN, Hwang K, Luna B. The Nuisance of Nuisance Regression.
+     NeuroImage. 2013. doi:`10.1016/j.neuroimage.2013.05.116
+     <https://doi.org/10.1016/j.neuroimage.2013.05.116>`_
+
+  .. [Lindquist2019] Lindquist, MA, Geuter, S, and Wager, TD, Caffo, BS,
+     Modular preprocessing pipelines can reintroduce artifacts into fMRI data.
+     Human Brain Mapping. 2019. doi: `10.1002/hbm.24528
+     <https://doi.org/10.1002/hbm.24528>`_
 
   .. [Muschelli2014] Muschelli J, Nebel MB, Caffo BS, Barber AD, Pekar JJ, Mostofsky SH,
-     Reduction of motion-related artifacts in resting state fMRI using aCompCor.
-     NeuroImage. 2014. doi: `10.1016/j.neuroimage.2014.03.028 <http://doi.org/10.1016/j.neuroimage.2014.03.028>`_
+     Reduction of motion-related artifacts in resting state fMRI using aCompCor. NeuroImage. 2014.
+     doi:`10.1016/j.neuroimage.2014.03.028 <http://doi.org/10.1016/j.neuroimage.2014.03.028>`_
 
-  .. [Power2016] Power JD, A simple but useful way to assess fMRI scan qualities.
-     NeuroImage. 2016. doi: `10.1016/j.neuroimage.2016.08.009 <http://doi.org/10.1016/j.neuroimage.2016.08.009>`_
+  .. [Parkes2018] Parkes L, Fulcher B, Yücel M, Fornito A, An evaluation of the efficacy, reliability,
+     and sensitivity of motion correction strategies for resting-state functional MRI. NeuroImage. 2018.
+     doi:`10.1016/j.neuroimage.2017.12.073 <https://doi.org/10.1016/j.neuroimage.2017.12.073>`_
+
+  .. [Power2012] Power JD, Barnes KA, Snyder AZ, Schlaggar BL, Petersen, SA, Spurious but systematic
+     correlations in functional connectivity MRI networks arise from subject motion. NeuroImage. 2012.
+     doi:`10.1016/j.neuroimage.2011.10.018 <https://doi.org/10.1016/j.neuroimage.2011.10.018>`_
+
+  .. [Power2016] Power JD, A simple but useful way to assess fMRI scan qualities. NeuroImage. 2016.
+     doi:`10.1016/j.neuroimage.2016.08.009 <http://doi.org/10.1016/j.neuroimage.2016.08.009>`_
+
+  .. [Prium2015] Pruim RHR, Mennes M, van Rooij D, Llera A, Buitelaar JK, Beckmann CF.
+     ICA-AROMA: A robust ICA-based strategy for removing motion artifacts from fMRI data.
+     Neuroimage. 2015 May 15;112:267–77.
+     doi:`10.1016/j.neuroimage.2015.02.064 <https://doi.org/10.1016/j.neuroimage.2015.02.064>`_.
+
+  .. [Satterthwaite2013] Satterthwaite TD, Elliott MA, Gerraty RT, Ruparel K, Loughead J, Calkins ME,
+     Eickhoff SB, Hakonarson H, Gur RC, Gur RE, Wolf DH,
+     An improved framework for confound regression and filtering for control of motion artifact
+     in the preprocessing of resting-state functional connectivity data. NeuroImage. 2013. doi:`10.1016/j.neuroimage.2012.08.052 <https://doi.org/10.1016/j.neuroimage.2012.08.052>`_
+
+  .. [Yan2013] Yan CG, Cheung B, Kelly C, Colcombe S, Craddock RC, Di Martino A, Li Q, Zuo XN,
+     Castellanos FX, Milham MP, A comprehensive assessment of regional variation in the impact of
+     head micromovements on functional connectomics. NeuroImage. 2013.
+     doi:`10.1016/j.neuroimage.2013.03.004 <https://doi.org/10.1016/j.neuroimage.2013.03.004>`_

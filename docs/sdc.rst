@@ -95,24 +95,3 @@ References
                  Correction for geometric distortion in echo planar images from B0
                  field variations Magn. Reson. Med., 34 (1) (1995), pp. 65-73,
                  doi:`10.1002/mrm.1910340111 <https://doi.org/10.1002/mrm.1910340111>`_.
-
-.. [Hutton2002] Hutton et al., Image Distortion Correction in fMRI: A Quantitative
-                Evaluation, NeuroImage 16(1):217-240, 2002. doi:`10.1006/nimg.2001.1054
-                <https://doi.org/10.1006/nimg.2001.1054>`_.
-
-.. [Huntenburg2014] Huntenburg, J. M. (2014) Evaluating Nonlinear
-                    Coregistration of BOLD EPI and T1w Images. Berlin: Master
-                    Thesis, Freie Universität. `PDF
-                    <http://pubman.mpdl.mpg.de/pubman/item/escidoc:2327525:5/component/escidoc:2327523/master_thesis_huntenburg_4686947.pdf>`_.
-
-.. [Treiber2016] Treiber, J. M. et al. (2016) Characterization and Correction
-                 of Geometric Distortions in 814 Diffusion Weighted Images,
-                 PLoS ONE 11(3): e0152472. doi:`10.1371/journal.pone.0152472
-                 <https://doi.org/10.1371/journal.pone.0152472>`_.
-
-.. [Wang2017] Wang S, et al. (2017) Evaluation of Field Map and Nonlinear
-              Registration Methods for Correction of Susceptibility Artifacts
-              in Diffusion MRI. Front. Neuroinform. 11:17.
-              doi:`10.3389/fninf.2017.00017
-              <https://doi.org/10.3389/fninf.2017.00017>`_.
-

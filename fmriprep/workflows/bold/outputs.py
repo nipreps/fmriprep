@@ -1,4 +1,6 @@
-
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
+"""Writing out derivative files."""
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
@@ -6,10 +8,8 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces.cifti import CiftiNameSource
 from niworkflows.interfaces.surf import GiftiNameSource
 
+from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
-
-
-DEFAULT_MEMORY_MIN_GB = 0.01
 
 
 def init_func_derivatives_wf(
@@ -21,21 +21,32 @@ def init_func_derivatives_wf(
     output_spaces,
     standard_spaces,
     use_aroma,
+    fslr_density=None,
     name='func_derivatives_wf',
 ):
     """
-    Set up a battery of datasinks to store derivatives in the right location
+    Set up a battery of datasinks to store derivatives in the right location.
 
-    **Parameters**
-
+    Parameters
+    ----------
     bids_root : str
+        Original BIDS dataset path.
     cifti_output : bool
+        Whether the ``--cifti-output`` flag was set.
     freesurfer : bool
+        Whether FreeSurfer anatomical processing was run.
     metadata : dict
+        Metadata dictionary associated to the BOLD run.
     output_dir : str
+        Where derivatives should be written out to.
     output_spaces : OrderedDict
+        List of selected ``--output-spaces``.
     use_aroma : bool
+        Whether ``--use-aroma`` flag was set.
+    fslr_density : str, optional
+        Density of fsLR surface (32k or 59k)
     name : str
+        This workflow's identifier (default: ``func_derivatives_wf``).
 
     """
     from smriprep.workflows.outputs import _bids_relative
@@ -45,7 +56,7 @@ def init_func_derivatives_wf(
         'aroma_noise_ics', 'bold_aparc_std', 'bold_aparc_t1', 'bold_aseg_std',
         'bold_aseg_t1', 'bold_cifti', 'bold_mask_std', 'bold_mask_t1', 'bold_std',
         'bold_std_ref', 'bold_t1', 'bold_t1_ref', 'bold_native', 'bold_native_ref',
-        'bold_mask_native', 'cifti_variant', 'cifti_variant_key',
+        'bold_mask_native', 'cifti_variant', 'cifti_metadata', 'cifti_density',
         'confounds', 'confounds_metadata', 'melodic_mix', 'nonaggr_denoised_file',
         'source_file', 'surfaces', 'template']),
         name='inputnode')
@@ -189,26 +200,36 @@ def init_func_derivatives_wf(
 
     # fsaverage space
     if freesurfer and any(space.startswith('fs') for space in output_spaces.keys()):
+
+        extract_surf_info = pe.MapNode(niu.Function(function=_extract_surf_info),
+                                       iterfield=['in_file'], name='extract_surf_info',
+                                       mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
+        extract_surf_info.inputs.density = fslr_density
+
         name_surfs = pe.MapNode(GiftiNameSource(
-            pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii', template='space-{space}_hemi-{LR}.func'),
-            iterfield='in_file', name='name_surfs', mem_gb=DEFAULT_MEMORY_MIN_GB,
-            run_without_submitting=True)
+            pattern=r'(?P<LR>[lr])h.(?P<space>\w+).gii',
+            template='space-{space}{den}_hemi-{LR}.func'),
+            iterfield=['in_file', 'template_kwargs'], name='name_surfs',
+            mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
+
         ds_bold_surfs = pe.MapNode(DerivativesDataSink(base_directory=output_dir),
                                    iterfield=['in_file', 'suffix'], name='ds_bold_surfs',
                                    run_without_submitting=True,
                                    mem_gb=DEFAULT_MEMORY_MIN_GB)
 
         workflow.connect([
+            (inputnode, extract_surf_info, [('surfaces', 'in_file')]),
             (inputnode, name_surfs, [('surfaces', 'in_file')]),
+            (extract_surf_info, name_surfs, [('out', 'template_kwargs')]),
             (inputnode, ds_bold_surfs, [('source_file', 'source_file'),
                                         ('surfaces', 'in_file')]),
             (name_surfs, ds_bold_surfs, [('out_name', 'suffix')]),
         ])
 
         # CIFTI output
-        if cifti_output and 'MNI152NLin2009cAsym' in output_spaces:
+        if cifti_output:
             name_cifti = pe.MapNode(
-                CiftiNameSource(), iterfield=['variant'], name='name_cifti',
+                CiftiNameSource(), iterfield=['variant', 'density'], name='name_cifti',
                 mem_gb=DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
             cifti_bolds = pe.MapNode(
                 DerivativesDataSink(base_directory=output_dir, compress=False),
@@ -219,13 +240,14 @@ def init_func_derivatives_wf(
                 name='cifti_key', run_without_submitting=True,
                 mem_gb=DEFAULT_MEMORY_MIN_GB)
             workflow.connect([
-                (inputnode, name_cifti, [('cifti_variant', 'variant')]),
+                (inputnode, name_cifti, [('cifti_variant', 'variant'),
+                                         ('cifti_density', 'density')]),
                 (inputnode, cifti_bolds, [('bold_cifti', 'in_file'),
                                           ('source_file', 'source_file')]),
                 (name_cifti, cifti_bolds, [('out_name', 'suffix')]),
                 (name_cifti, cifti_key, [('out_name', 'suffix')]),
                 (inputnode, cifti_key, [('source_file', 'source_file'),
-                                        ('cifti_variant_key', 'in_file')]),
+                                        ('cifti_metadata', 'in_file')]),
             ])
 
     if use_aroma:
@@ -238,7 +260,7 @@ def init_func_derivatives_wf(
             name="ds_melodic_mix", run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_aroma_std = pe.Node(
-            DerivativesDataSink(base_directory=output_dir,
+            DerivativesDataSink(base_directory=output_dir, space='MNI152NLin6Asym',
                                 desc='smoothAROMAnonaggr', keep_dtype=True),
             name='ds_aroma_std', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
@@ -249,8 +271,15 @@ def init_func_derivatives_wf(
             (inputnode, ds_melodic_mix, [('source_file', 'source_file'),
                                          ('melodic_mix', 'in_file')]),
             (inputnode, ds_aroma_std, [('source_file', 'source_file'),
-                                       ('nonaggr_denoised_file', 'in_file'),
-                                       ('template', 'space')]),
+                                       ('nonaggr_denoised_file', 'in_file')]),
         ])
 
     return workflow
+
+
+def _extract_surf_info(in_file, density):
+    import os
+    info = {'den': ''}
+    if 'fsLR' in os.path.basename(in_file):
+        info['den'] = '_den-{}'.format(density)
+    return info

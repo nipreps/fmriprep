@@ -16,6 +16,6 @@ Unwarping
         displacements field map -- a nifti warp file compatible with ANTs (mm)
 
 """
-from sdcflows.workflows.unwarp import init_sdc_unwarp_wf, init_fmap_unwarp_report_wf
+from sdcflows.workflows.unwarp import init_sdc_unwarp_wf
 
-__all__ = ['init_sdc_unwarp_wf', 'init_fmap_unwarp_report_wf']
+__all__ = ['init_sdc_unwarp_wf']

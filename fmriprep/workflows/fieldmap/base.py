@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -34,6 +33,6 @@ False           False       False         HMC only
 
 
 """
-from sdcflows.workflows.base import init_sdc_wf
+from sdcflows.workflows.base import init_sdc_estimate_wf
 
-__all__ = ['init_sdc_wf']
+__all__ = ['init_sdc_estimate_wf']

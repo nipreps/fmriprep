@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -17,7 +16,6 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from ...interfaces import T2SMap
 from .util import init_skullstrip_bold_wf
 
-DEFAULT_MEMORY_MIN_GB = 0.01
 LOGGER = logging.getLogger('nipype.workflow')
 
 
@@ -25,45 +23,46 @@ LOGGER = logging.getLogger('nipype.workflow')
 def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads,
                      t2s_coreg=False, name='bold_t2s_wf'):
     """
+    Combine multiple echos of :abbr:`ME-EPI (multi-echo echo-planar imaging)`.
+
     This workflow wraps the `tedana`_ `T2* workflow`_ to optimally
     combine multiple echos and derive a T2* map for optional use as a
     coregistration target.
-
     The following steps are performed:
 
     #. :abbr:`HMC (head motion correction)` on individual echo files.
     #. Compute the T2* map
     #. Create an optimally combined ME-EPI time series
 
-    **Parameters**
-
-        echo_times
-            list of TEs associated with each echo
-        mem_gb : float
-            Size of BOLD file in GB
-        omp_nthreads : int
-            Maximum number of threads an individual process may use
-        t2s_coreg : bool
-            Use the calculated T2*-map for T2*-driven coregistration
-        name : str
-            Name of workflow (default: ``bold_t2s_wf``)
-
-    **Inputs**
-
-        bold_file
-            list of individual echo files
-
-    **Outputs**
-
-        bold
-            the optimally combined time series for all supplied echos
-        bold_mask
-            the binarized, skull-stripped adaptive T2* map
-        bold_ref_brain
-            the adaptive T2* map
-
     .. _tedana: https://github.com/me-ica/tedana
     .. _`T2* workflow`: https://tedana.readthedocs.io/en/latest/generated/tedana.workflows.t2smap_workflow.html#tedana.workflows.t2smap_workflow  # noqa
+
+    Parameters
+    ----------
+    echo_times
+        list of TEs associated with each echo
+    mem_gb : float
+        Size of BOLD file in GB
+    omp_nthreads : int
+        Maximum number of threads an individual process may use
+    t2s_coreg : bool
+        Use the calculated T2*-map for T2*-driven coregistration
+    name : str
+        Name of workflow (default: ``bold_t2s_wf``)
+
+    Inputs
+    ------
+    bold_file
+        list of individual echo files
+
+    Outputs
+    -------
+    bold
+        the optimally combined time series for all supplied echos
+    bold_mask
+        the binarized, skull-stripped adaptive T2* map
+    bold_ref_brain
+        the adaptive T2* map
 
     """
     workflow = Workflow(name=name)
