@@ -88,7 +88,7 @@ def init_fmriprep_wf(
             from collections import namedtuple, OrderedDict
             BIDSLayout = namedtuple('BIDSLayout', ['root'])
             from fmriprep.workflows.base import init_fmriprep_wf
-            from fmriprep.utils import Spaces
+            from niworkflows.utils.spaces import SpatialReferences
             os.environ['FREESURFER_HOME'] = os.getcwd()
             wf = init_fmriprep_wf(
                 anat_only=False,
@@ -118,10 +118,10 @@ def init_fmriprep_wf(
                 run_uuid='X',
                 skull_strip_fixed_seed=False,
                 skull_strip_template=('OASIS30ANTs', {}),
-                spaces=Spaces(output=[('MNI152Lin', {}),
-                                      ('fsaverage', {'density': '10k'}),
-                                      ('T1w', {}),
-                                      ('fsnative', {})]),
+                spaces=SpatialReferences([('MNI152Lin',),
+                                          ('fsaverage', {'density': '10k'}),
+                                          ('T1w',),
+                                          ('fsnative',)]),
                 subject_list=['fmripreptest'],
                 t2s_coreg=False,
                 task_id='',
@@ -188,7 +188,7 @@ def init_fmriprep_wf(
     skull_strip_fixed_seed : bool
         Do not use a random seed for skull-stripping - will ensure
         run-to-run replicability when used with --omp-nthreads 1
-    spaces : :obj:`Spaces`
+    spaces : :py:class:`~niworkflows.utils.spaces.SpatialReferences`
         Organize and filter spatial normalizations. Composed of internal and output lists
         of spaces in the form of (Template, Specs). `Template` is a string of either
         TemplateFlow IDs (e.g., ``MNI152Lin``, ``MNI152NLin6Asym``, ``MNI152NLin2009cAsym``, or

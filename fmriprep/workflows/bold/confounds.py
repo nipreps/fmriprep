@@ -652,6 +652,7 @@ in the corresponding confounds file.
         fields=['aroma_confounds', 'aroma_noise_ics', 'melodic_mix',
                 'nonaggr_denoised_file', 'aroma_metadata']), name='outputnode')
 
+    # extract out to BOLD base
     select_std = pe.Node(KeySelect(
         fields=['bold_mask_std', 'bold_std']),
         name='select_std', run_without_submitting=True, no_hash=True)

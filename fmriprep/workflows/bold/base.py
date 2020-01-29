@@ -866,7 +866,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ]),
         ])
 
-        if use_aroma and 'MNI152NLin6Asym' in spaces.unique():  # ICA-AROMA workflow
+        if use_aroma:  # ICA-AROMA workflow
             from .confounds import init_ica_aroma_wf
 
             ica_aroma_wf = init_ica_aroma_wf(
