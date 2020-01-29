@@ -3,4 +3,3 @@
 """fMRIPrep settings."""
 
 DEFAULT_MEMORY_MIN_GB = 0.01
-NONSTANDARD_REFERENCES = ['anat', 'T1w', 'run', 'func', 'sbref', 'fsnative']

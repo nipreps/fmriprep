@@ -39,17 +39,12 @@ def check_deps(workflow):
 
 def get_parser():
     """Build parser object"""
-    from smriprep.cli.utils import (
-        ParseTemplates,
-        output_space as _output_space,
-    )
+    from niworkflows.utils.spaces import (
+        Space, OutputSpaceAction, SpatialReferences, NONSTANDARD_REFERENCES)
     from templateflow.api import templates
     from packaging.version import Version
     from ..__about__ import __version__
-    from ..config import NONSTANDARD_REFERENCES
     from .version import check_latest, is_flagged
-
-    ParseTemplates.set_nonstandard_spaces(tuple(NONSTANDARD_REFERENCES))
 
     verstr = 'fmriprep v{}'.format(__version__)
     currentv = Version(__version__)
@@ -134,7 +129,7 @@ def get_parser():
              'option is not enabled, standard EPI-T1 coregistration is performed '
              'using the middle echo.')
     g_conf.add_argument(
-        '--output-spaces', nargs='+', action=ParseTemplates,
+        '--output-spaces', nargs='+', action=OutputSpaceAction, default=SpatialReferences(),
         help="""\
 Standard and non-standard spaces to resample anatomical and functional images to. \
 Standard spaces may be specified by the form \
@@ -195,7 +190,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html""" % (
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     g_ants.add_argument(
-        '--skull-strip-template', action='store', default='OASIS30ANTs', type=_output_space,
+        '--skull-strip-template', action='store', default='OASIS30ANTs', type=Space.from_string,
         help='select a template for skull-stripping with antsBrainExtraction')
     g_ants.add_argument('--skull-strip-fixed-seed', action='store_true',
                         help='do not use a random seed for skull-stripping - will ensure '
@@ -703,33 +698,32 @@ def parse_spaces(opts):
     Certain options require normalization to a space not explicitly defined by users.
     These spaces will not be included in the final outputs.
     """
-    from ..utils import Spaces
-    spaces = Spaces(output=opts.output_spaces)
-    target_spaces = spaces.unique()  # outputs + internal spaces
+    spaces = opts.output_spaces
 
     # These arguments implicitly signal expected output
-    if not target_spaces:
+    if not spaces:
         if not any((opts.use_aroma, opts.cifti_output)):
-            raise RuntimeError(
-                "No outputs are expected from this fMRIPrep run. Please add desired outputs using "
-                "`--output-spaces`"
+            warnings.warn(
+                "No outputs are expected from this fMRIPrep run. "
+                "Please add desired outputs using the `--output-spaces` flag"
             )
         # ensure a standard space is defined
-        spaces.add_space('MNI152NLin2009cAsym', output=False)
+        spaces += ("MNI152NLin2009cAsym",)
 
     # ERROR check if use_aroma was specified, but the correct template was not
-    if opts.use_aroma and 'MNI152NLin6Asym' not in target_spaces:
-        spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
+    if opts.use_aroma:
+        spaces.add('MNI152NLin6Asym')
 
     if opts.cifti_output:
-        grayords = {'91k': '32k', '170k': '59k'}  # CIFTI total grayords to surface densities
-        if 'fsLR' not in target_spaces:
-            spaces.add_space('fsLR', specs={'den': grayords[opts.cifti_output]}, output=False)
-        if 'MNI152NLin6Asym' not in target_spaces:
-            spaces.add_space('MNI152NLin6Asym', specs={'res': 2}, output=False)
+        grayords = {  # CIFTI grayordinates to corresponding fsLR densities
+            '91k': '32k',
+            '170k': '59k'
+        }
+        spaces.add(('fsLR', {'den': grayords[opts.cifti_output]}))
+        spaces.add(('MNI152NLin6Asym', {'res': 2}))
 
-    if 'fsLR' in target_spaces and 'fsaverge' not in target_spaces:
-        spaces.add_space('fsaverage', specs={'den': '164k'}, output=False)
+    if 'fsLR' in spaces.get_fs_spaces():
+        spaces.add(('fsaverage',))
 
     return spaces
 
