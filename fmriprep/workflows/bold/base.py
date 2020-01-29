@@ -361,8 +361,9 @@ def init_func_preproc_wf(
         fmaps = None
         if 'fieldmaps' not in ignore:
             fmaps = fieldmap_wrangler(layout, ref_file, use_syn=use_syn, force_syn=force_syn)
-        elif use_syn:
-            fmaps = {'syn': True}
+        elif use_syn or force_syn:
+            # If fieldmaps are not enabled, activate SyN-SDC in unforced (False) mode
+            fmaps = {'syn': False}
 
         # Short circuits: (True and True and (False or 'TooShort')) == 'TooShort'
         run_stc = (bool(metadata.get("SliceTiming")) and

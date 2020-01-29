@@ -1,3 +1,18 @@
+1.5.8 (January 28, 2020)
+========================
+Bug-fix release in the 1.5.x series.
+
+  * FIX: SyN SDC logic failing in ``--force-syn`` cases (#1951)
+
+1.5.7 (January 23, 2020)
+========================
+Bug-fix release in the 1.5.x series.
+
+This release fixes a bug specifically for T1w images with dimensions ≤256 voxels
+but a field-of-view >256mm.
+
+  * FIX: Calculate FoV with shape and zooms (poldracklab/smriprep#161)
+
 1.5.6 (January 22, 2020)
 ========================
 Bug-fix release in the 1.5.x series.
