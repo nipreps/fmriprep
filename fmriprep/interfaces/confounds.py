@@ -8,7 +8,6 @@ Handling confounds
     >>> import os
     >>> import pandas as pd
     >>> import numpy as np
-    >>> import nibabel as nib
 
 """
 import os
@@ -16,6 +15,7 @@ import re
 import shutil
 import numpy as np
 import pandas as pd
+import nibabel as nib
 from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
 from nipype.interfaces.base import (
@@ -32,7 +32,8 @@ class GrandMeanScalingInputSpec(BaseInterfaceInputSpec):
                    desc='input BOLD time-series (4D file)')
     in_mask = File(exists=True, mandatory=True,
                    desc='3D brain mask')
-    grand_mean = traits.Int(desc='grand mean scale value')
+    grand_mean = traits.Int(mandatory=True,
+                            desc='grand mean scale value')
 
 
 class GrandMeanScalingOutputSpec(TraitedSpec):
@@ -65,6 +66,8 @@ class GrandMeanScaling(SimpleInterface):
     >>> scale.inputs.in_mask = 'func_mask.nii.gz'
     >>> scale.inputs.grand_mean = 10000
     >>> res = scale.run()
+    >>> res.outputs.out_func == "func_scaled.nii.gz"
+    True
     >>> scaled_data = nib.load(res.outputs.out_func).get_fdata()
     >>> round(scaled_data[func_mask.astype(bool)].mean())
     10000.0
@@ -78,15 +81,25 @@ class GrandMeanScaling(SimpleInterface):
     output_spec = GrandMeanScalingOutputSpec
 
     def _run_interface(self, runtime):
-        import nibabel as nib
         func_img = nib.load(self.inputs.in_func)
         func_mask = nib.load(self.inputs.in_mask).get_fdata().astype(bool)
 
         func_data = func_img.get_fdata()
 
+        # ensure func_data and func_mask are the same shape
+        if func_data.shape != func_mask.shape:
+            msg = ("mask is not the same shape as the input_image.\n"
+                   "mask shape: {mshape} != image shape: {dshape}\n"
+                   "mask: {mask}\n"
+                   "image: {image}").format(mshape=func_mask.shape,
+                                            dshape=func_data.shape,
+                                            mask=self.inputs.in_mask,
+                                            image=self.inputs.in_func)
+            raise ValueError(msg)
+
         scaling_factor = self.inputs.grand_mean / func_data[func_mask].mean()
 
-        func_data[func_mask] = func_data[func_mask] * scaling_factor
+        func_data[func_mask] *= scaling_factor
 
         out = fname_presuffix(self.inputs.in_func, suffix='_scaled')
         func_img.__class__(func_data, func_img.affine, func_img.header).to_filename(out)
