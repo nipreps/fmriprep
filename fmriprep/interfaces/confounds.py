@@ -87,7 +87,7 @@ class GrandMeanScaling(SimpleInterface):
         func_data = func_img.get_fdata()
 
         # ensure func_data and func_mask are the same shape
-        if func_data.shape != func_mask.shape:
+        if func_data.shape[0:3] != func_mask.shape:
             msg = ("mask is not the same shape as the input_image.\n"
                    "mask shape: {mshape} != image shape: {dshape}\n"
                    "mask: {mask}\n"
