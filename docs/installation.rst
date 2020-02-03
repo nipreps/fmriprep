@@ -148,7 +148,7 @@ the ``fmriprep`` package:
 - FreeSurfer_ (version 6.0.1)
 - `ICA-AROMA <https://github.com/rhr-pruim/ICA-AROMA/>`_ (version 0.4.1-beta)
 - `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.1.0)
-- `connectome workbench <https://www.humanconnectome.org/software/connectome-workbench>`_ 
+- `connectome-workbench <https://www.humanconnectome.org/software/connectome-workbench>`_ (version 1.3.2-2~nd16.04+1)
 
 
 Not running on a local machine? - Data transfer
