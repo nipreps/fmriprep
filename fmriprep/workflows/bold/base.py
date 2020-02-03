@@ -67,6 +67,7 @@ def init_func_preproc_wf(
     fmap_demean,
     force_syn,
     freesurfer,
+    high_pass_filter,
     ignore,
     low_mem,
     medial_surface_nan,
@@ -107,6 +108,7 @@ def init_func_preproc_wf(
                 fmap_demean=True,
                 force_syn=True,
                 freesurfer=True,
+                high_pass_filter=0.08,
                 ignore=[],
                 low_mem=False,
                 medial_surface_nan=False,
@@ -153,6 +155,8 @@ def init_func_preproc_wf(
     freesurfer : bool
         Enable FreeSurfer functional registration (bbregister) and resampling
         BOLD series to FreeSurfer surface meshes.
+    high_pass_filter : float
+        Cutoff frequency for the high pass filter (in Hz)
     ignore : list
         Preprocessing steps to skip (may include "slicetiming", "fieldmaps")
     low_mem : bool
@@ -517,6 +521,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     bold_confounds_wf = init_bold_confs_wf(
         mem_gb=mem_gb['largemem'],
         metadata=metadata,
+        high_pass_filter=high_pass_filter,
         regressors_all_comps=regressors_all_comps,
         regressors_fd_th=regressors_fd_th,
         regressors_dvars_th=regressors_dvars_th,
