@@ -446,9 +446,9 @@ jobs:
           when: on_fail
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds005
-            find /tmp/ds005/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+            find /tmp/ds005/work \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
-            find /tmp/ds005/work_partial \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+            find /tmp/ds005/work_partial \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
 
       - store_artifacts:
@@ -586,7 +586,7 @@ jobs:
           when: on_fail
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds054
-            find /tmp/ds054/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+            find /tmp/ds054/work \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
       - store_artifacts:
           path: /tmp/ds054
@@ -699,7 +699,7 @@ jobs:
           when: on_fail
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/ds210
-            find /tmp/ds210/work \( -name "*.nii.gz" -or -name "*.nii" -or "*.gii" -or "*.h5" \) \
+            find /tmp/ds210/work \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
       - store_artifacts:
           path: /tmp/ds210

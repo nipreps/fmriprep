@@ -75,7 +75,7 @@ RUN apt-get update && \
                     fsl-mni152-templates=5.0.7-2 \
                     afni=16.2.07~dfsg.1-5~nd16.04+1 \
                     convert3d \
-                    connectome-workbench \
+                    connectome-workbench=1.3.2-2~nd16.04+1 \
                     git-annex-standalone && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
