@@ -29,6 +29,7 @@ from ...utils.meepi import combine_meepi_source
 
 from ...interfaces import DerivativesDataSink
 from ...interfaces.reports import FunctionalSummary
+from ...interfaces.confounds import GrandMeanScaling
 
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
@@ -495,6 +496,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                                    mem_gb=mem_gb['filesize'],
                                    omp_nthreads=omp_nthreads)
 
+    # apply grand mean scaling
+    GRAND_MEAN = 10000
+    scale = pe.Node(GrandMeanScaling(grand_mean=GRAND_MEAN),
+                    name='grand_mean_scale')
+
     # calculate BOLD registration to T1w
     bold_reg_wf = init_bold_reg_wf(name='bold_reg_wf',
                                    freesurfer=freesurfer,
@@ -684,8 +690,10 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         workflow.connect([
             (inputnode, func_derivatives_wf, [
                 ('bold_file', 'inputnode.source_file')]),
+            (bold_bold_trans_wf, scale, [
+                ('outputnode.bold', 'in_func'),
+                ('outputnode.bold_mask', 'in_mask')]),
             (bold_bold_trans_wf, bold_confounds_wf, [
-                ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_split, bold_t1_trans_wf, [
                 ('out_files', 'inputnode.bold_split')]),
@@ -697,12 +705,20 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 (('bold_file', combine_meepi_source), 'inputnode.source_file')]),
             (bold_bold_trans_wf, skullstrip_bold_wf, [
                 ('outputnode.bold', 'inputnode.in_file')]),
+            (bold_t2s_wf, scale, [
+                ('outputnode.bold', 'in_func'),
+                ('outputnode.bold_mask', 'in_mask')]),
             (bold_t2s_wf, bold_confounds_wf, [
-                ('outputnode.bold', 'inputnode.bold'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_t2s_wf, bold_t1_trans_wf, [
                 ('outputnode.bold', 'inputnode.bold_split')]),
         ])
+
+    # connect scaled bold to confounds_wf
+    workflow.connect([
+        (scale, bold_confounds_wf, [
+            ('out_func', 'inputnode.bold')]),
+    ])
 
     if fmaps:
         from sdcflows.workflows.outputs import init_sdc_unwarp_report_wf
@@ -763,7 +779,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         from niworkflows.interfaces.fixes import (
             FixHeaderApplyTransforms as ApplyTransforms
         )
-
+        # replace the bold_t1 with the grand mean scaled bold_t1
+        workflow.disconnect([
+            (bold_t1_trans_wf, outputnode, [('outputnode.bold_t1', 'bold_t1')]),
+        ])
+        scale_t1 = scale.clone(name='grand_mean_scale_t1')
         boldmask_to_t1w = pe.Node(
             ApplyTransforms(interpolation='MultiLabel', float=True),
             name='boldmask_to_t1w', mem_gb=0.1
@@ -775,14 +795,25 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('outputnode.bold_mask_t1', 'reference_image')]),
             (bold_bold_trans_wf if not multiecho else bold_t2s_wf, boldmask_to_t1w, [
                 ('outputnode.bold_mask', 'input_image')]),
+            (boldmask_to_t1w, scale_t1, [
+                ('output_image', 'in_mask')]),
+            (bold_t1_trans_wf, scale_t1, [
+                ('outputnode.bold_t1', 'in_func')]),
+            (scale_t1, outputnode, [
+                ('out_func', 'bold_t1')]),
             (boldmask_to_t1w, outputnode, [
                 ('output_image', 'bold_mask_t1')]),
         ])
 
     if set(['func', 'run', 'bold', 'boldref', 'sbref']).intersection(output_spaces):
+        scale_native = scale.clone(name='grand_mean_scale_native')
+
         workflow.connect([
-            (bold_bold_trans_wf, outputnode, [
-                ('outputnode.bold', 'bold_native')]),
+            (bold_bold_trans_wf, scale_native, [
+                ('outputnode.bold', 'in_func'),
+                ('outputnode.bold_mask', 'in_mask')]),
+            (scale_native, outputnode, [
+                ('out_func', 'bold_native')]),
             (bold_bold_trans_wf, func_derivatives_wf, [
                 ('outputnode.bold_ref', 'inputnode.bold_native_ref'),
                 ('outputnode.bold_mask', 'inputnode.bold_mask_native')]),
@@ -800,6 +831,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             use_compression=not low_mem,
             use_fieldwarp=bool(fmaps),
         )
+        scale_std = scale.clone(name='grand_mean_scale_std')
         workflow.connect([
             (inputnode, bold_std_trans_wf, [
                 ('joint_template', 'inputnode.templates'),
@@ -815,9 +847,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('outputnode.bold_mask', 'inputnode.bold_mask')]),
             (bold_sdc_wf, bold_std_trans_wf, [
                 ('outputnode.out_warp', 'inputnode.fieldwarp')]),
-            (bold_std_trans_wf, outputnode, [('outputnode.bold_std', 'bold_std'),
-                                             ('outputnode.bold_std_ref', 'bold_std_ref'),
+            (bold_std_trans_wf, scale_std, [('outputnode.bold_std', 'in_func'),
+                                            ('outputnode.bold_mask_std', 'in_mask')]),
+            (bold_std_trans_wf, outputnode, [('outputnode.bold_std_ref', 'bold_std_ref'),
                                              ('outputnode.bold_mask_std', 'bold_mask_std')]),
+            (scale_std, outputnode, [('out_func', 'bold_std')]),
         ])
 
         if freesurfer:
@@ -847,8 +881,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                     ('joint_template', 'keys')]),
                 (carpetplot_select_std, carpetplot_wf, [
                     ('std2anat_xfm', 'inputnode.std2anat_xfm')]),
+                (scale, carpetplot_wf, [('out_func', 'inputnode.bold')]),
                 (bold_bold_trans_wf if not multiecho else bold_t2s_wf, carpetplot_wf, [
-                    ('outputnode.bold', 'inputnode.bold'),
                     ('outputnode.bold_mask', 'inputnode.bold_mask')]),
                 (bold_reg_wf, carpetplot_wf, [
                     ('outputnode.itk_t1_to_bold', 'inputnode.t1_bold_xform')]),
@@ -874,11 +908,18 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         # Artifacts resampled in MNI space can only be sinked if they
         # were actually generated. See #1348.
         # Uses the parameterized outputnode to generate all outputs
+        scale_std2 = scale.clone(name='grand_mean_scale_std2')
         workflow.connect([
+            (bold_std_trans_wf, scale_std2, [
+                ('poutputnode.bold_std', 'in_func'),
+                ('poutputnode.bold_mask_std', 'in_mask')
+            ]),
+            (scale_std2, func_derivatives_wf, [
+                ('out_func', 'inputnode.bold_std'),
+            ]),
             (bold_std_trans_wf, func_derivatives_wf, [
                 ('poutputnode.templates', 'inputnode.template'),
                 ('poutputnode.bold_std_ref', 'inputnode.bold_std_ref'),
-                ('poutputnode.bold_std', 'inputnode.bold_std'),
                 ('poutputnode.bold_mask_std', 'inputnode.bold_mask_std'),
             ]),
         ])
@@ -912,8 +953,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ]),
             ])
             workflow.connect([
+                (scale_std, ica_aroma_wf, [
+                    ('out_func', 'inputnode.bold_std')]),
                 (bold_std_trans_wf, ica_aroma_wf, [
-                    ('outputnode.bold_std', 'inputnode.bold_std'),
                     ('outputnode.bold_mask_std', 'inputnode.bold_mask_std'),
                     ('outputnode.templates', 'inputnode.templates')]),
                 (inputnode, ica_aroma_wf, [
@@ -954,7 +996,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id'),
                 ('t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm')]),
-            (bold_t1_trans_wf, bold_surf_wf, [('outputnode.bold_t1', 'inputnode.source_file')]),
+            (scale_t1, bold_surf_wf, [('out_func', 'inputnode.source_file')]),
             (bold_surf_wf, outputnode, [('outputnode.surfaces', 'surfaces')]),
         ])
 
@@ -982,9 +1024,10 @@ data and volume-sampled data, were also generated.
                 gen_cifti.inputs.surface_density = fslr_density
 
             workflow.connect([
-                (bold_std_trans_wf, select_std, [
-                    ('outputnode.templates', 'keys'),
+                (scale_std, select_std, [
                     ('outputnode.bold_std', 'bold_std')]),
+                (bold_std_trans_wf, select_std, [
+                    ('outputnode.templates', 'keys')]),
                 (bold_surf_wf, order_surfs, [('outputnode.surfaces', 'in_surfs')]),
                 (order_surfs, gen_cifti, [('surface_files', 'surface_bolds')]),
                 (inputnode, gen_cifti, [('subjects_dir', 'subjects_dir')]),
