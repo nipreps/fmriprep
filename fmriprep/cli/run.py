@@ -191,7 +191,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html""" % (
         '--dvars-spike-threshold', required=False, action='store', default=1.5, type=float,
         help='Threshold for flagging a frame as an outlier on the basis of standardised '
              'DVARS')
-    g_confounds(
+    g_confounds.add_argument(
         '--high-pass-filter', required=False, action='store', default=0.0078125, type=float,
         help='cutoff frequency for the high pass filter (in Hz)')
 
