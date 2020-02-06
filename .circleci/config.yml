@@ -394,7 +394,7 @@ jobs:
                 --fs-subjects-dir /tmp/ds005/freesurfer \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --use-aroma \
-                --high-pass-filter \
+                --high-pass-filter 0.008 \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsLR MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
