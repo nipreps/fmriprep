@@ -40,6 +40,7 @@ from ...interfaces import (
 
 
 def init_bold_confs_wf(
+    high_pass_filter,
     mem_gb,
     metadata,
     regressors_all_comps,
@@ -81,6 +82,7 @@ def init_bold_confs_wf(
 
             from fmriprep.workflows.bold.confounds import init_bold_confs_wf
             wf = init_bold_confs_wf(
+                high_pass_filter=0.08,
                 mem_gb=1,
                 metadata={},
                 regressors_all_comps=False,
@@ -90,6 +92,8 @@ def init_bold_confs_wf(
 
     Parameters
     ----------
+    high_pass_filter : float
+        Cutoff frequency for the high pass filter (in Hz)
     mem_gb : float
         Size of BOLD file in GB - please note that this size
         should be calculated after resamplings that may extend
@@ -217,18 +221,19 @@ were annotated as motion outliers.
                     name="fdisp", mem_gb=mem_gb)
 
     # a/t-CompCor
+    high_pass_cutoff = 1 / high_pass_filter
     mrg_lbl_cc = pe.Node(niu.Merge(3), name='merge_rois_cc', run_without_submitting=True)
 
     tcompcor = pe.Node(
         TCompCor(components_file='tcompcor.tsv', header_prefix='t_comp_cor_', pre_filter='cosine',
                  save_pre_filter=True, save_metadata=True, percentile_threshold=.05,
-                 failure_mode='NaN'),
+                 failure_mode='NaN', high_pass_cutoff=high_pass_cutoff),
         name="tcompcor", mem_gb=mem_gb)
 
     acompcor = pe.Node(
         ACompCor(components_file='acompcor.tsv', header_prefix='a_comp_cor_', pre_filter='cosine',
                  save_pre_filter=True, save_metadata=True, mask_names=['combined', 'CSF', 'WM'],
-                 merge_method='none', failure_mode='NaN'),
+                 merge_method='none', failure_mode='NaN', high_pass_cutoff=high_pass_cutoff),
         name="acompcor", mem_gb=mem_gb)
 
     # Set number of components

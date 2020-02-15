@@ -45,6 +45,7 @@ def init_fmriprep_wf(
     force_syn,
     freesurfer,
     fs_subjects_dir,
+    high_pass_filter,
     hires,
     ignore,
     layout,
@@ -104,6 +105,7 @@ def init_fmriprep_wf(
                 force_syn=True,
                 freesurfer=True,
                 fs_subjects_dir=None,
+                high_pass_filter=0.08,
                 hires=True,
                 ignore=[],
                 layout=BIDSLayout('.'),
@@ -160,6 +162,8 @@ def init_fmriprep_wf(
         **Temporary**: Always run SyN-based SDC
     freesurfer : bool
         Enable FreeSurfer surface reconstruction (may increase runtime)
+    high_pass_filter : float
+        Cutoff frequency for the high pass filter (in Hz)
     hires : bool
         Enable sub-millimeter preprocessing in FreeSurfer
     ignore : list
@@ -249,6 +253,7 @@ def init_fmriprep_wf(
             fmap_demean=fmap_demean,
             force_syn=force_syn,
             freesurfer=freesurfer,
+            high_pass_filter=high_pass_filter,
             hires=hires,
             ignore=ignore,
             layout=layout,
@@ -301,6 +306,7 @@ def init_single_subject_wf(
     fmap_demean,
     force_syn,
     freesurfer,
+    high_pass_filter,
     hires,
     ignore,
     layout,
@@ -358,6 +364,7 @@ def init_single_subject_wf(
                 fmap_demean=True,
                 force_syn=True,
                 freesurfer=True,
+                high_pass_filter=0.08,
                 hires=True,
                 ignore=[],
                 layout=BIDSLayout('.'),
@@ -416,6 +423,8 @@ def init_single_subject_wf(
         **Temporary**: Always run SyN-based SDC
     freesurfer : bool
         Enable FreeSurfer surface reconstruction (may increase runtime)
+    high_pass_filter : float
+        Cutoff frequency for the high pass filter (in Hz)
     hires : bool
         Enable sub-millimeter preprocessing in FreeSurfer
     ignore : list
@@ -620,6 +629,7 @@ It is released under the [CC0]\
             fmap_demean=fmap_demean,
             force_syn=force_syn,
             freesurfer=freesurfer,
+            high_pass_filter=high_pass_filter,
             ignore=ignore,
             layout=layout,
             low_mem=low_mem,

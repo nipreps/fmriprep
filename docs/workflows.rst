@@ -35,6 +35,7 @@ is presented below:
         fmap_demean=True,
         force_syn=True,
         freesurfer=True,
+        high_pass_filter=0.008,
         hires=True,
         ignore=[],
         layout=BIDSLayout('.'),
@@ -300,6 +301,7 @@ BOLD preprocessing
         fmap_demean=True,
         force_syn=True,
         freesurfer=True,
+        high_pass_filter=0.008,
         ignore=[],
         low_mem=False,
         medial_surface_nan=False,
@@ -565,6 +567,7 @@ Confounds estimation
 
     from fmriprep.workflows.bold.confounds import init_bold_confs_wf
     wf = init_bold_confs_wf(
+        high_pass_filter=0.008,
         name="discover_wf",
         mem_gb=1,
         metadata={"RepetitionTime": 2.0,

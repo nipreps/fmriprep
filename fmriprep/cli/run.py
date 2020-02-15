@@ -184,6 +184,9 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html""" % (currentv.base_version
         '--dvars-spike-threshold', required=False, action='store', default=1.5, type=float,
         help='Threshold for flagging a frame as an outlier on the basis of standardised '
              'DVARS')
+    g_confounds.add_argument(
+        '--high-pass-filter', required=False, action='store', default=0.0078125, type=float,
+        help='cutoff frequency for the high pass filter (in Hz)')
 
     #  ANTs options
     g_ants = parser.add_argument_group('Specific options for ANTs registrations')
@@ -660,6 +663,7 @@ def build_workflow(opts, retval):
         force_syn=opts.force_syn,
         freesurfer=opts.run_reconall,
         fs_subjects_dir=opts.fs_subjects_dir,
+        high_pass_filter=opts.high_pass_filter,
         hires=opts.hires,
         ignore=opts.ignore,
         layout=layout,
