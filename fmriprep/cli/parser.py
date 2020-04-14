@@ -350,8 +350,8 @@ license file at several paths, in this order: 1) command line argument ``--fs-li
     # This may need to be revisited if people try to use batch plugins
     if 1 < config.nipype.nprocs < config.nipype.omp_nthreads:
         build_log.warning(
-            'Per-process threads (--omp-nthreads=%d) exceed total '
-            'threads (--nthreads/--n_cpus=%d)', config.nipype.omp_nthread, config.nipype.nprocs)
+            f'Per-process threads (--omp-nthreads={config.nipype.omp_nthreads}) exceed '
+            f'total threads (--nthreads/--n_cpus={config.nipype.nprocs})')
 
     # Inform the user about the risk of using brain-extracted images
     if config.workflow.skull_strip_t1w == "auto":
