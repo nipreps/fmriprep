@@ -1,0 +1,22 @@
+This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).
+Accession #: ds005
+Description: Mixed-gambles task
+
+Please cite the following references if you use these data:
+
+Tom, S.M., Fox, C.R., Trepel, C., Poldrack, R.A. (2007). The neural basis of loss aversion in decision-making under risk. Science, 315(5811):515-8
+
+
+Release history:
+10/06/2011: initial release
+3/21/2013: Updated release with QA information
+2/18/2016: Update orientation information in nifti header for improved left-right determination
+
+This dataset is made available under the Public Domain Dedication and License 
+v1.0, whose full text can be found at 
+http://www.opendatacommons.org/licenses/pddl/1.0/. 
+We hope that all users will follow the ODC Attribution/Share-Alike 
+Community Norms (http://www.opendatacommons.org/norms/odc-by-sa/); 
+in particular, while not legally required, we hope that all users 
+of the data will acknowledge the OpenfMRI project and NSF Grant 
+OCI-1131441 (R. Poldrack, PI) in any publications.

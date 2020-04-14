@@ -1,116 +1,256 @@
 {
+  "title": "fMRIPrep: a robust preprocessing pipeline for functional MRI",
+  "description": "<p>fMRIPrep is a robust and easy-to-use pipeline for preprocessing of diverse fMRI data. The transparent workflow dispenses of manual intervention, thereby ensuring the reproducibility of the results.</p>",
+  "contributors": [
+    {
+      "affiliation": "Department of Psychology, Florida International University",
+      "name": "Salo, Taylor",
+      "orcid": "0000-0001-9813-3167",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "University of Texas at Austin",
+      "name": "de la Vega, Alejandro",
+      "orcid": "0000-0001-9062-3778",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toru\u0144",
+      "name": "Finc, Karolina",
+      "orcid": "0000-0002-0157-030X",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Feingold, Franklin",
+      "orcid": "0000-0002-6533-2909",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "Urchs, Sebastian",
+      "orcid": "0000-0001-5504-8579",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Computational Neuroimaging Lab, BioCruces Health Research Institute",
+      "name": "Erramuzpe, Asier",
+      "orcid": "0000-0002-9402-2184",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "CENIR, INSERM U1127, CNRS UMR 7225, UPMC Univ Paris 06 UMR S 1127, Institut du Cerveau et de la Moelle \u00e9pini\u00e8re, ICM, F-75013, Paris, France",
+      "name": "Valabregue, Romain",
+      "orcid": "0000-0002-1814-9570",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Columbia University",
+      "name": "Jacoby, Nir",
+      "orcid": "0000-0001-7936-9991",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, University of California, Berkeley",
+      "name": "Lurie, Daniel J.",
+      "orcid": "0000-0001-8012-6399",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Child Mind Institute",
+      "name": "Heinsfeld, Anibal S.",
+      "orcid": "0000-0002-2050-0614",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Dartmouth College: Hanover, NH, United States",
+      "name": "Halchenko, Yaroslav O.",
+      "orcid": "0000-0003-3456-2493",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
+      "name": "Sneve, Markus H.",
+      "orcid": "0000-0001-7644-7915",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "McLean Hospital Brain Imaging Center, MA, USA",
+      "name": "Frederick, Blaise B.",
+      "orcid": "0000-0001-5832-5279",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychiatry, McGill University",
+      "name": "Devenyi, Grabriel A.",
+      "orcid": "0000-0002-7766-1187",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "URPP Dynamics of Healthy Aging, University of Zurich",
+      "name": "Liem, Franz",
+      "orcid": "0000-0003-0646-4810",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Donders Institute for Brain, Cognition and Behaviour, Radboud University Nijmegen",
+      "name": "Gomez, Daniel E. P.",
+      "orcid": "0000-0001-8635-021X",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Perelman School of Medicine, University of Pennsylvania, PA, USA",
+      "name": "Adebimpe, Azeez",
+      "orcid": "0000-0001-9049-0135",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Center for Brain Imaging, New York University",
+      "name": "Velasco, Pablo",
+      "orcid": "0000-0002-5749-6049",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, New York University, NY, USA",
+      "name": "Groen, Iris I. A.",
+      "orcid": "0000-0002-5536-6128",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Dartmouth College: Hanover, NH, United States",
+      "name": "Ma, Feilong",
+      "orcid": "0000-0002-6838-3971",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Neuroscience Program, University of Iowa",
+      "name": "Rivera-Dompenciel, Adriana",
+      "orcid": "0000-0002-3339-4857",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
+      "name": "Amlien, Inge K.",
+      "orcid": "0000-0002-8508-9088",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Perelman School of Medicine, University of Pennsylvania, PA, USA",
+      "name": "Cieslak, Matthew",
+      "orcid": "0000-0002-1931-4734",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Max Planck Institute for Empirical Aesthetics",
+      "name": "Isik, Ayse Ilkay",
+      "orcid": "0000-0002-1652-9297",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Moodie, Craig A.",
+      "orcid": "0000-0003-0867-1469",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Cyceron, UMS 3408 (CNRS - UCBN), France",
+      "name": "Naveau, Mika\u00ebl",
+      "orcid": "0000-0001-6948-9068",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Perelman School of Medicine, University of Pennsylvania, PA, USA",
+      "name": "Satterthwaite, Theodore D.",
+      "orcid": "0000-0001-7072-9399",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Speech & Hearing Bioscience & Technology Program, Harvard University",
+      "name": "Sitek, Kevin R.",
+      "orcid": "0000-0002-2172-5786",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Max Planck UCL Centre for Computational Psychiatry and Ageing Research, University College London",
+      "name": "Stoji\u0107, Hrvoje",
+      "orcid": "0000-0002-9699-9052",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Thompson, William H",
+      "orcid": "0000-0002-0533-6035",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
+      "name": "Tooley, Ursula A.",
+      "orcid": "0000-0001-6377-3885",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Wright, Jessey",
+      "orcid": "0000-0001-5504-8579",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "State Key Laboratory of Cognitive Neuroscience and Learning, Beijing Normal University",
+      "name": "Ye, Zhifang",
+      "orcid": "0000-0003-0489-2619",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "McGovern Institute for Brain Research, MIT, MA, USA",
+      "name": "Ghosh, Satrajit S.",
+      "orcid": "0000-0002-5312-6729",
+      "type": "Researcher"
+    }
+  ],
   "creators": [
     {
-      "name": "Esteban, Oscar",
       "affiliation": "Department of Psychology, Stanford University",
+      "name": "Esteban, Oscar",
       "orcid": "0000-0001-8435-6191"
     },
     {
-      "name": "Blair, Ross",
-      "affiliation": "Department of Psychology, Stanford University"
-    },
-    {
-      "name": "Markiewicz, Christopher J.",
       "affiliation": "Department of Psychology, Stanford University",
+      "name": "Markiewicz, Christopher J.",
       "orcid": "0000-0002-6533-164X"
     },
     {
-      "name": "Berleant, Shoshana L.",
-      "affiliation": "Department of Psychology, Stanford University"
-    },
-    {
-      "name": "Moodie, Craig",
-      "affiliation": "Stanford University",
-      "orcid": "0000-0003-0867-1469"
-    },
-    {
-      "name": "Ma, Feilong",
-      "affiliation": "Dartmouth College",
-      "orcid": "0000-0002-6838-3971"
-    },
-    {
-      "name": "Isik, Ayse Ilkay",
-      "affiliation": "Max Planck Institute for Empirical Aesthetics",
-      "orcid": "0000-0002-1652-9297"
-    },
-    {
-      "name": "Erramuzpe, Asier",
-      "affiliation": "Computational Neuroimaging Lab, BioCruces Health Research Institute",
-      "orcid": "0000-0002-9402-2184"
-    },
-    {
-      "name": "Kent, James D.",
-      "affiliation": "Neuroscience Program, University of Iowa",
-      "orcid": "0000-0002-4892-2659"
-    },
-    {
-      "name": "Goncalves, Mathias",
-      "affiliation": "MIT",
-      "orcid": "0000-0002-7252-7771"
-    },
-    {
-      "name": "DuPre, Elizabeth",
       "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "DuPre, Elizabeth",
       "orcid": "0000-0003-1358-196X"
     },
     {
-      "name": "Sitek, Kevin R.",
-      "affiliation": "Speech & Hearing Bioscience & Technology Program, Harvard University",
-      "orcid": "0000-0002-2172-5786"
-    },
-    {
-      "name": "Gomez, Daniel E. P.",
-      "affiliation": "Donders Institute for Brain, Cognition and Behaviour, Radboud University Nijmegen",
-      "orcid": "0000-0001-8635-021X"
-    },
-    {
-      "name": "Lurie, Daniel J.",
-      "affiliation": "Department of Psychology, University of California, Berkeley",
-      "orcid": "0000-0001-8012-6399"
-    },
-    {
-      "name": "Ye, Zhifang",
-      "affiliation": "State Key Laboratory of Cognitive Neuroscience and Learning, Beijing Normal University",
-      "orcid": "0000-0003-0489-2619"
-    },
-    {
-      "name": "Salo, Taylor",
-      "affiliation": "Department of Psychology, Florida International University",
-      "orcid": "0000-0001-9813-3167"
-    },
-    {
-      "name": "Valabregue, Romain",
-      "affiliation": "Cenir, ICM, Paris",
-      "orcid": "0000-0002-1814-9570"
-    },
-    {
-      "name": "Amlien, Inge K.",
-      "affiliation": "Department of Psychology, University of Oslo",
-      "orcid": "0000-0002-8508-9088"
-    },
-    {
-      "name": "Liem, Franz",
-      "affiliation": "University of Zurich",
-      "orcid": "0000-0003-0646-4810"
-    },
-    {
-      "name": "Jacoby, Nir",
-      "affiliation": "Department of Psychology, Columbia University",
-      "orcid": "0000-0001-7936-9991"
-    },
-    {
-      "name": "Stojic, Hrvoje",
-      "affiliation": "University College London",
-      "orcid": "0000-0002-9699-9052"
-    },
-    {
-      "name": "Poldrack, Russell A.",
       "affiliation": "Department of Psychology, Stanford University",
+      "name": "Goncalves, Mathias",
+      "orcid": "0000-0002-7252-7771"
+    },
+    {
+      "affiliation": "Neuroscience Program, University of Iowa",
+      "name": "Kent, James D.",
+      "orcid": "0000-0002-4892-2659"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Ciric, Rastko",
+      "orcid": "0000-0001-6347-7939"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Blair, Ross W.",
+      "orcid": "0000-0003-3007-1056"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Poldrack, Russell A.",
       "orcid": "0000-0001-6755-0259"
     },
     {
-      "name": "Gorgolewski, Krzysztof J.",
       "affiliation": "Department of Psychology, Stanford University",
+      "name": "Gorgolewski, Krzysztof J.",
       "orcid": "0000-0003-3321-7583"
     }
   ],
@@ -123,5 +263,17 @@
     "BIDS"
   ],
   "license": "BSD-3-Clause",
+  "related_identifiers": [
+    {
+      "identifier": "https://fmriprep.org",
+      "relation": "documents",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1038/s41592-018-0235-4",
+      "relation": "isPartOf",
+      "scheme": "doi"
+    }
+  ],
   "upload_type": "software"
 }

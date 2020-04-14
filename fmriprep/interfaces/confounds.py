@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Handling confounds
-^^^^^^^^^^^^^^^^^^
+Handling confounds.
+
+    .. testsetup::
 
     >>> import os
     >>> import pandas as pd
@@ -43,7 +43,7 @@ class GatherConfoundsOutputSpec(TraitedSpec):
 
 
 class GatherConfounds(SimpleInterface):
-    """
+    r"""
     Combine various sources of confounds in one TSV file
 
     .. testsetup::
@@ -98,13 +98,16 @@ class GatherConfounds(SimpleInterface):
 class ICAConfoundsInputSpec(BaseInterfaceInputSpec):
     in_directory = Directory(mandatory=True, desc='directory where ICA derivatives are found')
     skip_vols = traits.Int(desc='number of non steady state volumes identified')
-    ignore_aroma_err = traits.Bool(False, usedefault=True, desc='ignore ICA-AROMA errors')
+    err_on_aroma_warn = traits.Bool(False, usedefault=True, desc='raise error if aroma fails')
 
 
 class ICAConfoundsOutputSpec(TraitedSpec):
-    aroma_confounds = File(exists=True, desc='output confounds file extracted from ICA-AROMA')
+    aroma_confounds = traits.Either(
+        None,
+        File(exists=True, desc='output confounds file extracted from ICA-AROMA'))
     aroma_noise_ics = File(exists=True, desc='ICA-AROMA noise components')
     melodic_mix = File(exists=True, desc='melodic mix file')
+    aroma_metadata = File(exists=True, desc='tabulated ICA-AROMA metadata')
 
 
 class ICAConfounds(SimpleInterface):
@@ -114,23 +117,28 @@ class ICAConfounds(SimpleInterface):
     output_spec = ICAConfoundsOutputSpec
 
     def _run_interface(self, runtime):
-        aroma_confounds, motion_ics_out, melodic_mix_out = _get_ica_confounds(
-            self.inputs.in_directory, self.inputs.skip_vols, newpath=runtime.cwd)
+        (aroma_confounds,
+         motion_ics_out,
+         melodic_mix_out,
+         aroma_metadata) = _get_ica_confounds(self.inputs.in_directory,
+                                              self.inputs.skip_vols,
+                                              newpath=runtime.cwd)
 
-        if aroma_confounds is not None:
-            self._results['aroma_confounds'] = aroma_confounds
-        elif not self.inputs.ignore_aroma_err:
+        if self.inputs.err_on_aroma_warn and aroma_confounds is None:
             raise RuntimeError('ICA-AROMA failed')
+
+        aroma_confounds = self._results['aroma_confounds'] = aroma_confounds
 
         self._results['aroma_noise_ics'] = motion_ics_out
         self._results['melodic_mix'] = melodic_mix_out
+        self._results['aroma_metadata'] = aroma_metadata
         return runtime
 
 
 def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
                       tcompcor=None, acompcor=None, cos_basis=None,
                       motion=None, aroma=None, newpath=None):
-    """
+    r"""
     Load confounds from the filenames, concatenate together horizontally
     and save new file.
 
@@ -153,7 +161,7 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
     """
 
     def less_breakable(a_string):
-        ''' hardens the string to different envs (i.e. case insensitive, no whitespace, '#' '''
+        ''' hardens the string to different envs (i.e., case insensitive, no whitespace, '#' '''
         return ''.join(a_string.split()).strip('#')
 
     # Taken from https://stackoverflow.com/questions/1175208/
@@ -216,10 +224,12 @@ def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
     # load the txt files from ICA-AROMA
     melodic_mix = os.path.join(ica_out_dir, 'melodic.ica/melodic_mix')
     motion_ics = os.path.join(ica_out_dir, 'classified_motion_ICs.txt')
+    aroma_metadata = os.path.join(ica_out_dir, 'classification_overview.txt')
 
     # Change names of motion_ics and melodic_mix for output
     melodic_mix_out = os.path.join(newpath, 'MELODICmix.tsv')
     motion_ics_out = os.path.join(newpath, 'AROMAnoiseICs.csv')
+    aroma_metadata_out = os.path.join(newpath, 'classification_overview.tsv')
 
     # copy metion_ics file to derivatives name
     shutil.copyfile(motion_ics, motion_ics_out)
@@ -236,18 +246,27 @@ def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
     # save melodic_mix_arr
     np.savetxt(melodic_mix_out, melodic_mix_arr, delimiter='\t')
 
+    # process the metadata so that the IC column entries match the BIDS name of
+    # the regressor
+    aroma_metadata = pd.read_csv(aroma_metadata, sep='\t')
+    aroma_metadata['IC'] = [
+        'aroma_motion_{}'.format(name) for name in aroma_metadata['IC']]
+    aroma_metadata.columns = [
+        re.sub(r'[ |\-|\/]', '_', c) for c in aroma_metadata.columns]
+    aroma_metadata.to_csv(aroma_metadata_out, sep='\t', index=False)
+
     # Return dummy list of ones if no noise compnents were found
     if motion_ic_indices.size == 0:
         LOGGER.warning('No noise components were classified')
-        return None, motion_ics_out, melodic_mix_out
+        return None, motion_ics_out, melodic_mix_out, aroma_metadata_out
 
-    # the "good" ics, (e.g. not motion related)
+    # the "good" ics, (e.g., not motion related)
     good_ic_arr = np.delete(melodic_mix_arr, motion_ic_indices, 1).T
 
     # return dummy lists of zeros if no signal components were found
     if good_ic_arr.size == 0:
         LOGGER.warning('No signal components were classified')
-        return None, motion_ics_out, melodic_mix_out
+        return None, motion_ics_out, melodic_mix_out, aroma_metadata_out
 
     # transpose melodic_mix_arr so x refers to the correct dimension
     aggr_confounds = np.asarray([melodic_mix_arr.T[x] for x in motion_ic_indices])
@@ -258,13 +277,13 @@ def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
                  columns=['aroma_motion_%02d' % (x + 1) for x in motion_ic_indices]).to_csv(
         aroma_confounds, sep="\t", index=None)
 
-    return aroma_confounds, motion_ics_out, melodic_mix_out
+    return aroma_confounds, motion_ics_out, melodic_mix_out, aroma_metadata_out
 
 
 class FMRISummaryInputSpec(BaseInterfaceInputSpec):
     in_func = File(exists=True, mandatory=True,
-                   desc='input BOLD time-series (4D file)')
-    in_mask = File(exists=True, mandatory=True,
+                   desc='input BOLD time-series (4D file) or dense timeseries CIFTI')
+    in_mask = File(exists=True,
                    desc='3D brain mask')
     in_segm = File(exists=True, desc='resampled segmentation')
     confounds_file = File(exists=True,
@@ -334,7 +353,7 @@ class FMRISummary(SimpleInterface):
 
         fig = fMRIPlot(
             self.inputs.in_func,
-            mask_file=self.inputs.in_mask,
+            mask_file=self.inputs.in_mask if isdefined(self.inputs.in_mask) else None,
             seg_file=(self.inputs.in_segm
                       if isdefined(self.inputs.in_segm) else None),
             tr=self.inputs.tr,

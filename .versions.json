@@ -1,0 +1,16 @@
+{
+	"flagged": {
+		"1.0.0": "Deprecated / too old",
+		"1.5.0rc1": "Nipype unstable",
+		"1.5.0rc2": "Nipype unstable",
+		"1.5.0": "Nipype unstable",
+		"1.5.1rc1": "Nipype unstable",
+		"1.5.1rc2": "Nipype unstable",
+		"20.0.0rc1": "fsLR resampling error (problematic only when using the --cifti-output flag)",
+		"20.0.0rc2": "fsLR resampling error (problematic only when using the --cifti-output flag)",
+		"20.0.0rc3": "fsLR resampling error (problematic only when using the --cifti-output flag)",
+		"20.0.0": "fsLR resampling error (problematic only when using the --cifti-output flag)",
+		"20.0.1": "fsLR resampling error (problematic only when using the --cifti-output flag)",
+		"20.0.2": "fsLR resampling error (problematic only when using the --cifti-output flag)"
+	}
+}

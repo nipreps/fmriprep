@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -87,9 +85,9 @@ class TestWorkflow(unittest.TestCase):
         """Check that all mandatory inputs of nodes in the workflow (at the first level) are
         already set. Additionally, check that inputs in additional_inputs are set. An input is
         "set" if it is
-            a) defined explicitly (e.g. in the Interface declaration)
+            a) defined explicitly (e.g., in the Interface declaration)
             OR
-            b) connected to another node's output (e.g. using the workflow.connect method)
+            b) connected to another node's output (e.g., using the workflow.connect method)
         additional_inputs is a dict:
             {'node_name': ['mandatory', 'input', 'fields']}
         """

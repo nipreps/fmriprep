@@ -6,7 +6,6 @@ from niworkflows.interfaces import (
     bids, cifti, freesurfer, images, itk, surf, utils)
 
 from .reports import SubjectSummary, FunctionalSummary, AboutSummary
-from .fmap import FieldEnhance, FieldToRadS, FieldToHz, Phasediff2Fieldmap
 from .confounds import GatherConfounds, ICAConfounds, FMRISummary
 from .multiecho import T2SMap
 
@@ -26,10 +25,6 @@ __all__ = [
     'SubjectSummary',
     'FunctionalSummary',
     'AboutSummary',
-    'FieldEnhance',
-    'FieldToRadS',
-    'FieldToHz',
-    'Phasediff2Fieldmap',
     'GatherConfounds',
     'ICAConfounds',
     'FMRISummary',

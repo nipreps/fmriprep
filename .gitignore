@@ -27,6 +27,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-wheel-metadata/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -68,9 +69,6 @@ target/
 
 # pycharm project settings
 .idea
-
-# vscode project settings
-.vscode
 
 # Spyder project settings
 .spyderproject

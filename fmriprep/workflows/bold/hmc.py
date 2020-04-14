@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
@@ -14,48 +13,49 @@ from nipype.interfaces import utility as niu, fsl
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 from niworkflows.interfaces import NormalizeMotionParams
 from niworkflows.interfaces.itk import MCFLIRT2ITK
+from ...config import DEFAULT_MEMORY_MIN_GB
 
-DEFAULT_MEMORY_MIN_GB = 0.01
 
-
-# pylint: disable=R0914
 def init_bold_hmc_wf(mem_gb, omp_nthreads, name='bold_hmc_wf'):
     """
+    Build a workflow to estimate head-motion parameters.
+
     This workflow estimates the motion parameters to perform
     :abbr:`HMC (head motion correction)` over the input
     :abbr:`BOLD (blood-oxygen-level dependent)` image.
 
-    .. workflow::
-        :graph2use: orig
-        :simple_form: yes
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
 
-        from fmriprep.workflows.bold import init_bold_hmc_wf
-        wf = init_bold_hmc_wf(
-            mem_gb=3,
-            omp_nthreads=1)
+            from fmriprep.workflows.bold import init_bold_hmc_wf
+            wf = init_bold_hmc_wf(
+                mem_gb=3,
+                omp_nthreads=1)
 
-    **Parameters**
+    Parameters
+    ----------
+    mem_gb : :obj:`float`
+        Size of BOLD file in GB
+    omp_nthreads : :obj:`int`
+        Maximum number of threads an individual process may use
+    name : :obj:`str`
+        Name of workflow (default: ``bold_hmc_wf``)
 
-        mem_gb : float
-            Size of BOLD file in GB
-        omp_nthreads : int
-            Maximum number of threads an individual process may use
-        name : str
-            Name of workflow (default: ``bold_hmc_wf``)
+    Inputs
+    ------
+    bold_file
+        BOLD series NIfTI file
+    raw_ref_image
+        Reference image to which BOLD series is motion corrected
 
-    **Inputs**
-
-        bold_file
-            BOLD series NIfTI file
-        raw_ref_image
-            Reference image to which BOLD series is motion corrected
-
-    **Outputs**
-
-        xforms
-            ITKTransform file aligning each volume to ``ref_image``
-        movpar_file
-            MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
+    Outputs
+    -------
+    xforms
+        ITKTransform file aligning each volume to ``ref_image``
+    movpar_file
+        MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
 
     """
     workflow = Workflow(name=name)

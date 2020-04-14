@@ -5,6 +5,7 @@
 
 .. include:: links.rst
 .. include:: ../README.rst
+.. include:: license.rst
 
 
 Contents
@@ -14,11 +15,15 @@ Contents
    :maxdepth: 3
 
    installation
-   changes
    usage
+   docker
+   singularity
    workflows
    sdc
    outputs
+   spaces
+   faq
    contributors
    citing
-   api/index.rst
+   api
+   changes
