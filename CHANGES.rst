@@ -3,6 +3,11 @@
 Bug-fix release in the 1.5.x series.
 
 This release fixes a bug for **phase-difference fieldmaps that are not in RAS+ orientation**.
+When the non-canonical orientation (any other than RAS+) included a reordering of axis
+(e.g. ARS+), *fMRIPrep* crashed when the number of voxels of the swapped dimensions did not
+match.
+Otherwise, the bug introduced a poor masking - oftentimes unnoticeable if the original orientation
+was LAS+)
 This bug affects all previous versions of fMRIPrep, as well as versions 20.0.0-20.0.5.
 Runs of fMRIPrep that used other susceptibility distortion correction (SDC) methods are not
 currently considered problematic.
