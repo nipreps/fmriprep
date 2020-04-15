@@ -2,7 +2,7 @@
 =======================
 Bug-fix release in the 1.5.x series.
 
-This release fixes a bug for phase-difference fieldmaps that are not in RAS+ orientation.
+This release fixes a bug for **phase-difference fieldmaps that are not in RAS+ orientation**.
 This bug affects all previous versions of fMRIPrep, as well as versions 20.0.0-20.0.5.
 Runs of fMRIPrep that used other susceptibility distortion correction (SDC) methods are not
 currently considered problematic.
