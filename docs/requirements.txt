@@ -1,1 +1,2 @@
+git+https://github.com/effigies/nipype.git@857e229
 git+https://github.com/AleksandarPetrov/napoleon.git@0dc3f28a309ad602be5f44a9049785a1026451b3#egg=sphinxcontrib-napoleon
