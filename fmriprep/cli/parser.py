@@ -289,6 +289,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     )
     g_conf.add_argument(
         "--random-seed",
+        dest="_random_seed",
         action="store",
         type=int,
         default=None,

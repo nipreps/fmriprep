@@ -433,8 +433,6 @@ class workflow(_Config):
     """Ignore particular steps for *fMRIPrep*."""
     longitudinal = False
     """Run FreeSurfer ``recon-all`` with the ``-logitudinal`` flag."""
-    random_seed = None
-    """Master random seed to initialize the Pseudorandom Number Generator (PRNG)"""
     medial_surface_nan = None
     """Fill medial surface with :abbr:`NaNs (not-a-number)` when sampling."""
     regressors_all_comps = None
@@ -513,18 +511,19 @@ class loggers:
 class seeds(_Config):
     """Initialize the PRNG and track random seed assignments"""
 
+    _random_seed = None
     master = None
-    """Master seed used to generate all other tracked seeds"""
+    """Master random seed to initialize the Pseudorandom Number Generator (PRNG)"""
     ants = None
     """Seed used for antsRegistration, antsAI, antsMotionCorr"""
 
     @classmethod
     def init(cls):
-        cls.master = workflow.random_seed
+        if cls._random_seed is not None:
+            cls.master = cls._random_seed
         if cls.master is None:
             cls.master = random.randint(1, 65536)
         random.seed(cls.master)  # initialize the PRNG
-
         # functions to set program specific seeds
         cls.ants = _set_ants_seed()
 
@@ -541,7 +540,7 @@ def from_dict(settings):
     nipype.load(settings)
     execution.load(settings)
     workflow.load(settings)
-    seeds.init()
+    seeds.load(settings)
     loggers.init()
 
 
