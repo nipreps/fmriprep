@@ -70,6 +70,8 @@ The :py:mod:`config` is responsible for other conveniency actions.
 from multiprocessing import set_start_method
 
 
+CONFIG_FILENAME = "fmriprep.toml"
+
 try:
     set_start_method('forkserver')
 except RuntimeError:
@@ -80,10 +82,10 @@ finally:
     import os
     import sys
     import random
-
     from uuid import uuid4
-    from pathlib import Path
     from time import strftime
+
+    from pathlib import Path
     from nipype import logging as nlogging, __version__ as _nipype_ver
     from templateflow import __version__ as _tf_ver
     from . import __version__
@@ -167,15 +169,16 @@ class _Config:
         raise RuntimeError('Configuration type is not instantiable.')
 
     @classmethod
-    def load(cls, settings, init=True):
+    def load(cls, settings, init=True, ignore=None):
         """Store settings from a dictionary."""
         for k, v in settings.items():
+            if ignore and k in ignore:
+                continue
             if v is None:
                 continue
             if k in cls._paths:
                 setattr(cls, k, Path(v).absolute())
-                continue
-            if hasattr(cls, k):
+            elif hasattr(cls, k):
                 setattr(cls, k, v)
 
         if init:
@@ -347,7 +350,7 @@ class execution(_Config):
     the command line) as spatial references for outputs."""
     reports_only = False
     """Only build the reports, based on the reportlets found in a cached working directory."""
-    run_uuid = '%s_%s' % (strftime('%Y%m%d-%H%M%S'), uuid4())
+    run_uuid = f"{strftime('%Y%m%d-%H%M%S')}_{uuid4()}"
     """Unique identifier of this particular run."""
     participant_label = None
     """List of participant identifiers that are to be preprocessed."""
@@ -542,15 +545,17 @@ def from_dict(settings):
     loggers.init()
 
 
-def load(filename):
+def load(filename, skip=None):
     """Load settings from file."""
     from toml import loads
+    skip = skip or {}
     filename = Path(filename)
     settings = loads(filename.read_text())
     for sectionname, configs in settings.items():
         if sectionname != 'environment':
             section = getattr(sys.modules[__name__], sectionname)
-            section.load(configs)
+            ignore = skip.get(sectionname)
+            section.load(configs, ignore=ignore)
     init_spaces()
 
 
@@ -624,3 +629,43 @@ def init_spaces(checkpoint=True):
 
     # Make the SpatialReferences object available
     workflow.spaces = spaces
+
+
+def load_previous_config(output_dir, work_dir, participant=None):
+    """
+    Search for existing config file, and carry over previous options.
+    If a participant label is specified, the output directory is searched for
+    the most recent config file. If no config is found, the working directory is searched.
+
+    Returns
+    -------
+    success : bool
+        Existing config found and loaded
+
+    """
+    # settings to avoid reusing
+    skip = {
+        'execution': ('run_uuid',)
+    }
+    conf = None
+    if participant:
+        # output directory
+        logdir = Path(output_dir) / 'fmriprep' / f'sub-{participant[0]}' / 'log'
+        for f in logdir.glob(f'**/{CONFIG_FILENAME}'):
+            conf = conf or f
+            if f.stat().st_mtime > conf.stat().st_mtime:
+                conf = f
+
+    if conf is None:
+        # work directory
+        conf = Path(work_dir) / f'.{CONFIG_FILENAME}'
+        if not conf.exists():
+            conf = None
+
+    # load existing config
+    if conf is not None:
+        print(f"Reusing config file {conf}")
+        load(conf, skip=skip)
+        return True
+
+    return False

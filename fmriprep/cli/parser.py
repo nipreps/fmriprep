@@ -476,13 +476,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         "aggregation, not reportlet generation for specific nodes.",
     )
     g_other.add_argument(
-        "--run-uuid",
-        action="store",
-        default=None,
-        help="Specify UUID of previous run, to include error logs in report. "
-        "No effect without --reports-only.",
-    )
-    g_other.add_argument(
         "--write-graph",
         action="store_true",
         default=False,
@@ -541,12 +534,19 @@ discourage its usage."""
 
 def parse_args(args=None, namespace=None):
     """Parse args and run further checks on the command line."""
+    import os
     import logging
     from niworkflows.utils.spaces import Reference, SpatialReferences
     from niworkflows.utils.misc import check_valid_fs_license
 
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
+
+    new_config = os.getenv('FMRIPREP_NO_REUSE_CONFIG') or opts.reports_only
+    if not new_config:
+        # attempt to reuse previous config
+        config.load_previous_config(opts.output_dir, opts.work_dir, opts.participant_label)
+
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts))
 
