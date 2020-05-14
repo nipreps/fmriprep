@@ -543,10 +543,15 @@ def parse_args(args=None, namespace=None):
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
 
-    new_config = os.getenv('FMRIPREP_NO_REUSE_CONFIG') or opts.reports_only
+    new_config = os.getenv('FMRIPREP_NO_REUSE_CONFIG')
     if not new_config:
         # attempt to reuse previous config
-        config.load_previous_config(opts.output_dir, opts.work_dir, opts.participant_label)
+        config.load_previous_config(
+            opts.output_dir,
+            opts.work_dir,
+            participant=opts.participant_label,
+            new_uuid=not opts.reports_only,
+        )
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts))

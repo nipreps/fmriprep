@@ -660,7 +660,7 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
-                --reports-only --run-uuid $UUID
+                --reports-only
             RET=$?
             set -e
             [[ "$RET" -eq "1" ]]

@@ -630,7 +630,7 @@ def init_spaces(checkpoint=True):
     workflow.spaces = spaces
 
 
-def load_previous_config(output_dir, work_dir, participant=None):
+def load_previous_config(output_dir, work_dir, participant=None, new_uuid=True):
     """
     Search for existing config file, and carry over previous options.
     If a participant label is specified, the output directory is searched for
@@ -642,10 +642,6 @@ def load_previous_config(output_dir, work_dir, participant=None):
         Existing config found and loaded
 
     """
-    # settings to avoid reusing
-    skip = {
-        'execution': ('run_uuid',)
-    }
     conf = None
     if participant:
         # output directory
@@ -663,6 +659,8 @@ def load_previous_config(output_dir, work_dir, participant=None):
 
     # load existing config
     if conf is not None:
+        # settings to avoid reusing
+        skip = {} if new_uuid else {'execution': ('run_uuid',)}
         print(f"Reusing config file {conf}")
         load(conf, skip=skip)
         return True
