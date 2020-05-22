@@ -86,7 +86,7 @@ finally:
     from time import strftime
 
     from pathlib import Path
-    from nipype import logging as nlogging, __version__ as _nipype_ver
+    from nipype import __version__ as _nipype_ver
     from templateflow import __version__ as _tf_ver
     from . import __version__
 
@@ -171,10 +171,9 @@ class _Config:
     @classmethod
     def load(cls, settings, init=True, ignore=None):
         """Store settings from a dictionary."""
+        ignore = ignore or {}
         for k, v in settings.items():
-            if ignore and k in ignore:
-                continue
-            if v is None:
+            if k in ignore or v is None:
                 continue
             if k in cls._paths:
                 setattr(cls, k, Path(v).absolute())
@@ -472,11 +471,11 @@ class loggers:
     """The root logger."""
     cli = logging.getLogger('cli')
     """Command-line interface logging."""
-    workflow = nlogging.getLogger('nipype.workflow')
+    workflow = logging.getLogger('nipype.workflow')
     """NiPype's workflow logger."""
-    interface = nlogging.getLogger('nipype.interface')
+    interface = logging.getLogger('nipype.interface')
     """NiPype's interface logger."""
-    utils = nlogging.getLogger('nipype.utils')
+    utils = logging.getLogger('nipype.utils')
     """NiPype's utils logger."""
 
     @classmethod
@@ -661,8 +660,8 @@ def load_previous_config(output_dir, work_dir, participant=None, new_uuid=True):
     if conf is not None:
         # settings to avoid reusing
         skip = {} if new_uuid else {'execution': ('run_uuid',)}
-        print(f"Reusing config file {conf}")
         load(conf, skip=skip)
+        loggers.cli.warning(f"Loaded previous configuration file {conf}")
         return True
 
     return False
