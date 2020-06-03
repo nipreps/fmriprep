@@ -352,7 +352,7 @@ preprocessed BOLD runs*: {tpl}.
 
     # Generate a reference on the target standard space
     gen_final_ref = init_bold_reference_wf(
-        omp_nthreads=omp_nthreads, pre_mask=True)
+        omp_nthreads=omp_nthreads, pre_mask=True, brainmask_thresh=0.85)
 
     workflow.connect([
         (iterablesource, split_target, [('std_target', 'in_target')]),
@@ -526,7 +526,7 @@ the transforms to correct for head-motion""")
                     mem_gb=mem_gb * 3)
 
     # Generate a new BOLD reference
-    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads, brainmask_thresh=0.85)
     bold_reference_wf.__desc__ = None  # Unset description to avoid second appearance
 
     workflow.connect([

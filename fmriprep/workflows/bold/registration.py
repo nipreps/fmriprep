@@ -325,7 +325,7 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, multiecho=False, use
     merge = pe.Node(Merge(compress=use_compression), name='merge', mem_gb=mem_gb)
 
     # Generate a reference on the target T1w space
-    gen_final_ref = init_bold_reference_wf(omp_nthreads, pre_mask=True)
+    gen_final_ref = init_bold_reference_wf(omp_nthreads, pre_mask=True, brainmask_thresh=0.85)
 
     if not multiecho:
         # Merge transforms placing the head motion correction last

@@ -294,7 +294,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     ])
 
     # Generate a tentative boldref
-    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads)
+    bold_reference_wf = init_bold_reference_wf(omp_nthreads=omp_nthreads, brainmask_thresh=0.85)
     bold_reference_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
     if sbref_file is not None:
         workflow.connect([
