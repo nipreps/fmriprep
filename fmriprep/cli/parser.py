@@ -48,7 +48,8 @@ def _build_parser():
 
     def _filter_pybids_none_any(dct):
         import bids
-        return {k: bids.layout.Query.ANY if v == "*" else v
+        return {k: bids.layout.Query.NONE if v is None else
+                (bids.layout.Query.ANY if v == "*" else v)
                 for k, v in dct.items()}
 
     def _bids_filter(value):
