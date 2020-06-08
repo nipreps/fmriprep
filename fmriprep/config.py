@@ -410,6 +410,13 @@ class execution(_Config):
                 ignore=("code", "stimuli", "sourcedata", "models",
                         "derivatives", re.compile(r'^\.')))
         cls.layout = cls._layout
+        if cls.bids_filters:
+            from bids.layout import Query
+            # unserialize pybids Query enum values
+            for acq, filters in cls.bids_filters.items():
+                cls.bids_filters[acq] = {
+                    k: getattr(Query, v[7:-4]) if 'Query' in v else v
+                    for k, v in filters.items()}
 
 
 # These variables are not necessary anymore
