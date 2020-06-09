@@ -403,12 +403,13 @@ class execution(_Config):
             from bids.layout import BIDSLayout
             work_dir = cls.work_dir / 'bids.db'
             work_dir.mkdir(exist_ok=True, parents=True)
+            bids_ignore = load_bidsignore(cls.bids_dir)
             cls._layout = BIDSLayout(
                 str(cls.bids_dir),
                 validate=False,
                 # database_path=str(work_dir),
                 ignore=("code", "stimuli", "sourcedata", "models",
-                        "derivatives", re.compile(r'^\.')))
+                        "derivatives", re.compile(r'^\.')) + bids_ignore)
         cls.layout = cls._layout
 
 
@@ -648,3 +649,14 @@ def init_spaces(checkpoint=True):
 
     # Make the SpatialReferences object available
     workflow.spaces = spaces
+
+
+def load_bidsignore(bids_root):
+    bids_ignore_path = bids_root / '.bidsignore'
+    if bids_ignore_path.exists():
+        import fnmatch, re
+        bids_ignores = bids_ignore_path.read_text().splitlines()
+        return tuple([re.compile(fnmatch.translate(bi))
+                      for bi in bids_ignores
+                      if len(bi) and bi.strip()[0]!='#'])
+    return tuple()
