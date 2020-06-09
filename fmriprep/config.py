@@ -654,9 +654,10 @@ def init_spaces(checkpoint=True):
 def load_bidsignore(bids_root):
     bids_ignore_path = bids_root / '.bidsignore'
     if bids_ignore_path.exists():
-        import fnmatch, re
+        import re
+        import fnmatch
         bids_ignores = bids_ignore_path.read_text().splitlines()
         return tuple([re.compile(fnmatch.translate(bi))
                       for bi in bids_ignores
-                      if len(bi) and bi.strip()[0]!='#'])
+                      if len(bi) and bi.strip()[0] != '#'])
     return tuple()
