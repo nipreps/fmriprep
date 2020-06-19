@@ -344,7 +344,7 @@ intersphinx_mapping = {
     "nipype": ("https://nipype.readthedocs.io/en/latest/", None),
     "niworkflows": ("https://www.nipreps.org/niworkflows/", None),
     "sdcflows": ("https://www.nipreps.org/sdcflows/", None),
-    "smriprep": ("https://poldracklab.github.io/smriprep/", None),
+    "smriprep": ("https://www.nipreps.org/smriprep/", None),
     "templateflow": ("https://www.templateflow.org/python-client", None),
 }
 

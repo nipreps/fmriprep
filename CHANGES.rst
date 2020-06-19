@@ -357,7 +357,7 @@ Bug-fix release in the 1.5.x series.
 This release fixes a bug specifically for T1w images with dimensions ≤256 voxels
 but a field-of-view >256mm.
 
-  * FIX: Calculate FoV with shape and zooms (poldracklab/smriprep#161)
+  * FIX: Calculate FoV with shape and zooms (nipreps/smriprep#161)
 
 1.5.6 (January 22, 2020)
 ------------------------
@@ -622,7 +622,7 @@ Hotfix release intended for Singularity users. For further detail, please see
 1.3.0 (February 7, 2019)
 ------------------------
 We start the 1.3.x series including a few bugfixes, housekeeping duty and a refactors
-to leverage `sMRIPrep <https://github.com/poldracklab/smriprep>`__ (which is a fork of
+to leverage `sMRIPrep <https://github.com/nipreps/smriprep>`__ (which is a fork of
 fMRIPrep's anatomical workflow), pybids>=0.7 for querying dataset, and
 `TemplateFlow <https://github.com/templateflow>`__ for handling standard spaces.
 

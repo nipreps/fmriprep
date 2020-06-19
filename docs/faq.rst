@@ -29,7 +29,7 @@ What if I find some images have undergone some pre-processing already (e.g., my 
 These images imply an unknown level of preprocessing (e.g. was it already bias-field corrected?),
 which makes it difficult to decide on best-practices for further processing.
 Hence, supporting such images was considered very low priority for *fMRIPrep*.
-For example, see `#707 <https://github.com/poldracklab/smriprep/issues/12>`_ and an illustration of
+For example, see `#707 <https://github.com/nipreps/smriprep/issues/12>`_ and an illustration of
 downstream consequences in `#939 <https://github.com/poldracklab/fmriprep/issues/939>`_.
 
 So for OpenFMRI, we've been excluding these subjects, and for user-supplied data, we would recommend

@@ -267,6 +267,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             registration_dof=config.workflow.bold2t1w_dof,
             registration_init=config.workflow.bold2t1w_init,
             pe_direction=metadata.get("PhaseEncodingDirection"),
+            echo_idx=echo_idxs,
             tr=metadata.get("RepetitionTime")),
         name='summary', mem_gb=config.DEFAULT_MEMORY_MIN_GB, run_without_submitting=True)
     summary.inputs.dummy_scans = config.workflow.dummy_scans
