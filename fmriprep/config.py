@@ -659,6 +659,7 @@ def init_spaces(checkpoint=True):
 
 
 def load_bidsignore(bids_root):
+    """Load .bidsignore file from a BIDS dataset, returns list of regexps"""
     bids_ignore_path = bids_root / '.bidsignore'
     if bids_ignore_path.exists():
         import re
