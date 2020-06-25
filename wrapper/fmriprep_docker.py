@@ -292,7 +292,9 @@ def get_parser():
                        help='Set custom environment variable within container')
     g_dev.add_argument('-u', '--user', action='store',
                        help='Run container as a given user/uid')
-
+    g_dev.add_argument('--no-tty', action='store_true',
+                       help='Run docker without TTY flag -it')
+    
     return parser
 
 
@@ -360,9 +362,12 @@ def main():
                          stdout=subprocess.PIPE)
     docker_version = ret.stdout.decode('ascii').strip()
 
-    command = ['docker', 'run', '--rm', '-it', '-e',
+    command = ['docker', 'run', '--rm', '-e',
                'DOCKER_VERSION_8395080871=%s' % docker_version]
-
+    
+    if not opts.no_tty:
+        command.append('-it')
+    
     # Patch working repositories into installed package directories
     for pkg in ('fmriprep', 'niworkflows', 'nipype'):
         repo_path = getattr(opts, 'patch_' + pkg)
