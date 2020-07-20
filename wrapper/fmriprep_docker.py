@@ -325,6 +325,8 @@ the spatial normalization.""" % (', '.join('"%s"' % s for s in TF_TEMPLATES),
     g_dev.add_argument('--network', action='store',
                        help='Run container with a different network driver '
                             '("none" to simulate no internet connection)')
+    g_dev.add_argument('--no-tty', action='store_true',
+                       help='Run docker without TTY flag -it')
 
     return parser
 
@@ -393,8 +395,11 @@ def main():
                          stdout=subprocess.PIPE)
     docker_version = ret.stdout.decode('ascii').strip()
 
-    command = ['docker', 'run', '--rm', '-it', '-e',
+    command = ['docker', 'run', '--rm', '-e',
                'DOCKER_VERSION_8395080871=%s' % docker_version]
+
+    if not opts.no_tty:
+        command.append('-it')
 
     # Patch working repositories into installed package directories
     if opts.patch:

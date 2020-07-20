@@ -2,6 +2,13 @@
   "title": "fMRIPrep: a robust preprocessing pipeline for functional MRI",
   "description": "<p>fMRIPrep is a robust and easy-to-use pipeline for preprocessing of diverse fMRI data. The transparent workflow dispenses of manual intervention, thereby ensuring the reproducibility of the results.</p>",
   "contributors": [
+      
+    {
+        "affiliation": "Department of Radiology, Weill Cornell Medicine",
+        "name": "Jamison, Keith W.",
+        "orcid": "0000-0001-7139-6661",
+        "type": "Researcher"
+    },
     {
       "affiliation": "Department of Psychology, Florida International University",
       "name": "Salo, Taylor",
