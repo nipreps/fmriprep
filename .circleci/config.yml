@@ -910,7 +910,7 @@ jobs:
             virtualenv --python=python sdist
             source sdist/bin/activate
             pip install --upgrade "pip>=19.1" numpy
-            pip install dist/fmriprep*.tar.gz
+            pip install --use-feature=2020-resolver dist/fmriprep*.tar.gz
             which fmriprep | grep sdist\\/bin
             INSTALLED_VERSION=$(fmriprep --version)
             INSTALLED_VERSION=${INSTALLED_VERSION%$'\r'}
@@ -927,7 +927,7 @@ jobs:
             twine check dist/fmriprep*.whl
             virtualenv --python=python wheel
             source wheel/bin/activate
-            pip install dist/fmriprep*.whl
+            pip install --use-feature=2020-resolver dist/fmriprep*.whl
             which fmriprep | grep wheel\\/bin
             INSTALLED_VERSION=$(fmriprep --version)
             INSTALLED_VERSION=${INSTALLED_VERSION%$'\r'}
