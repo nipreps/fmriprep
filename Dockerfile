@@ -170,6 +170,9 @@ RUN pip install --no-cache-dir "$( grep templateflow fmriprep-setup.cfg | xargs 
                tfapi.get('MNI152NLin6Asym', atlas=None, resolution=[1, 2], \
                          desc='brain', extension=['.nii', '.nii.gz']); \
                tfapi.get('MNI152NLin2009cAsym', atlas=None, extension=['.nii', '.nii.gz']); \
+               tfapi.get('MNI152NLin2009cAsym', resolution=2, desc='fMRIPrep', suffix='boldref'); \
+               tfapi.get('MNI152NLin2009cAsym', resolution=2, desc='brain', suffix='mask'); \
+               tfapi.get('MNI152NLin2009cAsym', resolution=1, desc='carpet', suffix='dseg'); \
                tfapi.get('OASIS30ANTs', extension=['.nii', '.nii.gz']); \
                tfapi.get('fsaverage', density='164k', desc='std', suffix='sphere'); \
                tfapi.get('fsaverage', density='164k', desc='vaavg', suffix='midthickness'); \
