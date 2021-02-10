@@ -15,7 +15,8 @@ RUN apt-get update && \
                     autoconf \
                     libtool \
                     pkg-config \
-                    git && \
+                    git \
+                    graphviz && \
     curl -sSL https://deb.nodesource.com/setup_10.x | bash - && \
     apt-get install -y --no-install-recommends \
                     nodejs && \
@@ -137,7 +138,6 @@ RUN conda install -y python=3.7.9 \
                      pandas=1.2.1 \
                      libxml2=2.9.10 \
                      libxslt=1.1.34 \
-                     graphviz=2.40.1 \
                      traits=4.6.0 \
                      zlib; sync && \
     chmod -R a+rX /usr/local/miniconda; sync && \
