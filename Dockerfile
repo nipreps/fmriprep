@@ -125,17 +125,18 @@ ENV PATH="/usr/local/miniconda/bin:$PATH" \
     PYTHONNOUSERSITE=1
 
 # Installing precomputed python packages
-RUN conda install -y python=3.7.1 \
-                     pip=19.1 \
-                     mkl=2018.0.3 \
+RUN conda install -y python=3.7.9 \
+                     pip=20.3 \
+                     mkl=2020.2 \
                      mkl-service \
-                     numpy=1.15.4 \
-                     scipy=1.1.0 \
-                     scikit-learn=0.19.1 \
-                     matplotlib=2.2.2 \
-                     pandas=0.23.4 \
-                     libxml2=2.9.8 \
-                     libxslt=1.1.32 \
+                     numpy=1.19.2 \
+                     scipy=1.5.2 \
+                     scikit-learn=0.23.2 \
+                     scikit-image=0.17.2 \
+                     matplotlib=3.3.2 \
+                     pandas=1.2.1 \
+                     libxml2=2.9.10 \
+                     libxslt=1.1.34 \
                      graphviz=2.40.1 \
                      traits=4.6.0 \
                      zlib; sync && \
