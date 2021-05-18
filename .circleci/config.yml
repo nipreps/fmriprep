@@ -122,6 +122,9 @@ jobs:
       image: ubuntu-1604:202007-01
     working_directory: /home/circleci/data
     steps:
+      - run:
+          name: Install jq
+          command: sudo apt-get install -y --no-install-recommends jq
       - restore_cache:
           keys:
             - data-v8-{{ .Branch }}-{{ .Revision }}
@@ -138,6 +141,12 @@ jobs:
             else
               echo "Dataset ds000005 was cached"
             fi
+      - run:
+          name: Fix ds000005 JSON
+          command: |
+            cat /tmp/data/ds005/dataset_description.json | \
+                jq '.["ReferencesAndLinks"] |= ([.] | flatten)' | \
+                tee /tmp/data/ds005/dataset_description.json
       - run:
           name: Get test data from ds000054
           command: |
