@@ -1,0 +1,111 @@
+---
+name: Bug report
+about: Something not working as described? This is the place.
+title: 'BUG: '
+labels: 'bug'
+assignees: ''
+
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thank you for submitting a bug report for fMRIPrep!
+
+      Please fill in the following information so we can help you.
+
+- type: input
+  attributes:
+    label: Version of fMRIPrep being used
+    description: |
+      Provide the version of fMRIPrep you were using. Use the `--version` flag
+      to have fMRIPrep report the version.
+
+      For example, if you are using fmriprep-docker:
+      ```
+      fmriprep-docker --version
+      ```
+  validations:
+    required: true
+
+- type: dropdown
+  attributes:
+    label: Installation type
+    description: |
+
+    options:
+    - Docker
+    - Singularity
+    - "Bare metal"
+
+- type: checkboxes
+  attributes:
+    label: BIDS validation
+    description: |
+      Validate your dataset with [the BIDS Validator](https://bids-standard.github.io/bids-validator)
+      before submission.
+    options:
+    - label: I have validated my dataset.
+      required: true
+
+- type: input
+  attributes:
+    label: Command used
+    description: |
+      Please place the exact command used in the text box.
+      Minor updates are 
+    value: |
+      ```
+      fmriprep /path/to/input /path/to/output participant [OPTIONS]
+      ```
+  validations:
+    required: true
+
+- type: input
+  attributes:
+    label: Visual reports
+    description: |
+      If fMRIPrep generated a visual report, please share a link to it.
+      If you need to share privately, you can email nipreps@gmail.com
+
+- type: textarea
+  attributes:
+    label: Error information
+    description: |
+      Can you find some traces of the error reported in the visual report (at the bottom) or in *crashfiles*?
+      
+      Please copy and paste all the information you can gather about errors here.
+    value: |
+      ```
+      ```
+  validations:
+    required: false
+
+- type: checkboxes
+  attributes:
+    label: Previously computed results
+    description: Are you reusing any previously computed results?
+    options:
+    - FreeSurfer
+    - Anatomical derivatives (via `fmriprep --anat-only` or `smriprep`)
+    - A work directory of a previous run
+
+- type: textarea
+  attributes:
+    label: Logs
+    description: |
+      If you have access to the output logged by fMRIPrep, please place it here,
+      or attach it as a text file to this issue.
+    value:
+      <details>
+      <summary>Log contents</summary>
+
+      ```
+      Paste contents here, between the lines of triple back-ticks.
+      ```
+      <details>
+
+- type: textarea
+  attributes:
+    label: Additional detail
+    description: Please provide any additional detail you can.
+...
