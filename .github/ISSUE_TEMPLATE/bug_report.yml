@@ -1,111 +1,88 @@
 ---
-name: Bug report
-about: Something not working as described? This is the place.
-title: 'BUG: '
-labels: 'bug'
-assignees: ''
+name: "PEP 541 Request: PROJECT_NAME"
+title: "PEP 541 Request: PROJECT_NAME"
+description: You want to claim or flag a project in accordance to PEP 541
+labels: PEP 541
 
 body:
 - type: markdown
   attributes:
     value: |
-      Thank you for submitting a bug report for fMRIPrep!
+      [PEP 541] describes the workflow for any project claiming issues
+      and conflict resolution. Make sure you **read and understand** the
+      PEP to set your expectations on the possible outcomes.
 
-      Please fill in the following information so we can help you.
+      [PEP 541]: https://www.python.org/dev/peps/pep-0541/
 
 - type: input
   attributes:
-    label: Version of fMRIPrep being used
+    label: Project to be claimed
     description: |
-      Provide the version of fMRIPrep you were using. Use the `--version` flag
-      to have fMRIPrep report the version.
+      Provide the name of the package and a link to its PyPI page
 
-      For example, if you are using fmriprep-docker:
-      ```
-      fmriprep-docker --version
-      ```
+      Please also **update the issue title** as well.
+    value: |
+      `PROJECT_NAME`: https://pypi.org/project/PROJECT_NAME
+  validations:
+    required: true
+
+- type: input
+  attributes:
+    label: Your PyPI username
+    description: |
+      To help moderators deal with the transfer please confirm your
+      PyPI username
+    value: |
+      `USER_NAME`: https://pypi.org/user/USER_NAME
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: Reasons for the request
+    description: |
+      *Do you believe* the project has been abandoned or otherwise has
+      issues that **justify this request**.
   validations:
     required: true
 
 - type: dropdown
   attributes:
-    label: Installation type
+    label: Maintenance or replacement?
     description: |
-
+      If the transfer is successful, do you intend to continue
+      maintenance of the package to or publish a different one?
     options:
-    - Docker
-    - Singularity
-    - "Bare metal"
-
-- type: checkboxes
-  attributes:
-    label: BIDS validation
-    description: |
-      Validate your dataset with [the BIDS Validator](https://bids-standard.github.io/bids-validator)
-      before submission.
-    options:
-    - label: I have validated my dataset.
-      required: true
-
-- type: input
-  attributes:
-    label: Command used
-    description: |
-      Please place the exact command used in the text box.
-      Minor updates are 
-    value: |
-      ```
-      fmriprep /path/to/input /path/to/output participant [OPTIONS]
-      ```
-  validations:
-    required: true
-
-- type: input
-  attributes:
-    label: Visual reports
-    description: |
-      If fMRIPrep generated a visual report, please share a link to it.
-      If you need to share privately, you can email nipreps@gmail.com
+    - Maintenance
+    - Replacement
 
 - type: textarea
   attributes:
-    label: Error information
+    label: Source code repositories URLs
     description: |
-      Can you find some traces of the error reported in the visual report (at the bottom) or in *crashfiles*?
-      
-      Please copy and paste all the information you can gather about errors here.
-    value: |
-      ```
-      ```
+      Please provide code repositories in regardless of the previous
+      answer if possible.
   validations:
     required: false
 
+- type: textarea
+  attributes:
+    label: Contact and additional research
+    description: |
+      Please document below any attempts to contact current owner and/or
+      research you may have conducted.
+  validations:
+    required: true
+
+
 - type: checkboxes
   attributes:
-    label: Previously computed results
-    description: Are you reusing any previously computed results?
-    options:
-    - FreeSurfer
-    - Anatomical derivatives (via `fmriprep --anat-only` or `smriprep`)
-    - A work directory of a previous run
-
-- type: textarea
-  attributes:
-    label: Logs
+    label: Code of Conduct
     description: |
-      If you have access to the output logged by fMRIPrep, please place it here,
-      or attach it as a text file to this issue.
-    value:
-      <details>
-      <summary>Log contents</summary>
+      Read the [PSF Code of Conduct][CoC] first.
 
-      ```
-      Paste contents here, between the lines of triple back-ticks.
-      ```
-      <details>
-
-- type: textarea
-  attributes:
-    label: Additional detail
-    description: Please provide any additional detail you can.
+      [CoC]: https://github.com/pypa/.github/blob/main/CODE_OF_CONDUCT.md
+    options:
+    - label: I agree to follow the PSF Code of Conduct
+      required: true
 ...
