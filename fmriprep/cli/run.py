@@ -150,6 +150,7 @@ def main():
         from fmriprep.reports.core import generate_reports
         from pkg_resources import resource_filename as pkgrf
 
+        config.loggers.workflow.log(25, "Generating reports...")
         # Generate reports phase
         failed_reports = generate_reports(
             config.execution.participant_label,
@@ -164,10 +165,12 @@ def main():
         write_bidsignore(config.execution.fmriprep_dir)
 
         if failed_reports and not config.execution.notrack:
+            config.loggers.workflow.log(25, "Sending Sentry error...")
             sentry_sdk.capture_message(
                 "Report generation failed for %d subjects" % failed_reports,
                 level="error",
             )
+        config.loggers.workflow.log(25, "Exiting...")
         sys.exit(int((errno + failed_reports) > 0))
 
 
