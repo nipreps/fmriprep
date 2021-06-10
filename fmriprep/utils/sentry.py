@@ -5,6 +5,9 @@ import os
 import re
 from niworkflows.utils.misc import read_crashfile
 import sentry_sdk
+from sentry_sdk.integrations import (
+    atexit, excepthook, dedupe, stdlib, modules, argv, logging
+)
 
 from .. import config
 
@@ -49,11 +52,23 @@ def sentry_setup():
         or ('+' in release)
     ) else "prod"
 
+    # Defaults except ThreadingIntegration
+    integrations = [
+        atexit.AtexitIntegration(),
+        excepthook.ExcepthookIntegration(),
+        dedupe.DedupeIntegration(),
+        stdlib.StdlibIntegration(),
+        modules.ModulesIntegration(),
+        argv.ArgvIntegration(),
+        logging.LoggingIntegration(),
+    ]
     sentry_sdk.init("https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
                     release=release,
                     environment=environment,
                     before_send=before_send,
-                    shutdown_timeout=0)
+                    default_integrations=False,
+                    integrations=integrations,
+                    )
     with sentry_sdk.configure_scope() as scope:
         for k, v in config.get(flat=True).items():
             scope.set_tag(k, v)
