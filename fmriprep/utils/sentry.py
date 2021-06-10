@@ -68,6 +68,7 @@ def sentry_setup():
                     before_send=before_send,
                     default_integrations=False,
                     integrations=integrations,
+                    debug=True,
                     )
     with sentry_sdk.configure_scope() as scope:
         for k, v in config.get(flat=True).items():
