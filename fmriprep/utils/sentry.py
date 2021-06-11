@@ -80,6 +80,7 @@ def sentry_setup():
 def sentry_teardown():
     config.loggers.workflow.log(25, "Closing Sentry client pre-shutdown...")
     sentry_sdk.Hub.current.client.close(timeout=2.0)
+    config.loggers.workflow.log(25, "Exiting...")
 
 
 def process_crashfile(crashfile):
