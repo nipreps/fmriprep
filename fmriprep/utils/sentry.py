@@ -6,8 +6,9 @@ import re
 from niworkflows.utils.misc import read_crashfile
 import sentry_sdk
 from sentry_sdk.integrations import (
-    atexit, excepthook, dedupe, stdlib, modules, argv, logging
+    excepthook, dedupe, stdlib, modules, argv, logging
 )
+import atexit
 
 from .. import config
 
@@ -54,7 +55,6 @@ def sentry_setup():
 
     # Defaults except ThreadingIntegration
     integrations = [
-        atexit.AtexitIntegration(),
         excepthook.ExcepthookIntegration(),
         dedupe.DedupeIntegration(),
         stdlib.StdlibIntegration(),
@@ -73,6 +73,13 @@ def sentry_setup():
     with sentry_sdk.configure_scope() as scope:
         for k, v in config.get(flat=True).items():
             scope.set_tag(k, v)
+
+    atexit.register(sentry_teardown)
+
+
+def sentry_teardown():
+    config.loggers.workflow.log(25, "Closing Sentry client pre-shutdown...")
+    sentry_sdk.Hub.current.client.close(timeout=2.0)
 
 
 def process_crashfile(crashfile):

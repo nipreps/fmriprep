@@ -170,11 +170,7 @@ def main():
                 "Report generation failed for %d subjects" % failed_reports,
                 level="error",
             )
-        if not (config.execution.notrack or sentry_sdk.Hub.current.client is None):
-            config.loggers.workflow.log(25, "Closing Sentry client pre-shutdown...")
-            sentry_sdk.Hub.current.client.close(timeout=2.0)
 
-        config.loggers.workflow.log(25, "Exiting...")
         sys.exit(int((errno + failed_reports) > 0))
 
 
