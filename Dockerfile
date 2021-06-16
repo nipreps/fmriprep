@@ -204,7 +204,7 @@ ENV PATH="/usr/local/miniconda/bin:$PATH" \
     PYTHONNOUSERSITE=1
 
 # Installing precomputed python packages
-RUN conda install -y python=3.8 \
+RUN conda install -y python=3.7 \
                      pip=21.0 \
                      mkl=2021.2 \
                      mkl-service=2.3 \
