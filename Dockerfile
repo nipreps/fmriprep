@@ -192,9 +192,9 @@ ENV PATH="/opt/ICA-AROMA:$PATH" \
     AROMA_VERSION="0.4.5"
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-py38_4.9.2-Linux-x86_64.sh && \
-    bash Miniconda3-py38_4.9.2-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-py38_4.9.2-Linux-x86_64.sh
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-py37_4.9.2-Linux-x86_64.sh && \
+    bash Miniconda3-py37_4.9.2-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-py37_4.9.2-Linux-x86_64.sh
 
 # Set CPATH for packages relying on compiled libs (e.g. indexed_gzip)
 ENV PATH="/usr/local/miniconda/bin:$PATH" \
