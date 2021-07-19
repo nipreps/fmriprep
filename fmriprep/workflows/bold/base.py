@@ -144,6 +144,14 @@ def init_func_preproc_wf(bold_file):
     from niworkflows.interfaces.utils import DictMerge
     from sdcflows.workflows.base import init_sdc_estimate_wf, fieldmap_wrangler
 
+    workflow = Workflow(name=wf_name)
+
+    if nb.load(bold_file).shape[3:] <= (5,):
+        config.loggers.workflow.warning(
+            f"Too short BOLD series  (<= 5 timepoints). Skipping processing of <{ref_file}>."
+        )
+        return workflow
+
     mem_gb = {'filesize': 1, 'resampled': 1, 'largemem': 1}
     bold_tlen = 10
 
@@ -224,7 +232,6 @@ def init_func_preproc_wf(bold_file):
     )
 
     # Build workflow
-    workflow = Workflow(name=wf_name)
     workflow.__postdesc__ = """\
 All resamplings can be performed with *a single interpolation
 step* by composing all the pertinent transformations (i.e. head-motion
