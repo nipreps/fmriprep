@@ -290,7 +290,7 @@
     "fMRI",
     "BIDS"
   ],
-  "license": "BSD-3-Clause",
+  "license": "Apache-2.0",
   "related_identifiers": [
     {
       "identifier": "https://fmriprep.org",

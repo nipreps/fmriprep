@@ -1,0 +1,24 @@
+fMRIPrep
+Copyright 2021 The NiPreps Developers.
+
+This product includes software developed by
+the NiPreps Community (https://nipreps.org/).
+
+Portions of this software were developed at the Department of
+Psychology at Stanford University, Stanford, CA, US.
+
+This software contains code ultimately derived from the epidewarp.fsl
+script (https://www.nmr.mgh.harvard.edu/~greve/fbirn/b0/epidewarp.fsl)
+by Doug Greve, Dave Tuch, Tom Liu, and Bryon Mueller with generous
+help from the FSL crew (www.fmrib.ox.ac.uk/fsl) and the Biomedical
+Informatics Research Network (www.nbirn.net).
+
+This software redistributes the versioneer Python package, which is
+Public domain source code.
+
+This software is also distributed as a Docker container image.
+The bootstraping file for the image ("Dockerfile") is licensed
+under the MIT License.
+
+This software may be distributed through an add-on package called
+"Docker Wrapper" that is under the BSD 3-clause License.

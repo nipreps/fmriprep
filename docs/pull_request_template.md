@@ -38,7 +38,7 @@ To boil it down, here are some highlights:
    lot of time coding.
 2) Please use descriptive prefixes in your pull request title, such as "ENH:" for an enhancement or "FIX:" for a bug fix.
    (See the Contributing guide for the full set.) And consider adding a "WIP" tag for works-in-progress.
-3) Any code you submit will be licensed under the same terms (BSD 3-Clause) as the rest of fMRIPrep.
+3) Any code you submit will be licensed under the same terms (Apache License 2.0) as the rest of fMRIPrep.
 4) We invite every contributor to add themselves to the `.zenodo.json` file
    (https://github.com/nipreps/fmriprep/blob/master/.zenodo.json), which will result in your being listed as an author
    at the next release. Please add yourself as the next-to-last entry, just above Russ.
