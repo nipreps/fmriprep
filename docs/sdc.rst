@@ -62,8 +62,36 @@ In order to select the appropriate estimation workflow, the input BIDS dataset i
 first queried to find the available field-mapping techniques
 (see :py:func:`~sdcflows.workflows.base.init_sdc_estimate_wf`).
 Once the field-map (or the corresponding displacement field) is estimated, the
-distortion can be accounted for 
+distortion can be accounted for
 (see :py:func:`~sdcflows.workflows.unwarp.init_sdc_unwarp_wf`).
+
+Automatic selection of the appropriate susceptibility-distortion correction (SDC) method
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If the dataset metadata indicate that more than one field map acquisition is
+``IntendedFor`` (see the `BIDS Specification
+<https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/01-magnetic-resonance-imaging-data.html#fieldmap-data>`__),
+the following priority will be used:
+
+  1. :ref:`sdc_pepolar` (or **blip-up/blip-down**)
+
+  2. :ref:`sdc_direct_b0`
+
+  3. :ref:`sdc_phasediff`
+
+  4. :ref:`sdc_fieldmapless`
+
+
+Table of behavior (fieldmap use-cases):
+
+=============== =========== ============= ===============
+Fieldmaps found ``use_syn`` ``force_syn``     Action
+=============== =========== ============= ===============
+True            *           True          Fieldmaps + SyN
+True            *           False         Fieldmaps
+False           *           True          SyN
+False           True        False         SyN
+False           False       False         HMC only
+=============== =========== ============= ===============
 
 Calculating the effective echo-spacing and total-readout time
 .............................................................
