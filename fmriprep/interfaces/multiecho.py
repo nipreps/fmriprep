@@ -38,9 +38,14 @@ class T2SMapInputSpec(CommandLineInputSpec):
                              mandatory=True,
                              minlen=3,
                              desc='echo times')
+    mask_file = File(argstr='--mask',
+                     position=3,
+                     mandatory=False,
+                     desc='mask file',
+                     exists=True)
     fittype = traits.Enum('curvefit', 'loglin',
                           argstr='--fittype %s',
-                          position=3,
+                          position=4,
                           usedefault=True,
                           desc=('Desired fitting method: '
                                 '"loglin" means that a linear model is fit '
