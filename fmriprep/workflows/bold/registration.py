@@ -260,7 +260,7 @@ def init_bold_t1_trans_wf(freesurfer, mem_gb, omp_nthreads, use_compression=True
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
     from niworkflows.interfaces.itk import MultiApplyTransforms
     from niworkflows.interfaces.nilearn import Merge
-    from niworkflows.interfaces.utils import GenerateSamplingReference
+    from niworkflows.interfaces.nibabel import GenerateSamplingReference
 
     workflow = Workflow(name=name)
     inputnode = pe.Node(
@@ -625,7 +625,7 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, bold2t1w_init, sloppy=False, name='fs
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.utils.images import dseg_label as _dseg_label
     from niworkflows.interfaces.freesurfer import PatchedLTAConvert as LTAConvert
-    from niworkflows.interfaces.registration import FLIRTRPT
+    from niworkflows.interfaces.reportlets.registration import FLIRTRPT
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
 The BOLD reference was then co-registered to the T1w reference using

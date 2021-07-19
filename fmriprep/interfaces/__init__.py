@@ -3,7 +3,8 @@
 
 # Load modules for compatibility
 from niworkflows.interfaces import (
-    bids, cifti, freesurfer, images, itk, surf, utils)
+    bids, cifti, freesurfer, images, itk, surf, utility
+)
 
 from .reports import SubjectSummary, FunctionalSummary, AboutSummary
 from .confounds import GatherConfounds, ICAConfounds, FMRISummary
@@ -21,7 +22,7 @@ __all__ = [
     'images',
     'itk',
     'surf',
-    'utils',
+    'utility',
     'SubjectSummary',
     'FunctionalSummary',
     'AboutSummary',

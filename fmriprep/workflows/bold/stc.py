@@ -55,7 +55,7 @@ def init_bold_stc_wf(metadata, name='bold_stc_wf'):
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.utils import CopyXForm
+    from niworkflows.interfaces.header import CopyXForm
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
