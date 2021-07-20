@@ -1,3 +1,23 @@
+20.2.2 (July 16, 2021)
+======================
+Hot-fix release in the 20.2.x LTS series.
+Addressing a bug on *fMRIPrep*'s resampling to standard spaces (#2444).
+In addition, some other relevant bug-fixes and performance improvements are built in this patch.
+
+* FIX: Feed *NiTransforms* with LTAs of type RAS2RAS (#2444)
+* FIX: Add some clarity to ``BrokenProcessPool`` failures (#2436)
+* FIX: Fall-back to initializing workflow in main process (#2435)
+* FIX: Raise informative error when duplicate subworkflows are added (#2434)
+* FIX: Non-existing path or JSON syntax error for ``--bids-filter-file`` should raise on error (#2331)
+* FIX: Ignore SBRef files if ``--ignore sbref`` is passed (#2370)
+* ENH: Relax requirement for *PyBIDS* databases to exist (#2429)
+* ENH: Improve ``_get_series_len`` performance (#2406)
+* ENH: Set and track NumPy's random seed (#2400)
+* DOC: Skull-stripping is forced by default (#2430)
+* MAINT: Pin ``nilearn==0.6.2`` (#2427)
+* MAINT: Pin ``tedana==0.0.9a1`` for LTS branch (#2403)
+* MAINT: Failing CI (#2401)
+
 20.2.1 (November 06, 2020)
 ==========================
 Bug-fix release in the 20.2.x LTS series.
@@ -12,10 +32,10 @@ Derivatives dataset, simplifying data management and provenance tracking with co
 tools, such as `DataLad <https://handbook.datalad.org/>`__. This layout will likely become the
 default in future release series.
 
-  * ENH: Output TaskName and timing metadata for all resampled BOLD series (#2320)
-  * ENH: Add --output-layout CLI option to enable BIDS (YODA) mode (#2303)
-  * ENH: Add Docker authentication to increase pull rate limit (#2316)
-  * FIX: Specify logger for warning (#2298)
+* ENH: Output TaskName and timing metadata for all resampled BOLD series (#2320)
+* ENH: Add ``--output-layout`` CLI option to enable BIDS (YODA) mode (#2303)
+* ENH: Add Docker authentication to increase pull rate limit (#2316)
+* FIX: Specify logger for warning (#2298)
 
 20.2.0 (September 28, 2020)
 ===========================
@@ -128,6 +148,16 @@ A full list of changes can be found below.
       31. Max Planck UCL Centre for Computational Psychiatry and Ageing Research, University College London
       32. State Key Laboratory of Cognitive Neuroscience and Learning, Beijing Normal University
       33. Department of Radiology, CHUV, Université de Lausanne
+
+20.1.4 (July 16, 2021)
+======================
+Hotfix release addressing a bug on *fMRIPrep*'s resampling to standard spaces.
+This release also includes some maintenance changes handling old versions of software.
+
+* FIX: Feed *NiTransforms* with LTAs of type RAS2RAS (#2444)
+* MAINT: Pin ``svgutils==0.3.1`` for the 20.1.x series (#2450)
+* MAINT: Keep pip and setuptools with support for Python 3.5 (#2449)
+* MAINT: Some dependencies cannot be left unpinned (#2446)
 
 20.1.3 (September 15, 2020)
 ===========================

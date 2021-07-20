@@ -1,12 +1,16 @@
-version: 2
-jobs:
+version: 2.1
+orbs:
+  docker: circleci/docker@1.6.0
 
+jobs:
   build:
     environment:
       TZ: "/usr/share/zoneinfo/America/Los_Angeles"
       SCRATCH: "/scratch"
     machine:
-      image: ubuntu-1604:202007-01
+      # https://discuss.circleci.com/t/linux-machine-executor-images-2021-april-q2-update/39928
+      # upgrade Docker version
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/src/fmriprep
     steps:
       - checkout
@@ -19,18 +23,20 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
+            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v4--{{ .Revision }}
             - build-v4-{{ .Branch }}-
             - build-v4-master-
             - build-v4-
           paths:
             - /tmp/docker
             - /tmp/images
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set up Docker registry
@@ -55,14 +61,14 @@ jobs:
             set -e
             if [[ "$success" = "0" ]]; then
                 echo "Pulling from local registry"
-                docker tag localhost:5000/ubuntu ubuntu:xenial-20200706
+                docker tag localhost:5000/ubuntu ubuntu:focal
                 docker pull localhost:5000/fmriprep
                 docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
                 docker tag localhost:5000/fmriprep nipreps/fmriprep
             else
                 echo "Pulling from Docker Hub"
-                docker pull ubuntu:xenial-20200706
-                docker tag ubuntu:xenial-20200706 localhost:5000/ubuntu
+                docker pull ubuntu:focal
+                docker tag ubuntu:focal localhost:5000/ubuntu
                 docker push localhost:5000/ubuntu
                 docker pull nipreps/fmriprep:latest
             fi
@@ -111,22 +117,23 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v4-{{ .Branch }}-{{ epoch }}
+         key: build-v4-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
 
   get_data:
     machine:
-      # Ubuntu 14.04 with Docker 17.10.0-ce
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /home/circleci/data
     steps:
       - restore_cache:
           keys:
-            - data-v8-{{ .Branch }}-{{ .Revision }}
-            - data-v8-{{ .Branch }}
-            - data-v8-
+            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v9--{{ .Revision }}
+            - data-v9-{{ .Branch }}-
+            - data-v9-master-
+            - data-v9-
       - run:
           name: Get test data from ds000005
           command: |
@@ -203,7 +210,7 @@ jobs:
               echo "sMRIPrep derivatives of ds000210 were cached"
             fi
       - save_cache:
-         key: data-v8-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: data-v9-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/data
             - /tmp/ds005/freesurfer
@@ -235,7 +242,7 @@ jobs:
 
   test_pytest:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/src/fmriprep
     steps:
       - checkout:
@@ -257,20 +264,19 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v8-{{ .Revision }}
+            - data-v9-{{ .Branch }}-{{ .Revision }}
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set-up a Docker registry
@@ -329,7 +335,7 @@ jobs:
 
   ds005:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/ds005
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
@@ -358,26 +364,26 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v8-{{ .Branch }}-{{ .Revision }}
+            - data-v9-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
             - ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
-            - ds005-anat-v18-{{ .Branch }}
-            - ds005-anat-v18-master
+            - ds005-anat-v18--{{ .Revision }}
+            - ds005-anat-v18-{{ .Branch }}-
+            - ds005-anat-v18-master-
             - ds005-anat-v18-
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set-up a Docker registry
@@ -403,8 +409,6 @@ jobs:
                          sed -e 's/.* 3\./3./' -e 's/ .*//')
             pyenv local $PY3
             mkdir -p /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
             pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
       - run:
@@ -412,13 +416,9 @@ jobs:
           no_output_timeout: 2h
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/work
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
-                    -e FMRIPREP_DEV 1 -u $(id -u) \
+                    -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --network none \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -435,7 +435,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds005/work
 
@@ -443,16 +443,12 @@ jobs:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/work
             FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -498,7 +494,7 @@ jobs:
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
                 /tmp/data/${DATASET}/ /tmp/${DATASET}/bids participant \
@@ -528,7 +524,7 @@ jobs:
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 -u $(id -u) \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives_partial participant \
@@ -572,7 +568,7 @@ jobs:
 
   ds054:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/ds054
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
@@ -597,20 +593,19 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v8-{{ .Branch }}-{{ .Revision }}
+            - data-v9-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
             - ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
-            - ds054-anat-v14-{{ .Branch }}
-            - ds054-anat-v14-master
+            - ds054-anat-v14--{{ .Revision }}
+            - ds054-anat-v14-{{ .Branch }}-
+            - ds054-anat-v14-master-
             - ds054-anat-v14-
       - run:
           name: Setting up test
@@ -619,15 +614,14 @@ jobs:
                          sed -e 's/.* 3\./3./' -e 's/ .*//')
             pyenv local $PY3
             mkdir -p /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
             pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set-up a Docker registry
@@ -651,13 +645,9 @@ jobs:
           no_output_timeout: 2h
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/work
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
-                    -e FMRIPREP_DEV 1 \
+                    -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                     --fs-no-reconall --sloppy --write-graph \
@@ -671,7 +661,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds054-anat-v14-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds054/work
 
@@ -679,16 +669,12 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/work
             FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 ${FASTRACK_ARG} \
@@ -717,7 +703,7 @@ jobs:
                 /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
             set +e
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 --fs-no-reconall --sloppy --write-graph \
@@ -744,7 +730,7 @@ jobs:
 
   ds210:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/ds210
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
@@ -769,20 +755,19 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v8-{{ .Branch }}-{{ .Revision }}
+            - data-v9-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
             - ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v12--{{ .Revision }}
             - ds210-anat-v12-{{ .Branch }}-
-            - ds210-anat-v12-master
+            - ds210-anat-v12-master-
             - ds210-anat-v12-
       - run:
           name: Setting up test
@@ -790,14 +775,15 @@ jobs:
             export PY3=$(pyenv versions | grep '3\.' |
                          sed -e 's/.* 3\./3./' -e 's/ .*//')
             pyenv local $PY3
-            mkdir -p /tmp/${DATASET}/derivatives && sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
+            mkdir -p /tmp/${DATASET}/derivatives
             pip install --upgrade pip setuptools
             pip install --upgrade /tmp/src/fmriprep/wrapper/
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set-up a Docker registry
@@ -821,13 +807,9 @@ jobs:
           no_output_timeout: 2h
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/derivatives
-            sudo setfacl -d -m group:$(id -gn):rwx /tmp/${DATASET}/work && \
-                sudo setfacl -m group:$(id -gn):rwx /tmp/${DATASET}/work
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
-                    -e FMRIPREP_DEV 1 \
+                    -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                     --fs-no-reconall --sloppy --write-graph \
@@ -841,7 +823,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v12-{{ .Branch }}-{{ .Revision }}-{{ epoch }}
+         key: ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds210/work
 
@@ -854,7 +836,7 @@ jobs:
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 ${FASTRACK_ARG} \
@@ -891,7 +873,7 @@ jobs:
 
   deploy_docker_patches:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/src/fmriprep
     steps:
 
@@ -914,17 +896,16 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Setup a Docker registry
@@ -952,7 +933,7 @@ jobs:
 
   deploy_docker:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202104-01
     working_directory: /tmp/src/fmriprep
     steps:
       - checkout:
@@ -967,17 +948,16 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
+      - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
           command: |
-            if [[ -n $DOCKER_PASS ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n $DOCKER_PAT ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
       - run:
           name: Set-up a Docker registry
@@ -1000,8 +980,8 @@ jobs:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
           command: |
-            if [[ -n "$DOCKER_PASS" ]]; then
-              docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [[ -n "$DOCKER_PAT" ]]; then
+              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
               docker tag nipreps/fmriprep nipreps/fmriprep:unstable
               docker push nipreps/fmriprep:unstable
               if [[ -n "$CIRCLE_TAG" ]]; then

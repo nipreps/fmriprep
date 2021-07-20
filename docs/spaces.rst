@@ -60,6 +60,15 @@ the data on ``MNI152NLin6Asym`` space and the original BOLD resolution
 This is equivalent to saying
 ``--output-spaces MNI152NLin6Asym:res-2 MNI152NLin2009cAsym:res-native``.
 
+.. danger::
+
+   Please remember that the ``resolution`` entity of *TemplateFlow* is an **index**,
+   and therefore, ``res-2`` does not necessarily mean 2mm\ :sup:`3` - although, it
+   coincidentally does in the example above.
+   However, it may not be the case.
+   For instance, ``MNI152NLin6Asym:res-3`` contains a template with
+   isotropic voxels of 0.5mm\ :sup:`3`.
+
 Other possible modifiers are, for instance, the ``cohort`` selector.
 For instance, ``--output-spaces MNIPediatricAsym:res-1:cohort-2`` selects
 the resolution ``1`` of ``cohort-2`` which, for the ``MNIPediatricAsym``

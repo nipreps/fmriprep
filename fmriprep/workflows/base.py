@@ -302,6 +302,8 @@ tasks and sessions), the following preprocessing was performed.
 
     for bold_file in subject_data['bold']:
         func_preproc_wf = init_func_preproc_wf(bold_file)
+        if func_preproc_wf is None:
+            continue
 
         workflow.connect([
             (anat_preproc_wf, func_preproc_wf,

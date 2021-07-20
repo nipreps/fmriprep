@@ -148,10 +148,10 @@ def validate_input_dir(exec_env, bids_dir, participant_label):
         if ignored_subs:
             for sub in ignored_subs:
                 validator_config_dict["ignoredFiles"].append("/sub-%s/**" % sub)
-    with tempfile.NamedTemporaryFile('w+') as temp:
+    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp:
         temp.write(json.dumps(validator_config_dict))
         temp.flush()
         try:
-            subprocess.check_call(['bids-validator', bids_dir, '-c', temp.name])
+            subprocess.check_call(['bids-validator', str(bids_dir), '-c', temp.name])
         except FileNotFoundError:
             print("bids-validator does not appear to be installed", file=sys.stderr)

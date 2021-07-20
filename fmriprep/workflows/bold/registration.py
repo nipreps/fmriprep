@@ -415,6 +415,7 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, bold2t1w_init, omp_nthreads, name='bbre
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
     """
+    from nipype.interfaces.base.traits_extension import Undefined
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     # See https://github.com/nipreps/fmriprep/issues/768
     from niworkflows.interfaces.freesurfer import (
@@ -455,17 +456,6 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             LOGGER.warning("Initializing BBR with header; affine fallback disabled")
             use_bbr = True
 
-    merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
-    concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
-
-    workflow.connect([
-        # Output ITK transforms
-        (inputnode, merge_ltas, [('fsnative2t1w_xfm', 'in2')]),
-        (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
-        (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
-        (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
-    ])
-
     # Define both nodes, but only connect conditionally
     mri_coreg = pe.Node(
         MRICoregRPT(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01,
@@ -473,23 +463,54 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='mri_coreg', n_procs=omp_nthreads, mem_gb=5)
 
     bbregister = pe.Node(
-        BBRegisterRPT(dof=bold2t1w_dof, contrast_type='t2', registered_file=True,
-                      out_lta_file=True, generate_report=True),
-        name='bbregister', mem_gb=12)
+        BBRegisterRPT(
+            dof=bold2t1w_dof,
+            contrast_type='t2',
+            registered_file=True,
+            out_lta_file=True,
+            generate_report=True
+        ),
+        name='bbregister', mem_gb=12
+    )
+    if bold2t1w_init == "header":
+        bbregister.inputs.init = "header"
 
-    # Use mri_coreg
+    transforms = pe.Node(niu.Merge(1 if bold2t1w_init == "header" else 2),
+                         run_without_submitting=True, name='transforms')
+    lta_ras2ras = pe.MapNode(LTAConvert(out_lta=True), iterfield=['in_lta'],
+                             name='lta_ras2ras', mem_gb=2)
+    select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
+    merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
+    concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
+
+    workflow.connect([
+        (inputnode, merge_ltas, [('fsnative2t1w_xfm', 'in2')]),
+        # Wire up the co-registration alternatives
+        (bbregister, transforms, [('out_lta_file', 'in1')]),
+        (transforms, lta_ras2ras, [('out', 'in_lta')]),
+        (lta_ras2ras, select_transform, [('out_lta', 'inlist')]),
+        (select_transform, merge_ltas, [('out', 'in1')]),
+        (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
+        (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
+        (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
+    ])
+
+    # Do not initialize with header, use mri_coreg
     if bold2t1w_init == "register":
         workflow.connect([
             (inputnode, mri_coreg, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id'),
                                     ('in_file', 'source_file')]),
+            (mri_coreg, bbregister, [('out_lta_file', 'init_reg_file')]),
+            (mri_coreg, transforms, [('out_lta_file', 'in2')]),
         ])
 
         # Short-circuit workflow building, use initial registration
         if use_bbr is False:
+            select_transform.inputs.index = 1
             workflow.connect([
                 (mri_coreg, outputnode, [('out_report', 'out_report')]),
-                (mri_coreg, merge_ltas, [('out_lta_file', 'in1')])])
+            ])
             outputnode.inputs.fallback = True
 
             return workflow
@@ -501,43 +522,28 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
                                  ('in_file', 'source_file')]),
     ])
 
-    if bold2t1w_init == "header":
-        bbregister.inputs.init = "header"
-    else:
-        workflow.connect([(mri_coreg, bbregister, [('out_lta_file', 'init_reg_file')])])
-
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
+        select_transform.inputs.index = 0
         workflow.connect([
             (bbregister, outputnode, [('out_report', 'out_report')]),
-            (bbregister, merge_ltas, [('out_lta_file', 'in1')])])
+        ])
         outputnode.inputs.fallback = False
 
         return workflow
 
     # Only reach this point if bold2t1w_init is "register" and use_bbr is None
-
-    transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
     reports = pe.Node(niu.Merge(2), run_without_submitting=True, name='reports')
 
-    lta_ras2ras = pe.MapNode(LTAConvert(out_lta=True), iterfield=['in_lta'],
-                             name='lta_ras2ras', mem_gb=2)
     compare_transforms = pe.Node(niu.Function(function=compare_xforms), name='compare_transforms')
-
-    select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
     select_report = pe.Node(niu.Select(), run_without_submitting=True, name='select_report')
 
     workflow.connect([
-        (bbregister, transforms, [('out_lta_file', 'in1')]),
-        (mri_coreg, transforms, [('out_lta_file', 'in2')]),
         # Normalize LTA transforms to RAS2RAS (inputs are VOX2VOX) and compare
-        (transforms, lta_ras2ras, [('out', 'in_lta')]),
         (lta_ras2ras, compare_transforms, [('out_lta', 'lta_list')]),
         (compare_transforms, outputnode, [('out', 'fallback')]),
         # Select output transform
-        (transforms, select_transform, [('out', 'inlist')]),
         (compare_transforms, select_transform, [('out', 'index')]),
-        (select_transform, merge_ltas, [('out', 'in1')]),
         # Select output report
         (bbregister, reports, [('out_report', 'in1')]),
         (mri_coreg, reports, [('out_report', 'in2')]),

@@ -592,6 +592,8 @@ class seeds(_Config):
     """Master random seed to initialize the Pseudorandom Number Generator (PRNG)"""
     ants = None
     """Seed used for antsRegistration, antsAI, antsMotionCorr"""
+    numpy = None
+    """Seed used by NumPy"""
 
     @classmethod
     def init(cls):
@@ -602,12 +604,21 @@ class seeds(_Config):
         random.seed(cls.master)  # initialize the PRNG
         # functions to set program specific seeds
         cls.ants = _set_ants_seed()
+        cls.numpy = _set_numpy_seed()
 
 
 def _set_ants_seed():
     """Fix random seed for antsRegistration, antsAI, antsMotionCorr"""
     val = random.randint(1, 65536)
     os.environ["ANTS_RANDOM_SEED"] = str(val)
+    return val
+
+
+def _set_numpy_seed():
+    """NumPy's random seed is independant from Python's `random` module"""
+    import numpy as np
+    val = random.randint(1, 65536)
+    np.random.seed(val)
     return val
 
 
