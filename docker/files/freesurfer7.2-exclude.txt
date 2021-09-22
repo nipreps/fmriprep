@@ -333,7 +333,6 @@ freesurfer/bin/mri_convert_mdh
 freesurfer/bin/mri_copy_params
 freesurfer/bin/mri_copy_values
 freesurfer/bin/mri_cor2label
-freesurfer/bin/mri_coreg
 freesurfer/bin/mri_correct_segmentations
 freesurfer/bin/mri_create_t2combined
 freesurfer/bin/mri_create_tests
@@ -440,7 +439,6 @@ freesurfer/bin/mri_seghead
 freesurfer/bin/mri_segment_hypothalamic_subunits
 freesurfer/bin/mri_segment_tumor
 freesurfer/bin/mri_segment_wm_damage
-freesurfer/bin/mri_segreg
 freesurfer/bin/mri_simulate_atrophy
 freesurfer/bin/mri_strip_nonwhite
 freesurfer/bin/mri_strip_subject_info
@@ -751,7 +749,6 @@ freesurfer/bin/asegstats2table
 freesurfer/bin/asegstatsdiff
 freesurfer/bin/bblabel
 freesurfer/bin/bbmask
-freesurfer/bin/bbregister
 freesurfer/bin/bedpostx_mgh
 freesurfer/bin/bet.fsl
 freesurfer/bin/beta2sxa
