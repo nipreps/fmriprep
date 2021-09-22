@@ -772,7 +772,7 @@ freesurfer/bin/compute_interrater_variability.csh
 freesurfer/bin/compute_label_vals.csh
 freesurfer/bin/qdec
 freesurfer/diffusion
-freesurfer/docs
+freesurfer/docs/xml
 freesurfer/fsfast
 freesurfer/lib/bem/ic0.tri
 freesurfer/lib/bem/ic1.tri
