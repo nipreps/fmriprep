@@ -134,17 +134,6 @@ jobs:
             - data-v9-master-
             - data-v9-
       - run:
-          name: Get test data from ds000005
-          command: |
-            mkdir -p /tmp/data
-            if [[ ! -d /tmp/data/ds005 ]]; then
-              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_downsampled.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/57f32a429ad5a101f977eb75"
-              tar xvzf ds005_downsampled.tar.gz -C /tmp/data/
-            else
-              echo "Dataset ds000005 was cached"
-            fi
-      - run:
           name: Get test data from ds000054
           command: |
             if [[ ! -d /tmp/data/ds054 ]]; then
@@ -163,17 +152,6 @@ jobs:
               tar xvzf ds210_downsampled.tar.gz -C /tmp/data/
             else
               echo "Dataset ds000210 was cached"
-            fi
-      - run:
-          name: Get FreeSurfer derivatives for ds000005
-          command: |
-            if [[ ! -d /tmp/ds005/freesurfer ]]; then
-              mkdir -p /tmp/ds005
-              wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005
-            else
-              echo "FreeSurfer derivatives of ds000005 were cached"
             fi
       - run:
           name: Get sMRIPrep derivatives for ds000005
@@ -238,6 +216,42 @@ jobs:
             - ds005/nipype.cfg
             - ds054/nipype.cfg
             - ds210/nipype.cfg
+
+  datalad:
+    docker:
+      - image: markiewicz/datalad:0.15.1
+        auth:
+          username: $DOCKER_USER
+          password: $DOCKER_PAT
+    working_directory: /tmp
+    steps:
+      - restore_cache:
+          keys:
+            - datalad-v1-{{ .Branch }}-{{ .Revision }}
+            - datalad-v1--{{ .Revision }}
+            - datalad-v1-{{ .Branch }}-
+            - datalad-v1-master-
+            - datalad-v1-
+      - run:
+          name: Set git ID
+          command: |
+            git config --global user.name "fMRIPrep CircleCI user"
+            git config --global user.email "crn.poldracklab@gmail.com"
+      - run:
+          name: Install fMRIPrep test datasets
+          command: |
+            datalad install -r -s https://gin.g-node.org/nipreps-data/fmriprep-test-data
+            datalad update --merge -d fmriprep-test-data
+      - run:
+          name: Get ds000005 source and derivative data
+          command: |
+            datalad get ds000005/sub-01/
+            datalad get ds000005/derivatives/freesurfer-7.2.0/
+          working_directory: /tmp/fmriprep-test-data
+      - save_cache:
+         key: datalad-v1-{{ .Branch }}-{{ .Revision }}
+         paths:
+            - /tmp/fmriprep-test-data
 
   test_pytest:
     machine:
@@ -372,11 +386,18 @@ jobs:
             - data-v9-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
-            - ds005-anat-v18--{{ .Revision }}
-            - ds005-anat-v18-{{ .Branch }}-
-            - ds005-anat-v18-master-
-            - ds005-anat-v18-
+            - datalad-v1-{{ .Branch }}-{{ .Revision }}
+            - datalad-v1--{{ .Revision }}
+            - datalad-v1-{{ .Branch }}-
+            - datalad-v1-master-
+            - datalad-v1-
+      - restore_cache:
+          keys:
+            - ds005-anat-v19-{{ .Branch }}-{{ .Revision }}
+            - ds005-anat-v19--{{ .Revision }}
+            - ds005-anat-v19-{{ .Branch }}-
+            - ds005-anat-v19-master-
+            - ds005-anat-v19-
       - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
@@ -420,9 +441,9 @@ jobs:
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --network none \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                    /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                    /tmp/fmriprep-test-data/ds000005 /tmp/data/${DATASET}/derivatives participant \
                     --output-layout legacy \
-                    --fs-subjects-dir /tmp/${DATASET}/freesurfer \
+                    --fs-subjects-dir /tmp/fmriprep-test-data/ds000005/derivatives/freesurfer-7.2.0 \
                     --skull-strip-template OASIS30ANTs:res-1 \
                     --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
                     --sloppy --write-graph --mem_mb 4096 \
@@ -435,7 +456,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
+         key: ds005-anat-v19-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds005/work
 
@@ -451,8 +472,8 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
-                --fs-subjects-dir /tmp/${DATASET}/freesurfer \
+                /tmp/fmriprep-test-data/ds000005 /tmp/data/${DATASET}/derivatives participant \
+                --fs-subjects-dir /tmp/fmriprep-test-data/ds000005/derivatives/freesurfer-7.2.0 \
                 ${FASTRACK_ARG} \
                 --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
@@ -498,7 +519,7 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
-                /tmp/data/${DATASET}/ /tmp/${DATASET}/bids participant \
+                /tmp/fmriprep-test-data/ds000005 /tmp/${DATASET}/bids participant \
                 ${FASTRACK_ARG} \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-spaces MNI152NLin2009cAsym \
@@ -527,8 +548,8 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives_partial participant \
-                --fs-subjects-dir /tmp/${DATASET}/freesurfer \
+                /tmp/fmriprep-test-data/ds000005 /tmp/${DATASET}/derivatives_partial participant \
+                --fs-subjects-dir /tmp/fmriprep-test-data/ds000005/derivatives/freesurfer-7.2.0 \
                 ${FASTRACK_ARG} \
                 --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
@@ -1129,6 +1150,16 @@ workflows:
             tags:
               only: /.*/
 
+      - datalad:
+          filters:
+            branches:
+              ignore:
+                - /docs?\/.*/
+                - /tests?\/.*/
+                - /docker\/.*/
+            tags:
+              only: /.*/
+
       - test_deploy_pypi:
           filters:
             branches:
@@ -1155,6 +1186,7 @@ workflows:
       - ds005:
           requires:
             - get_data
+            - datalad
             - build
           filters:
             branches:
