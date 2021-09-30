@@ -243,6 +243,24 @@ def is_in_directory(filepath, directory):
         os.path.realpath(directory) + os.sep)
 
 
+mounts = {"ro": {}, "rw": {}}
+
+
+def add_mount(ext_path, int_path, mode):
+    opp_mode = set.pop(set(mounts) - {mode})
+    for ext_parent, int_parent in mounts[mode].items():
+        if is_in_directory(ext_path, ext_parent):
+            int_path = os.path.join(int_parent, os.path.relpath(ext_path, ext_parent))
+            break
+    else:
+        for ext_parent, int_parent in mounts[opp_mode].items():
+            if is_in_directory(ext_path, ext_parent):
+                int_path = os.path.join(int_parent, os.path.relpath(ext_path, ext_parent))
+                break
+        mounts[mode][ext_path] = int_path
+    return int_path
+
+
 def get_parser():
     """Defines the command line interface of the wrapper"""
     import argparse
@@ -455,31 +473,29 @@ def main():
 
     main_args = []
     if opts.bids_dir:
-        command.extend(['-v', ':'.join((opts.bids_dir, '/data', 'ro'))])
-        main_args.append('/data')
+        main_args.append(add_mount(opts.bids_dir, "/data", "ro"))
     if opts.output_dir:
         if not os.path.exists(opts.output_dir):
             # create it before docker does
             os.makedirs(opts.output_dir)
-        command.extend(['-v', ':'.join((opts.output_dir, '/out'))])
-        main_args.append('/out')
+        main_args.append(add_mount(opts.output_dir, "/out", "rw"))
     main_args.append(opts.analysis_level)
 
+    parents = ((opts.bids_dir, "/data"), (opts.output_dir, "/out"))
     if opts.fs_subjects_dir:
-        command.extend(['-v', '{}:/opt/subjects'.format(opts.fs_subjects_dir)])
-        unknown_args.extend(['--fs-subjects-dir', '/opt/subjects'])
+        fs_subjects_dir = add_mount(opts.fs_subjects_dir, "/opt/subjects", "rw")
+        unknown_args.extend(["--fs-subjects-dir", fs_subjects_dir])
 
     if opts.config_file:
-        command.extend(['-v', '{}:/tmp/config.toml'.format(opts.config_file)])
-        unknown_args.extend(['--config-file', '/tmp/config.toml'])
+        config_file = add_mount(opts.config_file, "/tmp/config.toml", "rw")
+        unknown_args.extend(['--config-file', config_file])
 
     if opts.anat_derivatives:
-        command.extend(['-v', '{}:/opt/smriprep/subjects'.format(opts.anat_derivatives)])
-        unknown_args.extend(['--anat-derivatives', '/opt/smriprep/subjects'])
+        anat_derivatives = add_mount(opts.anat_derivatives, "/opt/smriprep/subjects", "rw")
+        unknown_args.extend(["--anat-derivatives", anat_derivatives])
 
     if opts.work_dir:
-        command.extend(['-v', ':'.join((opts.work_dir, '/scratch'))])
-        unknown_args.extend(['-w', '/scratch'])
+        unknown_args.extend(["-w", add_mount(opts.work_dir, "/scratch", "rw")])
 
     # Check that work_dir is not a child of bids_dir
     if opts.work_dir and opts.bids_dir:
@@ -490,17 +506,15 @@ def main():
             return 1
 
     if opts.config:
-        command.extend(['-v', ':'.join((
-            opts.config, '/home/fmriprep/.nipype/nipype.cfg', 'ro'))])
+        add_mount(opts.config, "/home/fmriprep/.nipype/nipype.cfg", "ro")
 
     if opts.use_plugin:
-        command.extend(['-v', ':'.join((opts.use_plugin, '/tmp/plugin.yml',
-                                        'ro'))])
-        unknown_args.extend(['--use-plugin', '/tmp/plugin.yml'])
+        use_plugin = add_mount(opts.use_plugin, "/tmp/plugin.yml", "ro")
+        unknown_args.extend(['--use-plugin', use_plugin])
 
     if opts.bids_database_dir:
-        command.extend(['-v', ':'.join((opts.bids_database_dir, '/tmp/bids_db'))])
-        unknown_args.extend(['--bids-database-dir', '/tmp/bids_db'])
+        bids_database_dir = add_mount(opts.bids_database_dir, '/tmp/bids_db', "rw")
+        unknown_args.extend(['--bids-database-dir', bids_database_dir])
 
     if opts.output_spaces:
         spaces = []
@@ -510,11 +524,15 @@ def main():
                 if not tpl.startswith('tpl-'):
                     raise RuntimeError("Custom template %s requires a `tpl-` prefix" % tpl)
                 target = '/home/fmriprep/.cache/templateflow/' + tpl
-                command.extend(['-v', ':'.join((os.path.abspath(space), target, 'ro'))])
+                add_mount(os.path.abspath(space), target, "ro")
                 spaces.append(tpl[4:])
             else:
                 spaces.append(space)
         unknown_args.extend(['--output-spaces'] + spaces)
+
+    for mode in mounts:
+        for ext_path, int_path in mounts[mode].items():
+            command.extend(["-v", ":".join((ext_path, int_path, mode))])
 
     if opts.shell:
         command.append('--entrypoint=bash')
