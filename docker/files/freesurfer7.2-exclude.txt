@@ -607,7 +607,6 @@ freesurfer/bin/recon-all-exvivo
 freesurfer/bin/recon-all.makefile
 freesurfer/bin/reg-feat2anat
 freesurfer/bin/reg-mni305.2mm
-freesurfer/bin/reg2subject
 freesurfer/bin/regdat2xfm
 freesurfer/bin/register.csh
 freesurfer/bin/register_child
@@ -732,7 +731,6 @@ freesurfer/bin/xsanatreg
 freesurfer/bin/zero_lt_4dfp
 freesurfer/bin/3dvolreg.afni
 freesurfer/bin/4dfptoanalyze
-freesurfer/bin/IsLTA
 freesurfer/bin/SegmentSubfieldsT1Longitudinal
 freesurfer/bin/SegmentThalamicNuclei
 freesurfer/bin/Spline3_test
