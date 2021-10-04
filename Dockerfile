@@ -34,10 +34,10 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 # Prepare environment
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+                    ca-certificates \
                     apt-utils \
                     curl \
                     bzip2 \
-                    ca-certificates \
                     xvfb \
                     build-essential \
                     autoconf \
