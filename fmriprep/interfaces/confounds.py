@@ -72,7 +72,6 @@ class aCompCorMasks(SimpleInterface):
         )
         return runtime
 
-
 class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
     signals = File(exists=True, desc='input signals')
     dvars = File(exists=True, desc='file containing DVARS')
@@ -81,6 +80,7 @@ class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
     rmsd = File(exists=True, desc='input RMS framewise displacement')
     tcompcor = File(exists=True, desc='input tCompCorr')
     acompcor = File(exists=True, desc='input aCompCorr')
+    crowncompcor = File(exists=True, desc='input crown-based regressors')
     cos_basis = File(exists=True, desc='input cosine basis')
     motion = File(exists=True, desc='input motion parameters')
     aroma = File(exists=True, desc='input ICA-AROMA')
@@ -135,6 +135,7 @@ class GatherConfounds(SimpleInterface):
             rmsd=self.inputs.rmsd,
             tcompcor=self.inputs.tcompcor,
             acompcor=self.inputs.acompcor,
+            crowncompcor=self.inputs.crowncompcor,
             cos_basis=self.inputs.cos_basis,
             motion=self.inputs.motion,
             aroma=self.inputs.aroma,
@@ -186,8 +187,8 @@ class ICAConfounds(SimpleInterface):
 
 
 def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
-                      rmsd=None, tcompcor=None, acompcor=None, cos_basis=None,
-                      motion=None, aroma=None, newpath=None):
+                      rmsd=None, tcompcor=None, acompcor=None, crowncompcor=None,
+                      cos_basis=None, motion=None, aroma=None, newpath=None):
     r"""
     Load confounds from the filenames, concatenate together horizontally
     and save new file.
@@ -240,9 +241,11 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
                            (rmsd, 'Framewise displacement (RMS)'),
                            (tcompcor, 'tCompCor'),
                            (acompcor, 'aCompCor'),
+                           (crowncompcor, 'crownCompCor'),
                            (cos_basis, 'Cosine basis'),
                            (motion, 'Motion parameters'),
-                           (aroma, 'ICA-AROMA')):
+                           (aroma, 'ICA-AROMA')
+                           ):
         if confound is not None and isdefined(confound):
             confounds_list.append(name)
             if os.path.exists(confound) and os.stat(confound).st_size > 0:

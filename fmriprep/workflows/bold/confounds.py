@@ -153,6 +153,7 @@ def init_bold_confs_wf(
         RobustACompCor as ACompCor,
         RobustTCompCor as TCompCor,
     )
+    from niworkflows.interfaces.morphology import CrownMask
     from niworkflows.interfaces.plotting import (
         CompCorVariancePlot, ConfoundsCorrelationPlot
     )
@@ -211,7 +212,8 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
 """
     inputnode = pe.Node(niu.IdentityInterface(
         fields=['bold', 'bold_mask', 'movpar_file', 'rmsd_file',
-                'skip_vols', 't1w_mask', 't1w_tpms', 't1_bold_xform']),
+                'skip_vols', 't1w_mask', 't1w_tpms', 't1_bold_xform',
+                'std2anat_xfm']),
         name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(
         fields=['confounds_file', 'confounds_metadata', 'acompcor_masks', 'tcompcor_mask']),
@@ -228,6 +230,21 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
     # Generate aCompCor probseg maps
     acc_masks = pe.Node(aCompCorMasks(is_aseg=freesurfer), name="acc_masks")
 
+    # List transforms
+    mrg_xfms = pe.Node(niu.Merge(2), name='mrg_xfms')
+
+    # Warp segmentation into EPI space
+    resample_parc = pe.Node(ApplyTransforms(
+        dimension=3,
+        input_image=str(get_template(
+            'MNI152NLin2009cAsym', resolution=1, desc='carpet',
+            suffix='dseg', extension=['.nii', '.nii.gz'])),
+        interpolation='MultiLabel'),
+        name='resample_parc')
+
+    # Generate crown mask
+    crown_mask = pe.Node(CrownMask(),name="crown_mask")
+
     # Resample probseg maps in BOLD space via T1w-to-BOLD transform
     acc_msk_tfm = pe.MapNode(ApplyTransforms(
         interpolation='Gaussian', float=False), iterfield=["input_image"],
@@ -241,6 +258,12 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                  save_pre_filter=True, save_metadata=True, mask_names=['CSF', 'WM', 'combined'],
                  merge_method='none', failure_mode='NaN'),
         name="acompcor", mem_gb=mem_gb)
+
+    crowncompcor = pe.Node(
+        ACompCor(components_file='crown_compcor.tsv', header_prefix='crown_', pre_filter='cosine',
+                 save_pre_filter=True, save_metadata=True, mask_names=['crown_mask'],
+                 merge_method='none', failure_mode='NaN', num_components=24),
+        name="crowncompcor", mem_gb=mem_gb)
 
     tcompcor = pe.Node(
         TCompCor(components_file='tcompcor.tsv', header_prefix='t_comp_cor_', pre_filter='cosine',
@@ -294,9 +317,13 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         TSV2JSON(index_column='component', output=None,
                  additional_metadata={'Method': 'aCompCor'}, enforce_case=True),
         name='acc_metadata_fmt')
+    crowncc_metadata_fmt = pe.Node(
+        TSV2JSON(index_column='component', output=None,
+                 additional_metadata={'Method': 'crownCompCor'}, enforce_case=True),
+        name='crowncc_metadata_fmt')
     mrg_conf_metadata = pe.Node(niu.Merge(3), name='merge_confound_metadata',
                                 run_without_submitting=True)
-    mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'}
+    mrg_conf_metadata.inputs.in4 = {label: {'Method': 'Mean'}
                                     for label in signals_class_labels}
     mrg_conf_metadata2 = pe.Node(DictMerge(), name='merge_confound_metadata2',
                                  run_without_submitting=True)
@@ -328,7 +355,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                               run_without_submitting=True)
     compcor_plot = pe.Node(
         CompCorVariancePlot(variance_thresholds=(0.5, 0.7, 0.9),
-                            metadata_sources=['tCompCor', 'aCompCor']),
+                            metadata_sources=['tCompCor', 'aCompCor','crownCompCor']),
         name='compcor_plot')
     ds_report_compcor = pe.Node(
         DerivativesDataSink(desc='compcorvar', datatype="figures", dismiss_entities=("echo",)),
@@ -373,6 +400,17 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         (acc_msk_brain, acc_msk_bin, [("out_file", "in_file")]),
         (acc_msk_bin, acompcor, [("out_file", "mask_files")]),
 
+        # crownCompCor
+        (inputnode, crowncompcor, [("bold", "realigned_file"),
+                               ("skip_vols", "ignore_initial_volumes")]),
+        (inputnode, mrg_xfms, [('t1_bold_xform', 'in1'),
+                                   ('std2anat_xfm', 'in2')]),
+        (inputnode, crown_mask, [('bold_mask', 'in_brainmask')]),
+        (inputnode, resample_parc, [('bold_mask', 'reference_image')]),
+        (mrg_xfms, resample_parc, [('out', 'transforms')]),
+        (resample_parc, crown_mask, [('output_image', 'in_segm')]),
+        (crown_mask, crowncompcor, [("out_mask", "mask_files")]),
+
         # tCompCor
         (inputnode, tcompcor, [("bold", "realigned_file"),
                                ("skip_vols", "ignore_initial_volumes"),
@@ -402,8 +440,10 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         # Confounds metadata
         (tcompcor, tcc_metadata_fmt, [('metadata_file', 'in_file')]),
         (acompcor, acc_metadata_fmt, [('metadata_file', 'in_file')]),
+        (crowncompcor, crowncc_metadata_fmt, [('metadata_file', 'in_file')]),
         (tcc_metadata_fmt, mrg_conf_metadata, [('output', 'in1')]),
         (acc_metadata_fmt, mrg_conf_metadata, [('output', 'in2')]),
+        (crowncc_metadata_fmt, mrg_conf_metadata, [('output', 'in3')]),
         (mrg_conf_metadata, mrg_conf_metadata2, [('out', 'in_dicts')]),
 
         # Expand the model with derivatives, quadratics, and spikes
@@ -423,6 +463,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
         (tcompcor, mrg_cc_metadata, [('metadata_file', 'in1')]),
         (acompcor, mrg_cc_metadata, [('metadata_file', 'in2')]),
+        (crowncompcor, mrg_cc_metadata, [('metadata_file', 'in2')]),
         (mrg_cc_metadata, compcor_plot, [('out', 'metadata_files')]),
         (compcor_plot, ds_report_compcor, [('out_file', 'in_file')]),
         (concat, conf_corr_plot, [('confounds_file', 'confounds_file'),
