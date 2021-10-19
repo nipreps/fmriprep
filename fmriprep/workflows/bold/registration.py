@@ -140,7 +140,8 @@ def init_bold_reg_wf(
                                bold2t1w_init=bold2t1w_init, omp_nthreads=omp_nthreads)
     else:
         bbr_wf = init_fsl_bbr_wf(use_bbr=use_bbr, bold2t1w_dof=bold2t1w_dof,
-                                 bold2t1w_init=bold2t1w_init, sloppy=sloppy)
+                                 bold2t1w_init=bold2t1w_init, sloppy=sloppy,
+                                 omp_nthreads=omp_nthreads)
 
     workflow.connect([
         (inputnode, bbr_wf, [
@@ -559,7 +560,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     return workflow
 
 
-def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, bold2t1w_init, sloppy=False, name='fsl_bbr_wf'):
+def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, bold2t1w_init, omp_nthreads, sloppy=False,
+                    name='fsl_bbr_wf'):
     """
     Build a workflow to run FSL's ``flirt``.
 
@@ -628,7 +630,10 @@ def init_fsl_bbr_wf(use_bbr, bold2t1w_dof, bold2t1w_init, sloppy=False, name='fs
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.utils.images import dseg_label as _dseg_label
-    from niworkflows.interfaces.freesurfer import PatchedLTAConvert as LTAConvert
+    from niworkflows.interfaces.freesurfer import (
+        PatchedLTAConvert as LTAConvert,
+        PatchedMRICoregRPT as MRICoregRPT,
+    )
     from niworkflows.interfaces.registration import FLIRTRPT
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -651,14 +656,23 @@ for distortions remaining in the BOLD reference.
 
     wm_mask = pe.Node(niu.Function(function=_dseg_label), name='wm_mask')
     wm_mask.inputs.label = 2  # BIDS default is WM=2
-    flt_bbr_init = pe.Node(FLIRTRPT(dof=6, generate_report=not use_bbr,
-                                    uses_qform=True), name='flt_bbr_init')
 
     if bold2t1w_init not in ("register", "header"):
         raise ValueError(f"Unknown BOLD-T1w initialization option: {bold2t1w_init}")
 
     if bold2t1w_init == "header":
         raise NotImplementedError("Header-based registration initialization not supported for FSL")
+
+    mri_coreg = pe.Node(
+        MRICoregRPT(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01,
+                    generate_report=not use_bbr),
+        name='mri_coreg', n_procs=omp_nthreads, mem_gb=5)
+
+    lta_to_fsl = pe.Node(LTAConvert(out_fsl=True), name='lta_to_fsl',
+                         mem_gb=DEFAULT_MEMORY_MIN_GB)
+    workflow.connect([
+        (mri_coreg, lta_to_fsl, [('out_lta_file', 'in_lta')]),
+    ])
 
     invt_bbr = pe.Node(fsl.ConvertXFM(invert_xfm=True), name='invt_bbr',
                        mem_gb=DEFAULT_MEMORY_MIN_GB)
@@ -671,8 +685,8 @@ for distortions remaining in the BOLD reference.
                           name='fsl2itk_inv', mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     workflow.connect([
-        (inputnode, flt_bbr_init, [('in_file', 'in_file'),
-                                   ('t1w_brain', 'reference')]),
+        (inputnode, mri_coreg, [('in_file', 'source_file'),
+                                ('t1w_brain', 'reference_file')]),
         (inputnode, fsl2itk_fwd, [('t1w_brain', 'reference_file'),
                                   ('in_file', 'source_file')]),
         (inputnode, fsl2itk_inv, [('in_file', 'reference_file'),
@@ -685,9 +699,9 @@ for distortions remaining in the BOLD reference.
     # Short-circuit workflow building, use rigid registration
     if use_bbr is False:
         workflow.connect([
-            (flt_bbr_init, invt_bbr, [('out_matrix_file', 'in_file')]),
-            (flt_bbr_init, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
-            (flt_bbr_init, outputnode, [('out_report', 'out_report')]),
+            (lta_to_fsl, invt_bbr, [('out_fsl', 'in_file')]),
+            (lta_to_fsl, fsl2itk_fwd, [('out_fsl', 'transform_file')]),
+            (mri_coreg, outputnode, [('out_report', 'out_report')]),
         ])
         outputnode.inputs.fallback = True
 
@@ -708,7 +722,7 @@ for distortions remaining in the BOLD reference.
     workflow.connect([
         (inputnode, wm_mask, [('t1w_dseg', 'in_seg')]),
         (inputnode, flt_bbr, [('in_file', 'in_file')]),
-        (flt_bbr_init, flt_bbr, [('out_matrix_file', 'in_matrix_file')]),
+        (lta_to_fsl, flt_bbr, [('out_fsl', 'in_matrix_file')]),
     ])
 
     if sloppy is True:
@@ -751,7 +765,7 @@ for distortions remaining in the BOLD reference.
 
     workflow.connect([
         (flt_bbr, transforms, [('out_matrix_file', 'in1')]),
-        (flt_bbr_init, transforms, [('out_matrix_file', 'in2')]),
+        (lta_to_fsl, transforms, [('out_fsl', 'in2')]),
         # Convert FSL transforms to LTA (RAS2RAS) transforms and compare
         (inputnode, fsl_to_lta, [('in_file', 'source_file'),
                                  ('t1w_brain', 'target_file')]),
@@ -764,7 +778,7 @@ for distortions remaining in the BOLD reference.
         (select_transform, invt_bbr, [('out', 'in_file')]),
         (select_transform, fsl2itk_fwd, [('out', 'transform_file')]),
         (flt_bbr, reports, [('out_report', 'in1')]),
-        (flt_bbr_init, reports, [('out_report', 'in2')]),
+        (mri_coreg, reports, [('out_report', 'in2')]),
         (reports, select_report, [('out', 'inlist')]),
         (compare_transforms, select_report, [('out', 'index')]),
         (select_report, outputnode, [('out', 'out_report')]),
