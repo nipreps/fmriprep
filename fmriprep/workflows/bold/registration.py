@@ -708,7 +708,7 @@ for distortions remaining in the BOLD reference.
         return workflow
 
     flt_bbr = pe.Node(
-        FLIRTRPT(cost_func='bbr', dof=bold2t1w_dof, generate_report=True),
+        FLIRTRPT(cost_func='bbr', dof=bold2t1w_dof, args="-basescale 1", generate_report=True),
         name='flt_bbr')
 
     FSLDIR = os.getenv('FSLDIR')
