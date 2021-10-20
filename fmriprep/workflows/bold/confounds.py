@@ -463,7 +463,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
         (tcompcor, mrg_cc_metadata, [('metadata_file', 'in1')]),
         (acompcor, mrg_cc_metadata, [('metadata_file', 'in2')]),
-        (crowncompcor, mrg_cc_metadata, [('metadata_file', 'in2')]),
+        (crowncompcor, mrg_cc_metadata, [('metadata_file', 'in3')]),
         (mrg_cc_metadata, compcor_plot, [('out', 'metadata_files')]),
         (compcor_plot, ds_report_compcor, [('out_file', 'in_file')]),
         (concat, conf_corr_plot, [('confounds_file', 'confounds_file'),
