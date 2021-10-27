@@ -7,6 +7,12 @@ fmriprep/logs/CITATION.html
 fmriprep/logs/CITATION.md
 fmriprep/logs/CITATION.tex
 fmriprep/sub-100185
+fmriprep/sub-100185/fmap
+fmriprep/sub-100185/fmap/sub-100185_fmapid-auto00000_desc-coeff0_fieldmap.nii.gz
+fmriprep/sub-100185/fmap/sub-100185_fmapid-auto00000_desc-coeff1_fieldmap.nii.gz
+fmriprep/sub-100185/fmap/sub-100185_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz
+fmriprep/sub-100185/fmap/sub-100185_fmapid-auto00000_desc-preproc_fieldmap.json
+fmriprep/sub-100185/fmap/sub-100185_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
 fmriprep/sub-100185/func
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-1_boldref.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-1_desc-brain_mask.json

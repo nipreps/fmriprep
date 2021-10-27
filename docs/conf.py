@@ -43,7 +43,6 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinxarg.ext",  # argparse extension
     "nipype.sphinxext.plot_workflow",
-    "nbsphinx",
     "sphinxcontrib.napoleon",
 ]
 

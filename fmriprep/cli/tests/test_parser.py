@@ -22,10 +22,12 @@
 #
 """Test parser."""
 from packaging.version import Version
+from pkg_resources import resource_filename as pkgrf
 import pytest
-from ..parser import _build_parser
+from ..parser import _build_parser, parse_args
 from .. import version as _version
 from ... import config
+from ...tests.test_config import _reset_config
 
 MIN_ARGS = ["data/", "out/", "participant"]
 
@@ -136,3 +138,58 @@ def test_get_parser_blacklist(monkeypatch, capsys, flagged):
     assert ("FLAGGED" in captured) is flagged[0]
     if flagged[0]:
         assert (flagged[1] or "reason: unknown") in captured
+
+
+def test_parse_args(tmp_path):
+    """Basic smoke test showing that our parse_args() function
+    implements the BIDS App protocol"""
+    bids_dir = pkgrf('fmriprep', 'data/tests/ds000005')
+    out_dir = tmp_path / "out"
+    work_dir = tmp_path / "work"
+
+    parse_args(args=[bids_dir, str(out_dir), "participant",  # BIDS App
+                     "-w", str(work_dir),                    # Don't pollute CWD
+                     "--skip-bids-validation"])              # Empty files make BIDS sad
+    assert config.execution.layout.root == bids_dir
+    _reset_config()
+
+
+def test_bids_filter_file(tmp_path, capsys):
+    bids_path = tmp_path / "data"
+    out_path = tmp_path / "out"
+    bff = tmp_path / "filter.json"
+    args = [str(bids_path), str(out_path), "participant",
+            "--bids-filter-file", str(bff)]
+    bids_path.mkdir()
+
+    parser = _build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(args)
+
+    err = capsys.readouterr().err
+    assert "Path does not exist:" in err
+
+    bff.write_text('{"invalid json": }')
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(args)
+
+    err = capsys.readouterr().err
+    assert "JSON syntax error in:" in err
+    _reset_config()
+
+
+@pytest.mark.parametrize("st_ref", (None, "0", "1", "0.5", "start", "middle"))
+def test_slice_time_ref(tmp_path, st_ref):
+    bids_path = tmp_path / "data"
+    out_path = tmp_path / "out"
+    args = [str(bids_path), str(out_path), "participant"]
+    if st_ref:
+        args.extend(["--slice-time-ref", st_ref])
+    bids_path.mkdir()
+
+    parser = _build_parser()
+
+    parser.parse_args(args)
+    _reset_config()

@@ -209,7 +209,7 @@ except Exception:
 
 # Debug modes are names that influence the exposure of internal details to
 # the user, either through additional derivatives or increased verbosity
-DEBUG_MODES = ("compcor",)
+DEBUG_MODES = ("compcor", "fieldmaps")
 
 
 class _Config:
@@ -454,24 +454,33 @@ class execution(_Config):
 
         if cls._layout is None:
             import re
+            from bids.layout.index import BIDSLayoutIndexer
             from bids.layout import BIDSLayout
 
             _db_path = cls.bids_database_dir or (
                 cls.work_dir / cls.run_uuid / "bids_db"
             )
             _db_path.mkdir(exist_ok=True, parents=True)
-            cls._layout = BIDSLayout(
-                str(cls.bids_dir),
+
+            # Recommended after PyBIDS 12.1
+            _indexer = BIDSLayoutIndexer(
                 validate=False,
-                database_path=_db_path,
-                reset_database=cls.bids_database_dir is None,
                 ignore=(
                     "code",
                     "stimuli",
                     "sourcedata",
                     "models",
                     re.compile(r"^\."),
+                    re.compile(
+                        r"sub-[a-zA-Z0-9]+(/ses-[a-zA-Z0-9]+)?/(beh|dwi|eeg|ieeg|meg|perf)"
+                    ),
                 ),
+            )
+            cls._layout = BIDSLayout(
+                str(cls.bids_dir),
+                database_path=_db_path,
+                reset_database=cls.bids_database_dir is None,
+                indexer=_indexer,
             )
             cls.bids_database_dir = _db_path
         cls.layout = cls._layout
@@ -550,6 +559,11 @@ class workflow(_Config):
     skull_strip_t1w = "force"
     """Skip brain extraction of the T1w image (default is ``force``, meaning that
     *fMRIPrep* will run brain extraction of the T1w)."""
+    slice_time_ref = 0.5
+    """The time of the reference slice to correct BOLD values to, as a fraction
+    acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end
+    of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5.
+    The default value is 0.5."""
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""

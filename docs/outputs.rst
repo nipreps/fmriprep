@@ -41,7 +41,7 @@ Visual Reports
 *fMRIPrep* outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
 These reports provide a quick way to make visual inspection of the results easy.
 Each report is self contained and thus can be easily shared with collaborators (for example via email).
-`View a sample report. <_static/sample_report.html>`_
+`View a sample report. <_static/SampleReport/sample_report.html>`_
 
 Derivatives of *fMRIPrep* (preprocessed data)
 ---------------------------------------------
@@ -198,6 +198,23 @@ are saved::
     func/
       sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv
       sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv
+
+.. danger::
+   Slice timing correction in *fMRIPrep* is referenced to the middle slice by default,
+   which leads to a time shift in the volume onsets by 0.5 TR (repetition time).
+   For example, assuming a TR of 2s, original onsets of 0, 2, and 4s would be shifted
+   to 1, 3, and 5s, respectively.
+   In case you did execute slice timing correction, you must check that subsequent
+   analyses (e.g., general linear modeling) consider the right onset shifts.
+   For example, when specifying a first-level model, you should set parameters in your
+   software package or first-level model function accordingly (e.g., select the middle
+   slice as reference).
+   Alternatively, you could manually adjust the volume onsets (e.g. as mentioned in 
+   the example above from [0, 2, 4] to [1, 3, 5]) or the event onsets accordingly.
+   
+   Further information on this issue is found at
+   `this blog post (with thanks to Russell Poldrack and Jeanette Mumford)
+   <https://reproducibility.stanford.edu/slice-timing-correction-in-fmriprep-and-linear-modeling/>`__.
 
 Confounds
 ---------

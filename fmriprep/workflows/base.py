@@ -311,6 +311,49 @@ It is released under the [CC0]\
     if anat_only:
         return workflow
 
+    from sdcflows import fieldmaps as fm
+    fmap_estimators = None
+
+    if any(("fieldmaps" not in config.workflow.ignore,
+            config.workflow.use_syn_sdc,
+            config.workflow.force_syn)):
+        from sdcflows.utils.wrangler import find_estimators
+
+        # SDC Step 1: Run basic heuristics to identify available data for fieldmap estimation
+        # For now, no fmapless
+        fmap_estimators = find_estimators(
+            layout=config.execution.layout,
+            subject=subject_id,
+            fmapless=config.workflow.use_syn_sdc,
+            force_fmapless=config.workflow.force_syn,
+        )
+
+        if config.workflow.use_syn_sdc and not fmap_estimators:
+            message = ("Fieldmap-less (SyN) estimation was requested, but "
+                       "PhaseEncodingDirection information appears to be "
+                       "absent.")
+            config.loggers.workflow.error(message)
+            raise ValueError(message)
+
+        if (
+            "fieldmaps" in config.workflow.ignore
+            and [f for f in fmap_estimators
+                 if f.method != fm.EstimatorType.ANAT]
+        ):
+            config.loggers.workflow.info(
+                'Option "--ignore fieldmaps" was set, but either "--use-syn-sdc" '
+                'or "--force-syn" were given, so fieldmap-less estimation will be executed.'
+            )
+            fmap_estimators = [f for f in fmap_estimators
+                               if f.method == fm.EstimatorType.ANAT]
+
+        if fmap_estimators:
+            config.loggers.workflow.info(
+                "B0 field inhomogeneity map will be estimated with "
+                f" the following {len(fmap_estimators)} estimators: "
+                f"{[e.method for e in fmap_estimators]}."
+            )
+
     # Append the functional section to the existing anatomical exerpt
     # That way we do not need to stream down the number of bold datasets
     anat_preproc_wf.__postdesc__ = (anat_preproc_wf.__postdesc__ or '') + """
@@ -321,8 +364,10 @@ Functional data preprocessing
 tasks and sessions), the following preprocessing was performed.
 """.format(num_bold=len(subject_data['bold']))
 
+    func_preproc_wfs = []
+    has_fieldmap = bool(fmap_estimators)
     for bold_file in subject_data['bold']:
-        func_preproc_wf = init_func_preproc_wf(bold_file)
+        func_preproc_wf = init_func_preproc_wf(bold_file, has_fieldmap=has_fieldmap)
         if func_preproc_wf is None:
             continue
 
@@ -343,14 +388,116 @@ tasks and sessions), the following preprocessing was performed.
               ('outputnode.t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm'),
               ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
         ])
+        func_preproc_wfs.append(func_preproc_wf)
+
+    if not has_fieldmap:
+        return workflow
+
+    from sdcflows.workflows.base import init_fmap_preproc_wf
+
+    fmap_wf = init_fmap_preproc_wf(
+        debug="fieldmaps" in config.execution.debug,
+        estimators=fmap_estimators,
+        omp_nthreads=config.nipype.omp_nthreads,
+        output_dir=fmriprep_dir,
+        subject=subject_id,
+    )
+    fmap_wf.__desc__ = f"""
+Preprocessing of B<sub>0</sub> inhomogeneity mappings
+
+: A total of {len(fmap_estimators)} fieldmaps were found available within the input
+BIDS structure for this particular subject.
+"""
+    for func_preproc_wf in func_preproc_wfs:
+        # fmt: off
+        workflow.connect([
+            (fmap_wf, func_preproc_wf, [
+                ("outputnode.fmap", "inputnode.fmap"),
+                ("outputnode.fmap_ref", "inputnode.fmap_ref"),
+                ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
+                ("outputnode.fmap_mask", "inputnode.fmap_mask"),
+                ("outputnode.fmap_id", "inputnode.fmap_id"),
+                ("outputnode.method", "inputnode.sdc_method"),
+            ]),
+        ])
+        # fmt: on
+
+    # Overwrite ``out_path_base`` of sdcflows's DataSinks
+    for node in fmap_wf.list_node_names():
+        if node.split(".")[-1].startswith("ds_"):
+            fmap_wf.get_node(node).interface.out_path_base = ""
+
+    # Step 3: Manually connect PEPOLAR
+    for estimator in fmap_estimators:
+        config.loggers.workflow.info(f"""\
+Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
+<{', '.join(s.path.name for s in estimator.sources)}>""")
+
+        # Mapped and phasediff can be connected internally by SDCFlows
+        if estimator.method in (fm.EstimatorType.MAPPED, fm.EstimatorType.PHASEDIFF):
+            continue
+
+        suffices = set(s.suffix for s in estimator.sources)
+
+        if estimator.method == fm.EstimatorType.PEPOLAR and sorted(suffices) == ["epi"]:
+            getattr(fmap_wf.inputs, f"in_{estimator.bids_id}").in_data = [
+                str(s.path) for s in estimator.sources
+            ]
+            getattr(fmap_wf.inputs, f"in_{estimator.bids_id}").metadata = [
+                s.metadata for s in estimator.sources
+            ]
+
+        elif estimator.method == fm.EstimatorType.PEPOLAR:
+            raise NotImplementedError(
+                "Sophisticated PEPOLAR schemes are unsupported."
+            )
+
+        elif estimator.method == fm.EstimatorType.ANAT:
+            from niworkflows.interfaces.utility import KeySelect
+            from sdcflows.workflows.fit.syn import init_syn_preprocessing_wf
+
+            sources = [str(s.path) for s in estimator.sources if s.suffix == "bold"]
+            source_meta = [s.metadata for s in estimator.sources if s.suffix == "bold"]
+            syn_preprocessing_wf = init_syn_preprocessing_wf(
+                omp_nthreads=config.nipype.omp_nthreads,
+                debug=config.execution.sloppy,
+                auto_bold_nss=True,
+                t1w_inversion=False,
+                name=f"syn_preprocessing_{estimator.bids_id}",
+            )
+            syn_preprocessing_wf.inputs.inputnode.in_epis = sources
+            syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
+
+            # Select "MNI152NLin2009cAsym" from standard references.
+            fmap_select_std = pe.Node(
+                KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
+                name="fmap_select_std",
+                run_without_submitting=True,
+            )
+
+            # fmt:off
+            workflow.connect([
+                (anat_preproc_wf, fmap_select_std, [
+                    ("outputnode.std2anat_xfm", "std2anat_xfm"),
+                    ("outputnode.template", "keys")]),
+                (anat_preproc_wf, syn_preprocessing_wf, [
+                    ("outputnode.t1w_preproc", "inputnode.in_anat"),
+                    ("outputnode.t1w_mask", "inputnode.mask_anat"),
+                ]),
+                (fmap_select_std, syn_preprocessing_wf, [
+                    ("std2anat_xfm", "inputnode.std2anat_xfm"),
+                ]),
+                (syn_preprocessing_wf, fmap_wf, [
+                    ("outputnode.epi_ref", f"in_{estimator.bids_id}.epi_ref"),
+                    ("outputnode.epi_mask", f"in_{estimator.bids_id}.epi_mask"),
+                    ("outputnode.anat_ref", f"in_{estimator.bids_id}.anat_ref"),
+                    ("outputnode.anat_mask", f"in_{estimator.bids_id}.anat_mask"),
+                    ("outputnode.sd_prior", f"in_{estimator.bids_id}.sd_prior"),
+                ]),
+            ])
+            # fmt:on
     return workflow
 
 
 def _prefix(subid):
     return subid if subid.startswith('sub-') else f'sub-{subid}'
-
-
-def _pop(inlist):
-    if isinstance(inlist, (list, tuple)):
-        return inlist[0]
-    return inlist

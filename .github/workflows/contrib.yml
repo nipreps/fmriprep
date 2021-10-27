@@ -1,0 +1,41 @@
+name: Contribution checks
+
+on:
+  push:
+    branches:
+      - master
+      - maint/*
+  pull_request:
+    branches:
+      - master
+      - maint/*
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  stable:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-latest']
+        python-version: [3.9]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Install flake8
+        run: python -m pip install flake8
+      - name: Check fMRIPrep
+        run: python -m flake8 fmriprep
+      - name: Check wrapper
+        run: python -m flake8 wrapper

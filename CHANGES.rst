@@ -1,3 +1,88 @@
+21.0.0 (TBD)
+============
+A new major version of fMRIPrep is finally here!
+
+  21.0.0rc1
+  ---------
+  * DOC: Add --index-metadata to `pybids layout` faq (#2546)
+  * DOC: Add warning about slice timing correction in output documentation. (#2502)
+  * ENH: Make bids the default output layout option (#2555)
+  * ENH: Mask multi-echo data with reference mask instead of echo-specific masks (#2349)
+  * FIX: Missing numpy import (#2533)
+  * DOCKER: Shrink Docker image size (#2551)
+  * DOCKER: Strip ABI tag from libQt5Core.so.5 to prevent Singularity failures (#2535)
+  * MAINT: Run pytest through GitHub actions (#2529)
+
+  21.0.0rc0
+  ---------
+  * DOC: Update sample report (#2519)
+  * DOC: Refactor README and citing information (#2474)
+  * DOC: Point documentation at *SDCFlows* and remove SDC section (#2470)\
+  * DOC: Transfer duplicated documentation to www.nipreps.org (#2469)
+  * DOC: Better explanation on how spike regressors are generated (#2465)
+  * DOC: Clarify that ``res-2`` entity does not mean 2mm (#2466)
+  * DOC: adds --mem metavar (#2378)
+  * DOC: skull stripping is forced by default (#2345)
+  * ENH: Add flag for STC reference time and set in all cases (#2520)
+  * ENH: Use ``BIDSLayoutIndexer`` and do not index unnecessary modalities (#2494)
+  * ENH: Allow users to download templateflow templates to directory (#2482)
+  * ENH: Detect 3D & too-short BOLD series, warn and skip run's workflow building (#2461)
+  * ENH: Modernize Dockerfile (#2409) (#2270)
+  * ENH: Leverage SDCFlows 2.x API (#2392)
+  * FIX: Avoid eager imports from *NiWorkflows* causing API breaks (#2495)
+  * FIX: Split aCompCor into aCompCor, cCompCor, wCompCor (#2523)
+  * FIX: Avoid unnecessary connections based on branching logic (#2508)
+  * FIX: Permit missing TR to show PyBIDS error at workflow construction time (#2513)
+  * FIX: Simplify STC logic for too short BOLD series (#2489)
+  * FIX: Catch FreeSurfer error related to FIPS being enabled (#2490)
+  * FIX: ``DerivativesDataSink`` nondeterministic checksums fixed with ``niworkflows=~1.3.4`` (#2458)
+  * FIX: Address dependency incompatibilities by pinning specific packages (#2463)
+  * FIX: Unprotected import of ``sentry_sdk``, which is not a dependency (#2460)
+  * FIX: Clarify phase encoding direction, rather than axis (#2302)
+  * MAINT: Relicense +20.3.x - BSD-3-Clause -> Apache License 2.0 (#2325)
+  * MAINT: Add missing OASIS30 WM/BS probsegs (#2471)
+  * MAINT: Update BIDS validator to 1.8.0 (#2443)
+  * MAINT: Address the problems of a sloppy merge (#2468)
+  * MAINT: Containers - remove ``/root/.npm`` (#2464)
+  * MAINT: Remove traces of Xenial base (#2459)
+  * MAINT: Revise CircleCI's cache tags to avoid mixups between builds (#2457)
+  * MAINT: Back port CircleCI configuration from dev branch (#2456)
+  * MAINT: Increase minimum tedana version (#2366)
+  * MAINT: Docker hub has disabled password authentication (#2448)
+  * MAINT: Add Lea Waller to ``contributors.json`` (#2304)
+  * MAINT: Move away from nearly deprecated images (#2295)
+  * MAINT: Migrate from poldracklab to nipreps orgs (#2290)
+  * MAINT: Ease CI packaging tests (#2472)
+
+20.2.5 (October 12, 2021)
+=========================
+Bug-fix release in the 20.2.x LTS series.
+
+This release includes a fix to `--slice-time-ref` parsing. Also, some
+issues in anatomical processing are resolved, including poorly-interpolated
+labels in aseg segmentations, and probabilistic segmentations have reverted
+to FAST.
+
+  * FIX: --slice-time-ref option parsing (#2573)
+  * CI: Add style checks (missing since Travis got throttled) (#2570)
+
+20.2.4 (October 04, 2021)
+=========================
+Bug-fix release in the 20.2.x LTS series.
+
+This release includes some fixes to minor bugs, and includes enhancements
+to allow the user to specify a different slice-timing-correction (STC) target.
+
+Each BOLD series will contain ``SliceTimingCorrected`` metadata to indicate
+whether STC was performed. If performed, the ``StartTime`` metadata field will
+be set to indicate the onset time of the BOLD series.
+
+  * FIX: Avoid unnecessary connections based on branching logic (#2508)
+  * FIX: Permit missing TR to show PyBIDS error at workflow construction time (#2513)
+  * [BACKPORT] FIX: Catch FreeSurfer error related to FIPS being enabled (#2490)
+  * ENH: Use ``BIDSLayoutIndexer`` and do not index unnecessary modalities (#2494)
+  * [BACKPORT] ENH: Slice-timing correction improvements (#2565)
+
 20.2.3 (July 21, 2021)
 ======================
 Patch release in the 20.2.x LTS series.

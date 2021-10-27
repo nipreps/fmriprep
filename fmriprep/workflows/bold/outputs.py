@@ -42,25 +42,54 @@ def prepare_timing_parameters(metadata):
     Examples
     --------
 
+    .. testsetup::
+
+        >>> from unittest import mock
+
+    If SliceTiming metadata is absent, then the only change is to note that
+    STC has not been applied:
+
     >>> prepare_timing_parameters(dict(RepetitionTime=2))
-    {'RepetitionTime': 2}
+    {'RepetitionTime': 2, 'SliceTimingCorrected': False}
     >>> prepare_timing_parameters(dict(RepetitionTime=2, DelayTime=0.5))
-    {'RepetitionTime': 2, 'DelayTime': 0.5}
-    >>> prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0, 0.2, 0.4, 0.6]))
-    {'RepetitionTime': 2, 'DelayTime': 1.2}
+    {'RepetitionTime': 2, 'DelayTime': 0.5, 'SliceTimingCorrected': False}
     >>> prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
     ...                                AcquisitionDuration=1.0))
-    {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'AcquisitionDuration': 1.0}
-    >>> prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
-    ...                                SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
-    {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'AcquisitionDuration': 1.0}
+    {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'AcquisitionDuration': 1.0,
+     'SliceTimingCorrected': False}
 
+    When SliceTiming is available and used, then ``SliceTimingCorrected`` is ``True``
+    and the ``StartTime`` indicates a series offset.
+
+    >>> with mock.patch("fmriprep.config.workflow.ignore", []):
+    ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0, 0.2, 0.4, 0.6]))
+    {'RepetitionTime': 2, 'SliceTimingCorrected': True, 'DelayTime': 1.2, 'StartTime': 0.3}
+    >>> with mock.patch("fmriprep.config.workflow.ignore", []):
+    ...     prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
+    ...                                    SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
+    {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'SliceTimingCorrected': True,
+     'AcquisitionDuration': 1.0, 'StartTime': 0.4}
+
+    When SliceTiming is available and not used, then ``SliceTimingCorrected`` is ``False``
+    and TA is indicated with ``DelayTime`` or ``AcquisitionDuration``.
+
+    >>> with mock.patch("fmriprep.config.workflow.ignore", ["slicetiming"]):
+    ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0, 0.2, 0.4, 0.6]))
+    {'RepetitionTime': 2, 'SliceTimingCorrected': False, 'DelayTime': 1.2}
+    >>> with mock.patch("fmriprep.config.workflow.ignore", ["slicetiming"]):
+    ...     prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
+    ...                                    SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
+    {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'SliceTimingCorrected': False,
+     'AcquisitionDuration': 1.0}
     """
     timing_parameters = {
         key: metadata[key]
         for key in ("RepetitionTime", "VolumeTiming", "DelayTime",
                     "AcquisitionDuration", "SliceTiming")
         if key in metadata}
+
+    run_stc = "SliceTiming" in metadata and 'slicetiming' not in config.workflow.ignore
+    timing_parameters["SliceTimingCorrected"] = run_stc
 
     if "SliceTiming" in timing_parameters:
         st = sorted(timing_parameters.pop("SliceTiming"))
@@ -73,6 +102,13 @@ def prepare_timing_parameters(metadata):
         # For variable TR paradigms, use AcquisitionDuration
         elif "VolumeTiming" in timing_parameters:
             timing_parameters["AcquisitionDuration"] = TA
+
+        if run_stc:
+            first, last = st[0], st[-1]
+            frac = config.workflow.slice_time_ref
+            tzero = np.round(first + frac * (last - first), 3)
+            timing_parameters["StartTime"] = tzero
+
     return timing_parameters
 
 
@@ -81,6 +117,7 @@ def init_func_derivatives_wf(
     cifti_output,
     freesurfer,
     metadata,
+    multiecho,
     output_dir,
     spaces,
     use_aroma,
@@ -99,6 +136,8 @@ def init_func_derivatives_wf(
         Whether FreeSurfer anatomical processing was run.
     metadata : :obj:`dict`
         Metadata dictionary associated to the BOLD run.
+    multiecho : :obj:`bool`
+        Derivatives were generated from multi-echo time series.
     output_dir : :obj:`str`
         Where derivatives should be written out to.
     spaces : :py:class:`~niworkflows.utils.spaces.SpatialReferences`
@@ -124,6 +163,10 @@ def init_func_derivatives_wf(
 
     nonstd_spaces = set(spaces.get_nonstandard())
     workflow = Workflow(name=name)
+
+    # BOLD series will generally be unmasked unless multiecho,
+    # as the optimal combination is undefined outside a bounded mask
+    masked = multiecho
 
     inputnode = pe.Node(niu.IdentityInterface(fields=[
         'aroma_noise_ics', 'bold_aparc_std', 'bold_aparc_t1', 'bold_aseg_std',
@@ -172,7 +215,7 @@ def init_func_derivatives_wf(
     if nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')):
         ds_bold_native = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=False,
+                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=masked,
                 TaskName=metadata.get('TaskName'), **timing_parameters),
             name='ds_bold_native', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
@@ -202,7 +245,7 @@ def init_func_derivatives_wf(
         ds_bold_t1 = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir, space='T1w', desc='preproc', compress=True,
-                SkullStripped=False, TaskName=metadata.get('TaskName'), **timing_parameters),
+                SkullStripped=masked, TaskName=metadata.get('TaskName'), **timing_parameters),
             name='ds_bold_t1', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_bold_t1_ref = pe.Node(
@@ -287,7 +330,7 @@ def init_func_derivatives_wf(
 
         ds_bold_std = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=False,
+                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=masked,
                 TaskName=metadata.get('TaskName'), **timing_parameters),
             name='ds_bold_std', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
         ds_bold_std_ref = pe.Node(

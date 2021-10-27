@@ -7,6 +7,12 @@ fmriprep/logs/CITATION.html
 fmriprep/logs/CITATION.md
 fmriprep/logs/CITATION.tex
 fmriprep/sub-02
+fmriprep/sub-02/fmap
+fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-coeff0_fieldmap.nii.gz
+fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-coeff1_fieldmap.nii.gz
+fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz
+fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-preproc_fieldmap.json
+fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
 fmriprep/sub-02/func
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_desc-confounds_timeseries.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_desc-confounds_timeseries.tsv

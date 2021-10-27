@@ -143,8 +143,10 @@ HCP compatible *grayordinates* files, or the *fieldmap-less* distortion correcti
 operate in specific template spaces.
 When selecting those modules to be included (using any of the following flags:
 ``--use-aroma``, ``--cifti-outputs``, ``--use-syn-sdc``) will modify the list of
-output spaces to include the space identifiers they require, should the
+*internal* spaces to include the space identifiers they require, should the
 identifier not be found within the ``--output-spaces`` list already.
 In other words, running *fMRIPrep* with ``--output-spaces MNI152NLin6Asym:res-2
---use-syn-sdc`` will expand the list of output spaces to be
+--use-syn-sdc`` will expand the list of resampling spaces to be
 ``MNI152NLin6Asym:res-2 MNI152NLin2009cAsym``.
+However, these spaces that are added implicitly will not be saved to
+the derivatives directory.

@@ -24,9 +24,11 @@
 import os
 import re
 from niworkflows.utils.misc import read_crashfile
-import sentry_sdk
+from nibabel.optpkg import optional_package
 
 from .. import config
+
+sentry_sdk = optional_package("sentry_sdk")[0]
 
 CHUNK_SIZE = 16384
 # Group common events with pre specified fingerprints

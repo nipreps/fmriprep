@@ -17,17 +17,20 @@ jobs:
       - run:
           name: Check whether build should be skipped
           command: |
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
-            - build-v4--{{ .Revision }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-master-
-            - build-v4-
+            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v5--{{ .Revision }}
+            - build-v5-{{ .Branch }}-
+            - build-v5-master-
+            - build-v5-
           paths:
             - /tmp/docker
             - /tmp/images
@@ -53,7 +56,7 @@ jobs:
             docker run -d -p 5000:5000 --restart=always --name=registry \
                 -v /tmp/docker:/var/lib/registry registry:2
       - run:
-          name: Pull images
+          name: Pull Ubuntu/focal image
           command: |
             set +e
             docker pull localhost:5000/ubuntu
@@ -62,14 +65,25 @@ jobs:
             if [[ "$success" = "0" ]]; then
                 echo "Pulling from local registry"
                 docker tag localhost:5000/ubuntu ubuntu:focal
-                docker pull localhost:5000/fmriprep
-                docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
-                docker tag localhost:5000/fmriprep nipreps/fmriprep
             else
                 echo "Pulling from Docker Hub"
                 docker pull ubuntu:focal
                 docker tag ubuntu:focal localhost:5000/ubuntu
                 docker push localhost:5000/ubuntu
+            fi
+      - run:
+          name: Pull fMRIPrep Docker image
+          command: |
+            set +e
+            docker pull localhost:5000/fmriprep
+            success=$?
+            set -e
+            if [[ "$success" = "0" ]]; then
+                echo "Pulled from local registry"
+                docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+                docker tag localhost:5000/fmriprep nipreps/fmriprep
+            else
+                echo "Pulling from Docker Hub"
                 docker pull nipreps/fmriprep:latest
             fi
       - run:
@@ -116,7 +130,7 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v4-{{ .Branch }}-{{ .Revision }}
+         key: build-v5-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
@@ -250,11 +264,15 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+            SKIP_PYTEST="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?tests\]')"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?tests\]' )" != "" ]]; then
+            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_PYTEST" ]; then
               echo "Skipping pytest job"
               circleci step halt
             fi
@@ -263,7 +281,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -343,18 +361,23 @@ jobs:
       - checkout:
           path: /home/circleci/src/fmriprep
       - run:
-          name: Check whether build should be skipped
+          name: Check whether build should be skipped or fast-tracked
           command: |
             cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:' )"
+            SKIP_DS005="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds005\]' )"
+            NO_FASTTRACK="$(echo ${COMMIT_MSG} | grep -i -E '\[no[ _-]?fasttrack\]' )"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds005\]' )" != "" ]]; then
+            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS005" ]; then
               echo "Skipping ds000005 build"
               circleci step halt
             fi
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[no[ _-]?fasttrack\]' )" != "" ]]; then
+            if [[ -n "$NO_FASTTRACK" ]]; then
               touch /tmp/.nofasttrack
               echo "Anatomical fasttrack reusing sMRIPrep's derivatives will not be used."
             fi
@@ -363,7 +386,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -421,6 +444,7 @@ jobs:
                     --network none \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                    --output-layout legacy \
                     --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                     --skull-strip-template OASIS30ANTs:res-1 \
                     --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
@@ -439,6 +463,12 @@ jobs:
             - /tmp/ds005/work
 
       - run:
+          name: Attempt run without PE metadata (should fail)
+          no_output_timeout: 2h
+          command: |
+            echo "TODO"
+
+      - run:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
@@ -446,6 +476,12 @@ jobs:
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
+
+            # Inject pretend metadata
+            json_sidecar=/tmp/data/${DATASET}/task-mixedgamblestask_bold.json
+            awk 'NR==1{print; print "    \"TotalReadoutTime\": 0.05,"} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
+            awk 'NR==1{print; print "    \"PhaseEncodingDirection\": \"j\","} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
+
             fmriprep-docker -i nipreps/fmriprep:latest \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
@@ -453,6 +489,7 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
+                --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --use-aroma \
                 --skull-strip-template OASIS30ANTs:res-1 \
@@ -472,9 +509,9 @@ jobs:
           name: Checking outputs of full fMRIPrep run
           command: |
             mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_fasttrack_outputs.txt"
+            CHECK_OUTPUTS_FILE="${DATASET}_legacy_fasttrack_outputs.txt"
             if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_outputs.txt"
+                CHECK_OUTPUTS_FILE="${DATASET}_legacy_outputs.txt"
             fi
             find /tmp/${DATASET}/derivatives \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives/++ | sort > /tmp/${DATASET}/test/outputs.out
             diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
@@ -498,7 +535,6 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
                 /tmp/data/${DATASET}/ /tmp/${DATASET}/bids participant \
                 ${FASTRACK_ARG} \
-                --output-layout bids \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-spaces MNI152NLin2009cAsym \
                 --nthreads 2 -vv
@@ -529,6 +565,7 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives_partial participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
+                --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --aroma-melodic-dimensionality 2 --use-aroma \
@@ -537,9 +574,9 @@ jobs:
           name: Checking outputs of partial fMRIPrep run
           command: |
             mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_partial_fasttrack_outputs.txt"
+            CHECK_OUTPUTS_FILE="${DATASET}_legacy_partial_fasttrack_outputs.txt"
             if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_partial_outputs.txt"
+                CHECK_OUTPUTS_FILE="${DATASET}_legacy_partial_outputs.txt"
             fi
             sudo rm -rf /tmp/${DATASET}/derivatives_partial/freesurfer
             find /tmp/${DATASET}/derivatives_partial \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives_partial/++ | sort > /tmp/${DATASET}/test/outputs.out
@@ -579,11 +616,15 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+            SKIP_DS054="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds054\]' )"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds054\]' )" != "" ]]; then
+            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS054" ]; then
               echo "Skipping ds000054 build"
               circleci step halt
             fi
@@ -592,7 +633,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -649,6 +690,7 @@ jobs:
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                    --output-layout legacy \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
                     --mem_mb 4096 --nthreads 2 --anat-only -vv
@@ -677,6 +719,7 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 ${FASTRACK_ARG} \
+                --output-layout legacy \
                 --fs-no-reconall --sloppy \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --mem_mb 4096 --nthreads 2 -vv --debug compcor
@@ -705,6 +748,7 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                --output-layout legacy \
                 --fs-no-reconall --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --reports-only --config-file /tmp/${DATASET}/work/${UUID}/config.toml -vv
@@ -741,11 +785,15 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+            SKIP_DS210="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds054\]' )"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
-            if [[ "$( git log --format=oneline -n 1 $CIRCLE_SHA1 | grep -i -E '\[skip[ _]?ds210\]' )" != "" ]]; then
+            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS210" ]; then
               echo "Skipping ds000210 build"
               circleci step halt
             fi
@@ -754,7 +802,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -811,6 +859,7 @@ jobs:
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                    --output-layout legacy \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
                     --mem_mb 4096 --nthreads 2 --anat-only -vv
@@ -827,6 +876,12 @@ jobs:
             - /tmp/ds210/work
 
       - run:
+          name: Attempt run without PE metadata (should fail)
+          no_output_timeout: 2h
+          command: |
+            echo "TODO"
+
+      - run:
           name: Run full fMRIPrep on ds000210
           no_output_timeout: 2h
           command: |
@@ -834,11 +889,19 @@ jobs:
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
+
+            # Inject pretend metadata for SDCFlows not to crash
+            # TODO / open question - do all echos need the metadata?
+            chmod +w /tmp/data/${DATASET}
+            echo '{"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.058}' >> /tmp/data/${DATASET}/task-cuedSGT_bold.json
+            chmod -R -w /tmp/data/${DATASET}
+
             fmriprep-docker -i nipreps/fmriprep:latest \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
                 ${FASTRACK_ARG} \
+                --output-layout legacy \
                 --fs-no-reconall --use-syn-sdc --ignore slicetiming \
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \
@@ -885,17 +948,9 @@ jobs:
             fi
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -941,13 +996,16 @@ jobs:
           name: Check whether build should be skipped
           command: |
             cd /home/circleci/src/fmriprep
-            if [[ "$( git log --format='format:%s' -n 1 $CIRCLE_SHA1 | grep -i -E '^docs?(\(\w+\))?:' )" != "" ]]; then
+            set -x +e
+            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
               echo "Only docs build"
               circleci step halt
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ .Revision }}
+            - build-v5-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images

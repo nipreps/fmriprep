@@ -72,6 +72,100 @@ class aCompCorMasks(SimpleInterface):
         )
         return runtime
 
+class _FilterDroppedInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, desc='input CompCor metadata')
+
+
+class _FilterDroppedOutputSpec(TraitedSpec):
+    out_file = File(desc='filtered CompCor metadata')
+
+
+class FilterDropped(SimpleInterface):
+    """Filter dropped components from CompCor metadata files
+
+    Uses the boolean ``retained`` column to identify rows to keep or filter.
+    """
+    input_spec = _FilterDroppedInputSpec
+    output_spec = _FilterDroppedOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results["out_file"] = fname_presuffix(
+            self.inputs.in_file,
+            suffix='_filtered',
+            use_ext=True,
+            newpath=runtime.cwd)
+
+        metadata = pd.read_csv(self.inputs.in_file, sep='\t')
+        metadata[metadata.retained].to_csv(self._results["out_file"], sep='\t', index=False)
+
+        return runtime
+
+
+class _RenameACompCorInputSpec(BaseInterfaceInputSpec):
+    components_file = File(exists=True, desc='input aCompCor components')
+    metadata_file = File(exists=True, desc='input aCompCor metadata')
+
+
+class _RenameACompCorOutputSpec(TraitedSpec):
+    components_file = File(desc='output aCompCor components')
+    metadata_file = File(desc='output aCompCor metadata')
+
+
+class RenameACompCor(SimpleInterface):
+    """Rename ACompCor components based on their masks
+
+    Components from the "CSF" mask are ``c_comp_cor_*``.
+    Components from the "WM" mask are ``w_comp_cor_*``.
+    Components from the "combined" mask are ``a_comp_cor_*``.
+
+    Each set of components is renumbered to start at ``?_comp_cor_00``.
+    """
+    input_spec = _RenameACompCorInputSpec
+    output_spec = _RenameACompCorOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results["components_file"] = fname_presuffix(
+            self.inputs.components_file,
+            suffix='_renamed',
+            use_ext=True,
+            newpath=runtime.cwd)
+        self._results["metadata_file"] = fname_presuffix(
+            self.inputs.metadata_file,
+            suffix='_renamed',
+            use_ext=True,
+            newpath=runtime.cwd)
+
+        components = pd.read_csv(self.inputs.components_file, sep='\t')
+        metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
+        all_comp_cor = metadata[metadata["retained"]]
+
+        c_comp_cor = all_comp_cor[all_comp_cor["mask"] == "CSF"]
+        w_comp_cor = all_comp_cor[all_comp_cor["mask"] == "WM"]
+        a_comp_cor = all_comp_cor[all_comp_cor["mask"] == "combined"]
+
+        c_orig = c_comp_cor["component"]
+        c_new = [f"c_comp_cor_{i:02d}" for i in range(len(c_orig))]
+
+        w_orig = w_comp_cor["component"]
+        w_new = [f"w_comp_cor_{i:02d}" for i in range(len(w_orig))]
+
+        a_orig = a_comp_cor["component"]
+        a_new = [f"a_comp_cor_{i:02d}" for i in range(len(a_orig))]
+
+        (components.rename(columns=dict(zip(c_orig, c_new)))
+                   .rename(columns=dict(zip(w_orig, w_new)))
+                   .rename(columns=dict(zip(a_orig, a_new)))
+         ).to_csv(self._results["components_file"], sep='\t', index=False)
+
+        metadata.loc[c_comp_cor.index, "component"] = c_new
+        metadata.loc[w_comp_cor.index, "component"] = w_new
+        metadata.loc[a_comp_cor.index, "component"] = a_new
+
+        metadata.to_csv(self._results["metadata_file"], sep='\t', index=False)
+
+        return runtime
+
+
 class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
     signals = File(exists=True, desc='input signals')
     dvars = File(exists=True, desc='file containing DVARS')

@@ -435,7 +435,6 @@ def init_bbreg_wf(use_bbr, bold2t1w_dof, bold2t1w_init, omp_nthreads, name='bbre
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
     """
-    from nipype.interfaces.base.traits_extension import Undefined
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     # See https://github.com/nipreps/fmriprep/issues/768
     from niworkflows.interfaces.freesurfer import (
@@ -495,18 +494,22 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     if bold2t1w_init == "header":
         bbregister.inputs.init = "header"
 
-    transforms = pe.Node(niu.Merge(1 if bold2t1w_init == "header" else 2),
-                         run_without_submitting=True, name='transforms')
+    transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
     lta_ras2ras = pe.MapNode(LTAConvert(out_lta=True), iterfield=['in_lta'],
                              name='lta_ras2ras', mem_gb=2)
-    select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
+    # In cases where Merge(2) only has `in1` or `in2` defined
+    # output list will just contain a single element
+    select_transform = pe.Node(
+        niu.Select(index=0),
+        run_without_submitting=True,
+        name='select_transform'
+    )
     merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
     concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
 
     workflow.connect([
         (inputnode, merge_ltas, [('fsnative2t1w_xfm', 'in2')]),
         # Wire up the co-registration alternatives
-        (bbregister, transforms, [('out_lta_file', 'in1')]),
         (transforms, lta_ras2ras, [('out', 'in_lta')]),
         (lta_ras2ras, select_transform, [('out_lta', 'inlist')]),
         (select_transform, merge_ltas, [('out', 'in1')]),
@@ -521,13 +524,11 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             (inputnode, mri_coreg, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id'),
                                     ('in_file', 'source_file')]),
-            (mri_coreg, bbregister, [('out_lta_file', 'init_reg_file')]),
             (mri_coreg, transforms, [('out_lta_file', 'in2')]),
         ])
 
         # Short-circuit workflow building, use initial registration
         if use_bbr is False:
-            select_transform.inputs.index = 1
             workflow.connect([
                 (mri_coreg, outputnode, [('out_report', 'out_report')]),
             ])
@@ -535,16 +536,19 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
             return workflow
 
+        # Otherwise bbregister will also be used
+        workflow.connect(mri_coreg, 'out_lta_file', bbregister, 'init_reg_file')
+
     # Use bbregister
     workflow.connect([
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
+        (bbregister, transforms, [('out_lta_file', 'in1')]),
     ])
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
-        select_transform.inputs.index = 0
         workflow.connect([
             (bbregister, outputnode, [('out_report', 'out_report')]),
         ])

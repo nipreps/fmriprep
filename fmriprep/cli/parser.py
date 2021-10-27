@@ -25,8 +25,11 @@ import sys
 from .. import config
 
 
-def _build_parser():
-    """Build parser object."""
+def _build_parser(**kwargs):
+    """Build parser object.
+
+    ``kwargs`` are passed to ``argparse.ArgumentParser`` (mainly useful for debugging).
+    """
     from functools import partial
     from pathlib import Path
     from argparse import (
@@ -75,11 +78,31 @@ def _build_parser():
             for k, v in dct.items()
         }
 
-    def _bids_filter(value):
-        from json import loads
+    def _bids_filter(value, parser):
+        from json import loads, JSONDecodeError
 
-        if value and Path(value).exists():
-            return loads(Path(value).read_text(), object_hook=_filter_pybids_none_any)
+        if value:
+            if Path(value).exists():
+                try:
+                    return loads(Path(value).read_text(), object_hook=_filter_pybids_none_any)
+                except JSONDecodeError:
+                    raise parser.error(f"JSON syntax error in: <{value}>.")
+            else:
+                raise parser.error(f"Path does not exist: <{value}>.")
+
+    def _slice_time_ref(value, parser):
+        if value == "start":
+            value = 0
+        elif value == "middle":
+            value = 0.5
+        try:
+            value = float(value)
+        except ValueError:
+            raise parser.error("Slice time reference must be number, 'start', or 'middle'. "
+                               f"Received {value}.")
+        if not 0 <= value <= 1:
+            raise parser.error(f"Slice time reference must be in range 0-1. Received {value}.")
+        return value
 
     verstr = f"fMRIPrep v{config.environment.version}"
     currentv = Version(config.environment.version)
@@ -92,10 +115,13 @@ def _build_parser():
             config.environment.version
         ),
         formatter_class=ArgumentDefaultsHelpFormatter,
+        **kwargs,
     )
     PathExists = partial(_path_exists, parser=parser)
     IsFile = partial(_is_file, parser=parser)
     PositiveInt = partial(_min_one, parser=parser)
+    BIDSFilter = partial(_bids_filter, parser=parser)
+    SliceTimeRef = partial(_slice_time_ref, parser=parser)
 
     # Arguments as specified by BIDS-Apps
     # required, positional arguments
@@ -159,7 +185,7 @@ def _build_parser():
         "--bids-filter-file",
         dest="bids_filters",
         action="store",
-        type=_bids_filter,
+        type=BIDSFilter,
         metavar="FILE",
         help="a JSON file describing custom BIDS input filters using PyBIDS. "
         "For further details, please check out "
@@ -178,9 +204,9 @@ def _build_parser():
     g_bids.add_argument(
         "--bids-database-dir",
         metavar="PATH",
-        type=PathExists,
-        help="Path to an existing PyBIDS database folder, for faster indexing "
-             "(especially useful for large datasets)."
+        type=Path,
+        help="Path to a PyBIDS database folder, for faster indexing (especially "
+             "useful for large datasets). Will be created if not present."
     )
 
     g_perfm = parser.add_argument_group("Options to handle performance")
@@ -328,6 +354,17 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=False,
         help="Replace medial wall values with NaNs on functional GIFTI files. Only "
         "performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).",
+    )
+    g_conf.add_argument(
+        "--slice-time-ref",
+        required=False,
+        action="store",
+        default=None,
+        type=SliceTimeRef,
+        help="The time of the reference slice to correct BOLD values to, as a fraction "
+             "acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end "
+             "of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. "
+             "The default value is 0.5.",
     )
     g_conf.add_argument(
         "--dummy-scans",
@@ -501,12 +538,12 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     g_other.add_argument(
         "--output-layout",
         action="store",
-        default="legacy",
+        default="bids",
         choices=("bids", "legacy"),
-        help="Organization of outputs. legacy (default) creates derivative "
-        "datasets as subdirectories of outputs. bids places fMRIPrep derivatives "
+        help="Organization of outputs. bids (default) places fMRIPrep derivatives "
         "directly in the output directory, and defaults to placing FreeSurfer "
-        "derivatives in <output-dir>/sourcedata/freesurfer."
+        "derivatives in <output-dir>/sourcedata/freesurfer. legacy creates "
+        "derivative datasets as subdirectories of outputs."
     )
     g_other.add_argument(
         "-w",
@@ -614,7 +651,6 @@ def parse_args(args=None, namespace=None):
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
 
-
     if opts.config_file:
         skip = {} if opts.reports_only else {"execution": ("run_uuid",)}
         config.load(opts.config_file, skip=skip)
@@ -624,9 +660,8 @@ def parse_args(args=None, namespace=None):
     config.from_dict(vars(opts))
 
     if not config.execution.notrack:
-        try:
-            import sentry_sdk
-        except ImportError:
+        import pkgutil
+        if pkgutil.find_loader("sentry_sdk") is None:
             config.execution.notrack = True
             config.loggers.cli.warning("Telemetry disabled because sentry_sdk is not installed.")
         else:

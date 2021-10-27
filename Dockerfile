@@ -25,32 +25,26 @@
 # Use Ubuntu 20.04 LTS
 FROM ubuntu:focal-20210416
 
-# Pre-cache neurodebian key
-COPY docker/files/neurodebian.gpg /usr/local/etc/neurodebian.gpg
-ENV DEBIAN_FRONTEND="noninteractive" \
-    LANG="en_US.UTF-8" \
-    LC_ALL="en_US.UTF-8"
-
 # Prepare environment
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     apt-utils \
-                    curl \
+                    autoconf \
+                    build-essential \
                     bzip2 \
                     ca-certificates \
-                    xvfb \
-                    build-essential \
-                    autoconf \
+                    curl \
+                    git \
                     libtool \
+                    lsb-release \
                     pkg-config \
-                    graphviz \
-                    pandoc \
-                    pandoc-citeproc \
-                    git && \
-    curl -sSL https://deb.nodesource.com/setup_14.x | bash - && \
-    apt-get install -y --no-install-recommends \
-                    nodejs && \
+                    unzip \
+                    xvfb && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV DEBIAN_FRONTEND="noninteractive" \
+    LANG="en_US.UTF-8" \
+    LC_ALL="en_US.UTF-8"
 
 # Installing freesurfer
 RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz \
@@ -92,16 +86,6 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
-# Installing Neurodebian packages
-RUN curl -sSL "http://neuro.debian.net/lists/$( lsb_release -c | cut -f2 ).us-ca.full" >> /etc/apt/sources.list.d/neurodebian.sources.list && \
-    apt-key add /usr/local/etc/neurodebian.gpg && \
-    (apt-key adv --refresh-keys --keyserver hkp://ha.pool.sks-keyservers.net 0xA5D32F012649A5A9 || true)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-                    connectome-workbench=1.5.0-1~nd20.04+1 \
-                    git-annex-standalone=8.20210223-1~ndall+1 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 # FSL 5.0.11 (neurodocker build)
 RUN apt-get update -qq \
     && apt-get install -y -q --no-install-recommends \
@@ -129,26 +113,68 @@ RUN apt-get update -qq \
     && mkdir -p /opt/fsl-5.0.11 \
     && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-5.0.11-centos6_64.tar.gz \
     | tar -xz -C /opt/fsl-5.0.11 --strip-components 1 \
-    && echo "Installing FSL conda environment ..." \
-    && bash /opt/fsl-5.0.11/etc/fslconf/fslpython_install.sh -f /opt/fsl-5.0.11
+    --exclude "fsl/config" \
+    --exclude "fsl/data/atlases" \
+    --exclude "fsl/data/first" \
+    --exclude "fsl/data/mist" \
+    --exclude "fsl/data/possum" \
+    --exclude "fsl/data/standard/bianca" \
+    --exclude "fsl/data/standard/tissuepriors" \
+    --exclude "fsl/doc" \
+    --exclude "fsl/etc/default_flobs.flobs" \
+    --exclude "fsl/etc/fslconf" \
+    --exclude "fsl/etc/js" \
+    --exclude "fsl/etc/luts" \
+    --exclude "fsl/etc/matlab" \
+    --exclude "fsl/extras" \
+    --exclude "fsl/include" \
+    --exclude "fsl/python" \
+    --exclude "fsl/refdoc" \
+    --exclude "fsl/src" \
+    --exclude "fsl/tcl" \
+    --exclude "fsl/bin/FSLeyes" \
+    && find /opt/fsl-5.0.11/bin -type f -not \( \
+        -name "applywarp" -or \
+        -name "bet" -or \
+        -name "bet2" -or \
+        -name "convert_xfm" -or \
+        -name "fast" -or \
+        -name "flirt" -or \
+        -name "fsl_regfilt" -or \
+        -name "fslhd" -or \
+        -name "fslinfo" -or \
+        -name "fslmaths" -or \
+        -name "fslmerge" -or \
+        -name "fslroi" -or \
+        -name "fslsplit" -or \
+        -name "fslstats" -or \
+        -name "imtest" -or \
+        -name "mcflirt" -or \
+        -name "melodic" -or \
+        -name "prelude" -or \
+        -name "remove_ext" -or \
+        -name "susan" -or \
+        -name "topup" -or \
+        -name "zeropad" \) -delete \
+    && find /opt/fsl-5.0.11/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
 ENV FSLDIR="/opt/fsl-5.0.11" \
     PATH="/opt/fsl-5.0.11/bin:$PATH" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
-    FSLTCLSH="/opt/fsl-5.0.11/bin/fsltclsh" \
-    FSLWISH="/opt/fsl-5.0.11/bin/fslwish" \
     FSLLOCKDIR="" \
     FSLMACHINELIST="" \
     FSLREMOTECALL="" \
     FSLGECUDAQ="cuda.q" \
-    POSSUMDIR="/opt/fsl-5.0.11" \
-    LD_LIBRARY_PATH="/opt/fsl-5.0.11:$LD_LIBRARY_PATH"
+    LD_LIBRARY_PATH="/opt/fsl-5.0.11/lib:$LD_LIBRARY_PATH"
 
 # Convert3D (neurodocker build)
 RUN echo "Downloading Convert3D ..." \
     && mkdir -p /opt/convert3d-1.0.0 \
     && curl -fsSL --retry 5 https://sourceforge.net/projects/c3d/files/c3d/1.0.0/c3d-1.0.0-Linux-x86_64.tar.gz/download \
-    | tar -xz -C /opt/convert3d-1.0.0 --strip-components 1
+    | tar -xz -C /opt/convert3d-1.0.0 --strip-components 1 \
+    --exclude "c3d-1.0.0-Linux-x86_64/lib" \
+    --exclude "c3d-1.0.0-Linux-x86_64/share" \
+    --exclude "c3d-1.0.0-Linux-x86_64/bin/c3d_gui"
 ENV C3DPATH="/opt/convert3d-1.0.0" \
     PATH="/opt/convert3d-1.0.0/bin:$PATH"
 
@@ -190,21 +216,31 @@ RUN apt-get update -qq \
     && echo "Downloading AFNI ..." \
     && mkdir -p /opt/afni-latest \
     && curl -fsSL --retry 5 https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz \
-    | tar -xz -C /opt/afni-latest --strip-components 1
+    | tar -xz -C /opt/afni-latest --strip-components 1 \
+    --exclude "linux_openmp_64/*.gz" \
+    --exclude "linux_openmp_64/funstuff" \
+    --exclude "linux_openmp_64/shiny" \
+    --exclude "linux_openmp_64/afnipy" \
+    --exclude "linux_openmp_64/lib/RetroTS" \
+    --exclude "linux_openmp_64/meica.libs" \
+    # Keep only what we use
+    && find /opt/afni-latest -type f -not \( \
+        -name "3dTshift" -or \
+        -name "3dUnifize" -or \
+        -name "3dAutomask" -or \
+        -name "3dvolreg" \) -delete
+
 ENV PATH="/opt/afni-latest:$PATH" \
     AFNI_IMSAVE_WARNINGS="NO" \
     AFNI_PLUGINPATH="/opt/afni-latest"
 
-# Installing ANTs 2.3.4 (NeuroDocker build)
-ENV ANTSPATH="/usr/lib/ants" \
-    PATH="/usr/lib/ants:$PATH"
+# Installing ANTs 2.3.3 (NeuroDocker build)
+# Note: the URL says 2.3.4 but it is actually 2.3.3
+ENV ANTSPATH="/opt/ants" \
+    PATH="/opt/ants:$PATH"
 WORKDIR $ANTSPATH
 RUN curl -sSL "https://dl.dropbox.com/s/gwf51ykkk5bifyj/ants-Linux-centos6_x86_64-v2.3.4.tar.gz" \
     | tar -xzC $ANTSPATH --strip-components 1
-
-# Installing SVGO and bids-validator
-RUN npm install -g svgo@^2.3 bids-validator@1.8.0 \
-  && rm -rf ~/.npm ~/.empty /root/.npm
 
 # Installing and setting up ICA_AROMA
 WORKDIR /opt/ICA-AROMA
@@ -214,36 +250,30 @@ RUN curl -sSL "https://github.com/oesteban/ICA-AROMA/archive/v0.4.5.tar.gz" \
 ENV PATH="/opt/ICA-AROMA:$PATH" \
     AROMA_VERSION="0.4.5"
 
-# Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-py38_4.9.2-Linux-x86_64.sh && \
-    bash Miniconda3-py38_4.9.2-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-py38_4.9.2-Linux-x86_64.sh
+WORKDIR /opt
+RUN curl -sSLO https://www.humanconnectome.org/storage/app/media/workbench/workbench-linux64-v1.5.0.zip && \
+    unzip workbench-linux64-v1.5.0.zip && \
+    rm workbench-linux64-v1.5.0.zip && \
+    rm -rf /opt/workbench/libs_linux64_software_opengl /opt/workbench/plugins_linux64 && \
+    strip --remove-section=.note.ABI-tag /opt/workbench/libs_linux64/libQt5Core.so.5
+    # ABI tags can interfere when running on Singularity
+
+ENV PATH="/opt/workbench/bin_linux64:$PATH" \
+    LD_LIBRARY_PATH="/opt/workbench/lib_linux64:$LD_LIBRARY_PATH"
+
+COPY --from=nipreps/miniconda@sha256:4d0dc0fabb794e9fe22ee468ae5f86c2c8c2b4cd9d7b7fdf0c134d9e13838729 /opt/conda /opt/conda
+
+RUN ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate base" >> ~/.bashrc
 
 # Set CPATH for packages relying on compiled libs (e.g. indexed_gzip)
-ENV PATH="/usr/local/miniconda/bin:$PATH" \
-    CPATH="/usr/local/miniconda/include:$CPATH" \
+ENV PATH="/opt/conda/bin:$PATH" \
+    CPATH="/opt/conda/include:$CPATH" \
+    LD_LIBRARY_PATH="/opt/conda/lib:$LD_LIBRARY_PATH" \
     LANG="C.UTF-8" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1
-
-# Installing precomputed python packages
-RUN conda install -y python=3.8 \
-                     pip=21.0 \
-                     mkl=2021.2 \
-                     mkl-service=2.3 \
-                     numpy=1.20 \
-                     scipy=1.6 \
-                     scikit-learn=0.24 \
-                     scikit-image=0.18 \
-                     matplotlib=3.3 \
-                     pandas=1.2 \
-                     libxslt=1.1 \
-                     traits=6.2 \
-                     zstd=1.4; sync && \
-    chmod -R a+rX /usr/local/miniconda; sync && \
-    chmod +x /usr/local/miniconda/bin/*; sync && \
-    conda clean -y --all && sync && \
-    rm -rf ~/.conda ~/.cache/pip/*; sync
 
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
@@ -255,15 +285,13 @@ RUN useradd -m -s /bin/bash -G users fmriprep
 WORKDIR /home/fmriprep
 ENV HOME="/home/fmriprep"
 
-# Precaching fonts, set 'Agg' as default backend for matplotlib
-RUN python -c "from matplotlib import font_manager" && \
-    sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
+RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> $HOME/.bashrc && \
+    echo "conda activate base" >> $HOME/.bashrc
 
 # Precaching atlases
 COPY scripts/fetch_templates.py fetch_templates.py
 
-RUN pip install --no-cache-dir templateflow && \
-    python fetch_templates.py && \
+RUN /opt/conda/bin/python fetch_templates.py && \
     rm fetch_templates.py && \
     find $HOME/.cache/templateflow -type d -exec chmod go=u {} + && \
     find $HOME/.cache/templateflow -type f -exec chmod go=u {} +
@@ -274,7 +302,7 @@ ARG VERSION
 # Force static versioning within container
 RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
     echo "include fmriprep/VERSION" >> /src/fmriprep/MANIFEST.in && \
-    pip install --no-cache-dir "/src/fmriprep[all]"
+    /opt/conda/bin/python -m pip install --no-cache-dir "/src/fmriprep[all]"
 
 RUN find $HOME -type d -exec chmod go=u {} + && \
     find $HOME -type f -exec chmod go=u {} + && \
@@ -284,7 +312,7 @@ ENV IS_DOCKER_8395080871=1
 
 RUN ldconfig
 WORKDIR /tmp
-ENTRYPOINT ["/usr/local/miniconda/bin/fmriprep"]
+ENTRYPOINT ["/opt/conda/bin/fmriprep"]
 
 ARG BUILD_DATE
 ARG VCS_REF
