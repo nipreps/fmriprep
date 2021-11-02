@@ -1136,4 +1136,3 @@ def _get_zooms(in_file):
     import nibabel as nb
 
     return tuple(nb.load(in_file).header.get_zooms()[:3])
-    
