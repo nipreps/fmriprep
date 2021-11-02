@@ -368,10 +368,11 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         "white_matter",
         "csf_wm",
         "tcompcor",
+        "crown",
     ]
-    merge_rois = pe.Node(
-        niu.Merge(3, ravel_inputs=True), name="merge_rois", run_without_submitting=True
-    )
+    merge_rois = pe.Node(niu.Merge(4, ravel_inputs=True),
+                         name="merge_rois", run_without_submitting=True)
+
     signals = pe.Node(
         SignalExtraction(class_labels=signals_class_labels),
         name="signals",
@@ -588,6 +589,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
             (inputnode, merge_rois, [("bold_mask", "in1")]),
             (acc_msk_bin, merge_rois, [("out_file", "in2")]),
             (tcompcor, merge_rois, [("high_variance_masks", "in3")]),
+            (crown_mask, merge_rois,[("out_file", "in4")])
             (merge_rois, signals, [("out", "label_files")]),
             # Collate computed confounds together
             (inputnode, add_motion_headers, [("movpar_file", "in_file")]),
@@ -602,6 +604,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                 [("components_file", "tcompcor"), ("pre_filter_file", "cos_basis")],
             ),
             (rename_acompcor, concat, [("components_file", "acompcor")]),
+            (crowncompcor,concat, [("components_file", "crowncompcor")]),
             (add_motion_headers, concat, [("out_file", "motion")]),
             (add_rmsd_header, concat, [("out_file", "rmsd")]),
             (add_dvars_header, concat, [("out_file", "dvars")]),
@@ -742,6 +745,12 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ("white_matter", None, "GSWM"),
                 ("std_dvars", None, "DVARS"),
                 ("framewise_displacement", "mm", "FD"),
+                ("a_comp_cor_1", None, "ACompCor1"),
+                ("a_comp_cor_2", None, "ACompCor2"),
+                ("a_comp_cor_3", None, "ACompCor3"),
+                (),
+                (),
+                ()
             ],
         ),
         name="conf_plot",
