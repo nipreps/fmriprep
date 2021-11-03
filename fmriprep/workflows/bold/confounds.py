@@ -442,7 +442,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
         name="crowncc_metadata_fmt",
     )
     mrg_conf_metadata = pe.Node(
-        niu.Merge(3), name="merge_confound_metadata", run_without_submitting=True
+        niu.Merge(4), name="merge_confound_metadata", run_without_submitting=True
     )
     mrg_conf_metadata.inputs.in4 = {
         label: {"Method": "Mean"} for label in signals_class_labels
@@ -465,7 +465,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
 
     # Generate reportlet (ROIs)
     mrg_compcor = pe.Node(
-        niu.Merge(2, ravel_inputs=True), name="mrg_compcor", run_without_submitting=True
+        niu.Merge(3, ravel_inputs=True), name="mrg_compcor", run_without_submitting=True
     )
     rois_plot = pe.Node(
         ROIsPlot(colors=["b", "magenta"], generate_report=True),
@@ -484,7 +484,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
 
     # Generate reportlet (CompCor)
     mrg_cc_metadata = pe.Node(
-        niu.Merge(2), name="merge_compcor_metadata", run_without_submitting=True
+        niu.Merge(3), name="merge_compcor_metadata", run_without_submitting=True
     )
     compcor_plot = pe.Node(
         CompCorVariancePlot(
@@ -589,7 +589,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
             (inputnode, merge_rois, [("bold_mask", "in1")]),
             (acc_msk_bin, merge_rois, [("out_file", "in2")]),
             (tcompcor, merge_rois, [("high_variance_masks", "in3")]),
-            (crown_mask, merge_rois,[("out_file", "in4")])
+            (crown_mask, merge_rois,[("out_mask", "in4")]),
             (merge_rois, signals, [("out", "label_files")]),
             # Collate computed confounds together
             (inputnode, add_motion_headers, [("movpar_file", "in_file")]),
@@ -630,6 +630,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
             (inputnode, rois_plot, [("bold", "in_file"), ("bold_mask", "in_mask")]),
             (tcompcor, mrg_compcor, [("high_variance_masks", "in1")]),
             (acc_msk_bin, mrg_compcor, [(("out_file", _last), "in2")]),
+            (crown_mask, mrg_compcor, [("out_mask", "in3")]),
             (mrg_compcor, rois_plot, [("out", "in_rois")]),
             (rois_plot, ds_report_bold_rois, [("out_report", "in_file")]),
             (tcompcor, mrg_cc_metadata, [("metadata_file", "in1")]),
