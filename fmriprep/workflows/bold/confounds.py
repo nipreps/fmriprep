@@ -653,7 +653,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
     return workflow
 
 
-def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
+def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="bold_carpet_wf"):
     """
     Build a workflow to generate *carpet* plots.
 
@@ -696,6 +696,8 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    from niworkflows.interfaces.nibabel import ApplyMask, Binarize
+    from ...interfaces.confounds import aCompCorMasks
 
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -706,6 +708,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 "t1_bold_xform",
                 "std2anat_xfm",
                 "cifti_bold",
+                "t1w_tmps"
             ]
         ),
         name="inputnode",
@@ -736,6 +739,25 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
         name="resample_parc",
     )
 
+    # Get aCompCor masks
+    # Generate aCompCor probseg maps
+    acc_masks = pe.Node(aCompCorMasks(is_aseg=freesurfer), name="acc_masks")
+
+    # Resample probseg maps in BOLD space via T1w-to-BOLD transform
+    acc_msk_tfm = pe.MapNode(
+        ApplyTransforms(interpolation="Gaussian", float=False),
+        iterfield=["input_image"],
+        name="acc_msk_tfm",
+        mem_gb=0.1,
+    )
+    acc_msk_brain = pe.MapNode(ApplyMask(), name="acc_msk_brain", iterfield=["in_file"])
+    acc_msk_bin = pe.MapNode(
+        Binarize(thresh_low=0.99), name="acc_msk_bin", iterfield=["in_file"]
+    )
+
+    def _last(inlist):
+        return inlist[-1]
+
     # Carpetplot and confounds plot
     conf_plot = pe.Node(
         FMRISummary(
@@ -746,12 +768,6 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ("white_matter", None, "GSWM"),
                 ("std_dvars", None, "DVARS"),
                 ("framewise_displacement", "mm", "FD"),
-                ("a_comp_cor_1", None, "ACompCor1"),
-                ("a_comp_cor_2", None, "ACompCor2"),
-                ("a_comp_cor_3", None, "ACompCor3"),
-                (),
-                (),
-                ()
             ],
         ),
         name="conf_plot",
@@ -783,9 +799,27 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ),
                 (inputnode, resample_parc, [("bold_mask", "reference_image")]),
                 (mrg_xfms, resample_parc, [("out", "transforms")]),
+
+                #aCompCor mask
+                (
+                inputnode,
+                acc_masks,
+                [("t1w_tpms", "in_vfs"), (("bold", _get_zooms), "bold_zooms")],
+                ),
+                (
+                    inputnode,
+                    acc_msk_tfm,
+                    [("t1_bold_xform", "transforms"), ("bold_mask", "reference_image")],
+                ),
+                (inputnode, acc_msk_brain, [("bold_mask", "in_mask")]),
+                (acc_masks, acc_msk_tfm, [("out_masks", "input_image")]),
+                (acc_msk_tfm, acc_msk_brain, [("output_image", "in_file")]),
+                (acc_msk_brain, acc_msk_bin, [("out_file", "in_file")]),
+
                 # Carpetplot
                 (inputnode, conf_plot, [("bold", "in_func"), ("bold_mask", "in_mask")]),
                 (resample_parc, conf_plot, [("output_image", "in_segm")]),
+                (acc_msk_bin, conf_plot, [(("out_file", _last), "acompcor_mask")])
             ]
         )
 

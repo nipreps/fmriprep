@@ -500,7 +500,9 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
         minlen=1,
         desc="list of headers to extract from the confounds_file",
     )
-    tr = traits.Either(None, traits.Float, usedefault=True, desc="the repetition time")
+    tr = traits.Either(None, traits.Float, usedefault=True, desc="the repetition time"),
+
+    acompcor_mask = File(exists=True, desc="WM & CSF mask from aCompCor")
 
 
 class FMRISummaryOutputSpec(TraitedSpec):
@@ -569,6 +571,7 @@ class FMRISummary(SimpleInterface):
             tr=self.inputs.tr,
             data=data,
             units=units,
+            acompcor_mask=self.inputs.acompcor_mask
         ).plot()
         fig.savefig(self._results["out_file"], bbox_inches="tight")
         return runtime
