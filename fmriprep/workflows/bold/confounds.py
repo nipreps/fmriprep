@@ -569,7 +569,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                 [("bold", "realigned_file"), ("skip_vols", "ignore_initial_volumes")],
             ),
             (inputnode, mrg_xfms, [("t1_bold_xform", "in1"), ("std2anat_xfm", "in2")]),
-            (inputnode, crown_mask, [("bold_mask", "in_brainmask")]),
+            (inputnode, crown_mask, [("bold_mask", "in_brainmask"),("t1w_tpms","in_vfs")]),
             (inputnode, resample_parc, [("bold_mask", "reference_image")]),
             (mrg_xfms, resample_parc, [("out", "transforms")]),
             (resample_parc, crown_mask, [("output_image", "in_segm")]),
@@ -745,13 +745,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ("csf", None, "GSCSF"),
                 ("white_matter", None, "GSWM"),
                 ("std_dvars", None, "DVARS"),
-                ("framewise_displacement", "mm", "FD"),
-                ("a_comp_cor_1", None, "ACompCor1"),
-                ("a_comp_cor_2", None, "ACompCor2"),
-                ("a_comp_cor_3", None, "ACompCor3"),
-                (),
-                (),
-                ()
+                ("framewise_displacement", "mm", "FD")
             ],
         ),
         name="conf_plot",
