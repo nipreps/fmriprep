@@ -746,9 +746,9 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ("white_matter", None, "GSWM"),
                 ("std_dvars", None, "DVARS"),
                 ("framewise_displacement", "mm", "FD"),
-                ("a_comp_cor1", None, "aCompCor1"),
-                ("a_comp_cor2", None, "aCompCor2"),
-                ("a_comp_cor3", None, "aCompCor3"),
+                ("a_comp_cor_1", None, "aCompCor1"),
+                ("a_comp_cor_2", None, "aCompCor2"),
+                ("a_comp_cor_3", None, "aCompCor3"),
                 ("crown_1", None, "crown1"),
                 ("crown_2", None, "crown2"),
                 ("crown_3", None, "crown3"),
@@ -783,6 +783,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                 ),
                 (inputnode, resample_parc, [("bold_mask", "reference_image")]),
                 (mrg_xfms, resample_parc, [("out", "transforms")]),
+                
                 # Carpetplot
                 (inputnode, conf_plot, [("bold", "in_func"), ("bold_mask", "in_mask")]),
                 (resample_parc, conf_plot, [("output_image", "in_segm")]),
