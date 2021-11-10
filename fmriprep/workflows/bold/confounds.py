@@ -569,7 +569,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                 [("bold", "realigned_file"), ("skip_vols", "ignore_initial_volumes")],
             ),
             (inputnode, mrg_xfms, [("t1_bold_xform", "in1"), ("std2anat_xfm", "in2")]),
-            (inputnode, crown_mask, [("bold_mask", "in_brainmask"),("t1w_tpms","in_vfs")]),
+            (inputnode, crown_mask, [("bold_mask", "in_brainmask")]),
             (inputnode, resample_parc, [("bold_mask", "reference_image")]),
             (mrg_xfms, resample_parc, [("out", "transforms")]),
             (resample_parc, crown_mask, [("output_image", "in_segm")]),
