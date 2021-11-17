@@ -541,6 +541,13 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         niu.IdentityInterface(fields=["bold", "boldref", "mask"]), name="bold_final"
     )
 
+    # Xform to "MNI152NLin2009cAsym" is always computed.
+    select_2009c = pe.Node(
+        KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
+        name="select_2009c",
+        run_without_submitting=True,
+    )
+
     # Generate a final BOLD reference
     # This BOLD references *does not use* single-band reference images.
     final_boldref_wf = init_bold_reference_wf(
@@ -553,6 +560,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     # MAIN WORKFLOW STRUCTURE #######################################################
     # fmt:off
     workflow.connect([
+        (inputnode, select_2009c, [("std2anat_xfm", "std2anat_xfm"),
+                                   ("template", "keys")]),
         (inputnode, t1w_brain, [("t1w_preproc", "in_file"),
                                 ("t1w_mask", "in_mask")]),
         # BOLD buffer has slice-time corrected if it was run, original otherwise
@@ -605,6 +614,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (inputnode, bold_confounds_wf, [
             ("t1w_tpms", "inputnode.t1w_tpms"),
             ("t1w_mask", "inputnode.t1w_mask"),
+        ]),
+        (select_2009c, bold_confounds_wf, [
+            ("std2anat_xfm", "inputnode.std2anat_xfm"),
         ]),
         (bold_hmc_wf, bold_confounds_wf, [
             ("outputnode.movpar_file", "inputnode.movpar_file"),
@@ -916,18 +928,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "inputnode.cifti_bold",
             )
         else:
-            # Xform to "MNI152NLin2009cAsym" is always computed.
-            carpetplot_select_std = pe.Node(
-                KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
-                name="carpetplot_select_std",
-                run_without_submitting=True,
-            )
-
             # fmt:off
             workflow.connect([
-                (inputnode, carpetplot_select_std, [("std2anat_xfm", "std2anat_xfm"),
-                                                    ("template", "keys")]),
-                (carpetplot_select_std, carpetplot_wf, [
+                (select_2009c, carpetplot_wf, [
                     ("std2anat_xfm", "inputnode.std2anat_xfm"),
                 ]),
                 (bold_final, carpetplot_wf, [
