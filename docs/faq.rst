@@ -245,7 +245,8 @@ describes a custom BIDS filter for selecting files with PyBIDS, with the syntax
           "datatype": "func",
           "session": "02",
           "suffix": "bold"
-      }
+      },
+      "t2w": null
   }
 
 fMRIPrep uses the following queries, by default::
@@ -260,8 +261,8 @@ fMRIPrep uses the following queries, by default::
     'roi': {'datatype': 'anat', 'suffix': 'roi'},
   }
 
-Only modifications of these queries will have any effect. You may filter on any entity defined
-in the PyBIDS
+The queries you provide will overwrite any default, but any query not specified will be set to the default listed above.
+You may filter on any entity defined in the PyBIDS
 `config file <https://github.com/bids-standard/pybids/blob/master/bids/layout/config/bids.json>`__.
 To select images that do not have the entity set, use json value: ``null``.
 To select images that have any non-empty value for an entity use string: ``'*'``
