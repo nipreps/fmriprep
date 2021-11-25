@@ -58,11 +58,10 @@ jobs:
               echo "them to your fork with ``git push origin --tags``"
             fi
             sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
-            sed -i "s/title = {FMRIPrep}/title = {FMRIPrep ${CIRCLE_TAG:-$THISVERSION}}/" fmriprep/data/boilerplate.bib
+            sed -i "s/title = {FMRIPrep}/title = {fMRIPrep ${CIRCLE_TAG:-$THISVERSION}}/" fmriprep/data/boilerplate.bib
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build --rm \
-                --cache-from=nipreps/fmriprep \
                 -t nipreps/fmriprep:latest \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
                 --build-arg VCS_REF=`git rev-parse --short HEAD` \
@@ -389,7 +388,7 @@ jobs:
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsaverage5 fsnative \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
-                --nthreads 2 -vv
+                --nthreads 8 -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives
       - run:
