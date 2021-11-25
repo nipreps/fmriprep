@@ -269,8 +269,8 @@ jobs:
   ds005:
     machine:
       image: ubuntu-2004:202107-02
-      docker_layer_caching: true
       resource_class: xlarge
+      docker_layer_caching: true
     working_directory: /tmp/ds005
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
@@ -498,8 +498,8 @@ jobs:
   ds054:
     machine:
       image: ubuntu-2004:202107-02
-      docker_layer_caching: true
       resource_class: xlarge
+      docker_layer_caching: true
     working_directory: /tmp/ds054
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
@@ -639,8 +639,8 @@ jobs:
   ds210:
     machine:
       image: ubuntu-2004:202107-02
-      docker_layer_caching: true
       resource_class: xlarge
+      docker_layer_caching: true
     working_directory: /tmp/ds210
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
