@@ -989,44 +989,33 @@ workflows:
 
       - test_pytest:
           requires:
-            - build
+            - ds005
           filters:
             branches:
               ignore:
                 - /docs?\/.*/
-                - /ds005\/.*/
-                - /ds054\/.*/
-                - /ds210\/.*/
                 - /docker\/.*/
             tags:
               only: /.*/
 
       - ds005:
           requires:
-            - get_data
-            - build
+            - ds054
           filters:
             branches:
               ignore:
                 - /docs?\/.*/
-                - /tests?\/.*/
-                - /ds054\/.*/
-                - /ds210\/.*/
                 - /docker\/.*/
             tags:
               only: /.*/
 
       - ds054:
           requires:
-            - get_data
-            - build
+            - ds210
           filters:
             branches:
               ignore:
                 - /docs?\/.*/
-                - /tests?\/.*/
-                - /ds005\/.*/
-                - /ds210\/.*/
                 - /docker\/.*/
             tags:
               only: /.*/
@@ -1040,9 +1029,6 @@ workflows:
               # only: /meepi.*/
               ignore:
                 - /docs?\/.*/
-                - /tests?\/.*/
-                - /ds005\/.*/
-                - /ds054\/.*/
                 - /docker\/.*/
             tags:
               only: /.*/
@@ -1058,9 +1044,6 @@ workflows:
           requires:
             - test_deploy_pypi
             - test_pytest
-            - ds005
-            - ds054
-            - ds210
           filters:
             branches:
               only: master
