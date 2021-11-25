@@ -216,18 +216,23 @@ jobs:
               circleci step halt
             fi
 
+      - run:
+          name: Check DLC contents
+          command: |
+            set -e
+            images=$( docker images )
+            set +e
+            echo $images
+            if [[ "$( echo $images | grep ${CIRCLE_TAG:-$CIRCLE_SHA1} )" == "" ]]; then
+              echo "Docker image is not ready"
+              exit 1
+            fi
+
       - attach_workspace:
           at: /tmp
       - restore_cache:
           keys:
             - data-v9-{{ .Branch }}-{{ .Revision }}
-      - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
       - run:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
