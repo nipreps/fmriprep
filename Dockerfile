@@ -69,7 +69,7 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/frees
     --exclude='freesurfer/trctrain'
 
 # Simulate SetUpFreeSurfer.sh
-ENV FSL_DIR="/opt/fsl-5.0.11" \
+ENV FSL_DIR="/opt/fsl-6.0.5.1" \
     OS="Linux" \
     FS_OVERRIDE=0 \
     FIX_VERTEX_AREA="" \
@@ -86,7 +86,7 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
-# FSL 5.0.11 (neurodocker build)
+# FSL 6.0.5.1
 RUN apt-get update -qq \
     && apt-get install -y -q --no-install-recommends \
            bc \
@@ -110,9 +110,9 @@ RUN apt-get update -qq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && echo "Downloading FSL ..." \
-    && mkdir -p /opt/fsl-5.0.11 \
-    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-5.0.11-centos6_64.tar.gz \
-    | tar -xz -C /opt/fsl-5.0.11 --strip-components 1 \
+    && mkdir -p /opt/fsl-6.0.5.1 \
+    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-6.0.5.1-centos7_64.tar.gz \
+    | tar -xz -C /opt/fsl-6.0.5.1 --strip-components 1 \
     --exclude "fsl/config" \
     --exclude "fsl/data/atlases" \
     --exclude "fsl/data/first" \
@@ -133,7 +133,7 @@ RUN apt-get update -qq \
     --exclude "fsl/src" \
     --exclude "fsl/tcl" \
     --exclude "fsl/bin/FSLeyes" \
-    && find /opt/fsl-5.0.11/bin -type f -not \( \
+    && find /opt/fsl-6.0.5.1/bin -type f -not \( \
         -name "applywarp" -or \
         -name "bet" -or \
         -name "bet2" -or \
@@ -156,16 +156,16 @@ RUN apt-get update -qq \
         -name "susan" -or \
         -name "topup" -or \
         -name "zeropad" \) -delete \
-    && find /opt/fsl-5.0.11/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
-ENV FSLDIR="/opt/fsl-5.0.11" \
-    PATH="/opt/fsl-5.0.11/bin:$PATH" \
+    && find /opt/fsl-6.0.5.1/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
+ENV FSLDIR="/opt/fsl-6.0.5.1" \
+    PATH="/opt/fsl-6.0.5.1/bin:$PATH" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLLOCKDIR="" \
     FSLMACHINELIST="" \
     FSLREMOTECALL="" \
     FSLGECUDAQ="cuda.q" \
-    LD_LIBRARY_PATH="/opt/fsl-5.0.11/lib:$LD_LIBRARY_PATH"
+    LD_LIBRARY_PATH="/opt/fsl-6.0.5.1/lib:$LD_LIBRARY_PATH"
 
 # Convert3D (neurodocker build)
 RUN echo "Downloading Convert3D ..." \
