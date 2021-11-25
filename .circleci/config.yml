@@ -22,6 +22,9 @@ jobs:
               echo "Only docs build"
               circleci step halt
             fi
+      - setup_remote_docker:
+          docker_layer_caching: true
+
       - docker/install-docker-credential-helper
       - run:
           name: Docker authentication
@@ -29,8 +32,6 @@ jobs:
             if [[ -n $DOCKER_PAT ]]; then
               echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
             fi
-      - setup_remote_docker:
-          docker_layer_caching: true
       - run:
           name: Pull a base image if not cached
           command: |
@@ -68,6 +69,13 @@ jobs:
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" . \
               && e=0 && break || sleep 15
             done && [ "$e" -eq "0" ]
+
+      - run:
+          name: Check DLC contents
+          command: |
+            set -e
+            docker images
+
       - persist_to_workspace:
           root: /tmp
           paths:
@@ -668,6 +676,18 @@ jobs:
             if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS210" ]; then
               echo "Skipping ds000210 build"
               circleci step halt
+            fi
+
+      - run:
+          name: Check DLC contents
+          command: |
+            set -e
+            images=$( docker images )
+            set +e
+            echo $images
+            if [[ "$( echo $images | grep ${CIRCLE_TAG:-$CIRCLE_SHA1} )" == "" ]]; then
+              echo "Docker image is not ready"
+              exit 1
             fi
 
       - attach_workspace:
