@@ -283,7 +283,8 @@ ENV MKL_NUM_THREADS=1 \
 # Create a shared $HOME directory
 RUN useradd -m -s /bin/bash -G users fmriprep
 WORKDIR /home/fmriprep
-ENV HOME="/home/fmriprep"
+ENV HOME="/home/fmriprep" \
+    LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> $HOME/.bashrc && \
     echo "conda activate base" >> $HOME/.bashrc
