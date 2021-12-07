@@ -114,9 +114,9 @@ ENV PATH="/opt/ICA-AROMA:$PATH" \
     AROMA_VERSION="0.4.5"
 
 # Installing and setting up miniconda
-RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh && \
-    bash Miniconda3-4.5.11-Linux-x86_64.sh -b -p /usr/local/miniconda && \
-    rm Miniconda3-4.5.11-Linux-x86_64.sh
+RUN curl -sSLO https://repo.continuum.io/miniconda/Miniconda3-py38_4.10.3-Linux-x86_64.sh && \
+    bash Miniconda3-py38_4.10.3-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-py38_4.10.3-Linux-x86_64.sh
 
 # Set CPATH for packages relying on compiled libs (e.g. indexed_gzip)
 ENV PATH="/usr/local/miniconda/bin:$PATH" \
@@ -126,20 +126,20 @@ ENV PATH="/usr/local/miniconda/bin:$PATH" \
     PYTHONNOUSERSITE=1
 
 # Installing precomputed python packages
-RUN conda install -y python=3.7.1 \
-                     pip=19.1 \
-                     mkl=2018.0.3 \
-                     mkl-service \
-                     numpy=1.15.4 \
-                     scipy=1.1.0 \
-                     scikit-learn=0.19.1 \
-                     matplotlib=2.2.2 \
-                     pandas=0.23.4 \
-                     libxml2=2.9.8 \
-                     libxslt=1.1.32 \
-                     graphviz=2.40.1 \
-                     traits=4.6.0 \
-                     zlib; sync && \
+RUN conda install -y python=3.8 \
+                     pip=21.2 \
+                     mkl=2021.3 \
+                     mkl-service=2.4 \
+                     numpy=1.20 \
+                     scipy=1.6 \
+                     scikit-learn=0.24 \
+                     matplotlib=3.3 \
+                     pandas=1.2 \
+                     libxml2=2.9 \
+                     libxslt=1.1 \
+                     graphviz=2.40 \
+                     traits=6.2 \
+                     zlib=1.2; sync && \
     chmod -R a+rX /usr/local/miniconda; sync && \
     chmod +x /usr/local/miniconda/bin/*; sync && \
     conda build purge-all; sync && \
