@@ -26,10 +26,9 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
+            - build-v4-{{ .Branch }}-{{ .Revision }}
             - build-v4-{{ .Branch }}-
             - build-v4-maint/20.2.x-
-            - build-v4-
           paths:
             - /tmp/docker
             - /tmp/images
@@ -119,7 +118,7 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v4-{{ .Branch }}-{{ epoch }}
+         key: build-v4-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
@@ -268,9 +267,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -375,9 +372,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -609,9 +604,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -776,9 +769,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -910,9 +901,7 @@ jobs:
           path: /home/circleci/src/fmriprep
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -967,9 +956,7 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v4-{{ .Branch }}-{{ epoch }}
-            - build-v4-{{ .Branch }}-
-            - build-v4-
+            - build-v4-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
