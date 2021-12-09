@@ -356,8 +356,7 @@ It is released under the [CC0]\
 
     # Append the functional section to the existing anatomical exerpt
     # That way we do not need to stream down the number of bold datasets
-    anat_preproc_wf.__postdesc__ = (anat_preproc_wf.__postdesc__ or '') + """
-
+    func_pre_desc = """
 Functional data preprocessing
 
 : For each of the {num_bold} BOLD runs found per subject (across all
@@ -371,6 +370,7 @@ tasks and sessions), the following preprocessing was performed.
         if func_preproc_wf is None:
             continue
 
+        func_preproc_wf.__desc__ = func_pre_desc + (func_preproc_wf.__desc__ or "")
         workflow.connect([
             (anat_preproc_wf, func_preproc_wf,
              [('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
@@ -403,6 +403,7 @@ tasks and sessions), the following preprocessing was performed.
         subject=subject_id,
     )
     fmap_wf.__desc__ = f"""
+
 Preprocessing of B<sub>0</sub> inhomogeneity mappings
 
 : A total of {len(fmap_estimators)} fieldmaps were found available within the input
