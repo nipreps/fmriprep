@@ -275,6 +275,9 @@ ENV PATH="/opt/conda/bin:$PATH" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1
 
+# TMP: Upgrade scikit-image until it is updated in nipreps/miniconda image
+RUN /opt/conda/bin/conda install -n base -c conda-forge scikit-image=0.19
+
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
 ENV MKL_NUM_THREADS=1 \
