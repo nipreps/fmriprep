@@ -30,7 +30,7 @@ __bugreports__ = 'https://github.com/nipreps/fmriprep/issues'
 MISSING = """
 Image '{}' is missing
 Would you like to download? [Y/n] """
-PKG_PATH = '/usr/local/miniconda/lib/python3.8/site-packages'
+PKG_PATH = '/opt/conda/lib/python3.8/site-packages'
 TF_TEMPLATES = (
     'MNI152Lin',
     'MNI152NLin2009cAsym',
