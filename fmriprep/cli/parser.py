@@ -486,13 +486,9 @@ Useful for further Tedana processing post-fMRIPrep."""
     g_syn = parser.add_argument_group("Specific options for SyN distortion correction")
     g_syn.add_argument(
         "--use-syn-sdc",
-        nargs="?",
-        choices=["warn", "error"],
-        action="store",
-        const="error",
+        action="store_true",
         default=False,
-        help="EXPERIMENTAL: Use fieldmap-free distortion correction; "
-             "if unable, error (default) or warn based on optional argument.",
+        help="EXPERIMENTAL: Use fieldmap-free distortion correction",
     )
     g_syn.add_argument(
         "--force-syn",

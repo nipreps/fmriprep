@@ -333,8 +333,7 @@ It is released under the [CC0]\
                        "PhaseEncodingDirection information appears to be "
                        "absent.")
             config.loggers.workflow.error(message)
-            if config.workflow.use_syn_sdc == "error":
-                raise ValueError(message)
+            raise ValueError(message)
 
         if (
             "fieldmaps" in config.workflow.ignore
