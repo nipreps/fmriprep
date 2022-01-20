@@ -128,6 +128,15 @@ class RenameACompCor(SimpleInterface):
     output_spec = _RenameACompCorOutputSpec
 
     def _run_interface(self, runtime):
+        try:
+            components = pd.read_csv(self.inputs.components_file, sep='\t')
+            metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
+        except pd.errors.EmptyDataError:
+            # Can occur when testing on short datasets; otherwise rare
+            self._results["components_file"] = self.inputs.components_file
+            self._results["metadata_file"] = self.inputs.metadata_file
+            return runtime
+
         self._results["components_file"] = fname_presuffix(
             self.inputs.components_file,
             suffix='_renamed',
@@ -139,8 +148,6 @@ class RenameACompCor(SimpleInterface):
             use_ext=True,
             newpath=runtime.cwd)
 
-        components = pd.read_csv(self.inputs.components_file, sep='\t')
-        metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
         all_comp_cor = metadata[metadata["retained"]]
 
         c_comp_cor = all_comp_cor[all_comp_cor["mask"] == "CSF"]
