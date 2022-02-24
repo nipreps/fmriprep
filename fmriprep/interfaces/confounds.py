@@ -484,7 +484,7 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
         mandatory=True,
         desc="input BOLD time-series (4D file) or dense timeseries CIFTI",
     )
-    in_mask = File(exists=True, desc="3D brain mask")
+    in_crown = File(exists=True, desc="3D crown mask")
     in_segm = File(exists=True, desc="resampled segmentation")
     confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
 
@@ -564,7 +564,7 @@ class FMRISummary(SimpleInterface):
 
         fig = fMRIPlot(
             self.inputs.in_func,
-            mask_file=self.inputs.in_mask if isdefined(self.inputs.in_mask) else None,
+            crown_file=self.inputs.in_crown if isdefined(self.inputs.in_crown) else None,
             seg_file=(self.inputs.in_segm if isdefined(self.inputs.in_segm) else None),
             tr=self.inputs.tr,
             data=data,

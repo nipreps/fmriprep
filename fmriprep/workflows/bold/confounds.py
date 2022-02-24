@@ -695,6 +695,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
         Path of the generated SVG file
 
     """
+    from niworkflows.interfaces.morphology import CrownMask
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
@@ -737,6 +738,9 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
         name="resample_parc",
     )
 
+    # Generate crown mask
+    crown_mask = pe.Node(CrownMask(), name="crown_mask")
+
     # Carpetplot and confounds plot
     conf_plot = pe.Node(
         FMRISummary(
@@ -777,10 +781,13 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, name="bold_carpet_wf"):
                     [("t1_bold_xform", "in1"), ("std2anat_xfm", "in2")],
                 ),
                 (inputnode, resample_parc, [("bold_mask", "reference_image")]),
+                (inputnode, crown_mask, [("bold_mask", "in_brainmask")]),
                 (mrg_xfms, resample_parc, [("out", "transforms")]),
+                (resample_parc, crown_mask, [("output_image", "in_segm")]),
                 
                 # Carpetplot
-                (inputnode, conf_plot, [("bold", "in_func"), ("bold_mask", "in_mask")]),
+                (inputnode, conf_plot, [("bold", "in_func")]),
+                (crown_mask, conf_plot, [("out_mask","in_crown_mask")])
                 (resample_parc, conf_plot, [("output_image", "in_segm")]),
             ]
         )
@@ -958,7 +965,7 @@ in the corresponding confounds file.
 
     def _getusans_func(image, thresh):
         return [tuple([image, thresh])]
-        
+
     getusans = pe.Node(
         niu.Function(function=_getusans_func, output_names=["usans"]),
         name="getusans",
