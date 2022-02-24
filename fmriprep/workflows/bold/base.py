@@ -938,6 +938,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         workflow.connect([
             (bold_confounds_wf, carpetplot_wf, [
                 ("outputnode.confounds_file", "inputnode.confounds_file"),
+                ("outputnode.crown_mask","inputnode.crown_mask")
             ])
         ])
         # fmt:on
