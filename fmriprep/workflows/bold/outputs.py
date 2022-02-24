@@ -116,7 +116,7 @@ def init_func_derivatives_wf(
     bids_root,
     cifti_output,
     freesurfer,
-    metadata,
+    all_metadata,
     multiecho,
     output_dir,
     spaces,
@@ -159,6 +159,8 @@ def init_func_derivatives_wf(
     from niworkflows.interfaces.utility import KeySelect
     from smriprep.workflows.outputs import _bids_relative
 
+    metadata = all_metadata[0]
+
     timing_parameters = prepare_timing_parameters(metadata)
 
     nonstd_spaces = set(spaces.get_nonstandard())
@@ -172,9 +174,11 @@ def init_func_derivatives_wf(
         'aroma_noise_ics', 'bold_aparc_std', 'bold_aparc_t1', 'bold_aseg_std',
         'bold_aseg_t1', 'bold_cifti', 'bold_mask_std', 'bold_mask_t1', 'bold_std',
         'bold_std_ref', 'bold_t1', 'bold_t1_ref', 'bold_native', 'bold_native_ref',
-        'bold_mask_native', 'cifti_variant', 'cifti_metadata', 'cifti_density',
+        'bold_mask_native', 'bold_echos_native',
+        'cifti_variant', 'cifti_metadata', 'cifti_density',
         'confounds', 'confounds_metadata', 'melodic_mix', 'nonaggr_denoised_file',
-        'source_file', 'surf_files', 'surf_refs', 'template', 'spatial_reference',
+        'source_file', 'all_source_files',
+        'surf_files', 'surf_refs', 'template', 'spatial_reference',
         'bold2anat_xfm', 'anat2bold_xfm', 'acompcor_masks', 'tcompcor_mask']),
         name='inputnode')
 
@@ -202,7 +206,7 @@ def init_func_derivatives_wf(
         name='ds_t1w_tpl_inv_xfm', run_without_submitting=True)
 
     workflow.connect([
-        (inputnode, raw_sources, [('source_file', 'in_files')]),
+        (inputnode, raw_sources, [('all_source_files', 'in_files')]),
         (inputnode, ds_confounds, [('source_file', 'source_file'),
                                    ('confounds', 'in_file'),
                                    ('confounds_metadata', 'meta_dict')]),
@@ -238,6 +242,24 @@ def init_func_derivatives_wf(
             (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
                                               ('bold_mask_native', 'in_file')]),
             (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
+        ])
+
+    if multiecho and config.execution.me_output_echos:
+        ds_bold_echos_native = pe.MapNode(
+            DerivativesDataSink(
+                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=False,
+                TaskName=metadata.get('TaskName'), **timing_parameters),
+            iterfield=['source_file', 'in_file', 'meta_dict'],
+            name='ds_bold_echos_native', run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB)
+        ds_bold_echos_native.inputs.meta_dict = [
+            {"EchoTime": md["EchoTime"]} for md in all_metadata
+        ]
+
+        workflow.connect([
+            (inputnode, ds_bold_echos_native, [
+                ('all_source_files', 'source_file'),
+                ('bold_echos_native', 'in_file')]),
         ])
 
     # Resample to T1w space

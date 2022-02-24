@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions
+    url: https://neurostars.org/tag/fmriprep
+    about: For general questions, please search Neurostars for existing posts before starting a new one.

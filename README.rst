@@ -33,8 +33,7 @@ task-based and resting-state functional MRI (fMRI).
 
 About
 -----
-
-.. image:: https://github.com/oesteban/fmriprep/raw/38a63e9504ab67812b63813c5fe9af882109408e/docs/_static/fmriprep-workflow-all.png
+.. image:: https://github.com/oesteban/fmriprep/raw/f4c7a9804be26c912b24ef4dccba54bdd72fa1fd/docs/_static/fmriprep-21.0.0.svg
 
 
 *fMRIPrep* is a functional magnetic resonance imaging (fMRI) data

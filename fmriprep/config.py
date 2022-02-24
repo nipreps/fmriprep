@@ -410,6 +410,8 @@ class execution(_Config):
     """Do not monitor *fMRIPrep* using Sentry.io."""
     output_dir = None
     """Folder where derivatives will be stored."""
+    me_output_echos = False
+    """Output individual echo time series with slice, motion and susceptibility correction"""
     output_layout = None
     """Layout of derivatives within output_dir."""
     output_spaces = None
@@ -567,6 +569,8 @@ class workflow(_Config):
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""
+    topup_max_vols = 5
+    """Maximum number of volumes to use with TOPUP, per-series (EPI or BOLD)."""
     use_aroma = None
     """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None

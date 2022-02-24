@@ -35,6 +35,7 @@ from nipype.interfaces import utility as niu, fsl
 from nipype.pipeline import engine as pe
 from templateflow.api import get as get_template
 
+from fmriprep import config
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
@@ -694,6 +695,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
         Path of the generated SVG file
 
     """
+    from niworkflows.interfaces.morphology import CrownMask
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
     from niworkflows.interfaces.nibabel import ApplyMask, Binarize
@@ -758,6 +760,9 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
     def _last(inlist):
         return inlist[-1]
 
+    # Generate crown mask
+    crown_mask = pe.Node(CrownMask(), name="crown_mask")
+
     # Carpetplot and confounds plot
     conf_plot = pe.Node(
         FMRISummary(
@@ -767,7 +772,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                 ("csf", None, "GSCSF"),
                 ("white_matter", None, "GSWM"),
                 ("std_dvars", None, "DVARS"),
-                ("framewise_displacement", "mm", "FD"),
+                ("framewise_displacement", "mm", "FD")
             ],
         ),
         name="conf_plot",
@@ -798,8 +803,8 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                     [("t1_bold_xform", "in1"), ("std2anat_xfm", "in2")],
                 ),
                 (inputnode, resample_parc, [("bold_mask", "reference_image")]),
+                (inputnode, crown_mask, [("bold_mask", "in_brainmask")]),
                 (mrg_xfms, resample_parc, [("out", "transforms")]),
-
                 #aCompCor mask
                 (
                 inputnode,
@@ -815,9 +820,10 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                 (acc_masks, acc_msk_tfm, [("out_masks", "input_image")]),
                 (acc_msk_tfm, acc_msk_brain, [("output_image", "in_file")]),
                 (acc_msk_brain, acc_msk_bin, [("out_file", "in_file")]),
-
+                (resample_parc, crown_mask, [("output_image", "in_segm")]),
                 # Carpetplot
-                (inputnode, conf_plot, [("bold", "in_func"), ("bold_mask", "in_mask")]),
+                (inputnode, conf_plot, [("bold", "in_func")]),
+                (crown_mask, conf_plot, [("out_mask","in_crown")]),
                 (resample_parc, conf_plot, [("output_image", "in_segm")]),
                 (acc_msk_bin, conf_plot, [(("out_file", _last), "acompcor_mask")])
             ]
@@ -1003,7 +1009,12 @@ in the corresponding confounds file.
         mem_gb=0.01,
     )
 
-    smooth = pe.Node(fsl.SUSAN(fwhm=susan_fwhm), name="smooth")
+    smooth = pe.Node(
+        fsl.SUSAN(
+            fwhm=susan_fwhm, output_type="NIFTI" if config.execution.low_mem else "NIFTI_GZ"
+        ),
+        name='smooth',
+    )
 
     # melodic node
     melodic = pe.Node(

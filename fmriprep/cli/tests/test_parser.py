@@ -23,6 +23,8 @@
 """Test parser."""
 from packaging.version import Version
 from pkg_resources import resource_filename as pkgrf
+from argparse import ArgumentError
+from contextlib import nullcontext
 import pytest
 from ..parser import _build_parser, parse_args
 from .. import version as _version
@@ -192,4 +194,32 @@ def test_slice_time_ref(tmp_path, st_ref):
     parser = _build_parser()
 
     parser.parse_args(args)
+    _reset_config()
+
+
+@pytest.mark.parametrize("args, expectation", (
+    ([], False),
+    (["--use-syn-sdc"], "error"),
+    (["--use-syn-sdc", "error"], "error"),
+    (["--use-syn-sdc", "warn"], "warn"),
+    (["--use-syn-sdc", "other"], (SystemExit, ArgumentError)),
+))
+def test_use_syn_sdc(tmp_path, args, expectation):
+    bids_path = tmp_path / "data"
+    out_path = tmp_path / "out"
+    args = [str(bids_path), str(out_path), "participant"] + args
+    bids_path.mkdir()
+
+    parser = _build_parser()
+
+    cm = nullcontext()
+    if isinstance(expectation, tuple):
+        cm = pytest.raises(expectation)
+
+    with cm:
+        opts = parser.parse_args(args)
+
+    if not isinstance(expectation, tuple):
+        assert opts.use_syn_sdc == expectation
+
     _reset_config()
