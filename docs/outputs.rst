@@ -36,17 +36,43 @@ upcoming `BEP 011`_ and `BEP 012`_).
          - ICA-AROMA's *non-aggressive* denoised outputs, and
          - CompCor regressors, which are calculated after temporal high-pass filtering.
 
+Layout
+------
+Assuming fMRIPrep is invoked with::
+
+    fmriprep <input_dir>/ <output_dir>/ participant [OPTIONS]
+
+The outputs will be a `BIDS Derivatives`_ dataset of the form::
+
+    <output_dir>/
+      logs/
+      sub-<label>/
+      sub-<label>.html
+      dataset_description.json
+      .bidsignore
+
+For each participant in the dataset,
+a directory of derivatives (``sub-<label>/``)
+and a visual report (``sub-<label>.html``) are generated.
+The log directory contains `citation boilerplate`_ text.
+``dataset_description.json`` is a metadata file in which fMRIPrep
+records metadata recommended by the BIDS standard.
+
+This layout, now the default, may be explicitly specified with the
+``--output-layout bids`` command-line option.
+For compatibility with versions of fMRIPrep prior to 21.0, the
+`legacy layout`_ is available via ``-output-layout legacy``.
+
 Visual Reports
 --------------
 *fMRIPrep* outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
 These reports provide a quick way to make visual inspection of the results easy.
-Each report is self contained and thus can be easily shared with collaborators (for example via email).
 `View a sample report. <_static/SampleReport/sample_report.html>`_
 
 Derivatives of *fMRIPrep* (preprocessed data)
 ---------------------------------------------
 Preprocessed, or derivative, data are written to
-``<output dir>/fmriprep/sub-<subject_label>/``.
+``<output dir>/sub-<subject_label>/``.
 The `BIDS Derivatives`_ specification describes the naming and metadata conventions we follow.
 
 Anatomical derivatives
@@ -94,26 +120,36 @@ conformed space for surface reconstruction (``fsnative``) is stored in::
 
 FreeSurfer derivatives
 ~~~~~~~~~~~~~~~~~~~~~~
-A FreeSurfer subjects directory is created in ``<output dir>/freesurfer``, or the
-directory indicated with the ``--fs-subjects-dir`` flag. ::
+If FreeSurfer is run, then a FreeSurfer subjects directory is created in
+``<output dir>/sourcedata/freesurfer`` or the directory indicated with the
+``--fs-subjects-dir`` flag.
+Additionally, FreeSurfer segmentations are resampled into the BOLD space,
+and lookup tables are provided. ::
 
     <output_dir>/
-        fmriprep/
-            ...
+      sourcedata/
         freesurfer/
-            fsaverage{,5,6}/
-                mri/
-                surf/
-                ...
-            sub-<subject_label>/
-                mri/
-                surf/
-                ...
-            ...
+          fsaverage{,5,6}/
+              mri/
+              surf/
+              ...
+          sub-<label>/
+              mri/
+              surf/
+              ...
+          ...
+      desc-aparc_dseg.tsv
+      desc-aparcaseg_dseg.tsv
 
 Copies of the ``fsaverage`` subjects distributed with the running version of
 FreeSurfer are copied into this subjects directory, if any functional data are
 sampled to those subject spaces.
+
+Note that the use of ``sourcedata/`` recognizes FreeSurfer derivatives as an input to
+the fMRIPrep workflow.
+This is strictly true when pre-computed FreeSurfer derivatives are provided either in
+the ``sourcedata/`` directory or passed via the ``--fs-subjects-dir`` flag;
+if fMRIPrep runs FreeSurfer, then there is a mutual dependency.
 
 Functional derivatives
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -526,6 +562,29 @@ to which tissue-specific regressors correlate with global signal.
     This information can be used to diagnose partial volume effects.
 
 See implementation on :mod:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`.
+
+Legacy layout
+-------------
+
+Prior to fMRIPrep 21.0, the following organizational structure was used::
+
+    <output_dir>/
+      fmriprep/
+      freesurfer/
+
+Although this has the advantage of keeping all outputs together,
+it ensured that the output of fMRIPrep could not itself be a BIDS derivative dataset,
+only contain one.
+
+To restore this behavior, use the ``--output-layout legacy`` command-line option.
+
+The BIDS and legacy layouts are otherwise the same in all respects.
+It is thus possible to achieve identical results with the BIDS layout by using
+the following invocation::
+
+    fmriprep <input_dir>/ <output_dir>/fmriprep/ participant \
+        --fs-subjects-dir <output_dir>/freesurfer/ [OPTIONS]
+
 
 .. topic:: References
 

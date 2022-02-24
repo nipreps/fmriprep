@@ -37,6 +37,7 @@ RUN apt-get update && \
                     git \
                     libtool \
                     lsb-release \
+                    netbase \
                     pkg-config \
                     unzip \
                     xvfb && \
@@ -69,7 +70,7 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/frees
     --exclude='freesurfer/trctrain'
 
 # Simulate SetUpFreeSurfer.sh
-ENV FSL_DIR="/opt/fsl-5.0.11" \
+ENV FSL_DIR="/opt/fsl-6.0.5.1" \
     OS="Linux" \
     FS_OVERRIDE=0 \
     FIX_VERTEX_AREA="" \
@@ -86,7 +87,7 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
-# FSL 5.0.11 (neurodocker build)
+# FSL 6.0.5.1
 RUN apt-get update -qq \
     && apt-get install -y -q --no-install-recommends \
            bc \
@@ -110,9 +111,9 @@ RUN apt-get update -qq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && echo "Downloading FSL ..." \
-    && mkdir -p /opt/fsl-5.0.11 \
-    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-5.0.11-centos6_64.tar.gz \
-    | tar -xz -C /opt/fsl-5.0.11 --strip-components 1 \
+    && mkdir -p /opt/fsl-6.0.5.1 \
+    && curl -fsSL --retry 5 https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl-6.0.5.1-centos7_64.tar.gz \
+    | tar -xz -C /opt/fsl-6.0.5.1 --strip-components 1 \
     --exclude "fsl/config" \
     --exclude "fsl/data/atlases" \
     --exclude "fsl/data/first" \
@@ -133,7 +134,7 @@ RUN apt-get update -qq \
     --exclude "fsl/src" \
     --exclude "fsl/tcl" \
     --exclude "fsl/bin/FSLeyes" \
-    && find /opt/fsl-5.0.11/bin -type f -not \( \
+    && find /opt/fsl-6.0.5.1/bin -type f -not \( \
         -name "applywarp" -or \
         -name "bet" -or \
         -name "bet2" -or \
@@ -156,16 +157,16 @@ RUN apt-get update -qq \
         -name "susan" -or \
         -name "topup" -or \
         -name "zeropad" \) -delete \
-    && find /opt/fsl-5.0.11/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
-ENV FSLDIR="/opt/fsl-5.0.11" \
-    PATH="/opt/fsl-5.0.11/bin:$PATH" \
+    && find /opt/fsl-6.0.5.1/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
+ENV FSLDIR="/opt/fsl-6.0.5.1" \
+    PATH="/opt/fsl-6.0.5.1/bin:$PATH" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLLOCKDIR="" \
     FSLMACHINELIST="" \
     FSLREMOTECALL="" \
     FSLGECUDAQ="cuda.q" \
-    LD_LIBRARY_PATH="/opt/fsl-5.0.11/lib:$LD_LIBRARY_PATH"
+    LD_LIBRARY_PATH="/opt/fsl-6.0.5.1/lib:$LD_LIBRARY_PATH"
 
 # Convert3D (neurodocker build)
 RUN echo "Downloading Convert3D ..." \
@@ -261,7 +262,8 @@ RUN curl -sSLO https://www.humanconnectome.org/storage/app/media/workbench/workb
 ENV PATH="/opt/workbench/bin_linux64:$PATH" \
     LD_LIBRARY_PATH="/opt/workbench/lib_linux64:$LD_LIBRARY_PATH"
 
-COPY --from=nipreps/miniconda@sha256:4d0dc0fabb794e9fe22ee468ae5f86c2c8c2b4cd9d7b7fdf0c134d9e13838729 /opt/conda /opt/conda
+# nipreps/miniconda:py38_1.4.1
+COPY --from=nipreps/miniconda@sha256:ebbff214e6c9dc50ccc6fdbe679df1ffcbceaa45b47a75d6e34e8a064ef178da /opt/conda /opt/conda
 
 RUN ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
@@ -283,7 +285,8 @@ ENV MKL_NUM_THREADS=1 \
 # Create a shared $HOME directory
 RUN useradd -m -s /bin/bash -G users fmriprep
 WORKDIR /home/fmriprep
-ENV HOME="/home/fmriprep"
+ENV HOME="/home/fmriprep" \
+    LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> $HOME/.bashrc && \
     echo "conda activate base" >> $HOME/.bashrc

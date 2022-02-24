@@ -35,6 +35,7 @@ from nipype.interfaces import utility as niu, fsl
 from nipype.pipeline import engine as pe
 from templateflow.api import get as get_template
 
+from fmriprep import config
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
@@ -957,14 +958,19 @@ in the corresponding confounds file.
 
     def _getusans_func(image, thresh):
         return [tuple([image, thresh])]
-
+        
     getusans = pe.Node(
         niu.Function(function=_getusans_func, output_names=["usans"]),
         name="getusans",
         mem_gb=0.01,
     )
 
-    smooth = pe.Node(fsl.SUSAN(fwhm=susan_fwhm), name="smooth")
+    smooth = pe.Node(
+        fsl.SUSAN(
+            fwhm=susan_fwhm, output_type="NIFTI" if config.execution.low_mem else "NIFTI_GZ"
+        ),
+        name='smooth',
+    )
 
     # melodic node
     melodic = pe.Node(

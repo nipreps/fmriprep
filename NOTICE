@@ -7,12 +7,6 @@ the NiPreps Community (https://nipreps.org/).
 Portions of this software were developed at the Department of
 Psychology at Stanford University, Stanford, CA, US.
 
-This software contains code ultimately derived from the epidewarp.fsl
-script (https://www.nmr.mgh.harvard.edu/~greve/fbirn/b0/epidewarp.fsl)
-by Doug Greve, Dave Tuch, Tom Liu, and Bryon Mueller with generous
-help from the FSL crew (www.fmrib.ox.ac.uk/fsl) and the Biomedical
-Informatics Research Network (www.nbirn.net).
-
 This software redistributes the versioneer Python package, which is
 Public domain source code.
 

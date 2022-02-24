@@ -308,6 +308,7 @@ def init_bold_std_trans_wf(
         described outputs.
 
     """
+    from fmriprep.interfaces.maths import Clip
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.func.util import init_bold_reference_wf
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
@@ -417,6 +418,13 @@ preprocessed BOLD runs*: {tpl}.
         n_procs=omp_nthreads,
     )
 
+    # Interpolation can occasionally produce below-zero values as an artifact
+    threshold = pe.MapNode(
+        Clip(minimum=0),
+        name="threshold",
+        iterfield=['in_file'],
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
+
     merge = pe.Node(Merge(compress=use_compression), name="merge", mem_gb=mem_gb * 3)
 
     # Generate a reference on the target standard space
@@ -445,7 +453,8 @@ preprocessed BOLD runs*: {tpl}.
         (gen_ref, mask_std_tfm, [("out_file", "reference_image")]),
         (mask_merge_tfms, mask_std_tfm, [("out", "transforms")]),
         (mask_std_tfm, gen_final_ref, [("output_image", "inputnode.bold_mask")]),
-        (bold_to_std_transform, merge, [("out_files", "in_files")]),
+        (bold_to_std_transform, threshold, [("out_files", "in_file")]),
+        (threshold, merge, [("out_file", "in_files")]),
         (merge, gen_final_ref, [("out_file", "inputnode.bold_file")]),
     ])
     # fmt:on
@@ -564,6 +573,7 @@ def init_bold_preproc_trans_wf(
         BOLD series, resampled in native space, including all preprocessing
 
     """
+    from fmriprep.interfaces.maths import Clip
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.itk import MultiApplyTransforms
     from niworkflows.interfaces.nilearn import Merge
@@ -610,6 +620,13 @@ the transforms to correct for head-motion"""
         n_procs=omp_nthreads,
     )
 
+    # Interpolation can occasionally produce below-zero values as an artifact
+    threshold = pe.MapNode(
+        Clip(minimum=0),
+        name="threshold",
+        iterfield=['in_file'],
+        mem_gb=DEFAULT_MEMORY_MIN_GB)
+
     merge = pe.Node(Merge(compress=use_compression), name="merge", mem_gb=mem_gb * 3)
 
     # fmt:off
@@ -620,7 +637,8 @@ the transforms to correct for head-motion"""
                                      (("bold_file", _first), "reference_image")]),
         (inputnode, merge, [("name_source", "header_source")]),
         (merge_xforms, bold_transform, [("out", "transforms")]),
-        (bold_transform, merge, [("out_files", "in_files")]),
+        (bold_transform, threshold, [("out_files", "in_file")]),
+        (threshold, merge, [("out_file", "in_files")]),
         (merge, outputnode, [("out_file", "bold")]),
     ])
     # fmt:on
@@ -752,7 +770,16 @@ surface space.
         ],
     )
     resample.inputs.current_sphere = [
-        str(tf.get("fsaverage", hemi=hemi, density="164k", desc="std", suffix="sphere"))
+        str(
+            tf.get(
+                "fsaverage",
+                hemi=hemi,
+                density="164k",
+                desc="std",
+                suffix="sphere",
+                extension=".surf.gii",
+            )
+        )
         for hemi in "LR"
     ]
     resample.inputs.current_area = [
@@ -763,6 +790,7 @@ surface space.
                 density="164k",
                 desc="vaavg",
                 suffix="midthickness",
+                extension=".shape.gii",
             )
         )
         for hemi in "LR"
@@ -775,6 +803,7 @@ surface space.
                 hemi=hemi,
                 density=fslr_density,
                 suffix="sphere",
+                extension=".surf.gii",
             )
         )
         for hemi in "LR"
@@ -787,6 +816,7 @@ surface space.
                 density=fslr_density,
                 desc="vaavg",
                 suffix="midthickness",
+                extension=".shape.gii",
             )
         )
         for hemi in "LR"

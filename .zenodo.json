@@ -3,6 +3,12 @@
   "description": "<p>fMRIPrep is a robust and easy-to-use pipeline for preprocessing of diverse fMRI data. The transparent workflow dispenses of manual intervention, thereby ensuring the reproducibility of the results.</p>",
   "contributors": [
     {
+      "affiliation": "Department of Radiology, Lausanne University Hospital and University of Lausanne",
+      "name": "Provins, C\u00e9line",
+      "orcid": "0000-0002-1668-9629",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toru\u0144",
       "name": "Finc, Karolina",
       "orcid": "0000-0002-0157-030X",
@@ -33,6 +39,18 @@
       "type": "Researcher"
     },
     {
+      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
+      "name": "Waller, Lea",
+      "orcid": "0000-0002-3239-6957",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
+      "name": "Schaefer, Theo A.J.",
+      "orcid": "0000-0003-4102-559X",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Montreal Neurological Institute, McGill University",
       "name": "Urchs, Sebastian",
       "orcid": "0000-0001-5504-8579",
@@ -51,15 +69,15 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Psychology, Columbia University",
-      "name": "Jacoby, Nir",
-      "orcid": "0000-0001-7936-9991",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Speech & Hearing Bioscience & Technology Program, Harvard University",
       "name": "Mentch, Jeff",
       "orcid": "0000-0002-7762-8678",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Columbia University",
+      "name": "Jacoby, Nir",
+      "orcid": "0000-0001-7936-9991",
       "type": "Researcher"
     },
     {
@@ -96,6 +114,12 @@
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Wexler, Joseph B.",
       "orcid": "0000-0001-6424-8740",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
+      "name": "Nitsch, Alexander",
+      "orcid": "0000-0002-5740-9451",
       "type": "Researcher"
     },
     {
@@ -177,12 +201,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Radiology, Lausanne University Hospital and University of Lausanne",
-      "name": "Provins, C\u00e9line",
-      "orcid": "0000-0002-1668-9629",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Neuroscience Program, University of Iowa",
       "name": "Rivera-Dompenciel, Adriana",
       "orcid": "0000-0002-3339-4857",
@@ -219,12 +237,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
-      "name": "Waller, Lea",
-      "orcid": "0000-0002-3239-6957",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Wright, Jessey",
       "orcid": "0000-0001-5504-8579",
@@ -240,18 +252,6 @@
       "affiliation": "McGovern Institute for Brain Research, MIT, MA, USA",
       "name": "Ghosh, Satrajit S.",
       "orcid": "0000-0002-5312-6729",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
-      "name": "Schaefer, Theo A.J.",
-      "orcid": "0000-0003-4102-559X",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
-      "name": "Nitsch, Alexander",
-      "orcid": "0000-0002-5740-9451",
       "type": "Researcher"
     }
   ],
@@ -272,24 +272,24 @@
       "orcid": "0000-0002-7252-7771"
     },
     {
-      "affiliation": "Montreal Neurological Institute, McGill University",
-      "name": "DuPre, Elizabeth",
-      "orcid": "0000-0003-1358-196X"
-    },
-    {
       "affiliation": "Neuroscience Program, University of Iowa",
       "name": "Kent, James D.",
       "orcid": "0000-0002-4892-2659"
     },
     {
-      "affiliation": "Department of Psychology, Florida International University",
-      "name": "Salo, Taylor",
-      "orcid": "0000-0001-9813-3167"
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "DuPre, Elizabeth",
+      "orcid": "0000-0003-1358-196X"
     },
     {
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Ciric, Rastko",
       "orcid": "0000-0001-6347-7939"
+    },
+    {
+      "affiliation": "Department of Psychology, Florida International University",
+      "name": "Salo, Taylor",
+      "orcid": "0000-0001-9813-3167"
     },
     {
       "affiliation": "SIMEXP Lab, CRIUGM, University of Montr\u00e9al, Montr\u00e9al, Canada",

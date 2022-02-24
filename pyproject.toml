@@ -1,2 +1,9 @@
 [build-system]
+# Keep synchronized with the minimum version to install in setup.py
 requires = ["setuptools >= 40.8.0", "wheel"]
+
+[tool.black]
+line-length = 99
+target-version = ['py37']
+skip-string-normalization = true
+extend-exclude = '_version.py|versioneer.py'

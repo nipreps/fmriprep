@@ -16,6 +16,12 @@ fmriprep/sub-02/fmap/sub-02_run-1_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
 fmriprep/sub-02/func
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_desc-confounds_timeseries.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_desc-confounds_timeseries.tsv
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-1_desc-preproc_bold.json
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-1_desc-preproc_bold.nii.gz
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-2_desc-preproc_bold.json
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-2_desc-preproc_bold.nii.gz
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-3_desc-preproc_bold.json
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_echo-3_desc-preproc_bold.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_from-scanner_to-T1w_mode-image_xfm.txt
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_from-T1w_to-scanner_mode-image_xfm.txt
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-1_space-MNI152NLin2009cAsym_boldref.nii.gz

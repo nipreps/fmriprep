@@ -23,3 +23,4 @@
 .. _TACC: https://www.tacc.utexas.edu/
 .. _tedana: https://github.com/me-ica/tedana
 .. _`T2* workflow`: https://tedana.readthedocs.io/en/latest/generated/tedana.workflows.t2smap_workflow.html#tedana.workflows.t2smap_workflow  # noqa
+.. _`citation boilerplate`: https://www.nipreps.org/intro/transparency/#citation-boilerplates

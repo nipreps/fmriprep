@@ -1,0 +1,39 @@
+name: Feature Request
+description: Suggest an idea for a new feature or a change to an existing one.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for your suggestion!
+
+        We welcome any ideas about how to make *fMRIPrep* better for the community.
+        Please keep in mind that features may not get implemented immediately.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What would you like to see added in fMRIPrep?
+      description: |
+        What are you trying to achieve with fMRIPrep?
+        Is this a more convenient way to do something that is already possible, or is a workaround currently unfeasible?
+        Does this feature adhere to the [NiPreps driving principles](https://www.nipreps.org/community/CONTRIBUTING/#driving-principles)?
+    validations:
+      required: true
+  - type: dropdown
+    id: interest
+    attributes:
+      label: Do you have any interest in helping implement the feature?
+      description: |
+        We appreciate any help you can offer!
+        For information on how to contribute, please refer to our [contributing guidelines](https://www.nipreps.org/community/CONTRIBUTING/).
+      options:
+        - "Yes"
+        - Yes, but I would need guidance
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: addinfo
+    attributes:
+      label: Additional information / screenshots
+      description: Add any additional information or context about the feature request here.

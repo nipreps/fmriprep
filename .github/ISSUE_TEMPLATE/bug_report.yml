@@ -1,0 +1,86 @@
+name: Bug Report
+description: File a report of a problem you encountered.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Thanks for taking the time to fill out this bug report!
+        ### The following information will help us in getting your issue resolved.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A short description of what went wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: What command did you use?
+      description: |
+        If you're using `fmriprep-docker`, please include the `RUNNING: ...` line that is printed first.
+        This helps us replicate the problem. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: What version of fMRIPrep are you running?
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: How are you running fMRIPrep?
+      options:
+        - Docker
+        - Singularity
+        - Local installation ("bare-metal")
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: bids-valid
+    attributes:
+      label: Is your data BIDS valid?
+      description: |
+        The BIDS validator can be found at: https://bids-standard.github.io/bids-validator/
+        Errors should not be present, but warnings are acceptable.
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: dropdown
+    id: reuse
+    attributes:
+      label: Are you reusing any previously computed results?
+      description: |
+        You can select multiple options.
+        We recommend using a fresh working directory when upgrading to a new fMRIPrep minor series.
+      multiple: true
+      options:
+        - FreeSurfer
+        - Anatomical derivatives
+        - Work directory
+        - "No"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Please copy and paste any relevant log output.
+      description: |
+        Can you find some traces of the error reported in the visual report (at the bottom) or in *crashfiles*?
+        This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: textarea
+    id: addinfo
+    attributes:
+      label: Additional information / screenshots
+      description: |
+        If you would like to include any further information, such as any visual reports, please include them below.
+        Alternatively, you can privately share with us at <nipreps@gmail.com>.
+        Reports do not contain data usable with personal identification or other research purposes.
