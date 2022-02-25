@@ -715,7 +715,7 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                 "t1_bold_xform",
                 "std2anat_xfm",
                 "cifti_bold",
-                "t1w_tmps",
+                "t1w_tpms",
                 "crown_mask"
             ]
         ),

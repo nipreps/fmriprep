@@ -921,6 +921,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         else:
             # fmt:off
             workflow.connect([
+                (inputnode, carpetplot_wf, [
+                    ("t1w_tpms", "inputnode.t1w_tpms")
+                ]),
                 (select_2009c, carpetplot_wf, [
                     ("std2anat_xfm", "inputnode.std2anat_xfm"),
                 ]),
