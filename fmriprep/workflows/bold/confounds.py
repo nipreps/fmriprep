@@ -147,6 +147,8 @@ def init_bold_confs_wf(
         the ROI for tCompCor and the BOLD brain mask.
     confounds_metadata
         Confounds metadata dictionary.
+    crown_mask
+        Mask of brain edge voxels
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
@@ -243,6 +245,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
                 "confounds_metadata",
                 "acompcor_masks",
                 "tcompcor_mask",
+                "crown_mask"
             ]
         ),
         name="outputnode",
@@ -628,6 +631,7 @@ Frames that exceeded a threshold of {regressors_fd_th} mm FD or
             (mrg_conf_metadata2, outputnode, [("out_dict", "confounds_metadata")]),
             (tcompcor, outputnode, [("high_variance_masks", "tcompcor_mask")]),
             (acc_msk_bin, outputnode, [("out_file", "acompcor_masks")]),
+            (crown_mask, outputnode, [("out_mask", "crown_mask")]),
             (inputnode, rois_plot, [("bold", "in_file"), ("bold_mask", "in_mask")]),
             (tcompcor, mrg_compcor, [("high_variance_masks", "in1")]),
             (acc_msk_bin, mrg_compcor, [(("out_file", _last), "in2")]),
@@ -688,6 +692,8 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
         ANTs-compatible affine-and-warp transform file
     cifti_bold
         BOLD image in CIFTI format, to be used in place of volumetric BOLD
+    crown_mask 
+        Mask of brain edge voxels
 
     Outputs
     -------
@@ -695,7 +701,6 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
         Path of the generated SVG file
 
     """
-    from niworkflows.interfaces.morphology import CrownMask
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
     from niworkflows.interfaces.nibabel import ApplyMask, Binarize
@@ -710,7 +715,8 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                 "t1_bold_xform",
                 "std2anat_xfm",
                 "cifti_bold",
-                "t1w_tmps"
+                "t1w_tmps",
+                "crown_mask"
             ]
         ),
         name="inputnode",
@@ -760,9 +766,6 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
     def _last(inlist):
         return inlist[-1]
 
-    # Generate crown mask
-    crown_mask = pe.Node(CrownMask(), name="crown_mask")
-
     # Carpetplot and confounds plot
     conf_plot = pe.Node(
         FMRISummary(
@@ -803,7 +806,6 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                     [("t1_bold_xform", "in1"), ("std2anat_xfm", "in2")],
                 ),
                 (inputnode, resample_parc, [("bold_mask", "reference_image")]),
-                (inputnode, crown_mask, [("bold_mask", "in_brainmask")]),
                 (mrg_xfms, resample_parc, [("out", "transforms")]),
                 #aCompCor mask
                 (
@@ -820,10 +822,9 @@ def init_carpetplot_wf(mem_gb, metadata, cifti_output, freesurfer=False, name="b
                 (acc_masks, acc_msk_tfm, [("out_masks", "input_image")]),
                 (acc_msk_tfm, acc_msk_brain, [("output_image", "in_file")]),
                 (acc_msk_brain, acc_msk_bin, [("out_file", "in_file")]),
-                (resample_parc, crown_mask, [("output_image", "in_segm")]),
                 # Carpetplot
                 (inputnode, conf_plot, [("bold", "in_func")]),
-                (crown_mask, conf_plot, [("out_mask","in_crown")]),
+                (inputnode, conf_plot, [("crown_mask","in_crown")]),
                 (resample_parc, conf_plot, [("output_image", "in_segm")]),
                 (acc_msk_bin, conf_plot, [(("out_file", _last), "acompcor_mask")])
             ]

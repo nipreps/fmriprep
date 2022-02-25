@@ -1,1 +1,18 @@
-../../NOTICE
+fMRIPrep
+Copyright 2021 The NiPreps Developers.
+
+This product includes software developed by
+the NiPreps Community (https://nipreps.org/).
+
+Portions of this software were developed at the Department of
+Psychology at Stanford University, Stanford, CA, US.
+
+This software redistributes the versioneer Python package, which is
+Public domain source code.
+
+This software is also distributed as a Docker container image.
+The bootstraping file for the image ("Dockerfile") is licensed
+under the MIT License.
+
+This software may be distributed through an add-on package called
+"Docker Wrapper" that is under the BSD 3-clause License.

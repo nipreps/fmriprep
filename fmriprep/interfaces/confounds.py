@@ -500,8 +500,8 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
         minlen=1,
         desc="list of headers to extract from the confounds_file",
     )
-    tr = traits.Either(None, traits.Float, usedefault=True, desc="the repetition time"),
-
+    
+    tr = traits.Either(None, traits.Float, usedefault=True, desc="the repetition time")
     acompcor_mask = File(exists=True, desc="WM & CSF mask from aCompCor")
 
 
