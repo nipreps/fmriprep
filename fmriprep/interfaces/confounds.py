@@ -487,6 +487,7 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
     in_crown = File(exists=True, desc="3D crown mask")
     in_segm = File(exists=True, desc="resampled segmentation")
     confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
+    acompcor_mask = File(exists=True, desc="WM & CSF mask from aCompCor")
 
     str_or_tuple = traits.Either(
         traits.Str,
@@ -502,7 +503,6 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
     )
     
     tr = traits.Either(None, traits.Float, usedefault=True, desc="the repetition time")
-    acompcor_mask = File(exists=True, desc="WM & CSF mask from aCompCor")
 
 
 class FMRISummaryOutputSpec(TraitedSpec):
