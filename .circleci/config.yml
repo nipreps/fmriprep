@@ -35,16 +35,9 @@ jobs:
           docker_layer_caching: true
 
       - run:
-          name: Pull a base image if not cached
+          name: Update unstable docker tag
           command: |
-            set +e
-            images=$(docker images | grep fmriprep)
-            set -e
-            if [[ "$images" == "" ]]; then
-                docker pull nipreps/fmriprep:unstable
-            else
-                echo $images
-            fi
+            docker pull nipreps/fmriprep:unstable
       - run:
           name: Build Docker image
           no_output_timeout: 60m
