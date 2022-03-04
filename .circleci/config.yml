@@ -65,7 +65,7 @@ jobs:
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build --rm \
-                -t nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+                -t nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
                 --build-arg VCS_REF=`git rev-parse --short HEAD` \
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" . \
@@ -233,7 +233,7 @@ jobs:
             images=$( docker images )
             set +e
             echo $images
-            if [[ "$( echo $images | grep ${CIRCLE_TAG:-$CIRCLE_SHA1} )" == "" ]]; then
+            if [[ "$( echo $images | grep ${CIRCLE_TAG:-latest} )" == "" ]]; then
               echo "Docker image is not ready"
               exit 1
             fi
@@ -247,9 +247,9 @@ jobs:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
           command: |
-            docker run -ti \
+            docker run --rm -ti \
               -e TEST_READONLY_FILESYSTEM=1 -v $HOME:/home/readonly:ro \
-              --entrypoint="pytest" nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+              --entrypoint="pytest" nipreps/fmriprep:${CIRCLE_TAG:-latest} \
               /src/fmriprep/fmriprep -svx --doctest-modules
 
       - run:
@@ -263,8 +263,8 @@ jobs:
             pip install --upgrade "pip<21" "setuptools<45"
             pip install --upgrade wrapper/
             which fmriprep-docker
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} --help
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} --version
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} --help
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} --version
       - run:
           name: Test fmriprep-wrapper (Python 3)
           command: |
@@ -276,8 +276,8 @@ jobs:
             pip install --upgrade pip setuptools
             pip install --upgrade wrapper/
             which fmriprep-docker
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} --help
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} --version
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} --help
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} --version
       - store_artifacts:
           path: /tmp/data/reports
 
@@ -348,7 +348,7 @@ jobs:
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
             if [ -f /tmp/.nofasttrack ]; then
-                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --network none \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
@@ -391,7 +391,7 @@ jobs:
             awk 'NR==1{print; print "    \"TotalReadoutTime\": 0.05,"} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
             awk 'NR==1{print; print "    \"PhaseEncodingDirection\": \"j\","} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
 
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
@@ -437,7 +437,7 @@ jobs:
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
@@ -466,7 +466,7 @@ jobs:
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
@@ -566,7 +566,7 @@ jobs:
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
             if [ -f /tmp/.nofasttrack ]; then
-                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -594,7 +594,7 @@ jobs:
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -624,7 +624,7 @@ jobs:
             cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
                 /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
             set +e
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -687,7 +687,7 @@ jobs:
             images=$( docker images )
             set +e
             echo $images
-            if [[ "$( echo $images | grep ${CIRCLE_TAG:-$CIRCLE_SHA1} )" == "" ]]; then
+            if [[ "$( echo $images | grep ${CIRCLE_TAG:-latest} )" == "" ]]; then
               echo "Docker image is not ready"
               exit 1
             fi
@@ -719,7 +719,7 @@ jobs:
           command: |
             mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
             if [ -f /tmp/.nofasttrack ]; then
-                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+                fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                     /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -760,7 +760,7 @@ jobs:
             echo '{"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.058}' >> /tmp/data/${DATASET}/task-cuedSGT_bold.json
             chmod -R -w /tmp/data/${DATASET}
 
-            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} \
+            fmriprep-docker -i nipreps/fmriprep:${CIRCLE_TAG:-latest} \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
                 /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
@@ -824,7 +824,7 @@ jobs:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
           command: |
-            docker tag nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
+            docker tag nipreps/fmriprep:${CIRCLE_TAG:-latest} nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
             docker push nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
 
   deploy_docker:
@@ -859,7 +859,7 @@ jobs:
           command: |
             if [[ -n "$DOCKER_PAT" ]]; then
               echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-              docker tag nipreps/fmriprep:${CIRCLE_TAG:-$CIRCLE_SHA1} nipreps/fmriprep:unstable
+              docker tag nipreps/fmriprep:${CIRCLE_TAG:-latest} nipreps/fmriprep:unstable
               docker push nipreps/fmriprep:unstable
               if [[ -n "$CIRCLE_TAG" ]]; then
                 docker push nipreps/fmriprep:$CIRCLE_TAG
