@@ -21,9 +21,9 @@ We will be running this test code with a Singularity container. For that we need
 2. Clone this [repo](https://github.com/nikhil153/fmriprep/tree/carbon-trackers) and checkout "carbon-trackers" branch
 3. Use [run_fmriprep_patch.sh](../scripts/run_fmriprep_patch.sh) to setup paths for
     - singularity image, this "carbon-trackers" branch (patching)
-    - bids_dir, output_dir, subject_id etc 
+    - bids_dir, output_dir, subject_id, country_code etc 
 4. Run your workflow using sudo
 
 ```
-example cmd: sudo ./run_fmriprep_patch.sh /path/to/bids_dir /path/ouput_dir <subject_id> 
+example cmd: sudo ./run_fmriprep_patch.sh /path/to/bids_dir /path/ouput_dir <subject_id> CAN
 ```
