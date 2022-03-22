@@ -5,6 +5,7 @@
 
 if [ "$#" -ne 3 ]; then
   echo "Please provide paths to the bids_dir, working_dir and subject ID (i.e. subdir inside BIDS_DIR)"
+  echo "Note: the freesurfer license.txt must be inside the working_dir"
   exit 1
 fi
 
@@ -12,11 +13,14 @@ BIDS_DIR=$1
 WD_DIR=$2
 SUB_ID=$3
 
-# CON_IMG="/home/nikhil/projects/my_containers/fmriprep_20.2.7.sif"
+# Singularity image
 CON_IMG="/home/nikhil/projects/my_containers/fmriprep_dev.sif"
 
 # CHECK IF YOU HAVE TEMPLATEFLOW
 TEMPLATEFLOW_HOST_HOME="/home/nikhil/projects/templateflow"
+
+# Local fmriprep repo 
+LOCAL_FMRIPREP_CODE="/home/nikhil/projects/green_comp_neuro/fmriprep/fmriprep"
 
 DERIVS_DIR=${WD_DIR}/output
 
@@ -48,7 +52,7 @@ export SINGULARITYENV_TEMPLATEFLOW_HOME="/templateflow"
 # Singularity CMD 
 SINGULARITY_CMD="singularity run \
 -B ${BIDS_DIR}:/data_dir \
--B /home/nikhil/projects/green_comp_neuro/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+-B ${LOCAL_FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
 -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
 -B ${DERIVS_DIR}:/output \
 -B ${TEMPLATEFLOW_HOST_HOME}:${SINGULARITYENV_TEMPLATEFLOW_HOME} \
@@ -57,7 +61,7 @@ SINGULARITY_CMD="singularity run \
  ${CON_IMG}"
 
 # Patch code
-# -B /home/nikhil/projects/green_comp_neuro/fmriprep/fmriprep:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+# -B <local_repo>:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
 
 # Remove IsRunning files from FreeSurfer
 find ${LOCAL_FREESURFER_DIR}/sub-$SUB_ID/ -name "*IsRunning*" -type f -delete
@@ -87,4 +91,4 @@ echo Finished tasks ${SLURM_ARRAY_TASK_ID} with exit code $exitcode
 rm -rf ${FMRIPREP_HOME}
 exit $exitcode
 
-echo "Submission finished!"
+echo "fmriprep run completed!"
