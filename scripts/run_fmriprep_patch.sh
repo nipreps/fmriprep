@@ -3,8 +3,8 @@
 # Author: nikhil153
 # Date: 16 Feb 2022
 
-if [ "$#" -ne 3 ]; then
-  echo "Please provide paths to the bids_dir, working_dir and subject ID (i.e. subdir inside BIDS_DIR)"
+if [ "$#" -ne 4 ]; then
+  echo "Please provide paths to the bids_dir, working_dir, subject ID (i.e. subdir inside BIDS_DIR), and country code e.g. CAN"
   echo "Note: the freesurfer license.txt must be inside the working_dir"
   exit 1
 fi
@@ -12,6 +12,7 @@ fi
 BIDS_DIR=$1
 WD_DIR=$2
 SUB_ID=$3
+COUNTRY_CODE=$4
 
 # Singularity image (unstable tracks the master branch on GH)
 # CON_IMG="/home/nikhil/projects/my_containers/fmriprep_unstable.sif" 
@@ -75,7 +76,8 @@ cmd="${SINGULARITY_CMD} /data_dir /output participant --participant-label $SUB_I
 --skip_bids_validation \
 --fs-license-file /home/fmriprep/.freesurfer/license.txt \
 --return-all-components -v \
---write-graph --track-carbon --notrack"
+--write-graph --track-carbon --country-code $COUNTRY_CODE --notrack"
+
 #--bids-filter-file ${BIDS_FILTER} --anat-only --cifti-out 91k"
 #--bids-database-dir /work/20220221-200330_10ebc3d4-edd1-4752-8c9f-6f6dc1302c83/ \
 

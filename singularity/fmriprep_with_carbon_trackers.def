@@ -1,5 +1,5 @@
 BootStrap: docker
-From: nipreps/fmriprep:unstable
+From: nipreps/fmriprep:20.2.7
 
 %files
   requirements.txt /opt/requirements.txt

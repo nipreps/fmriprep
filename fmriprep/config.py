@@ -409,7 +409,9 @@ class execution(_Config):
     notrack = False
     """Do not monitor *fMRIPrep* using Sentry.io."""
     track_carbon = False
-    """Tracks power draws using CodeCarbon package"""
+    """Tracks power draws using CodeCarbon package."""
+    country_code = "CAN"
+    """Country ISO code used by carbon trackers."""
     output_dir = None
     """Folder where derivatives will be stored."""
     me_output_echos = False

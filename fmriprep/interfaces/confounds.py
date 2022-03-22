@@ -42,7 +42,10 @@ from nipype.interfaces.base import (
     SimpleInterface, InputMultiObject, OutputMultiObject
 )
 from niworkflows.viz.plots import fMRIPlot
-from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
+
+# This module is not found in the fmriprep_20.2.7.sif
+# TODO test with fmriprep_unstable.sif
+# from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
 
 LOGGER = logging.getLogger('nipype.interface')
 

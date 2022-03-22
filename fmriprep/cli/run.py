@@ -41,7 +41,7 @@ def main():
     if config.execution.track_carbon:
         from codecarbon import OfflineEmissionsTracker
 
-        country_iso_code = "CAN"
+        country_iso_code = config.execution.country_code #"CAN"
         CC_log_dir = "/output/"
         config.loggers.workflow.log(25, f"CodeCarbon tracker started. Using country_iso_code: {country_iso_code}"
             f"\nSaving logs at: {CC_log_dir}")

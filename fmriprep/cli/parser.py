@@ -641,6 +641,13 @@ Useful for further Tedana processing post-fMRIPrep."""
         action="store_true",
         help="Tracks power draws using CodeCarbon package",
     )
+    g_fmap.add_argument(
+        "--country-code",
+        action="store",
+        default="CAN",
+        type=str,
+        help="Country ISO code used by carbon trackers",
+    )
 
     latest = check_latest()
     if latest is not None and currentv < latest:
