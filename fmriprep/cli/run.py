@@ -37,6 +37,18 @@ def main():
 
     parse_args()
 
+    # Code Carbon
+    if config.execution.track_carbon:
+        from codecarbon import OfflineEmissionsTracker
+
+        country_iso_code = "CAN"
+        CC_log_dir = "/output/"
+        config.loggers.workflow.log(25, f"CodeCarbon tracker started. Using country_iso_code: {country_iso_code}"
+            f"\nSaving logs at: {CC_log_dir}")
+
+        tracker = OfflineEmissionsTracker(output_dir=CC_log_dir, country_iso_code=country_iso_code)
+        tracker.start()
+
     sentry_sdk = None
     if not config.execution.notrack:
         import sentry_sdk
@@ -170,6 +182,12 @@ def main():
     finally:
         from fmriprep.reports.core import generate_reports
         from pkg_resources import resource_filename as pkgrf
+
+        # Code Carbon
+        if config.execution.track_carbon:
+            emissions: float = tracker.stop()
+            config.loggers.workflow.log(25, f"CodeCarbon tracker stopped."
+                "Saving logs at: {CC_log_dir}\nEmissions: {emissions} kg")
 
         # Generate reports phase
         failed_reports = generate_reports(
