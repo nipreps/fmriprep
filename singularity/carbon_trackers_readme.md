@@ -24,5 +24,6 @@ We will be running this test code with a Singularity container. For that we need
     - bids_dir, output_dir, subject_id etc 
 4. Run your workflow using sudo
 
-```example cmd: sudo ./run_fmriprep_patch.sh /path/to/bids_dir /path/ouput_dir <subject_id> 
+```
+example cmd: sudo ./run_fmriprep_patch.sh /path/to/bids_dir /path/ouput_dir <subject_id> 
 ```
