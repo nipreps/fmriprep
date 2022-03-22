@@ -186,8 +186,8 @@ def main():
         # Code Carbon
         if config.execution.track_carbon:
             emissions: float = tracker.stop()
-            config.loggers.workflow.log(25, f"CodeCarbon tracker stopped."
-                "Saving logs at: {CC_log_dir}\nEmissions: {emissions} kg")
+            config.loggers.workflow.log(25, "CodeCarbon tracker stopped."
+                f"Saving logs at: {CC_log_dir}\nEmissions: {emissions} kg")
 
         # Generate reports phase
         failed_reports = generate_reports(

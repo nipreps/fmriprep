@@ -13,8 +13,9 @@ BIDS_DIR=$1
 WD_DIR=$2
 SUB_ID=$3
 
-# Singularity image
-CON_IMG="/home/nikhil/projects/my_containers/fmriprep_dev.sif"
+# Singularity image (unstable tracks the master branch on GH)
+# CON_IMG="/home/nikhil/projects/my_containers/fmriprep_unstable.sif" 
+CON_IMG="/home/nikhil/projects/my_containers/fmriprep_dev.sif" 
 
 # CHECK IF YOU HAVE TEMPLATEFLOW
 TEMPLATEFLOW_HOST_HOME="/home/nikhil/projects/templateflow"
@@ -86,9 +87,9 @@ eval $cmd
 exitcode=$?
 
 # Output results to a table
-echo "$SUB_ID    ${SLURM_ARRAY_TASK_ID}    $exitcode"
-echo Finished tasks ${SLURM_ARRAY_TASK_ID} with exit code $exitcode
-rm -rf ${FMRIPREP_HOME}
+# echo "$SUB_ID    ${SLURM_ARRAY_TASK_ID}    $exitcode"
+# echo Finished tasks ${SLURM_ARRAY_TASK_ID} with exit code $exitcode
+# rm -rf ${FMRIPREP_HOME}
 exit $exitcode
 
 echo "fmriprep run completed!"
