@@ -102,7 +102,6 @@ jobs:
               echo "them to your fork with ``git push origin --tags``"
             fi
             sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
-            sed -i "s/title = {FMRIPrep}/title = {FMRIPrep ${CIRCLE_TAG:-$THISVERSION}}/" fmriprep/data/boilerplate.bib
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build --rm \
@@ -497,6 +496,7 @@ jobs:
                 --nthreads 2 -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives
+          destination: full-run
       - run:
           name: Copy intermediate results for re-runs
           command: |
@@ -537,6 +537,9 @@ jobs:
                 --sloppy --write-graph --mem_mb 4096 \
                 --output-spaces fsaverage5 \
                 --nthreads 2 -vv
+      - store_artifacts:
+          path: /tmp/ds005/bids
+          destination: bids-run
       - run:
           name: Checking outputs of partial fMRIPrep run
           command: |
@@ -569,6 +572,9 @@ jobs:
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --aroma-melodic-dimensionality 2 --use-aroma \
                 --nthreads 2 --cifti-output -vv
+      - store_artifacts:
+          path: /tmp/ds005/derivatives_partial
+          destination: partial-run
       - run:
           name: Checking outputs of partial fMRIPrep run
           command: |

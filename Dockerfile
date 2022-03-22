@@ -37,6 +37,7 @@ RUN apt-get update && \
                     git \
                     libtool \
                     lsb-release \
+                    netbase \
                     pkg-config \
                     unzip \
                     xvfb && \

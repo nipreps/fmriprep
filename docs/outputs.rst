@@ -67,7 +67,6 @@ Visual Reports
 --------------
 *fMRIPrep* outputs summary reports, written to ``<output dir>/fmriprep/sub-<subject_label>.html``.
 These reports provide a quick way to make visual inspection of the results easy.
-Each report is self contained and thus can be easily shared with collaborators (for example via email).
 `View a sample report. <_static/SampleReport/sample_report.html>`_
 
 Derivatives of *fMRIPrep* (preprocessed data)
@@ -482,6 +481,13 @@ For CompCor decompositions, entries include:
     where Patrick Sadil gets into details about PCA and how that base technique applies
     to CompCor in general and *fMRIPrep*'s implementation in particular.
 
+**Confounds estimated from the brain's outer edge**.
+Reusing the implementation of aCompCor, *fMRIPrep* generates regressors corresponding to the
+24 first principal components extracted with PCA using the voxel time-series delineated by
+the brain's outer edge (*crown*) mask.
+The procedure essentially follows the initial proposal of the approach by Patriat et al.
+[Patriat2017]_ and is described in our ISMRM abstract [Provins2022]_.
+
 **AROMA confounds**.
 :abbr:`AROMA (Automatic Removal Of Motion Artifacts)` is an :abbr:`ICA (independent components analysis)`
 based procedure to identify confounding time series related to head-motion [Prium2015]_.
@@ -633,6 +639,10 @@ the following invocation::
      and sensitivity of motion correction strategies for resting-state functional MRI. NeuroImage. 2018.
      doi:`10.1016/j.neuroimage.2017.12.073 <https://doi.org/10.1016/j.neuroimage.2017.12.073>`_
 
+  .. [Patriat2017] Patriat R, Reynolds RC, Birn RM, An improved model of motion-related signal
+     changes in fMRI. NeuroImage. 2017.
+     doi:`10.1016/j.neuroimage.2016.08.051 <https://doi.org/10.1016/j.neuroimage.2016.08.051>`_.
+
   .. [Power2012] Power JD, Barnes KA, Snyder AZ, Schlaggar BL, Petersen, SA, Spurious but systematic
      correlations in functional connectivity MRI networks arise from subject motion. NeuroImage. 2012.
      doi:`10.1016/j.neuroimage.2011.10.018 <https://doi.org/10.1016/j.neuroimage.2011.10.018>`_
@@ -644,6 +654,10 @@ the following invocation::
      ICA-AROMA: A robust ICA-based strategy for removing motion artifacts from fMRI data.
      Neuroimage. 2015 May 15;112:267–77.
      doi:`10.1016/j.neuroimage.2015.02.064 <https://doi.org/10.1016/j.neuroimage.2015.02.064>`_.
+
+  .. [Provins2022] Provins C et al., Quality control and nuisance regression of fMRI, looking out
+     where signal should not be found. Proc. Intl. Soc. Mag. Reson. Med. 31, London (UK). 2022
+     doi:`10.31219/osf.io/hz52v <https://doi.org/10.31219/osf.io/hz52v>`_.
 
   .. [Satterthwaite2013] Satterthwaite TD, Elliott MA, Gerraty RT, Ruparel K, Loughead J, Calkins ME,
      Eickhoff SB, Hakonarson H, Gur RC, Gur RE, Wolf DH,

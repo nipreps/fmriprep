@@ -186,6 +186,7 @@ def merge_help(wrapper_help, target_help):
     expected_overlap = {
         'anat-derivatives',
         'bids-database-dir',
+        'bids-filter-file',
         'fs-license-file',
         'fs-subjects-dir',
         'config-file',
@@ -335,6 +336,12 @@ the spatial normalization.""" % (', '.join('"%s"' % s for s in TF_TEMPLATES),
         '--bids-database-dir', metavar='PATH', type=os.path.abspath,
         help="Path to an existing PyBIDS database folder, for faster indexing "
              "(especially useful for large datasets).")
+    g_wrap.add_argument(
+        '--bids-filter-file', metavar='PATH', type=os.path.abspath,
+        help="a JSON file describing custom BIDS input filters using PyBIDS. "
+        "For further details, please check out "
+        "https://fmriprep.readthedocs.io/en/latest/faq.html#"
+        "how-do-I-select-only-certain-files-to-be-input-to-fMRIPrep")
 
     # Developer patch/shell options
     g_dev = parser.add_argument_group(
@@ -501,6 +508,10 @@ def main():
     if opts.bids_database_dir:
         command.extend(['-v', ':'.join((opts.bids_database_dir, '/tmp/bids_db'))])
         unknown_args.extend(['--bids-database-dir', '/tmp/bids_db'])
+
+    if opts.bids_filter_file:
+        command.extend(['-v', ':'.join((opts.bids_filter_file, '/tmp/bids_filter.json'))])
+        unknown_args.extend(['--bids-filter-file', '/tmp/bids_filter.json'])
 
     if opts.output_spaces:
         spaces = []

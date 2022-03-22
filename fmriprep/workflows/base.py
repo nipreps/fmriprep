@@ -33,6 +33,8 @@ import sys
 import os
 from copy import deepcopy
 
+from packaging.version import Version
+
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
 
@@ -66,7 +68,9 @@ def init_fmriprep_wf():
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.bids import BIDSFreeSurferDir
 
-    fmriprep_wf = Workflow(name='fmriprep_wf')
+    ver = Version(config.environment.version)
+
+    fmriprep_wf = Workflow(name=f'fmriprep_{ver.major}_{ver.minor}_wf')
     fmriprep_wf.base_dir = config.execution.work_dir
 
     freesurfer = config.workflow.run_reconall
@@ -324,7 +328,7 @@ It is released under the [CC0]\
         fmap_estimators = find_estimators(
             layout=config.execution.layout,
             subject=subject_id,
-            fmapless=config.workflow.use_syn_sdc,
+            fmapless=bool(config.workflow.use_syn_sdc),
             force_fmapless=config.workflow.force_syn,
         )
 
@@ -333,7 +337,8 @@ It is released under the [CC0]\
                        "PhaseEncodingDirection information appears to be "
                        "absent.")
             config.loggers.workflow.error(message)
-            raise ValueError(message)
+            if config.workflow.use_syn_sdc == "error":
+                raise ValueError(message)
 
         if (
             "fieldmaps" in config.workflow.ignore
@@ -428,7 +433,25 @@ BIDS structure for this particular subject.
         if node.split(".")[-1].startswith("ds_"):
             fmap_wf.get_node(node).interface.out_path_base = ""
 
-    # Step 3: Manually connect PEPOLAR
+    # Step 3: Manually connect PEPOLAR and ANAT workflows
+
+    # Select "MNI152NLin2009cAsym" from standard references.
+    # This node may be used by multiple ANAT estimators, so define outside loop.
+    from niworkflows.interfaces.utility import KeySelect
+    fmap_select_std = pe.Node(
+        KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
+        name="fmap_select_std",
+        run_without_submitting=True,
+    )
+    if any(estimator.method == fm.EstimatorType.ANAT for estimator in fmap_estimators):
+        # fmt:off
+        workflow.connect([
+            (anat_preproc_wf, fmap_select_std, [
+                ("outputnode.std2anat_xfm", "std2anat_xfm"),
+                ("outputnode.template", "keys")]),
+        ])
+        # fmt:on
+
     for estimator in fmap_estimators:
         config.loggers.workflow.info(f"""\
 Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
@@ -438,23 +461,24 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
         if estimator.method in (fm.EstimatorType.MAPPED, fm.EstimatorType.PHASEDIFF):
             continue
 
-        suffices = set(s.suffix for s in estimator.sources)
+        suffices = [s.suffix for s in estimator.sources]
 
-        if estimator.method == fm.EstimatorType.PEPOLAR and sorted(suffices) == ["epi"]:
-            getattr(fmap_wf.inputs, f"in_{estimator.bids_id}").in_data = [
-                str(s.path) for s in estimator.sources
-            ]
-            getattr(fmap_wf.inputs, f"in_{estimator.bids_id}").metadata = [
-                s.metadata for s in estimator.sources
-            ]
+        if estimator.method == fm.EstimatorType.PEPOLAR:
+            if set(suffices) == {"epi"} or sorted(suffices) == ["bold", "epi"]:
+                wf_inputs = getattr(fmap_wf.inputs, f"in_{estimator.bids_id}")
+                wf_inputs.in_data = [str(s.path) for s in estimator.sources]
+                wf_inputs.metadata = [s.metadata for s in estimator.sources]
 
-        elif estimator.method == fm.EstimatorType.PEPOLAR:
-            raise NotImplementedError(
-                "Sophisticated PEPOLAR schemes are unsupported."
-            )
+                # 21.0.x hack to change the number of volumes used
+                # The default of 50 takes excessively long
+                flatten = fmap_wf.get_node(f"wf_{estimator.bids_id}.flatten")
+                flatten.inputs.max_trs = config.workflow.topup_max_vols
+            else:
+                raise NotImplementedError(
+                    "Sophisticated PEPOLAR schemes are unsupported."
+                )
 
         elif estimator.method == fm.EstimatorType.ANAT:
-            from niworkflows.interfaces.utility import KeySelect
             from sdcflows.workflows.fit.syn import init_syn_preprocessing_wf
 
             sources = [str(s.path) for s in estimator.sources if s.suffix == "bold"]
@@ -469,18 +493,8 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
             syn_preprocessing_wf.inputs.inputnode.in_epis = sources
             syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
 
-            # Select "MNI152NLin2009cAsym" from standard references.
-            fmap_select_std = pe.Node(
-                KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
-                name="fmap_select_std",
-                run_without_submitting=True,
-            )
-
             # fmt:off
             workflow.connect([
-                (anat_preproc_wf, fmap_select_std, [
-                    ("outputnode.std2anat_xfm", "std2anat_xfm"),
-                    ("outputnode.template", "keys")]),
                 (anat_preproc_wf, syn_preprocessing_wf, [
                     ("outputnode.t1w_preproc", "inputnode.in_anat"),
                     ("outputnode.t1w_mask", "inputnode.mask_anat"),

@@ -179,16 +179,21 @@ def build_boilerplate(config_file, workflow):
     citation_files["md"].write_text(boilerplate)
 
     if not config.execution.md_only_boilerplate and citation_files["md"].exists():
+        from pathlib import Path
         from subprocess import check_call, CalledProcessError, TimeoutExpired
         from pkg_resources import resource_filename as pkgrf
-        from shutil import copyfile
+
+        bib_text = Path(pkgrf("fmriprep", "data/boilerplate.bib")).read_text()
+        citation_files["bib"].write_text(
+            bib_text.replace("fMRIPrep <version>", f"fMRIPrep {config.environment.version}")
+        )
 
         # Generate HTML file resolving citations
         cmd = [
             "pandoc",
             "-s",
             "--bibliography",
-            pkgrf("fmriprep", "data/boilerplate.bib"),
+            str(citation_files["bib"]),
             "--citeproc",
             "--metadata",
             'pagetitle="fMRIPrep citation boilerplate"',
@@ -212,7 +217,7 @@ def build_boilerplate(config_file, workflow):
             "pandoc",
             "-s",
             "--bibliography",
-            pkgrf("fmriprep", "data/boilerplate.bib"),
+            str(citation_files["bib"]),
             "--natbib",
             str(citation_files["md"]),
             "-o",
@@ -227,5 +232,3 @@ def build_boilerplate(config_file, workflow):
             config.loggers.cli.warning(
                 "Could not generate CITATION.tex file:\n%s", " ".join(cmd)
             )
-        else:
-            copyfile(pkgrf("fmriprep", "data/boilerplate.bib"), citation_files["bib"])

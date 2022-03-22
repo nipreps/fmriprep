@@ -8,7 +8,7 @@
 
 @article{fmriprep2,
     author = {Esteban, Oscar and Blair, Ross and Markiewicz, Christopher J. and Berleant, Shoshana L. and Moodie, Craig and Ma, Feilong and Isik, Ayse Ilkay and Erramuzpe, Asier and Kent, James D. andGoncalves, Mathias and DuPre, Elizabeth and Sitek, Kevin R. and Gomez, Daniel E. P. and Lurie, Daniel J. and Ye, Zhifang and Poldrack, Russell A. and Gorgolewski, Krzysztof J.},
-    title = {fMRIPrep},
+    title = {fMRIPrep <version>},
     year = 2018,
     doi = {10.5281/zenodo.852659},
     publisher = {Zenodo},
@@ -350,4 +350,20 @@
     issn = {1053-8119},
     doi = {10.1016/S1053-8119(03)00336-7},
     url = {https://www.sciencedirect.com/science/article/pii/S1053811903003367}
+}
+
+@article{patriat_improved_2017,
+    title = {An improved model of motion-related signal changes in {fMRI}},
+    volume = {144, Part A},
+    issn = {1053-8119},
+    url = {http://www.sciencedirect.com/science/article/pii/S1053811916304360},
+    doi = {10.1016/j.neuroimage.2016.08.051},
+    abstract = {Head motion is a significant source of noise in the estimation of functional connectivity from resting-state functional MRI (rs-fMRI). Current strategies to reduce this noise include image realignment, censoring time points corrupted by motion, and including motion realignment parameters and their derivatives as additional nuisance regressors in the general linear model. However, this nuisance regression approach assumes that the motion-induced signal changes are linearly related to the estimated realignment parameters, which is not always the case. In this study we develop an improved model of motion-related signal changes, where nuisance regressors are formed by first rotating and translating a single brain volume according to the estimated motion, re-registering the data, and then performing a principal components analysis (PCA) on the resultant time series of both moved and re-registered data. We show that these “Motion Simulated (MotSim)” regressors account for significantly greater fraction of variance, result in higher temporal signal-to-noise, and lead to functional connectivity estimates that are less affected by motion compared to the most common current approach of using the realignment parameters and their derivatives as nuisance regressors. This improvement should lead to more accurate estimates of functional connectivity, particularly in populations where motion is prevalent, such as patients and young children.},
+    urldate = {2017-01-18},
+    journal = {NeuroImage},
+    author = {Patriat, Rémi and Reynolds, Richard C. and Birn, Rasmus M.},
+    month = jan,
+    year = {2017},
+    keywords = {Motion, Correction, Methods, Rs-fMRI},
+    pages = {74--82},
 }

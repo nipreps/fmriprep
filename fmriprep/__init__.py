@@ -19,9 +19,11 @@ __all__ = [
 # Silence PyBIDS warning for extension entity behavior
 # Can be removed once minimum PyBIDS dependency hits 0.14
 try:
+    from packaging.version import Version
     import bids
-    bids.config.set_option('extension_initial_dot', True)
+    if Version(bids.__version__) < Version('0.14'):
+        bids.config.set_option('extension_initial_dot', True)
 except (ImportError, ValueError):
     pass
 else:
-    del bids
+    del Version, bids

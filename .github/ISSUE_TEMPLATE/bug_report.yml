@@ -18,7 +18,9 @@ body:
     id: command
     attributes:
       label: What command did you use?
-      description: This helps us replicate the problem. This will be automatically formatted into code, so no need for backticks.
+      description: |
+        If you're using `fmriprep-docker`, please include the `RUNNING: ...` line that is printed first.
+        This helps us replicate the problem. This will be automatically formatted into code, so no need for backticks.
       render: shell
     validations:
       required: true

@@ -481,14 +481,25 @@ Useful for further Tedana processing post-fMRIPrep."""
         default=True,
         help="do not remove median (within mask) from fieldmap",
     )
+    g_fmap.add_argument(
+        "--topup-max-vols",
+        action="store",
+        default=5,
+        type=int,
+        help="maximum number of volumes to use with TOPUP, per-series (EPI or BOLD)",
+    )
 
     # SyN-unwarp options
     g_syn = parser.add_argument_group("Specific options for SyN distortion correction")
     g_syn.add_argument(
         "--use-syn-sdc",
-        action="store_true",
+        nargs="?",
+        choices=["warn", "error"],
+        action="store",
+        const="error",
         default=False,
-        help="EXPERIMENTAL: Use fieldmap-free distortion correction",
+        help="EXPERIMENTAL: Use fieldmap-free distortion correction; "
+             "if unable, error (default) or warn based on optional argument.",
     )
     g_syn.add_argument(
         "--force-syn",

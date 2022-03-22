@@ -59,7 +59,7 @@ sections:
     description: Hover on the panels with the mouse pointer to also visualize the intensity of the
       inhomogeneity of the field in Hertz.
     static: false
-    subtitle: "Preprocessed estimation with varying Phase-Endocing (PE) blips"
+    subtitle: "Preprocessed estimation with varying Phase-Encoding (PE) blips"
   - bids: {datatype: figures, desc: anat, suffix: fieldmap}
     caption: Inhomogeneities of the <em>B<sub>0</sub></em> field introduce (oftentimes severe) spatial distortions
       along the phase-encoding direction of the image. Utilizing an <em>anatomically-correct</em> acquisition
@@ -78,7 +78,7 @@ sections:
   - bids: {datatype: figures, desc: validation, suffix: bold}
   - bids: {datatype: figures, desc: fieldmap, suffix: bold}
     caption: The estimated fieldmap was aligned to the corresponding EPI reference
-      with a rigid-registration process of the magintude part of the fieldmap,
+      with a rigid-registration process of the magnitude part of the fieldmap,
       using <code>antsRegistration</code>.
       Overlaid on top of the co-registration results, the displacements along the
       phase-encoding direction are represented in arbitrary units.
@@ -131,13 +131,15 @@ sections:
     subtitle: Alignment of functional and anatomical MRI data (surface driven)
   - bids: {datatype: figures, desc: rois, suffix: bold}
     caption: Brain mask calculated on the BOLD signal (red contour), along with the
-      regions of interest (ROIs) used in <em>a/tCompCor</em> for extracting
-      physiological and movement confounding components.<br />
+      regions of interest (ROIs) used for the estimation of physiological and movement
+      confounding components that can be then used as nuisance regressors in analysis.<br />
       The <em>anatomical CompCor</em> ROI (magenta contour) is a mask combining
       CSF and WM (white-matter), where voxels containing a minimal partial volume
       of GM have been removed.<br />
       The <em>temporal CompCor</em> ROI (blue contour) contains the top 2% most
-      variable voxels within the brain mask.
+      variable voxels within the brain mask.<br />
+      The <em>brain edge</em> (or <em>crown</em>) ROI (green contour) picks signals
+      outside but close to the brain, which are decomposed into 24 principal components.
     subtitle: Brain mask and (anatomical/temporal) CompCor ROIs
   - bids:
       datatype: figures

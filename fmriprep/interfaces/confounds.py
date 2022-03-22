@@ -33,6 +33,7 @@ import os
 import re
 import shutil
 import numpy as np
+import nibabel as nb
 import pandas as pd
 from nipype import logging
 from nipype.utils.filemanip import fname_presuffix
@@ -40,6 +41,8 @@ from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterfaceInputSpec, File, Directory, isdefined,
     SimpleInterface, InputMultiObject, OutputMultiObject
 )
+from niworkflows.viz.plots import fMRIPlot
+from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -175,6 +178,7 @@ class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
     rmsd = File(exists=True, desc='input RMS framewise displacement')
     tcompcor = File(exists=True, desc='input tCompCorr')
     acompcor = File(exists=True, desc='input aCompCorr')
+    crowncompcor = File(exists=True, desc='input crown-based regressors')
     cos_basis = File(exists=True, desc='input cosine basis')
     motion = File(exists=True, desc='input motion parameters')
     aroma = File(exists=True, desc='input ICA-AROMA')
@@ -229,6 +233,7 @@ class GatherConfounds(SimpleInterface):
             rmsd=self.inputs.rmsd,
             tcompcor=self.inputs.tcompcor,
             acompcor=self.inputs.acompcor,
+            crowncompcor=self.inputs.crowncompcor,
             cos_basis=self.inputs.cos_basis,
             motion=self.inputs.motion,
             aroma=self.inputs.aroma,
@@ -280,8 +285,8 @@ class ICAConfounds(SimpleInterface):
 
 
 def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
-                      rmsd=None, tcompcor=None, acompcor=None, cos_basis=None,
-                      motion=None, aroma=None, newpath=None):
+                      rmsd=None, tcompcor=None, acompcor=None, crowncompcor=None,
+                      cos_basis=None, motion=None, aroma=None, newpath=None):
     r"""
     Load confounds from the filenames, concatenate together horizontally
     and save new file.
@@ -334,9 +339,11 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
                            (rmsd, 'Framewise displacement (RMS)'),
                            (tcompcor, 'tCompCor'),
                            (acompcor, 'aCompCor'),
+                           (crowncompcor, 'crownCompCor'),
                            (cos_basis, 'Cosine basis'),
                            (motion, 'Motion parameters'),
-                           (aroma, 'ICA-AROMA')):
+                           (aroma, 'ICA-AROMA')
+                           ):
         if confound is not None and isdefined(confound):
             confounds_list.append(name)
             if os.path.exists(confound) and os.stat(confound).st_size > 0:
@@ -434,14 +441,11 @@ def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
     return aroma_confounds, motion_ics_out, melodic_mix_out, aroma_metadata_out
 
 
-class FMRISummaryInputSpec(BaseInterfaceInputSpec):
-    in_func = File(exists=True, mandatory=True,
-                   desc='input BOLD time-series (4D file) or dense timeseries CIFTI')
-    in_mask = File(exists=True,
-                   desc='3D brain mask')
-    in_segm = File(exists=True, desc='resampled segmentation')
-    confounds_file = File(exists=True,
-                          desc="BIDS' _confounds.tsv file")
+class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
+    in_nifti = File(exists=True, mandatory=True, desc="input BOLD (4D NIfTI file)")
+    in_cifti = File(exists=True, desc="input BOLD (CIFTI dense timeseries)")
+    in_segm = File(exists=True, desc="volumetric segmentation corresponding to in_nifti")
+    confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
 
     str_or_tuple = traits.Either(
         traits.Str,
@@ -452,9 +456,10 @@ class FMRISummaryInputSpec(BaseInterfaceInputSpec):
         desc='list of headers to extract from the confounds_file')
     tr = traits.Either(None, traits.Float, usedefault=True,
                        desc='the repetition time')
+    drop_trs = traits.Int(0, usedefault=True, desc="dummy scans")
 
 
-class FMRISummaryOutputSpec(TraitedSpec):
+class _FMRISummaryOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='written file path')
 
 
@@ -462,17 +467,48 @@ class FMRISummary(SimpleInterface):
     """
     Copy the x-form matrices from `hdr_file` to `out_file`.
     """
-    input_spec = FMRISummaryInputSpec
-    output_spec = FMRISummaryOutputSpec
+    input_spec = _FMRISummaryInputSpec
+    output_spec = _FMRISummaryOutputSpec
 
     def _run_interface(self, runtime):
-        from niworkflows.viz.plots import fMRIPlot
-
         self._results['out_file'] = fname_presuffix(
-            self.inputs.in_func,
+            self.inputs.in_nifti,
             suffix='_fmriplot.svg',
             use_ext=False,
             newpath=runtime.cwd)
+
+        has_cifti = isdefined(self.inputs.in_cifti)
+
+        # Read input object and create timeseries + segments object
+        seg_file = self.inputs.in_segm if isdefined(self.inputs.in_segm) else None
+        dataset, segments = _nifti_timeseries(
+            nb.load(self.inputs.in_nifti),
+            nb.load(seg_file),
+            remap_rois=False,
+            labels=(
+                ("WM+CSF", "Edge") if has_cifti else
+                ("Ctx GM", "dGM", "WM+CSF", "Cb", "Edge")
+            ),
+        )
+
+        # Process CIFTI
+        if has_cifti:
+            cifti_data, cifti_segments = _cifti_timeseries(
+                nb.load(self.inputs.in_cifti)
+            )
+
+            if seg_file is not None:
+                # Append WM+CSF and Edge masks
+                cifti_length = cifti_data.shape[0]
+                dataset = np.vstack((cifti_data, dataset))
+                segments = {
+                    k: np.array(v) + cifti_length
+                    for k, v in segments.items()
+                }
+                cifti_segments.update(segments)
+                segments = cifti_segments
+            else:
+                dataset, segments = cifti_data, cifti_segments
 
         dataframe = pd.read_csv(
             self.inputs.confounds_file,
@@ -508,13 +544,13 @@ class FMRISummary(SimpleInterface):
         data.columns = colnames
 
         fig = fMRIPlot(
-            self.inputs.in_func,
-            mask_file=self.inputs.in_mask if isdefined(self.inputs.in_mask) else None,
-            seg_file=(self.inputs.in_segm
-                      if isdefined(self.inputs.in_segm) else None),
+            dataset,
+            segments=segments,
             tr=self.inputs.tr,
-            data=data,
+            confounds=data,
             units=units,
+            nskip=self.inputs.drop_trs,
+            paired_carpet=has_cifti,
         ).plot()
-        fig.savefig(self._results['out_file'], bbox_inches='tight')
+        fig.savefig(self._results["out_file"], bbox_inches="tight")
         return runtime

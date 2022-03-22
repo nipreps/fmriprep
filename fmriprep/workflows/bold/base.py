@@ -899,6 +899,13 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             name="carpetplot_wf",
         )
 
+        # Xform to "MNI152NLin2009cAsym" is always computed.
+        carpetplot_select_std = pe.Node(
+            KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
+            name="carpetplot_select_std",
+            run_without_submitting=True,
+        )
+
         if config.workflow.cifti_output:
             workflow.connect(
                 bold_grayords_wf,
@@ -906,36 +913,28 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 carpetplot_wf,
                 "inputnode.cifti_bold",
             )
-        else:
-            # Xform to "MNI152NLin2009cAsym" is always computed.
-            carpetplot_select_std = pe.Node(
-                KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
-                name="carpetplot_select_std",
-                run_without_submitting=True,
-            )
-
-            # fmt:off
-            workflow.connect([
-                (inputnode, carpetplot_select_std, [("std2anat_xfm", "std2anat_xfm"),
-                                                    ("template", "keys")]),
-                (carpetplot_select_std, carpetplot_wf, [
-                    ("std2anat_xfm", "inputnode.std2anat_xfm"),
-                ]),
-                (bold_final, carpetplot_wf, [
-                    ("bold", "inputnode.bold"),
-                    ("mask", "inputnode.bold_mask"),
-                ]),
-                (bold_reg_wf, carpetplot_wf, [
-                    ("outputnode.itk_t1_to_bold", "inputnode.t1_bold_xform"),
-                ]),
-            ])
-            # fmt:on
 
         # fmt:off
         workflow.connect([
+            (initial_boldref_wf, carpetplot_wf, [
+                ("outputnode.skip_vols", "inputnode.dummy_scans"),
+            ]),
+            (inputnode, carpetplot_select_std, [("std2anat_xfm", "std2anat_xfm"),
+                                                ("template", "keys")]),
+            (carpetplot_select_std, carpetplot_wf, [
+                ("std2anat_xfm", "inputnode.std2anat_xfm"),
+            ]),
+            (bold_final, carpetplot_wf, [
+                ("bold", "inputnode.bold"),
+                ("mask", "inputnode.bold_mask"),
+            ]),
+            (bold_reg_wf, carpetplot_wf, [
+                ("outputnode.itk_t1_to_bold", "inputnode.t1_bold_xform"),
+            ]),
             (bold_confounds_wf, carpetplot_wf, [
                 ("outputnode.confounds_file", "inputnode.confounds_file"),
-            ])
+                ("outputnode.crown_mask", "inputnode.crown_mask")
+            ]),
         ])
         # fmt:on
 

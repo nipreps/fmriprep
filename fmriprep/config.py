@@ -571,6 +571,8 @@ class workflow(_Config):
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""
+    topup_max_vols = 5
+    """Maximum number of volumes to use with TOPUP, per-series (EPI or BOLD)."""
     use_aroma = None
     """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None

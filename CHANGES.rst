@@ -1,16 +1,45 @@
+21.0.1 (January 24, 2022)
+=========================
+Bug-fix release in the 21.0.x series.
+
+This release re-enables reverse-PE EPI fieldmaps, i.e. EPIs acquired with the
+opposite phase-encoding direction to a BOLD series.
+Additionally, the ``--use-syn-sdc`` option will now error by default if no
+``PhaseEncodingDirection`` can be found for a BOLD series. To reduce this to
+a warning, use ``--use-syn-sdc warn``. SyN-SDC will NOT be run, but the workflow
+will proceed.
+
+.. note::
+
+  ``topup`` runtime scales with the number of volumes used, so fMRIPrep defaults to
+  using a maximum of 5 volumes from each of the BOLD series and the EPI fieldmap.
+  To adjust this, please use the ``--topup-max-vols`` parameter.
+
+* FIX: Create single fmap_select_std node for use with all ANAT estimators (#2692)
+* FIX: Re-enable reverse-PE EPI fieldmaps (#2684)
+* FIX: Pass boolean use_syn_sdc to find_estimators (#2685)
+* FIX: Ensure AROMA inputs are uncompressed if --low-mem (#2657)
+* ENH: Add ``--topup-max-vols`` flag to control TOPUP runtime (#2688)
+* ENH: Allow ``--use-syn-sdc`` to take a "warn" option to avoid exiting when PE dir is unavailable (#2680)
+* RF: Add extension field to differentiate from upcoming templates (#2613)
+* WRAPPER: Map ``--bids-filter-file``\s into Docker container (#2691)
+* MNT: Silence warning from pybids; list packaging as dependency (#2689)
+* MNT: Add netbase to Docker image to ensure correct datalad operation (#2682)
+* MNT: Restore nitime to requirements, necessary for DVARS (#2678)
+
 21.0.0 (December 14, 2021)
 ==========================
 A new series is finally here!
 
 Some highlights of this version's new features include a substantial rework of fMRIPrep's
-susceptibility distortion correction (including the addition of FSL's `topup` as the new
+susceptibility distortion correction (including the addition of FSL's ``topup`` as the new
 default PEPOLAR correction technique), improved flexibility for multiecho scans, and
 dependency version upgrades within the Docker environment.
 
 .. note::
 
   To follow BIDS Derivatives more closely, *fMRIPrep*'s default output layout has changed.
-  To enable the legacy layout, use the `--output-layout legacy` flag.
+  To enable the legacy layout, use the ``--output-layout legacy`` flag.
   For more information, please see https://fmriprep.org/en/latest/outputs.html#layout
 
 .. caution::
@@ -27,7 +56,7 @@ A full list of changes can be found below.
 * DOC: Remove mention to ``epidewarp.fsl`` from ``NOTICE`` (#2629)
 * DOC: Update description of output layout, add discussion of legacy mode (#2646)
 * DOC: ME | Add missing output to documentation, improve boilerplate (#2608)
-* DOC: Add --index-metadata to `pybids layout` faq (#2546)
+* DOC: Add --index-metadata to ``pybids layout`` faq (#2546)
 * DOC: Add warning about slice timing correction in output documentation. (#2502)
 * DOC: Update sample report (#2519)
 * DOC: Refactor README and citing information (#2474)
@@ -92,11 +121,32 @@ A full list of changes can be found below.
 * MAINT: Ease CI packaging tests (#2472)
 * RF/FIX: Iterate over echo indices, not filenames, simplifying iteration logic (#2651)
 
+20.2.7 (January 24, 2022)
+=========================
+Bug-fix release in the 20.2.x LTS series.
+
+  * FIX: Clarify phase encoding direction, rather than axis (#2690)
+  * FIX: Ensure AROMA inputs are uncompressed if --low-mem (#2657)
+  * FIX: Add ``-basescale 1`` parameter to avoid ``flirt`` scaling (#2624)
+  * WRAPPER: Map ``--bids-filter-file``\s into Docker container (#2691)
+  * MNT: Add netbase to Docker image to ensure correct datalad operation (#2682)
+
+20.2.6 (October 27, 2021)
+=========================
+Patch release in the 20.2.x LTS series.
+
+This release includes an updated runtime environment for Docker/Singularity users.
+This environment includes a newer release of ``indexed_gzip``,
+fixing ``CrcError``\s previously encountered.
+
+  * CI: Run full workflows on tags (#2593)
+  * RF: Add extension field to differentiate from upcoming templates (#2613)
+
 20.2.5 (October 12, 2021)
 =========================
 Bug-fix release in the 20.2.x LTS series.
 
-This release includes a fix to `--slice-time-ref` parsing. Also, some
+This release includes a fix to ``--slice-time-ref`` parsing. Also, some
 issues in anatomical processing are resolved, including poorly-interpolated
 labels in aseg segmentations, and probabilistic segmentations have reverted
 to FAST.
