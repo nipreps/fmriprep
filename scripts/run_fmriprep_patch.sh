@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Author: nikhil153
-# Last update: 16 Feb 2022
+# Date: 16 Feb 2022
 
 if [ "$#" -ne 3 ]; then
   echo "Please provide paths to the bids_dir, working_dir and subject ID (i.e. subdir inside BIDS_DIR)"
@@ -16,7 +16,6 @@ SUB_ID=$3
 CON_IMG="/home/nikhil/projects/my_containers/fmriprep_dev.sif"
 
 # CHECK IF YOU HAVE TEMPLATEFLOW
-# TEMPLATEFLOW_HOST_HOME="/home/nikhil/scratch/templateflow"
 TEMPLATEFLOW_HOST_HOME="/home/nikhil/projects/templateflow"
 
 DERIVS_DIR=${WD_DIR}/output
