@@ -146,7 +146,7 @@ of the *NiPreps framework*.
 
 License
 ~~~~~~~
-Copyright (c) 2021, the *NiPreps* Developers.
+Copyright (c) 2022, the *NiPreps* Developers.
 
 As of the 21.0.x pre-release and release series, *fMRIPrep* is
 licensed under the Apache License, Version 2.0 (the "License");
