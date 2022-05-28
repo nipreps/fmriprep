@@ -368,8 +368,8 @@ the scanner.
     fieldmap estimation.
 
 Please note that all routines for susceptibility-derived distortion correction
-have been moved into their own code base called `sdcflows`. No action is
-required by user as this module is included in `fmriprep`.
+have been moved into their own code base called SDCFlows.
+No action is required by users, as this module is included in *fMRIPrep*.
 
 Details about the BIDS specification for field maps can be found at
 <https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/01-magnetic-resonance-imaging-data.html#types-of-fieldmaps>
