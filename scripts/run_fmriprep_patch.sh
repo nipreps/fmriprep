@@ -3,37 +3,74 @@
 # Author: nikhil153
 # Date: 16 Feb 2022
 
-if [ "$#" -ne 4 ]; then
-  echo "Please provide paths to the bids_dir, working_dir, subject ID (i.e. subdir inside BIDS_DIR), and country code e.g. CAN"
+# Example command:
+# test_script.sh -b ~/scratch/test_data/bids \
+#                -w ~/scratch/test_data/tmp \
+#                -s 001
+#                -f ~/scratch/my_repos/fmriprep/fmriprep
+#                -c ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif
+#                -g "CAN"
+#                -t ~/scratch/templateflow
+
+if [ "$#" -lt 12 ]; then
+  echo "Incorrect number of arguments: $#. Please provide paths to following:"
+  echo "  BIDS dir (-b): input for fmriprep"
+  echo "  working dir (-w): directory for fmriprep processing"
+  echo "  subject ID (-s): subject subdirectory inside BIDS_DIR"
+  echo "  fmriprep code dir (-f): directory for local fmriprep code (carbon-trackers branch)"
+  echo "  container (-c): singularity container with carbon tracker packages and dependencies"
+  echo "  geolocation (-g): country code used by CodeCarbon to estimate emissions e.g. CAN"
+  echo "  templateflow (-t): templateflow dir (optional)"
+  echo ""
   echo "Note: the freesurfer license.txt must be inside the working_dir"
   exit 1
 fi
 
-BIDS_DIR=$1
-WD_DIR=$2
-SUB_ID=$3
-COUNTRY_CODE=$4
+while getopts b:w:s:f:c:g:t: flag
+do
+    case "${flag}" in
+        b) BIDS_DIR=${OPTARG};;
+        w) WD_DIR=${OPTARG};;
+        s) SUB_ID=${OPTARG};;
+        f) FMRIPREP_CODE=${OPTARG};;
+        c) CON_IMG=${OPTARG};;
+        g) COUNTRY_CODE=${OPTARG};;
+        t) TEMPLATEFLOW_DIR=${OPTARG};;        
+    esac
+done
 
-# Singularity image (unstable tracks the master branch on GH)
-# CON_IMG="/home/nikhil/projects/my_containers/fmriprep_unstable.sif" 
-CON_IMG="/home/nikhil/projects/my_containers/fmriprep_dev.sif" 
+echo ""
+echo "Checking arguments provided..."
+echo ""
 
-# CHECK IF YOU HAVE TEMPLATEFLOW
-TEMPLATEFLOW_HOST_HOME="/home/nikhil/projects/templateflow"
+if [ ! -z $TEMPLATEFLOW_DIR ] 
+then 
+    echo "Using templates from local templateflow dir: $TEMPLATEFLOW_DIR"
+else
+    echo "Local templateflow dir not specified. Templates will be downloaded..."
+    TEMPLATEFLOW_DIR="Not provided"
+fi
 
-# Local fmriprep repo 
-LOCAL_FMRIPREP_CODE="/home/nikhil/projects/green_comp_neuro/fmriprep/fmriprep"
+echo "
+      BIDS dir: $BIDS_DIR 
+      working dir: $WD_DIR
+      subject id: $SUB_ID
+      fmriprep code dir: $FMRIPREP_CODE
+      container: $CON_IMG
+      templateflow: $TEMPLATEFLOW_DIR
+      geolocation: $COUNTRY_CODE
+      "
 
 DERIVS_DIR=${WD_DIR}/output
 
 LOG_FILE=${WD_DIR}_fmriprep_anat.log
 echo "Starting fmriprep proc with container: ${CON_IMG}"
 echo ""
-echo "Using working dir: ${WD_DIR} and subject ID: ${SUB_ID}"
 
 # Create subject specific dirs
 FMRIPREP_HOME=${DERIVS_DIR}/fmriprep_home_${SUB_ID}
 echo "Processing: ${SUB_ID} with home dir: ${FMRIPREP_HOME}"
+echo ""
 mkdir -p ${FMRIPREP_HOME}
 
 LOCAL_FREESURFER_DIR="${DERIVS_DIR}/freesurfer-6.0.1"
@@ -49,21 +86,29 @@ export SINGULARITYENV_FS_LICENSE=$FMRIPREP_HOME/.freesurfer/license.txt
 cp ${WD_DIR}/license.txt ${SINGULARITYENV_FS_LICENSE}
 
 # Designate a templateflow bind-mount point
-export SINGULARITYENV_TEMPLATEFLOW_HOME="/templateflow"
+export SINGULARITYENV_TEMPLATEFLOW_DIR="/templateflow"
 
 # Singularity CMD 
-SINGULARITY_CMD="singularity run \
--B ${BIDS_DIR}:/data_dir \
--B ${LOCAL_FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
--B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
--B ${DERIVS_DIR}:/output \
--B ${TEMPLATEFLOW_HOST_HOME}:${SINGULARITYENV_TEMPLATEFLOW_HOME} \
--B ${WD_DIR}:/work \
--B ${LOCAL_FREESURFER_DIR}:/fsdir \
- ${CON_IMG}"
-
-# Patch code
-# -B <local_repo>:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+if [[ $TEMPLATEFLOW_DIR == "Not provided" ]]; then
+  SINGULARITY_CMD="singularity run \
+  -B ${BIDS_DIR}:/data_dir \
+  -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+  -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
+  -B ${DERIVS_DIR}:/output \
+  -B ${WD_DIR}:/work \
+  -B ${LOCAL_FREESURFER_DIR}:/fsdir \
+  ${CON_IMG}"
+else
+  SINGULARITY_CMD="singularity run \
+  -B ${BIDS_DIR}:/data_dir \
+  -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+  -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
+  -B ${DERIVS_DIR}:/output \
+  -B ${TEMPLATEFLOW_DIR}:${SINGULARITYENV_TEMPLATEFLOW_DIR} \
+  -B ${WD_DIR}:/work \
+  -B ${LOCAL_FREESURFER_DIR}:/fsdir \
+  ${CON_IMG}"
+fi
 
 # Remove IsRunning files from FreeSurfer
 find ${LOCAL_FREESURFER_DIR}/sub-$SUB_ID/ -name "*IsRunning*" -type f -delete
@@ -78,20 +123,15 @@ cmd="${SINGULARITY_CMD} /data_dir /output participant --participant-label $SUB_I
 --return-all-components -v \
 --write-graph --track-carbon --country-code $COUNTRY_CODE --notrack"
 
-#--bids-filter-file ${BIDS_FILTER} --anat-only --cifti-out 91k"
-#--bids-database-dir /work/20220221-200330_10ebc3d4-edd1-4752-8c9f-6f6dc1302c83/ \
+# Optional cmds
+#--bids-filter-file ${BIDS_FILTER} --anat-only 
 
 # Setup done, run the command
-#echo Running task ${SLURM_ARRAY_TASK_ID}
 unset PYTHONPATH
 echo Commandline: $cmd
 eval $cmd
 exitcode=$?
 
-# Output results to a table
-# echo "$SUB_ID    ${SLURM_ARRAY_TASK_ID}    $exitcode"
-# echo Finished tasks ${SLURM_ARRAY_TASK_ID} with exit code $exitcode
-# rm -rf ${FMRIPREP_HOME}
 exit $exitcode
 
 echo "fmriprep run completed!"
