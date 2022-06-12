@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Author: nikhil153
-# Date: 16 Feb 2022
+# Date: 11 June 2022
 
 # Example command:
-# test_script.sh -b ~/scratch/test_data/bids \
+# ./run_fmriprep_patch.sh -b ~/scratch/test_data/bids \
 #                -w ~/scratch/test_data/tmp \
-#                -s 001
-#                -f ~/scratch/my_repos/fmriprep/fmriprep
-#                -c ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif
-#                -g "CAN"
+#                -s 001 \
+#                -f ~/scratch/my_repos/fmriprep/fmriprep \
+#                -c ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif \
+#                -g "CAN" \
 #                -t ~/scratch/templateflow
 
 if [ "$#" -lt 12 ]; then
@@ -40,7 +40,9 @@ do
 done
 
 echo ""
+echo "------------------------------"
 echo "Checking arguments provided..."
+echo "------------------------------"
 echo ""
 
 if [ ! -z $TEMPLATEFLOW_DIR ] 
@@ -64,11 +66,15 @@ echo "
 DERIVS_DIR=${WD_DIR}/output
 
 LOG_FILE=${WD_DIR}_fmriprep_anat.log
+echo ""
+echo "-------------------------------------------------"
 echo "Starting fmriprep proc with container: ${CON_IMG}"
+echo "-------------------------------------------------"
 echo ""
 
 # Create subject specific dirs
 FMRIPREP_HOME=${DERIVS_DIR}/fmriprep_home_${SUB_ID}
+echo "-------------------------------------------------"
 echo "Processing: ${SUB_ID} with home dir: ${FMRIPREP_HOME}"
 echo ""
 mkdir -p ${FMRIPREP_HOME}
@@ -128,10 +134,21 @@ cmd="${SINGULARITY_CMD} /data_dir /output participant --participant-label $SUB_I
 
 # Setup done, run the command
 unset PYTHONPATH
+echo ""
+echo "--------------------"
+echo "Singularity command:"
+echo "--------------------"
+echo ""
 echo Commandline: $cmd
+echo ""
+
 eval $cmd
 exitcode=$?
 
 exit $exitcode
 
+echo ""
+echo "-----------------------"
 echo "fmriprep run completed!"
+echo "-----------------------"
+echo ""
