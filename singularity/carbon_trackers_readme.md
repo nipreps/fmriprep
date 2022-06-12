@@ -26,7 +26,7 @@ We will be running this test code with a Singularity container (see figure below
 <img src="./fmriprep_carbon_trackers.jpg" alt="Drawing" align="middle" width="500px"/>
 
 
-## setup 
+## Setup instructions
 1. Clone this [repo](https://github.com/nikhil153/fmriprep/tree/carbon-trackers) and checkout "carbon-trackers" branch
 
 ```
@@ -73,10 +73,10 @@ sudo ./run_fmriprep_patch.sh \
 |                |              | CAN              | Canada       | 8         | 0.00012 | Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz | 12.60793 | 37.45153 | 2.80218e-05 | 0.00074 | 0.00021 |           | 0          |           | 0.0       |          |           | N        | Linux-4.15.0-144-generic-x86_64-with-debian-stretch-sid | codecarbon   | 3.7.1          | 9.0859e-05 | 8.73427 | 23.29138 |        | 9982d15a-f5fc-41c5-95e6-d04c9b993b4b | 2022-06-11T22:54:34 | machine       |
 
 
-### Visuals
+### visuals
 |Emissions equivalents|Global comparisons|
 |----------------|--------------|
 | <img src="./CodeCarbon_example_emissions.png" alt="Drawing" align="middle" width="350px"/> | <img src="./CodeCarbon_example_global.png" alt="Drawing" align="middle" width="350px"/> |
 
-## know issues
+## known issues
 1. [Unable to read Intel RAPL files for CPU power](https://github.com/mlco2/codecarbon/issues/244): This is related to linux permission and requires a work around described in the link. Otherwise CPU power is reported as zero and total emissions are calcuated using a fix estimate. 
