@@ -30,7 +30,7 @@ while getopts b:w:s:f:c:g:t: flag
 do
     case "${flag}" in
         b) BIDS_DIR=${OPTARG};;
-        w) WD_DIR=${OPTARG};;
+        w) WORKING_DIR=${OPTARG};;
         s) SUB_ID=${OPTARG};;
         f) FMRIPREP_CODE=${OPTARG};;
         c) CON_IMG=${OPTARG};;
@@ -55,7 +55,7 @@ fi
 
 echo "
       BIDS dir: $BIDS_DIR 
-      working dir: $WD_DIR
+      working dir: $WORKING_DIR
       subject id: $SUB_ID
       fmriprep code dir: $FMRIPREP_CODE
       container: $CON_IMG
@@ -63,9 +63,10 @@ echo "
       geolocation: $COUNTRY_CODE
       "
 
-DERIVS_DIR=${WD_DIR}/output
+DERIVS_DIR=${WORKING_DIR}/output
 
-LOG_FILE=${WD_DIR}_fmriprep_anat.log
+LOG_FILE=${WORKING_DIR}_fmriprep_anat.log
+
 echo ""
 echo "-------------------------------------------------"
 echo "Starting fmriprep proc with container: ${CON_IMG}"
@@ -88,11 +89,11 @@ mkdir -p ${FMRIPREP_HOST_CACHE}
 
 # Make sure FS_LICENSE is defined in the container.
 mkdir -p $FMRIPREP_HOME/.freesurfer
-export SINGULARITYENV_FS_LICENSE=$FMRIPREP_HOME/.freesurfer/license.txt
-cp ${WD_DIR}/license.txt ${SINGULARITYENV_FS_LICENSE}
+export SINGULARITY_FS_LICENSE=$FMRIPREP_HOME/.freesurfer/license.txt
+cp ${WORKING_DIR}/license.txt ${SINGULARITY_FS_LICENSE}
 
 # Designate a templateflow bind-mount point
-export SINGULARITYENV_TEMPLATEFLOW_DIR="/templateflow"
+export SINGULARITY_TEMPLATEFLOW_DIR="/templateflow"
 
 # Singularity CMD 
 if [[ $TEMPLATEFLOW_DIR == "Not provided" ]]; then
@@ -101,17 +102,19 @@ if [[ $TEMPLATEFLOW_DIR == "Not provided" ]]; then
   -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
   -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
   -B ${DERIVS_DIR}:/output \
-  -B ${WD_DIR}:/work \
+  -B ${WORKING_DIR}:/work \
   -B ${LOCAL_FREESURFER_DIR}:/fsdir \
   ${CON_IMG}"
 else
+  echo ""
+  echo "Mounting templateflow dir ($TEMPLATEFLOW_DIR) onto container"
   SINGULARITY_CMD="singularity run \
   -B ${BIDS_DIR}:/data_dir \
   -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
   -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
   -B ${DERIVS_DIR}:/output \
-  -B ${TEMPLATEFLOW_DIR}:${SINGULARITYENV_TEMPLATEFLOW_DIR} \
-  -B ${WD_DIR}:/work \
+  -B ${TEMPLATEFLOW_DIR}:${SINGULARITY_TEMPLATEFLOW_DIR} \
+  -B ${WORKING_DIR}:/work \
   -B ${LOCAL_FREESURFER_DIR}:/fsdir \
   ${CON_IMG}"
 fi
