@@ -32,12 +32,14 @@ We will be running this test code with a Singularity container (see figure below
 ```
 cd ~/scratch/my_repos/
 git clone https://github.com/nikhil153/fmriprep.git
+cd fmriprep 
 git checkout carbon-trackers
 ```
 
 2. Build singularity image from [fmriprep_with_carbon_trackers.def](./fmriprep_with_carbon_trackers.def) to include [CodeCarbon](https://mlco2.github.io/codecarbon/index.html) dependencies. 
 
 ```
+cd ~/scratch/my_repos/fmriprep/singularity
 sudo singularity build ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif ./singularity/fmriprep_with_carbon_trackers.def
 ```
 
