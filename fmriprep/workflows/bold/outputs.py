@@ -140,7 +140,7 @@ def init_func_derivatives_wf(
     multiecho : :obj:`bool`
         Derivatives were generated from multi-echo time series.
     minimal : :obj:`bool`
-        TODO
+        Generate only the derivatives describing transformations to be applied to the data
     output_dir : :obj:`str`
         Where derivatives should be written out to.
     spaces : :py:class:`~niworkflows.utils.spaces.SpatialReferences`

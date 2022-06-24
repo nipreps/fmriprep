@@ -269,7 +269,8 @@ def _build_parser(**kwargs):
         "--minimal",
         action="store_true",
         default=False,
-        help="TODO, currently in handle performance, could be in 'other options'? ",
+        help="Generate only the derivatives describing transformations "
+        "to be applied to the data",
     )
     g_perfm.add_argument(
         "--error-on-aroma-warnings",

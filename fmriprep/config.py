@@ -407,7 +407,7 @@ class execution(_Config):
     md_only_boilerplate = False
     """Do not convert boilerplate from MarkDown to LaTex and HTML."""
     minimal = False
-    """TODO"""
+    """Generate only the derivatives describing transformations to be applied to the data"""
     notrack = False
     """Do not monitor *fMRIPrep* using Sentry.io."""
     output_dir = None
