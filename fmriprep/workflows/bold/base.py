@@ -443,6 +443,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         freesurfer=freesurfer,
         all_metadata=all_metadata,
         multiecho=multiecho,
+        minimal=config.execution.minimal,
         output_dir=fmriprep_dir,
         spaces=spaces,
         use_aroma=config.workflow.use_aroma,

@@ -118,6 +118,7 @@ def init_func_derivatives_wf(
     freesurfer,
     all_metadata,
     multiecho,
+    minimal,
     output_dir,
     spaces,
     use_aroma,
@@ -138,6 +139,8 @@ def init_func_derivatives_wf(
         Metadata dictionary associated to the BOLD run.
     multiecho : :obj:`bool`
         Derivatives were generated from multi-echo time series.
+    minimal : :obj:`bool`
+        TODO
     output_dir : :obj:`str`
         Where derivatives should be written out to.
     spaces : :py:class:`~niworkflows.utils.spaces.SpatialReferences`
@@ -213,14 +216,18 @@ def init_func_derivatives_wf(
 
     workflow.connect([
         (inputnode, raw_sources, [('all_source_files', 'in_files')]),
-        (inputnode, ds_confounds, [('source_file', 'source_file'),
-                                   ('confounds', 'in_file'),
-                                   ('confounds_metadata', 'meta_dict')]),
         (inputnode, ds_ref_t1w_xfm, [('source_file', 'source_file'),
                                      ('bold2anat_xfm', 'in_file')]),
         (inputnode, ds_ref_t1w_inv_xfm, [('source_file', 'source_file'),
                                          ('anat2bold_xfm', 'in_file')]),
     ])
+
+    if not minimal:
+        workflow.connect([
+            (inputnode, ds_confounds, [('source_file', 'source_file'),
+                                       ('confounds', 'in_file'),
+                                       ('confounds_metadata', 'meta_dict')])
+        ])
 
     if nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')):
         ds_bold_native = pe.Node(
@@ -241,8 +248,6 @@ def init_func_derivatives_wf(
             mem_gb=DEFAULT_MEMORY_MIN_GB)
 
         workflow.connect([
-            (inputnode, ds_bold_native, [('source_file', 'source_file'),
-                                         ('bold_native', 'in_file')]),
             (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
                                              ('bold_native_ref', 'in_file')]),
             (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
@@ -250,7 +255,13 @@ def init_func_derivatives_wf(
             (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
         ])
 
-        if multiecho:
+        if not minimal:
+            workflow.connect([
+                (inputnode, ds_bold_native, [('source_file', 'source_file'),
+                                             ('bold_native', 'in_file')]),
+            ])
+
+        if multiecho and not minimal:
             ds_t2star_bold = pe.Node(
                 DerivativesDataSink(base_directory=output_dir, space='boldref',
                                     suffix='T2starmap', compress=True, dismiss_entities=("echo",),
@@ -264,7 +275,7 @@ def init_func_derivatives_wf(
                 (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
             ])
 
-    if multiecho and config.execution.me_output_echos:
+    if multiecho and config.execution.me_output_echos and not minimal:
         ds_bold_echos_native = pe.MapNode(
             DerivativesDataSink(
                 base_directory=output_dir, desc='preproc', compress=True, SkullStripped=False,
@@ -301,15 +312,18 @@ def init_func_derivatives_wf(
             name='ds_bold_mask_t1', run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB)
         workflow.connect([
-            (inputnode, ds_bold_t1, [('source_file', 'source_file'),
-                                     ('bold_t1', 'in_file')]),
             (inputnode, ds_bold_t1_ref, [('source_file', 'source_file'),
                                          ('bold_t1_ref', 'in_file')]),
             (inputnode, ds_bold_mask_t1, [('source_file', 'source_file'),
                                           ('bold_mask_t1', 'in_file')]),
             (raw_sources, ds_bold_mask_t1, [('out', 'RawSources')]),
         ])
-        if freesurfer:
+        if not minimal:
+            workflow.connect([
+                (inputnode, ds_bold_t1, [('source_file', 'source_file'),
+                                         ('bold_t1', 'in_file')]),
+            ])
+        if freesurfer and not minimal:
             ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
                 base_directory=output_dir, space='T1w', desc='aseg', suffix='dseg',
                 compress=True, dismiss_entities=("echo",)),
@@ -326,7 +340,7 @@ def init_func_derivatives_wf(
                 (inputnode, ds_bold_aparc_t1, [('source_file', 'source_file'),
                                                ('bold_aparc_t1', 'in_file')]),
             ])
-        if multiecho:
+        if multiecho and not minimal:
             ds_t2star_t1 = pe.Node(
                 DerivativesDataSink(base_directory=output_dir, space='T1w',
                                     suffix='T2starmap', compress=True, dismiss_entities=("echo",),
@@ -340,7 +354,7 @@ def init_func_derivatives_wf(
                 (raw_sources, ds_t2star_t1, [('out', 'RawSources')]),
             ])
 
-    if use_aroma:
+    if use_aroma and not minimal:
         ds_aroma_noise_ics = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix='AROMAnoiseICs', dismiss_entities=("echo",)),
             name="ds_aroma_noise_ics", run_without_submitting=True,
@@ -400,7 +414,7 @@ def init_func_derivatives_wf(
                                 compress=True, dismiss_entities=("echo",)),
             name='ds_bold_mask_std', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-        workflow.connect([
+        workflow.connect([  # TODO
             (inputnode, ds_bold_std, [('source_file', 'source_file')]),
             (inputnode, ds_bold_std_ref, [('source_file', 'source_file')]),
             (inputnode, ds_bold_mask_std, [('source_file', 'source_file')]),
@@ -429,6 +443,11 @@ def init_func_derivatives_wf(
             (raw_sources, ds_bold_mask_std, [('out', 'RawSources')]),
         ])
 
+        if not minimal:
+            workflow.connect([
+                # TODO
+            ])
+
         if freesurfer:
             select_fs_std = pe.Node(KeySelect(
                 fields=['bold_aseg_std', 'bold_aparc_std', 'template']),
@@ -443,7 +462,7 @@ def init_func_derivatives_wf(
                 dismiss_entities=("echo",)),
                 name='ds_bold_aparc_std', run_without_submitting=True,
                 mem_gb=DEFAULT_MEMORY_MIN_GB)
-            workflow.connect([
+            workflow.connect([  # TODO
                 (spacesource, select_fs_std, [('uid', 'key')]),
                 (inputnode, select_fs_std, [('bold_aseg_std', 'bold_aseg_std'),
                                             ('bold_aparc_std', 'bold_aparc_std'),
@@ -471,7 +490,7 @@ def init_func_derivatives_wf(
                 name='ds_t2star_std', run_without_submitting=True,
                 mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-            workflow.connect([
+            workflow.connect([  # TODO
                 (inputnode, ds_t2star_std, [('source_file', 'source_file')]),
                 (select_std, ds_t2star_std, [('t2star_std', 'in_file')]),
                 (spacesource, ds_t2star_std, [('space', 'space'),
@@ -501,7 +520,7 @@ def init_func_derivatives_wf(
             iterfield=['in_file', 'hemi'], name='ds_bold_surfs',
             run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
 
-        workflow.connect([
+        workflow.connect([  # TODO
             (inputnode, select_fs_surf, [
                 ('surf_files', 'surfaces'),
                 ('surf_refs', 'keys')]),
@@ -513,7 +532,7 @@ def init_func_derivatives_wf(
         ])
 
     # CIFTI output
-    if cifti_output:
+    if cifti_output and not minimal:
         ds_bold_cifti = pe.Node(DerivativesDataSink(
             base_directory=output_dir, suffix='bold', compress=False,
             TaskName=metadata.get('TaskName'), **timing_parameters),

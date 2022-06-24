@@ -266,6 +266,12 @@ def _build_parser(**kwargs):
         help="skip generation of HTML and LaTeX formatted citation with pandoc",
     )
     g_perfm.add_argument(
+        "--minimal",
+        action="store_true",
+        default=False,
+        help="TODO, currently in handle performance, could be in 'other options'? ",
+    )
+    g_perfm.add_argument(
         "--error-on-aroma-warnings",
         action="store_true",
         dest="aroma_err_on_warn",

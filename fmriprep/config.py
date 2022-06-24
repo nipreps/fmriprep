@@ -406,6 +406,8 @@ class execution(_Config):
     """Utilize uncompressed NIfTIs and other tricks to minimize memory allocation."""
     md_only_boilerplate = False
     """Do not convert boilerplate from MarkDown to LaTex and HTML."""
+    minimal = False
+    """TODO"""
     notrack = False
     """Do not monitor *fMRIPrep* using Sentry.io."""
     output_dir = None
