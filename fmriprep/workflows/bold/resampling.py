@@ -145,6 +145,13 @@ The BOLD time-series were resampled onto the following surfaces
         mem_gb=mem_gb * 3,
     )
     sampler.inputs.hemi = ["lh", "rh"]
+    sample_medial_wall_to_volume = pe.MapNode(
+        fs.Surface2VolTransform(),
+        iterfield=["hemi","source_file"],
+        name="sample_medial_wall_to_volume",
+        mem_gb=mem_gb * 3,
+    )
+    sample_medial_wall_to_volume.inputs.hemi = ["lh", "rh"]
     update_metadata = pe.MapNode(
         GiftiSetAnatomicalStructure(),
         iterfield=["in_file"],
@@ -193,10 +200,26 @@ The BOLD time-series were resampled onto the following surfaces
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
+    binarize_volume = pe.Node(
+        fs.Binarize(
+            min=-10000,
+        ),
+
+    )
+    mask_volume = pe.Node(
+        fs.ApplyMask()
+    )
     # fmt:off
     workflow.connect([
         (inputnode, medial_nans, [("subjects_dir", "subjects_dir")]),
         (sampler, medial_nans, [("out_file", "in_file")]),
+        (medial_nans,sample_medial_wall_to_volume, [("out_file"),("source_file")]),
+        (inputnode,sample_medial_wall_to_volume, [("source_file"),("template_file")]),
+        (inputnode,sample_medial_wall_to_volume, [("subjects_dir"),("subjects_dir")]),
+        (inputnode,sample_medial_wall_to_volume, [("subject_id"),("subject_id")]),
+        (sample_medial_wall_to_volume,binarize_volume, [("out_file"),("in_file")]),
+        (binarize_volume,mask_volume, [("out_file"),("mask_file")]),
+        (inputnode,mask_volume, [("source_file"),("in_file")]),
         (medial_nans, update_metadata, [("out_file", "in_file")]),
     ])
     # fmt:on
