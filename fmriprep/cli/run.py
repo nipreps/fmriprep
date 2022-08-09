@@ -43,7 +43,7 @@ def main():
 
         country_iso_code = config.execution.country_code
         CC_log_dir = "/output/"
-        config.loggers.workflow.log(25, f"CodeCarbon tracker started ...")
+        config.loggers.workflow.log(25, "CodeCarbon tracker started ...")
         config.loggers.workflow.log(25, f"Using country_iso_code: {country_iso_code}")
         config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
 
