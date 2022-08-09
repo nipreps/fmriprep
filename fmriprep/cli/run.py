@@ -41,10 +41,11 @@ def main():
     if config.execution.track_carbon:
         from codecarbon import OfflineEmissionsTracker
 
-        country_iso_code = config.execution.country_code #"CAN"
+        country_iso_code = config.execution.country_code
         CC_log_dir = "/output/"
-        config.loggers.workflow.log(25, f"CodeCarbon tracker started. Using country_iso_code: {country_iso_code}"
-            f"\nSaving logs at: {CC_log_dir}")
+        config.loggers.workflow.log(25, f"CodeCarbon tracker started ...")
+        config.loggers.workflow.log(25, f"Using country_iso_code: {country_iso_code}")
+        config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
 
         tracker = OfflineEmissionsTracker(output_dir=CC_log_dir, country_iso_code=country_iso_code)
         tracker.start()
@@ -186,8 +187,9 @@ def main():
         # Code Carbon
         if config.execution.track_carbon:
             emissions: float = tracker.stop()
-            config.loggers.workflow.log(25, "CodeCarbon tracker stopped."
-                f"Saving logs at: {CC_log_dir}\nEmissions: {emissions} kg")
+            config.loggers.workflow.log(25, "CodeCarbon tracker has stopped.")
+            config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
+            config.loggers.workflow.log(25, f"Carbon emissions: {emissions} kg")
 
         # Generate reports phase
         failed_reports = generate_reports(
