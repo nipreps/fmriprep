@@ -30,7 +30,7 @@ __bugreports__ = 'https://github.com/nipreps/fmriprep/issues'
 MISSING = """
 Image '{}' is missing
 Would you like to download? [Y/n] """
-PKG_PATH = '/opt/conda/lib/python3.8/site-packages'
+PKG_PATH = '/opt/conda/lib/python3.9/site-packages'
 TF_TEMPLATES = (
     'MNI152Lin',
     'MNI152NLin2009cAsym',
@@ -155,8 +155,9 @@ def merge_help(wrapper_help, target_help):
                 posargs.append(line)
         return " ".join(posargs)
 
-    # Matches all flags with up to one nested square bracket
-    opt_re = re.compile(r'(\[--?[\w-]+(?:[^\[\]]+(?:\[[^\[\]]+\])?)?\])')
+    # Matches all flags with up to two nested square brackets
+    # I'm sorry.
+    opt_re = re.compile(r'(\[--?[\w-]+(?:[^\[\]]+(?:\[(?:[^\[\]]+(?:\[[^\[\]]+\])?)+\])?)?\])')
     # Matches flag name only
     flag_re = re.compile(r'\[--?([\w-]+)[ \]]')
 
@@ -189,6 +190,7 @@ def merge_help(wrapper_help, target_help):
         'bids-filter-file',
         'fs-license-file',
         'fs-subjects-dir',
+        'output-spaces',
         'config-file',
         'h',
         'use-plugin',

@@ -46,3 +46,35 @@ class Clip(SimpleInterface):
 
         self._results["out_file"] = out_file
         return runtime
+
+
+class Label2MaskInputSpec(TraitedSpec):
+    in_file = File(exists=True, mandatory=True, desc="Input label file")
+    label_val = traits.Int(mandatory=True, dec="Label value to create mask from")
+
+
+class Label2MaskOutputSpec(TraitedSpec):
+    out_file = File(desc="Output file name")
+
+
+class Label2Mask(SimpleInterface):
+    """ Create mask file for a label from a multi-label segmentation
+    """
+    input_spec = Label2MaskInputSpec
+    output_spec = Label2MaskOutputSpec
+
+    def _run_interface(self, runtime):
+        import nibabel as nb
+        img = nb.load(self.inputs.in_file)
+
+        mask = np.uint16(img.dataobj) == self.inputs.label_val
+        out_img = img.__class__(mask, img.affine, img.header)
+        out_img.set_data_dtype(np.uint8)
+
+        out_file = fname_presuffix(self.inputs.in_file, suffix="_mask",
+                                   newpath=runtime.cwd)
+
+        out_img.to_filename(out_file)
+
+        self._results["out_file"] = out_file
+        return runtime

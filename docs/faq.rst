@@ -251,13 +251,13 @@ describes a custom BIDS filter for selecting files with PyBIDS, with the syntax
 fMRIPrep uses the following queries, by default::
 
   {
-    'fmap': {'datatype': 'fmap'},
-    'bold': {'datatype': 'func', 'suffix': 'bold'},
-    'sbref': {'datatype': 'func', 'suffix': 'sbref'},
-    'flair': {'datatype': 'anat', 'suffix': 'FLAIR'},
-    't2w': {'datatype': 'anat', 'suffix': 'T2w'},
-    't1w': {'datatype': 'anat', 'suffix': 'T1w'},
-    'roi': {'datatype': 'anat', 'suffix': 'roi'},
+    "fmap": {"datatype": "fmap"},
+    "bold": {"datatype": "func", "suffix": "bold"},
+    "sbref": {"datatype": "func", "suffix": "sbref"},
+    "flair": {"datatype": "anat", "suffix": "FLAIR"},
+    "t2w": {"datatype": "anat", "suffix": "T2w"},
+    "t1w": {"datatype": "anat", "suffix": "T1w"},
+    "roi": {"datatype": "anat", "suffix": "roi"}
   }
 
 Only modifications of these queries will have any effect. You may filter on any entity defined

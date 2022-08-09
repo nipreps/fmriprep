@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2021 The NiPreps Developers
+# Copyright (c) 2022 The NiPreps Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,26 +48,9 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     LC_ALL="en_US.UTF-8"
 
 # Installing freesurfer
-RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.1/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz \
-    | tar zxv --no-same-owner -C /opt \
-    --exclude='freesurfer/diffusion' \
-    --exclude='freesurfer/docs' \
-    --exclude='freesurfer/fsfast' \
-    --exclude='freesurfer/lib/cuda' \
-    --exclude='freesurfer/lib/qt' \
-    --exclude='freesurfer/matlab' \
-    --exclude='freesurfer/mni/share/man' \
-    --exclude='freesurfer/subjects/fsaverage_sym' \
-    --exclude='freesurfer/subjects/fsaverage3' \
-    --exclude='freesurfer/subjects/fsaverage4' \
-    --exclude='freesurfer/subjects/cvs_avg35' \
-    --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
-    --exclude='freesurfer/subjects/bert' \
-    --exclude='freesurfer/subjects/lh.EC_average' \
-    --exclude='freesurfer/subjects/rh.EC_average' \
-    --exclude='freesurfer/subjects/sample-*.mgz' \
-    --exclude='freesurfer/subjects/V1_average' \
-    --exclude='freesurfer/trctrain'
+COPY docker/files/freesurfer7.2-exclude.txt /usr/local/etc/freesurfer7.2-exclude.txt
+RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.2.0/freesurfer-linux-ubuntu18_amd64-7.2.0.tar.gz \
+￼    | tar zxv --no-same-owner -C /opt --exclude-from=/usr/local/etc/freesurfer7.2-exclude.txt
 
 # Simulate SetUpFreeSurfer.sh
 ENV FSL_DIR="/opt/fsl-6.0.5.1" \
@@ -85,7 +68,7 @@ ENV SUBJECTS_DIR="$FREESURFER_HOME/subjects" \
     MNI_DATAPATH="$FREESURFER_HOME/mni/data"
 ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
     MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
-    PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
+    PATH="$FREESURFER_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH"
 
 # FSL 6.0.5.1
 RUN apt-get update -qq \
@@ -197,7 +180,7 @@ RUN apt-get update -qq \
            xvfb \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sSL --retry 5 -o /tmp/multiarch.deb http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/multiarch-support_2.27-3ubuntu1.2_amd64.deb \
+    && curl -sSL --retry 5 -o /tmp/multiarch.deb http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/multiarch-support_2.27-3ubuntu1.5_amd64.deb \
     && dpkg -i /tmp/multiarch.deb \
     && rm /tmp/multiarch.deb \
     && curl -sSL --retry 5 -o /tmp/libxp6.deb http://mirrors.kernel.org/debian/pool/main/libx/libxp/libxp6_1.0.2-2_amd64.deb \
@@ -262,8 +245,8 @@ RUN curl -sSLO https://www.humanconnectome.org/storage/app/media/workbench/workb
 ENV PATH="/opt/workbench/bin_linux64:$PATH" \
     LD_LIBRARY_PATH="/opt/workbench/lib_linux64:$LD_LIBRARY_PATH"
 
-# nipreps/miniconda:py38_1.4.1
-COPY --from=nipreps/miniconda@sha256:ebbff214e6c9dc50ccc6fdbe679df1ffcbceaa45b47a75d6e34e8a064ef178da /opt/conda /opt/conda
+# nipreps/miniconda:py39_4.12.0rc0
+COPY --from=nipreps/miniconda@sha256:5aa4d2bb46e7e56fccf6e93ab3ff765add74e79f96ffa00449504b4869790cb9 /opt/conda /opt/conda
 
 RUN ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
@@ -310,6 +293,10 @@ RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
 RUN find $HOME -type d -exec chmod go=u {} + && \
     find $HOME -type f -exec chmod go=u {} + && \
     rm -rf $HOME/.npm $HOME/.conda $HOME/.empty
+
+# HACK for FreeSurfer 7.2.0
+# Fixed in https://github.com/freesurfer/freesurfer/pull/886, so remove on release
+ENV FREESURFER="/opt/freesurfer"
 
 ENV IS_DOCKER_8395080871=1
 

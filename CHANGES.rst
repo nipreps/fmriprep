@@ -1,3 +1,59 @@
+22.0.0 (July 28, 2022)
+======================
+New feature release in the 22.0.x series.
+
+This release has been tested to work with Python 3.9 and FreeSurfer 7.2,
+which are now bundled in the Docker image.
+
+This release also features improvements to T2\* and carpetplot reporting.
+
+For the next release, we are investigating issues with susceptibility
+distortion correction (SDC). Please check your results carefully and report
+any issues you find.
+
+  * FIX: Update wrapper python path (#2783)
+  * FIX: Preserve ``collect_data`` behavior by using named args (#2754)
+  * FIX: Update *fMRIPrep* version in bibliography at run time (#2738)
+  * FIX: Plot carpetplot with CIFTI-specific colorbar (#2737)
+  * FIX: Two minor typos in report spec (#2708)
+  * ENH: Clip T2\* values at 100ms to keep consistent histogram axes (#2781)
+  * ENH: Plot histogram of T2\* values in gray-matter mask (#2778)
+  * ENH: Save T2starmap files in all requested output spaces, if calculated (#2776)
+  * ENH: Compare T2\* map to BOLD reference (#2751)
+  * ENH: Add edge-regressors to confounds & crown to carpetplot (#2621)
+  * ENH: Add major/minor versions to base workflow name (#2716)
+  * DOC: Fix JSON typo in config in FAQ (#2771)
+  * DOC: Clarify calculation of confounding signals (#2724)
+  * MNT: Build on Python 3.9 environment (#2782)
+  * MNT: Seed ignore-revs file and script to tag new hashes with log entries (#2748)
+  * MNT: Require PyBIDS 0.15+ to allow fMRIPrep to preserve zero-padding in run entity (#2745)
+  * MNT: Upload artifacts after each step of Circle's workflow (#2736)
+  * MNT: Normalize code style of ``workflows.confounds`` (#2729)
+  * MNT: Ask for fmriprep-docker RUNNING line (#2670)
+  * DOCKER: Bundle FreeSurfer 7 (#2779)
+  * CI: Touch up CircleCI configuration (#2764)
+  * CI: Update package builds to use python -m build (#2746)
+
+21.0.2 (April 21, 2022)
+=======================
+Bug-fix releaase in the 21.0.x series.
+
+This release includes a few bug-fixes for susceptibility distortion correction (SDC) and multi-echo (ME).
+A few notable fixes include:
+- Added tolerance for affine precision differences when using EPI fieldmaps.
+- Removed hang-ups when reusing anatomical derivatives with ME data.
+- Increased BOLD masking workflow robustness.
+
+A full list of changes can be found below:
+
+  * DOCKER: Update multiarch deb package link (#2758)
+  * ENH: Add affine_tolerance flag to MergeSeries (nipreps/niworkflows#706)
+  * FIX: Initialize BIDS layout after cleaning working directory (#2741)
+  * FIX: Avoid double unwarping during resampling of processed multi-echo data (#2730)
+  * FIX: Account for potential lists of lists in multi-echo cases (nipreps/niworkflows#719)
+  * FIX: Improve reliability of BOLD masking workflow (nipreps/niworkflows#712)
+  * FIX: Relax tolerance for different affines when concatenating blips (nipreps/sdcflows#265)
+
 21.0.1 (January 24, 2022)
 =========================
 Bug-fix release in the 21.0.x series.

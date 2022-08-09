@@ -235,6 +235,38 @@ are saved::
       sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv
       sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv
 
+**Multi-echo derivatives**.
+For multi-echo datasets, the output ``_bold`` series are "optimally combined" by
+`tedana`_ to better estimate the BOLD signal.
+This process also generates a T2\* map, which is resampled into every requested output
+space.
+
+::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_T2starmap.nii.gz
+
+If the ``--me-output-echos`` flag is specified, then the distortion-corrected (STC, HMC, SDC)
+per-echo time series are output. For example, if the inputs are of the form::
+
+  sub-01/
+    func/
+      sub-01_task-rest_echo-1_bold.nii.gz
+      sub-01_task-rest_echo-2_bold.nii.gz
+      sub-01_task-rest_echo-3_bold.nii.gz
+
+Then the output will include::
+
+  sub-01/
+    func/
+      sub-01_task-rest_echo-1_desc-preproc_bold.nii.gz
+      sub-01_task-rest_echo-2_desc-preproc_bold.nii.gz
+      sub-01_task-rest_echo-3_desc-preproc_bold.nii.gz
+
+These may then be used independently with multi-echo tools, such as `tedana`_,
+to perform more advanced denoising or alternative combination strategies.
+
 .. danger::
    Slice timing correction in *fMRIPrep* is referenced to the middle slice by default,
    which leads to a time shift in the volume onsets by 0.5 TR (repetition time).

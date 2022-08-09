@@ -98,6 +98,18 @@ sections:
       of performing SyN-based SDC on the EPI for comparison.
     static: false
     subtitle: Experimental fieldmap-less susceptibility distortion correction
+  - bids: {datatype: figures, desc: t2scomp, suffix: bold}
+    caption: A T2* map was calculated from the echos. Here, we show the comparison
+      of the T2* map and the BOLD reference map used for BOLD-T1w coregistration.
+      The red contour shows the anatomical gray-matter mask resampled into BOLD space.
+    static: false
+    subtitle: T2* map
+  - bids: {datatype: figures, desc: t2starhist, suffix: bold}
+    caption: A histogram of estimated T2* values within the anatomically-derived gray-matter mask
+      shown in the previous plot. Note that values are clipped at 100ms, so any extreme outliers will
+      appear in the 100ms bin.
+    static: false
+    subtitle: T2* gray-matter values
   - bids: {datatype: figures, desc: flirtnobbr, suffix: bold}
     caption: <code>mri_coreg</code> (FreeSurfer) was used to generate transformations
       from EPI space to T1 Space - BBR refinement using FSL <code>flirt</code> rejected.

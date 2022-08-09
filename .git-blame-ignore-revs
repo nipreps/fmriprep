@@ -1,0 +1,12 @@
+# 2021-11-05 - markiewicz@stanford.edu - STY: Update black config
+d2ad20301306f283d504ec7b5a1bd73ce58c2b11
+# 2021-09-22 - code@oscaresteban.es - sty: run black
+9e30c22ce8feecbe223fac074a9eefe60ce67785
+# 2021-09-22 - code@oscaresteban.es - STY: Run black on workflows.bold.base to clarify diff in #2547
+a5ce14b0f77782f939f35175a25e195305550da3
+# 2020-08-18 - markiewicz@stanford.edu - STY: black
+4c2e1024fbeabd5bc2029c5740f6354e54584740
+# 2020-05-08 - code@oscaresteban.es - sty: run ``black`` on ``fmriprep.cli`` module
+7a25b642efeb5fe61f83aabf5469169c1d75770c
+# 2017-10-26 - code@oscaresteban.es - [skip ci] STY: minor changes
+1a2f9819001509f1eb59e5a56772aa2d5899aba4

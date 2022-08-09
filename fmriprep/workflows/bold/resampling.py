@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -208,6 +208,7 @@ def init_bold_std_trans_wf(
     mem_gb,
     omp_nthreads,
     spaces,
+    multiecho,
     name="bold_std_trans_wf",
     use_compression=True,
 ):
@@ -276,6 +277,8 @@ def init_bold_std_trans_wf(
         Skull-stripping mask of reference image
     bold_split
         Individual 3D volumes, not motion corrected
+    t2star
+        Estimated T2\\* map in BOLD native space
     fieldwarp
         a :abbr:`DFM (displacements field map)` in ITK format
     hmc_xforms
@@ -303,6 +306,8 @@ def init_bold_std_trans_wf(
     bold_aparc_std
         FreeSurfer's ``aparc+aseg.mgz`` atlas, in template space at the BOLD resolution
         (only if ``recon-all`` was run)
+    t2star_std
+        Estimated T2\\* map in template space
     template
         Template identifiers synchronized correspondingly to previously
         described outputs.
@@ -348,6 +353,7 @@ preprocessed BOLD runs*: {tpl}.
                 "bold_aseg",
                 "bold_mask",
                 "bold_split",
+                "t2star",
                 "fieldwarp",
                 "hmc_xforms",
                 "itk_bold_to_t1",
@@ -465,7 +471,11 @@ preprocessed BOLD runs*: {tpl}.
         "bold_std_ref",
         "spatial_reference",
         "template",
-    ] + freesurfer * ["bold_aseg_std", "bold_aparc_std"]
+    ]
+    if freesurfer:
+        output_names.extend(["bold_aseg_std", "bold_aparc_std"])
+    if multiecho:
+        output_names.append("t2star_std")
 
     poutputnode = pe.Node(
         niu.IdentityInterface(fields=output_names), name="poutputnode"
@@ -500,6 +510,20 @@ preprocessed BOLD runs*: {tpl}.
             (gen_ref, aparc_std_tfm, [("out_file", "reference_image")]),
             (aseg_std_tfm, poutputnode, [("output_image", "bold_aseg_std")]),
             (aparc_std_tfm, poutputnode, [("output_image", "bold_aparc_std")]),
+        ])
+        # fmt:on
+
+    if multiecho:
+        t2star_std_tfm = pe.Node(
+            ApplyTransforms(interpolation="LanczosWindowedSinc", float=True),
+            name="t2star_std_tfm", mem_gb=1
+        )
+        # fmt:off
+        workflow.connect([
+            (inputnode, t2star_std_tfm, [("t2star", "input_image")]),
+            (select_std, t2star_std_tfm, [("anat2std_xfm", "transforms")]),
+            (gen_ref, t2star_std_tfm, [("out_file", "reference_image")]),
+            (t2star_std_tfm, poutputnode, [("output_image", "t2star_std")]),
         ])
         # fmt:on
 
