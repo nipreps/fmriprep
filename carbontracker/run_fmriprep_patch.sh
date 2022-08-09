@@ -99,7 +99,7 @@ export SINGULARITY_TEMPLATEFLOW_DIR="/templateflow"
 if [[ $TEMPLATEFLOW_DIR == "Not provided" ]]; then
   SINGULARITY_CMD="singularity run \
   -B ${BIDS_DIR}:/data_dir \
-  -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+  -B ${FMRIPREP_CODE}:/opt/conda/lib/python3.9/site-packages/fmriprep:ro \
   -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
   -B ${DERIVS_DIR}:/output \
   -B ${WORKING_DIR}:/work \
@@ -110,7 +110,7 @@ else
   echo "Mounting templateflow dir ($TEMPLATEFLOW_DIR) onto container"
   SINGULARITY_CMD="singularity run \
   -B ${BIDS_DIR}:/data_dir \
-  -B ${FMRIPREP_CODE}:/usr/local/miniconda/lib/python3.7/site-packages/fmriprep:ro \
+  -B ${FMRIPREP_CODE}:/opt/conda/lib/python3.9/site-packages/fmriprep:ro \
   -B ${FMRIPREP_HOME}:/home/fmriprep --home /home/fmriprep --cleanenv \
   -B ${DERIVS_DIR}:/output \
   -B ${TEMPLATEFLOW_DIR}:${SINGULARITY_TEMPLATEFLOW_DIR} \
@@ -128,6 +128,7 @@ cmd="${SINGULARITY_CMD} /data_dir /output participant --participant-label $SUB_I
 --fs-subjects-dir /fsdir \
 --anat-only \
 --skip_bids_validation \
+--bids-filter-file /data_dir/sample_bids_filter.json \
 --fs-license-file /home/fmriprep/.freesurfer/license.txt \
 --return-all-components -v \
 --write-graph --track-carbon --country-code $COUNTRY_CODE --notrack"

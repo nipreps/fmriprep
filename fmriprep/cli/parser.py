@@ -635,13 +635,13 @@ Useful for further Tedana processing post-fMRIPrep."""
         help="Use low-quality tools for speed - TESTING ONLY",
     )
 
-    # code carbon tracker arguments
+    # Carbon tracker options
     g_other.add_argument(
         "--track-carbon",
         action="store_true",
         help="Tracks power draws using CodeCarbon package",
     )
-    g_fmap.add_argument(
+    g_other.add_argument(
         "--country-code",
         action="store",
         default="CAN",

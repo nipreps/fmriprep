@@ -1,10 +1,14 @@
 # Stand-in readme for carbon trackers usage with fmriprep. (This should be merged with official docs after PR). 
 
 ## Goal: track power consumption (i.e. cpu power draws) of fmriprep workflow using [CodeCarbon](https://mlco2.github.io/codecarbon/index.html)
+This fmriprep feature is being develped by [OHBM SEA-SIG – Sustainabilicarbontracker/figs/fmriprep_carbontracker.jpgty & Environmental Action Group](https://ohbm-environment.org/) in efforts to assess and reduce carbon footprint of neuroimaging pipelines.
+
+<img src="figs/sea-sig_logo.png" alt="Drawing" align="left" width="100px"/>
+
 
 ## Current dependencies
-1. [fmriprep: v20.2.7 (carbon-trackers branch)](https://github.com/nikhil153/fmriprep/tree/carbon-trackers)
-2. [CodeCarbon: v2.1.2](https://mlco2.github.io/codecarbon/index.html)
+1. [fmriprep: v22.0.0 (carbon-trackers branch)](https://github.com/nikhil153/fmriprep/tree/carbon-trackers)
+2. [CodeCarbon: v2.1.3](https://mlco2.github.io/codecarbon/index.html)
 
 ## Code 
 ### files modified:
@@ -12,25 +16,33 @@
 2. fmriprep/cli/run.py
 3. fmriprep/config.py
 
-### files added:
-1. scripts/run_fmriprep_patch.sh
-2. singularity/fmriprep_with_carbon_trackers.def
-3. singularity/requirements.txt
+### Files added in fmriprep/carbontracker
+├── emissions_demo.csv
+├── emissions_visual_demo.ipynb
+├── figs
+│   ├── CodeCarbon_example_emissions.png
+│   ├── CodeCarbon_example_global.png
+│   ├── fmriprep_carbontracker.jpg
+│   └── sea-sig_logo.png
+├── fmriprep_with_carbon_trackers.def
+├── README.rst
+├── requirements.txt
+├── run_fmriprep_patch.sh
 
-## Data
-1. BIDS directory (sample BIDS dataset can be downloaded from [OpenNeuro](https://openneuro.org/))
 
-## Env
-We will be running this test code with a Singularity container (see figure below). For that we need to 1) include CodeCarbon dependancies and 2) patch this branch onto the container. (Hoping this branch will be merged into main soon!)
+## Setup (see figure below)
+- Env: Singularity container 
+        - fmriprep: v22.0.0
+        - CodeCarbon: v2.1.3
 
-<img src="./fmriprep_carbon_trackers.jpg" alt="Drawing" align="middle" width="500px"/>
+<img src="figs/fmriprep_carbontracker.jpg" alt="Drawing" align="middle" width="500px"/>
 
 
 ## Setup instructions
 1. Clone this [repo](https://github.com/nikhil153/fmriprep/tree/carbon-trackers) and checkout "carbon-trackers" branch
 
 ```
-cd ~/scratch/my_repos/
+cd <path-to-code-dirs>
 git clone https://github.com/nikhil153/fmriprep.git
 cd fmriprep 
 git checkout carbon-trackers
@@ -39,8 +51,8 @@ git checkout carbon-trackers
 2. Build singularity image from [fmriprep_with_carbon_trackers.def](./fmriprep_with_carbon_trackers.def) to include [CodeCarbon](https://mlco2.github.io/codecarbon/index.html) dependencies. 
 
 ```
-cd ~/scratch/my_repos/fmriprep/singularity
-sudo singularity build ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif ./singularity/fmriprep_with_carbon_trackers.def
+cd <path-to-code-dirs>/fmriprep/carbontracker
+sudo singularity build <path-to-container-dir>/fmriprep_with_codecarbon.sif fmriprep_with_carbontrackers.def
 ```
 
 3. Run [run_fmriprep_patch.sh](../scripts/run_fmriprep_patch.sh). You will need to provide following arguments:
@@ -57,10 +69,10 @@ sudo singularity build ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif ./
 example cmd: 
 sudo ./run_fmriprep_patch.sh \
         -b ~/scratch/test_data/bids \
-        -w ~/scratch/test_data/tmp \
+        -w ~/scratch/test_data/derivatives \
         -s 001 \
         -f ~/scratch/my_repos/fmriprep/fmriprep \
-        -c ~/scratch/my_containers/fmriprep_codecarbon_v2.1.2.sif \
+        -c ~/scratch/my_containers/fmriprep_with_codecarbon.sif \
         -g "CAN" \
         -t ~/scratch/templateflow
 
