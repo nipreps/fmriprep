@@ -1,29 +1,102 @@
+# reusable anchors
+_machine_defaults: &machine_defaults
+  environment:
+    TZ: "/usr/share/zoneinfo/America/Los_Angeles"
+    SCRATCH: "/scratch"
+  machine:
+    image: ubuntu-2004:current
+    docker_layer_caching: true
+  working_directory: /tmp/src/fmriprep
+  resource_class: large
+
+_python_defaults: &python_defaults
+  docker:
+    - image: circleci/python:3.9.6
+  working_directory: /tmp/src/fmriprep
+
+_docker_auth: &docker_auth
+  name: Docker authentication
+  command: |
+    if [[ -n $DOCKER_PAT ]]; then
+      echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
+    fi
+
+_setup_docker_registry: &setup_docker_registry
+  name: Set up Docker registry
+  command: |
+    if [[ -f /tmp/images/registry.tar.gz ]]; then
+      echo "Loading saved registry image"
+      docker load < /tmp/images/registry.tar.gz
+    else
+      echo "Pulling registry image from DockerHub"
+      docker pull registry:2
+    fi
+    docker run -d -p 5000:5000 --restart=always --name=registry \
+        -v /tmp/docker:/var/lib/registry registry:2
+
+_pull_from_registry: &pull_from_registry
+  name: Pull and tag image from local registry
+  command: |
+    docker pull localhost:5000/fmriprep
+    docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+
+_check_skip_job: &check_skip_job
+  name: Check commit message and determine if job should be skipped
+  command: |
+    set -x +e
+    COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+    DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
+    SKIP_PYTEST="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?tests\]')"
+    SKIP_DS005="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds005\]' )"
+    SKIP_DS054="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds054\]' )"
+    SKIP_DS210="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds210\]' )"
+    NO_FASTTRACK="$(echo ${COMMIT_MSG} | grep -i -E '\[no[ _-]?fasttrack\]' )"
+
+    # no skipping if tagged build
+    if [[ -n "$NO_FASTTRACK" ]]; then
+      touch /tmp/.nofasttrack
+      echo "Anatomical fasttrack reusing sMRIPrep's derivatives will not be used."
+    elif [[ -n "$CIRCLETAG" ]]; then
+      exit 0
+    elif [[ -n "$DOCSBUILD" ]]; then  # always try to skip docs builds
+      echo "Only docs build"
+      circleci step halt
+    elif [ -n "$CHECK_PYTEST" -a -n "$SKIP_PYTEST" ]; then
+      echo "Skipping pytest"
+      circleci step halt
+    elif [ -n "$CHECK_DS005" -a -n "$SKIP_DS005" ]; then
+      echo "Skipping DS005"
+      circleci step halt
+    elif [ -n "$CHECK_DS054" -a -n "$SKIP_DS054" ]; then
+      echo "Skipping DS054"
+      circleci step halt
+    elif [ -n "$CHECK_DS210" -a -n "$SKIP_DS210" ]; then
+      echo "Skipping DS210"
+      circleci step halt
+    fi
+    echo "No skip"
+
+_setup_fmriprep_docker: &setup_fmriprep_docker
+  name: Install fMRIPrep's docker wrapper
+  command: |
+    export PY3=$(pyenv versions | grep '3\.' |
+                  sed -e 's/.* 3\./3./' -e 's/ .*//')
+    pyenv local $PY3
+    mkdir -p /tmp/${DATASET}/derivatives
+    pip install --upgrade pip setuptools
+    pip install --upgrade /tmp/src/fmriprep/wrapper/
+
+
 version: 2.1
 orbs:
   docker: circleci/docker@1.6.0
 
 jobs:
   build:
-    environment:
-      TZ: "/usr/share/zoneinfo/America/Los_Angeles"
-      SCRATCH: "/scratch"
-    machine:
-      # https://discuss.circleci.com/t/linux-machine-executor-images-2021-april-q2-update/39928
-      # upgrade Docker version
-      image: ubuntu-2004:202104-01
-    working_directory: /tmp/src/fmriprep
+    <<: *machine_defaults
     steps:
       - checkout
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
+      - run: *check_skip_job
       - restore_cache:
           keys:
             - build-v5-{{ .Branch }}-{{ .Revision }}
@@ -35,26 +108,15 @@ jobs:
             - /tmp/docker
             - /tmp/images
       - docker/install-docker-credential-helper
+      - run: *docker_auth
+      - run: *setup_docker_registry
       - run:
-          name: Docker authentication
+          name: Save docker registry
           command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set up Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
+            if [[ ! -f /tmp/images/registry.tar.gz ]]; then
               mkdir -p /tmp/images
               docker save registry:2 | gzip > /tmp/images/registry.tar.gz
             fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
       - run:
           name: Pull Ubuntu/focal image
           command: |
@@ -135,9 +197,7 @@ jobs:
             - /tmp/images
 
   get_data:
-    machine:
-      image: ubuntu-2004:202104-01
-    working_directory: /home/circleci/data
+    <<: *machine_defaults
     steps:
       - restore_cache:
           keys:
@@ -253,29 +313,13 @@ jobs:
             - ds210/nipype.cfg
 
   test_pytest:
-    machine:
-      image: ubuntu-2004:202104-01
-    working_directory: /tmp/src/fmriprep
+    <<: *machine_defaults
+    environment:
+      CHECK_PYTEST: true
     steps:
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
-            SKIP_PYTEST="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?tests\]')"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
-            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_PYTEST" ]; then
-              echo "Skipping pytest job"
-              circleci step halt
-            fi
-
+      - run: *check_skip_job
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -288,29 +332,9 @@ jobs:
           keys:
             - data-v9-{{ .Branch }}-{{ .Revision }}
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set-up a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
       - run:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
@@ -350,37 +374,16 @@ jobs:
           path: /tmp/data/reports
 
   ds005:
-    machine:
-      image: ubuntu-2004:202104-01
+    <<: *machine_defaults
     working_directory: /tmp/ds005
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
       - DATASET: ds005
+      - CHECK_DS005: true
     steps:
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped or fast-tracked
-          command: |
-            cd /home/circleci/src/fmriprep
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:' )"
-            SKIP_DS005="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds005\]' )"
-            NO_FASTTRACK="$(echo ${COMMIT_MSG} | grep -i -E '\[no[ _-]?fasttrack\]' )"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
-            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS005" ]; then
-              echo "Skipping ds000005 build"
-              circleci step halt
-            fi
-            if [[ -n "$NO_FASTTRACK" ]]; then
-              touch /tmp/.nofasttrack
-              echo "Anatomical fasttrack reusing sMRIPrep's derivatives will not be used."
-            fi
-
+      - run: *check_skip_job
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -400,38 +403,10 @@ jobs:
             - ds005-anat-v18-master-
             - ds005-anat-v18-
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set-up a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
-      - run:
-          name: Setting up test
-          command: |
-            export PY3=$(pyenv versions | grep '3\.' |
-                         sed -e 's/.* 3\./3./' -e 's/ .*//')
-            pyenv local $PY3
-            mkdir -p /tmp/${DATASET}/derivatives
-            pip install --upgrade pip setuptools
-            pip install --upgrade /tmp/src/fmriprep/wrapper/
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
+      - run: *setup_fmriprep_docker
       - run:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
@@ -447,8 +422,8 @@ jobs:
                     --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                     --skull-strip-template OASIS30ANTs:res-1 \
                     --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
-                    --sloppy --write-graph --mem_mb 4096 \
-                    --nthreads 2 --anat-only -vv
+                    --sloppy --write-graph --mem-mb 14336 \
+                    --nthreads 4 --anat-only -vv
             fi
       - run:
           name: Clean-up after anatomical run
@@ -460,13 +435,11 @@ jobs:
          key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds005/work
-
       - run:
           name: Attempt run without PE metadata (should fail)
           no_output_timeout: 2h
           command: |
             echo "TODO"
-
       - run:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
@@ -489,11 +462,11 @@ jobs:
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
                 --output-layout legacy \
-                --sloppy --write-graph --mem_mb 4096 \
+                --sloppy --write-graph --mem-mb 14336 \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsaverage5 fsnative \
                 --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
-                --nthreads 2 -vv
+                --nthreads 4 -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives
           destination: full-run
@@ -534,9 +507,9 @@ jobs:
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
                 /tmp/data/${DATASET}/ /tmp/${DATASET}/bids participant \
                 ${FASTRACK_ARG} \
-                --sloppy --write-graph --mem_mb 4096 \
+                --sloppy --write-graph --mem-mb 14336 \
                 --output-spaces fsaverage5 \
-                --nthreads 2 -vv
+                --nthreads 4 -vv
       - store_artifacts:
           path: /tmp/ds005/bids
           destination: bids-run
@@ -568,10 +541,10 @@ jobs:
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
                 --output-layout legacy \
-                --sloppy --write-graph --use-syn-sdc --mem_mb 4096 \
+                --sloppy --write-graph --use-syn-sdc --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --aroma-melodic-dimensionality 2 --use-aroma \
-                --nthreads 2 --cifti-output -vv
+                --nthreads 4 --cifti-output -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives_partial
           destination: partial-run
@@ -603,37 +576,20 @@ jobs:
                 -exec sh -c 'rm -f {}; touch {}' \;
             find /tmp/${DATASET}/work_partial \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
-
       - store_artifacts:
           path: /tmp/ds005/work
 
   ds054:
-    machine:
-      image: ubuntu-2004:202104-01
+    <<: *machine_defaults
     working_directory: /tmp/ds054
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
       - DATASET: ds054
+      - CHECK_DS054: true
     steps:
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
-            SKIP_DS054="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds054\]' )"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
-            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS054" ]; then
-              echo "Skipping ds000054 build"
-              circleci step halt
-            fi
-
+      - run: *check_skip_job
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -652,39 +608,11 @@ jobs:
             - ds054-anat-v14-{{ .Branch }}-
             - ds054-anat-v14-master-
             - ds054-anat-v14-
-      - run:
-          name: Setting up test
-          command: |
-            export PY3=$(pyenv versions | grep '3\.' |
-                         sed -e 's/.* 3\./3./' -e 's/ .*//')
-            pyenv local $PY3
-            mkdir -p /tmp/${DATASET}/derivatives
-            pip install --upgrade pip setuptools
-            pip install --upgrade /tmp/src/fmriprep/wrapper/
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set-up a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
+      - run: *setup_fmriprep_docker
       - run:
           name: Run anatomical workflow on ds054
           no_output_timeout: 2h
@@ -698,7 +626,7 @@ jobs:
                     --output-layout legacy \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
-                    --mem_mb 4096 --nthreads 2 --anat-only -vv
+                    --mem-mb 14336 --nthreads 4 --anat-only -vv
             fi
       - run:
           name: Clean-up after anatomical run
@@ -727,7 +655,7 @@ jobs:
                 --output-layout legacy \
                 --fs-no-reconall --sloppy \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
-                --mem_mb 4096 --nthreads 2 -vv --debug compcor
+                --mem-mb 14336 --nthreads 4 -vv --debug compcor
       - run:
           name: Checking outputs of fMRIPrep
           command: |
@@ -777,32 +705,16 @@ jobs:
           path: /tmp/ds054
 
   ds210:
-    machine:
-      image: ubuntu-2004:202104-01
+    <<: *machine_defaults
     working_directory: /tmp/ds210
     environment:
       - FS_LICENSE: /tmp/fslicense/license.txt
       - DATASET: ds210
+      - CHECK_DS210: true
     steps:
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
-            SKIP_DS210="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds054\]' )"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
-            if [ -z "$CIRCLE_TAG" -a -n "$SKIP_DS210" ]; then
-              echo "Skipping ds000210 build"
-              circleci step halt
-            fi
-
+      - run: *check_skip_job
       - attach_workspace:
           at: /tmp
       - restore_cache:
@@ -821,39 +733,11 @@ jobs:
             - ds210-anat-v12-{{ .Branch }}-
             - ds210-anat-v12-master-
             - ds210-anat-v12-
-      - run:
-          name: Setting up test
-          command: |
-            export PY3=$(pyenv versions | grep '3\.' |
-                         sed -e 's/.* 3\./3./' -e 's/ .*//')
-            pyenv local $PY3
-            mkdir -p /tmp/${DATASET}/derivatives
-            pip install --upgrade pip setuptools
-            pip install --upgrade /tmp/src/fmriprep/wrapper/
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set-up a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
+      - run: *setup_fmriprep_docker
       - run:
           name: Run anatomical workflow on ds000210
           no_output_timeout: 2h
@@ -867,7 +751,7 @@ jobs:
                     --output-layout legacy \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
-                    --mem_mb 4096 --nthreads 2 --anat-only -vv
+                    --mem-mb 14336 --nthreads 4 --anat-only -vv
             fi
       - run:
           name: Clean-up after anatomical run
@@ -910,7 +794,7 @@ jobs:
                 --fs-no-reconall --use-syn-sdc --ignore slicetiming \
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \
-                --mem_mb 4096 --nthreads 2 -vv
+                --mem-mb 14336 --nthreads 4 -vv
       - run:
           name: Checking outputs of fMRIPrep
           command: |
@@ -939,11 +823,9 @@ jobs:
           path: /tmp/ds210
 
   deploy_docker_patches:
-    machine:
-      image: ubuntu-2004:202104-01
+    <<: *machine_defaults
     working_directory: /tmp/src/fmriprep
     steps:
-
       - run:
           name: Check whether image should be deployed to Docker Hub
           command: |
@@ -951,8 +833,6 @@ jobs:
               echo "Nothing to deploy for $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME."
               circleci step halt
             fi
-      - checkout:
-          path: /home/circleci/src/fmriprep
       - restore_cache:
           keys:
             - build-v5-{{ .Branch }}-{{ .Revision }}
@@ -960,29 +840,9 @@ jobs:
             - /tmp/docker
             - /tmp/images
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Setup a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
       - run:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
@@ -991,23 +851,11 @@ jobs:
             docker push nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
 
   deploy_docker:
-    machine:
-      image: ubuntu-2004:202104-01
-    working_directory: /tmp/src/fmriprep
+    <<: *machine_defaults
     steps:
       - checkout:
           path: /home/circleci/src/fmriprep
-      - run:
-          name: Check whether build should be skipped
-          command: |
-            cd /home/circleci/src/fmriprep
-            set -x +e
-            COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
-            DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
-            if [ -z "$CIRCLE_TAG" -a -n "$DOCBUILD" ]; then
-              echo "Only docs build"
-              circleci step halt
-            fi
+      - run: *check_skip_job
       - restore_cache:
           keys:
             - build-v5-{{ .Branch }}-{{ .Revision }}
@@ -1015,29 +863,9 @@ jobs:
             - /tmp/docker
             - /tmp/images
       - docker/install-docker-credential-helper
-      - run:
-          name: Docker authentication
-          command: |
-            if [[ -n $DOCKER_PAT ]]; then
-              echo "$DOCKER_PAT" | docker login -u $DOCKER_USER --password-stdin
-            fi
-      - run:
-          name: Set-up a Docker registry
-          command: |
-            if [[ -f /tmp/images/registry.tar.gz ]]; then
-              echo "Loading saved registry image"
-              docker load < /tmp/images/registry.tar.gz
-            else
-              echo "Pulling registry image from DockerHub"
-              docker pull registry:2
-            fi
-            docker run -d -p 5000:5000 --restart=always --name=registry \
-                -v /tmp/docker:/var/lib/registry registry:2
-      - run:
-          name: Pull images from local registry
-          command: |
-            docker pull localhost:5000/fmriprep
-            docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
+      - run: *docker_auth
+      - run: *setup_docker_registry
+      - run: *pull_from_registry
       - run:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
@@ -1054,24 +882,15 @@ jobs:
             fi
 
   test_deploy_pypi:
-    docker:
-      - image: circleci/python:3.8.5
-    working_directory: /tmp/src/fmriprep
+    <<: *python_defaults
     steps:
       - checkout
       - run:
+          name: Update build tools
+          command: python -m pip install --user pip build twine
+      - run:
           name: Build fMRIPrep
-          command: |
-            python -m pip install --user twine  # For use in checking distributions
-            THISVERSION=$( python get_version.py )
-            THISVERSION=${THISVERSION%.dirty*}
-            THISVERSION=${CIRCLE_TAG:-$THISVERSION}
-            virtualenv --python=python build
-            source build/bin/activate
-            pip install --upgrade "pip>=19.1" numpy
-            echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
-            python setup.py sdist
-            python -m pip wheel --no-deps -w dist/ .
+          command: python -m build
       - store_artifacts:
           path: /tmp/src/fmriprep/dist
       - run:
@@ -1114,47 +933,31 @@ jobs:
           command: |
             THISVERSION=$( python get_version.py )
             THISVERSION=${THISVERSION%.dirty*}
-            cd wrapper
-            virtualenv --python=python build
-            source build/bin/activate
-            python -m pip install --upgrade "pip>=19.1"
-            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" fmriprep_docker.py
-            python setup.py sdist
-            python -m pip wheel --no-deps -w dist/ .
+            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
+            python -m build wrapper/
       - store_artifacts:
           path: /tmp/src/fmriprep/wrapper/dist
 
   deploy_pypi:
-    docker:
-      - image: circleci/python:3.8.5
-    working_directory: /tmp/src/fmriprep
+    <<: *python_defaults
     steps:
       - checkout
       - run:
+          name: Update build tools
+          command: python -m pip install --user build twine
+      - run:
           name: Build fMRIPrep
-          command: |
-            THISVERSION=$( python get_version.py )
-            virtualenv --python=python build
-            source build/bin/activate
-            python -m pip install --upgrade "pip>=19.1"
-            echo "${CIRCLE_TAG:-$THISVERSION}" > fmriprep/VERSION
-            python setup.py sdist
-            python -m pip wheel --no-deps -w dist/ .
+          command: python -m build
       - run:
           name: Build fmriprep-docker
           command: |
             THISVERSION=$( python get_version.py )
-            cd wrapper
-            virtualenv --python=python build
-            source build/bin/activate
-            python -m pip install --upgrade "pip>=19.1"
-            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" fmriprep_docker.py
-            python setup.py sdist
-            python -m pip wheel --no-deps -w dist/ .
+            THISVERSION=${THISVERSION%.dirty*}
+            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
+            python -m build wrapper/
       - run:
           name: Upload packages to PyPI
           command: |
-            python -m pip install --user twine
             python -m twine upload dist/fmriprep* wrapper/dist/fmriprep*
 
   deployable:

@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -686,11 +686,11 @@ def parse_args(args=None, namespace=None):
 
     if opts.config_file:
         skip = {} if opts.reports_only else {"execution": ("run_uuid",)}
-        config.load(opts.config_file, skip=skip)
+        config.load(opts.config_file, skip=skip, init=False)
         config.loggers.cli.info(f"Loaded previous configuration file {opts.config_file}")
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
-    config.from_dict(vars(opts))
+    config.from_dict(vars(opts), init=['nipype'])
 
     if not config.execution.notrack:
         import pkgutil
@@ -776,6 +776,12 @@ applied."""
             build_log.warning(
                 f"Could not clear all contents of working directory: {work_dir}"
             )
+
+    # Update the config with an empty dict to trigger initialization of all config
+    # sections (we used `init=False` above).
+    # This must be done after cleaning the work directory, or we could delete an
+    # open SQLite database
+    config.from_dict({})
 
     # Ensure input and output folders are not the same
     if output_dir == bids_dir:

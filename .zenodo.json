@@ -21,12 +21,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
-      "name": "Tooley, Ursula A.",
-      "orcid": "0000-0001-6377-3885",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Feingold, Franklin",
       "orcid": "0000-0002-6533-2909",
@@ -42,6 +36,12 @@
       "affiliation": "Charite Universitatsmedizin Berlin, Germany",
       "name": "Waller, Lea",
       "orcid": "0000-0002-3239-6957",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
+      "name": "Tooley, Ursula A.",
+      "orcid": "0000-0001-6377-3885",
       "type": "Researcher"
     },
     {
@@ -87,12 +87,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
-      "name": "Sneve, Markus H.",
-      "orcid": "0000-0001-7644-7915",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "McLean Hospital Brain Imaging Center, MA, USA",
       "name": "Frederick, Blaise B.",
       "orcid": "0000-0001-5832-5279",
@@ -117,9 +111,21 @@
       "type": "Researcher"
     },
     {
+      "affiliation": "Department of Psychology, Harvard University",
+      "name": "Plunkett, Dillon",
+      "orcid": "0000-0001-7822-6024",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
       "name": "Nitsch, Alexander",
       "orcid": "0000-0002-5740-9451",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Center for Lifespan Changes in Brain and Cognition, University of Oslo",
+      "name": "Sneve, Markus H.",
+      "orcid": "0000-0001-7644-7915",
       "type": "Researcher"
     },
     {
@@ -257,7 +263,7 @@
   ],
   "creators": [
     {
-      "affiliation": "Department of Radiology, CHUV, Universit\u00e9 de Lausanne",
+      "affiliation": "Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland",
       "name": "Esteban, Oscar",
       "orcid": "0000-0001-8435-6191"
     },
@@ -272,6 +278,11 @@
       "orcid": "0000-0002-7252-7771"
     },
     {
+      "affiliation": "Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland",
+      "name": "Provins, C\u00e9line",
+      "orcid": "0000-0002-1668-9629"
+    },
+    {
       "affiliation": "Neuroscience Program, University of Iowa",
       "name": "Kent, James D.",
       "orcid": "0000-0002-4892-2659"
@@ -282,14 +293,14 @@
       "orcid": "0000-0003-1358-196X"
     },
     {
-      "affiliation": "Department of Psychology, Stanford University",
-      "name": "Ciric, Rastko",
-      "orcid": "0000-0001-6347-7939"
-    },
-    {
       "affiliation": "Department of Psychology, Florida International University",
       "name": "Salo, Taylor",
       "orcid": "0000-0001-9813-3167"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Ciric, Rastko",
+      "orcid": "0000-0001-6347-7939"
     },
     {
       "affiliation": "SIMEXP Lab, CRIUGM, University of Montr\u00e9al, Montr\u00e9al, Canada",
