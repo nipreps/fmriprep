@@ -220,6 +220,9 @@ The BOLD time-series were resampled onto the following surfaces
         (sample_medial_wall_to_volume,binarize_volume, [("out_file"),("in_file")]),
         (binarize_volume,mask_volume, [("out_file"),("mask_file")]),
         (inputnode,mask_volume, [("source_file"),("in_file")]),
+        (mask_volume,ConvertFStoNIFTI [("out_file"),("in_file")]),
+        (ConvertFStoNIFTI,stdev_timeseries, [("out_file"),("in_file")]),
+        (stdev_timeseries,filter_for_outliers, [("out_file"),("in_file")]),
         (medial_nans, update_metadata, [("out_file", "in_file")]),
     ])
     # fmt:on
