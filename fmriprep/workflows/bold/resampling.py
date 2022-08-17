@@ -31,8 +31,9 @@ Resampling workflows
 """
 from ...config import DEFAULT_MEMORY_MIN_GB
 
+from nipype import Function
 from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu, freesurfer as fs
+from nipype.interfaces import utility as niu, freesurfer as fs, fsl
 import nipype.interfaces.workbench as wb
 
 
@@ -209,6 +210,87 @@ The BOLD time-series were resampled onto the following surfaces
     mask_volume = pe.Node(
         fs.ApplyMask()
     )
+    ConvertFStoNIFTI = pe.Node(
+        fs.MRIConvert(ext='.nii')
+    )
+    stdev_volume = pe.Node(
+        fsl.maths.StdImage(dimension='T')
+    )
+    mean_volume = pe.Node(
+        fsl.maths.MeanImage(dimension='T')
+    )
+    merge_cov_inputs = pe.Node(
+        niu.Merge(1)
+    )
+    cov_volume = pe.Node(
+        fsl.maths.MultiImageMaths(),
+        op_string = '-div %s'
+    )
+    cov_mean = pe.Node(
+        fsl.ImageStats(),
+        op_string = '-M'
+    )
+    cov_std = pe.Node(
+        fsl.ImageStats(),
+        op_string = '-S'
+    )
+    merge_cov_stats = pe.Node(
+        niu.Merge(2)
+    )
+
+    def _calc_upper_thr(in_stats):
+        return in_stats[0] + (in_stats[1] * 4)
+
+    upper_thr_val = pe.Node(
+        Function(
+            input_names=["in_stats"]
+            output_names=["upper_thresh"]
+            function=_calc_upper_thr
+        )
+    )
+
+    def _calc_lower_thr(in_stats):
+        return in_stats[0] - (in_stats[1] * 4)
+
+    lower_thr_val = pe.Node(
+        Function(
+            input_names=["in_stats"]
+            output_names=["lower_thresh"]
+            function=_calc_lower_thr
+        )
+    )
+
+    upper_thr_volume = pe.Node(
+        fsl.maths.Threshold()
+    )
+
+    lower_thr_volume = pe.Node(
+        fsl.maths.Threshold()
+    )
+
+    upper_binarize_volume_fsl = pe.Node(
+        fsl.maths.UnaryMaths(operation="bin")
+    )
+
+    lower_binarize_volume_fsl = pe.Node(
+        fsl.maths.UnaryMaths(operation="bin")
+    )
+
+    merge_thr_volume = pe.Node(
+        niu.Merge(1)
+    )
+
+    filter_for_outliers = pe.Node(
+        fsl.maths.MultiImageMaths(),
+        op_string = '-sub %s -mul -1'
+    )
+    ConvertNIFTItoFS = pe.Node(
+        fs.MRIConvert(ext='.mgz')
+    )
+    mask_volume_2 = pe.Node(
+        fs.ApplyMask()
+    )
+
     # fmt:off
     workflow.connect([
         (inputnode, medial_nans, [("subjects_dir", "subjects_dir")]),
@@ -221,8 +303,30 @@ The BOLD time-series were resampled onto the following surfaces
         (binarize_volume,mask_volume, [("out_file"),("mask_file")]),
         (inputnode,mask_volume, [("source_file"),("in_file")]),
         (mask_volume,ConvertFStoNIFTI [("out_file"),("in_file")]),
-        (ConvertFStoNIFTI,stdev_timeseries, [("out_file"),("in_file")]),
-        (stdev_timeseries,filter_for_outliers, [("out_file"),("in_file")]),
+        (ConvertFStoNIFTI,stdev_volume [("out_file"),("in_file")])
+        (ConvertFStoNIFTI,mean_volume [("out_file"),("in_file")])
+        (stdev_volume, merge_cov_inputs [("out_file", "in1")])
+        (merge_cov_inputs, cov_volume [("out", "operand_files")])
+        (mean_volume, cov_volume [("out_file", "in_file")])
+        (cov_volume, cov_mean [("out_file", "in_file")])
+        (cov_volume, cov_std [("out_file", "in_file")])
+        (cov_mean, merge_cov_stats [("out_stat", "in1")])
+        (cov_std, merge_cov_stats [("out_stat", "in2")])
+        (merge_cov_stats, upper_thr_val [("out", "in_stats")])
+        (merge_cov_stats, lower_thr_val [("out", "in_stats")])
+        (upper_thr_val, upper_thr_volume [("upper_thresh", "thresh")])
+        (cov_volume, upper_thr_volume [("out_file", "in_file")])
+        (lower_thr_val, lower_thr_volume [("lower_thresh", "thresh")])
+        (cov_volume, lower_thr_volume [("out_file", "in_file")])
+        (lower_thr_volume, lower_binarize_volume_fsl [("out_file", "in_file")])
+        (upper_thr_volume, upper_binarize_volume_fsl [("out_file", "in_file")])
+        (lower_binarize_volume_fsl, merge_thr_volume [("out_file", "in1")])
+        (merge_thr_volume, filter_for_outliers [("out_file", "operand_files")])
+        (upper_binarize_volume_fsl, filter_for_outliers [("out_file", "in_file")])
+        (filter_for_outliers, ConvertNIFTItoFS [("out_file", "in_file")])
+        (ConvertNIFTItoFS, mask_volume_2 [("out_file", "mask_file")])
+        (mask_volume, mask_volume_2 [("out_file", "in_file")])
+        #TODO link outlier mask to medial nans 
         (medial_nans, update_metadata, [("out_file", "in_file")]),
     ])
     # fmt:on
