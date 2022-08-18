@@ -148,7 +148,7 @@ The BOLD time-series were resampled onto the following surfaces
     sampler.inputs.hemi = ["lh", "rh"]
     sample_medial_wall_to_volume = pe.MapNode(
         fs.Surface2VolTransform(),
-        iterfield=["hemi","source_file"],
+        iterfield=["hemi", "source_file"],
         name="sample_medial_wall_to_volume",
         mem_gb=mem_gb * 3,
     )
@@ -202,10 +202,7 @@ The BOLD time-series were resampled onto the following surfaces
     )
 
     binarize_volume = pe.Node(
-        fs.Binarize(
-            min=-10000,
-        ),
-
+        fs.Binarize(min=-10000)
     )
     mask_volume = pe.Node(
         fs.ApplyMask()
@@ -223,16 +220,13 @@ The BOLD time-series were resampled onto the following surfaces
         niu.Merge(1)
     )
     cov_volume = pe.Node(
-        fsl.maths.MultiImageMaths(),
-        op_string = '-div %s'
+        fsl.maths.MultiImageMaths(op_string='-div %s'),
     )
     cov_mean = pe.Node(
-        fsl.ImageStats(),
-        op_string = '-M'
+        fsl.ImageStats(op_string='-M'),
     )
     cov_std = pe.Node(
-        fsl.ImageStats(),
-        op_string = '-S'
+        fsl.ImageStats(op_string='-S'),
     )
     merge_cov_stats = pe.Node(
         niu.Merge(2)
@@ -243,8 +237,8 @@ The BOLD time-series were resampled onto the following surfaces
 
     upper_thr_val = pe.Node(
         Function(
-            input_names=["in_stats"]
-            output_names=["upper_thresh"]
+            input_names=["in_stats"],
+            output_names=["upper_thresh"],
             function=_calc_upper_thr
         )
     )
@@ -254,25 +248,25 @@ The BOLD time-series were resampled onto the following surfaces
 
     lower_thr_val = pe.Node(
         Function(
-            input_names=["in_stats"]
-            output_names=["lower_thresh"]
+            input_names=["in_stats"],
+            output_names=["lower_thresh"],
             function=_calc_lower_thr
         )
     )
 
     upper_thr_volume = pe.Node(
-        fsl.maths.Threshold()
+        fsl.maths.Threshold(direction='below')
     )
 
     lower_thr_volume = pe.Node(
-        fsl.maths.Threshold()
+        fsl.maths.Threshold(direction='above')
     )
 
-    upper_binarize_volume_fsl = pe.Node(
+    binarize_upper_volume = pe.Node(
         fsl.maths.UnaryMaths(operation="bin")
     )
 
-    lower_binarize_volume_fsl = pe.Node(
+    binarize_lower_volume = pe.Node(
         fsl.maths.UnaryMaths(operation="bin")
     )
 
@@ -282,52 +276,70 @@ The BOLD time-series were resampled onto the following surfaces
 
     filter_for_outliers = pe.Node(
         fsl.maths.MultiImageMaths(),
-        op_string = '-sub %s -mul -1'
+        op_string='-sub %s -mul -1'
     )
+
     ConvertNIFTItoFS = pe.Node(
         fs.MRIConvert(ext='.mgz')
     )
-    mask_volume_2 = pe.Node(
+
+    apply_goodvoxels_mask = pe.Node(
         fs.ApplyMask()
     )
+
+    goodvoxels_sampler = pe.Node(
+        fs.SampleToSurface(
+            cortex_mask=True,
+            interp_method="trilinear",
+            out_type="gii",
+            override_reg_subj=True,
+            sampling_method="average",
+            sampling_range=(0, 1, 0.2),
+            sampling_units="frac",
+        ),
+        iterfield=["hemi"],
+        name="goodvoxels_sampler",
+        mem_gb=mem_gb * 3,
+    )
+    sampler.inputs.hemi = ["lh", "rh"]
 
     # fmt:off
     workflow.connect([
         (inputnode, medial_nans, [("subjects_dir", "subjects_dir")]),
         (sampler, medial_nans, [("out_file", "in_file")]),
-        (medial_nans,sample_medial_wall_to_volume, [("out_file"),("source_file")]),
-        (inputnode,sample_medial_wall_to_volume, [("source_file"),("template_file")]),
-        (inputnode,sample_medial_wall_to_volume, [("subjects_dir"),("subjects_dir")]),
-        (inputnode,sample_medial_wall_to_volume, [("subject_id"),("subject_id")]),
-        (sample_medial_wall_to_volume,binarize_volume, [("out_file"),("in_file")]),
-        (binarize_volume,mask_volume, [("out_file"),("mask_file")]),
-        (inputnode,mask_volume, [("source_file"),("in_file")]),
-        (mask_volume,ConvertFStoNIFTI [("out_file"),("in_file")]),
-        (ConvertFStoNIFTI,stdev_volume [("out_file"),("in_file")])
-        (ConvertFStoNIFTI,mean_volume [("out_file"),("in_file")])
-        (stdev_volume, merge_cov_inputs [("out_file", "in1")])
-        (merge_cov_inputs, cov_volume [("out", "operand_files")])
-        (mean_volume, cov_volume [("out_file", "in_file")])
-        (cov_volume, cov_mean [("out_file", "in_file")])
-        (cov_volume, cov_std [("out_file", "in_file")])
-        (cov_mean, merge_cov_stats [("out_stat", "in1")])
-        (cov_std, merge_cov_stats [("out_stat", "in2")])
-        (merge_cov_stats, upper_thr_val [("out", "in_stats")])
-        (merge_cov_stats, lower_thr_val [("out", "in_stats")])
-        (upper_thr_val, upper_thr_volume [("upper_thresh", "thresh")])
-        (cov_volume, upper_thr_volume [("out_file", "in_file")])
-        (lower_thr_val, lower_thr_volume [("lower_thresh", "thresh")])
-        (cov_volume, lower_thr_volume [("out_file", "in_file")])
-        (lower_thr_volume, lower_binarize_volume_fsl [("out_file", "in_file")])
-        (upper_thr_volume, upper_binarize_volume_fsl [("out_file", "in_file")])
-        (lower_binarize_volume_fsl, merge_thr_volume [("out_file", "in1")])
-        (merge_thr_volume, filter_for_outliers [("out_file", "operand_files")])
-        (upper_binarize_volume_fsl, filter_for_outliers [("out_file", "in_file")])
-        (filter_for_outliers, ConvertNIFTItoFS [("out_file", "in_file")])
-        (ConvertNIFTItoFS, mask_volume_2 [("out_file", "mask_file")])
-        (mask_volume, mask_volume_2 [("out_file", "in_file")])
-        #TODO link outlier mask to medial nans 
-        (medial_nans, update_metadata, [("out_file", "in_file")]),
+        (medial_nans, sample_medial_wall_to_volume, [("out_file", "source_file")]),
+        (inputnode, sample_medial_wall_to_volume, [("source_file", "template_file")]),
+        (inputnode, sample_medial_wall_to_volume, [("subjects_dir", "subjects_dir")]),
+        (inputnode, sample_medial_wall_to_volume, [("subject_id", "subject_id")]),
+        (sample_medial_wall_to_volume, binarize_volume, [("out_file", "in_file")]),
+        (binarize_volume, mask_volume, [("out_file", "mask_file")]),
+        (inputnode, mask_volume, [("source_file", "in_file")]),
+        (mask_volume, ConvertFStoNIFTI, [("out_file", "in_file")]),
+        (ConvertFStoNIFTI, stdev_volume, [("out_file", "in_file")]),
+        (ConvertFStoNIFTI, mean_volume, [("out_file", "in_file")]),
+        (stdev_volume, merge_cov_inputs, [("out_file", "in1")]),
+        (merge_cov_inputs, cov_volume, [("out", "operand_files")]),
+        (mean_volume, cov_volume, [("out_file", "in_file")]),
+        (cov_volume, cov_mean, [("out_file", "in_file")]),
+        (cov_volume, cov_std, [("out_file", "in_file")]),
+        (cov_mean, merge_cov_stats, [("out_stat", "in1")]),
+        (cov_std, merge_cov_stats, [("out_stat", "in2")]),
+        (merge_cov_stats, upper_thr_val, [("out", "in_stats")]),
+        (merge_cov_stats, lower_thr_val, [("out", "in_stats")]),
+        (cov_volume, upper_thr_volume, [("out_file", "in_file")]),
+        (upper_thr_val, upper_thr_volume, [("upper_thresh", "thresh")]),
+        (cov_volume, lower_thr_volume, [("out_file", "in_file")]),
+        (lower_thr_val, lower_thr_volume, [("lower_thresh", "thresh")]),
+        (upper_thr_volume, binarize_upper_volume, [("out_file", "in_file")]),
+        (lower_thr_volume, binarize_lower_volume, [("out_file", "in_file")]),
+        (binarize_upper_volume, merge_thr_volume, [("out_file", "in1")]),
+        (merge_thr_volume, filter_for_outliers, [("out_file", "operand_files")]),
+        (binarize_lower_volume, filter_for_outliers, [("out_file", "in_file")]),
+        (filter_for_outliers, ConvertNIFTItoFS, [("out_file", "in_file")]),
+        (ConvertNIFTItoFS, apply_goodvoxels_mask, [("out_file", "mask_file")]),
+        (mask_volume, apply_goodvoxels_mask, [("out_file", "in_file")]),
+        (apply_goodvoxels_mask, medial_nans, [("out_file", "in_file")]),
+        (goodvoxels_sampler, update_metadata, [("out_file", "in_file")])
     ])
     # fmt:on
     return workflow
