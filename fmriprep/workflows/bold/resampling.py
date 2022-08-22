@@ -29,6 +29,7 @@ Resampling workflows
 .. autofunction:: init_bold_preproc_trans_wf
 
 """
+from ctypes import create_string_buffer
 from ...config import DEFAULT_MEMORY_MIN_GB
 
 from nipype import Function
@@ -85,8 +86,10 @@ def init_bold_surf_wf(mem_gb, surface_spaces, medial_surface_nan, name="bold_sur
 
     """
     from nipype.interfaces.io import FreeSurferSource
+    from nipype.interfaces.workbench import CreateSignedDistanceVolume
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.surf import GiftiSetAnatomicalStructure
+
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -99,7 +102,12 @@ The BOLD time-series were resampled onto the following surfaces
 
     inputnode = pe.Node(
         niu.IdentityInterface(
-            fields=["source_file", "subject_id", "subjects_dir", "t1w2fsnative_xfm"]
+            fields=["source_file",
+                    "subject_id",
+                    "subjects_dir",
+                    "t1w2fsnative_xfm",
+                    "anat_giftis",
+                    "t1w_mask"]
         ),
         name="inputnode",
     )
@@ -166,8 +174,120 @@ The BOLD time-series were resampled onto the following surfaces
         name="outputnode",
     )
 
+    # [0, 1, 2, 3] = lh wm, rh wm, lh pial, rh pial 
+    select_wm = pe.Node(
+        niu.Select(),
+        index=[0, 1],
+        name="select_wm_pial",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    select_pial = pe.Node(
+        niu.Select(),
+        index=[2, 3],
+        name="select_pial",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    create_wm_distvol = pe.MapNode(
+        CreateSignedDistanceVolume(),
+        iterfield=["surface"],
+        name="create_wm_distvol",
+        mem_gb=mem_gb,
+    )
+    
+    create_pial_distvol = pe.MapNode(
+        CreateSignedDistanceVolume(),
+        iterfield=["surface"],
+        name="create_pial_distvol",
+        mem_gb=mem_gb,
+    )
+
+    thresh_wm_distvol = pe.MapNode(
+        fsl.maths.MathsCommand(args="-thr 0 -bin -mul 255"),
+        iterfield=["in_file"],
+        name="thresh_wm_distvol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    uthresh_pial_distvol = pe.MapNode(
+        fsl.maths.MathsCommand(args="-uthr 0 -abs -bin -mul 255"),
+        iterfield=["in_file"],
+        name="thresh_pial_distvol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    bin_wm_distvol = pe.MapNode(
+        fsl.maths.UnaryMaths(operation="bin"),
+        iterfield=["in_file"],
+        name="bin_threshed_distvol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    bin_pial_distvol = pe.MapNode(
+        fsl.maths.UnaryMaths(operation="bin"),
+        iterfield=["in_file"],
+        name="bin_pial_distvol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    split_wm_distvol = pe.Node(
+        niu.Split(splits=[1, 1]),
+        name="split_wm_distvol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    merge_wm_distvol_no_flatten = pe.Node(
+        niu.Merge(2),
+        no_flatten=True,
+        name="merge_wm_distvol_no_flatten",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    make_ribbon_vol = pe.MapNode(
+        fsl.maths.MultiImageMaths(op_string="-mas %s -mul 255"),
+        iterfield=["in_file", "operand_files"],
+        name="make_ribbon_vol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    bin_ribbon_vol = pe.MapNode(
+        fsl.maths.UnaryMaths(operation="bin"),
+        iterfield=["in_file"],
+        name="bin_ribbon_vol",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    split_squeeze_ribbon_vol = pe.Node(
+        niu.Split(splits=[1, 1], squeeze=True),
+        name="split_squeeze_ribbon",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    combine_ribbon_vol_hemis = pe.Node(
+        fsl.maths.BinaryMaths(operation="add"),
+        name="combine_ribbon_vol_hemis",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
     # fmt:off
     workflow.connect([
+        (inputnode, select_wm, [("anat_giftis", "inlist")]),
+        (inputnode, select_pial, [("anat_giftis", "inlist")]),
+        (select_wm, create_wm_distvol, [("out", "surface")]),
+        (inputnode, create_wm_distvol, [("t1w_mask", "ref_space")]),
+        (select_pial, create_pial_distvol, [("out", "surface")]),
+        (inputnode, create_pial_distvol, [("t1w_mask", "ref_space")]),
+        (create_wm_distvol, thresh_wm_distvol, [("out_vol", "in_file")]),
+        (create_pial_distvol, uthresh_pial_distvol, [("out_vol", "in_file")]),
+        (thresh_wm_distvol, bin_wm_distvol, [("t1w_mask", "ref_space")]),
+        (uthresh_pial_distvol, bin_pial_distvol, [("out_vol", "in_file")]),   
+        (bin_wm_distvol, split_wm_distvol, [("out_vol", "inlist")]),
+        (split_wm_distvol, merge_wm_distvol_no_flatten, [("out1", "in1")]),
+        (split_wm_distvol, merge_wm_distvol_no_flatten, [("out2", "in2")]),
+        (bin_pial_distvol, make_ribbon_vol, [("out_file", "in_file")]),
+        (merge_wm_distvol_no_flatten, make_ribbon_vol, [("out", "operand_files")]),
+        (make_ribbon_vol, bin_ribbon_vol, [("out_file", "in_file")]),
+        (bin_ribbon_vol, split_squeeze_ribbon_vol, "out_file", "inlist"),
+        (split_squeeze_ribbon_vol, combine_ribbon_vol_hemis, [("out1", "in_file")])
+        (split_squeeze_ribbon_vol, combine_ribbon_vol_hemis, [("out2", "operand_file")]),
+    ])
+    workflow.connect([        
         (inputnode, get_fsnative, [("subject_id", "subject_id"),
                                    ("subjects_dir", "subjects_dir")]),
         (inputnode, targets, [("subject_id", "subject_id")]),
@@ -181,9 +301,9 @@ The BOLD time-series were resampled onto the following surfaces
         (itersource, rename_src, [("target", "subject")]),
         (itk2lta, sampler, [("out", "reg_file")]),
         (targets, sampler, [("out", "target_subject")]),
-        (rename_src, sampler, [("out_file", "source_file")]),
-        (update_metadata, outputnode, [("out_file", "surfaces")]),
-        (itersource, outputnode, [("target", "target")]),
+        # (rename_src, sampler, [("out_file", "source_file")]),
+        # (update_metadata, outputnode, [("out_file", "surfaces")]),
+        # (itersource, outputnode, [("target", "target")]),
     ])
     # fmt:on
 
@@ -194,100 +314,183 @@ The BOLD time-series were resampled onto the following surfaces
     from niworkflows.interfaces.freesurfer import MedialNaNs
 
     # Refine if medial vertices should be NaNs
-    medial_nans = pe.MapNode(
-        MedialNaNs(),
-        iterfield=["in_file"],
-        name="medial_nans",
+    stdev_volume = pe.Node(
+        fsl.maths.StdImage(dimension='T'),
+        name="stdev_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    mean_volume = pe.Node(
+        fsl.maths.MeanImage(dimension='T'),
+        name="mean_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    # merge_cov_inputs = pe.Node(
+    #     niu.Merge(1),
+    #     name="merge_cov_inputs",
+    #     mem_gb=DEFAULT_MEMORY_MIN_GB,
+    # )
+    cov_volume = pe.Node(
+        fsl.maths.BinaryMaths(op_string='-div %s '),
+        name="cov_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    cov_ribbon = pe.Node(
+        fsl.ApplyMask(),
+        name="cov_ribbon",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+   
+    cov_ribbon_mean = pe.Node(
+        fsl.ImageStats(op_string='-M '),
+        name="cov_mean",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    cov_ribbon_std = pe.Node(
+        fsl.ImageStats(op_string='-S '),
+        name="cov_std",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    cov_ribbon_norm = pe.Node(
+        fsl.maths.BinaryMaths(operation='div'),
+        name="cov_ribbon_norm",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    smooth_norm = pe.Node(
+        fsl.maths.MathsCommand(args="-bin -s 5 "),
+        name="smooth_norm",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    merge_smooth_norm = pe.Node(
+        niu.Merge(1),
+        name="merge_smooth_norm",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    cov_ribbon_norm_smooth = pe.Node(
+        fsl.maths.MultiImageMaths(args="-s 5 -div %s -dilD "),
+        name="cov_ribbon_norm_smooth",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    cov_norm_modulate = pe.Node(
+        fsl.maths.MultiImageMaths(op_string='-div %s -div %s '),
+        name="cov_ribbon_modulate",
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
-    binarize_volume = pe.Node(
-        fs.Binarize(min=-10000)
-    )
-    mask_volume = pe.Node(
-        fs.ApplyMask()
-    )
-    ConvertFStoNIFTI = pe.Node(
-        fs.MRIConvert(ext='.nii')
-    )
-    stdev_volume = pe.Node(
-        fsl.maths.StdImage(dimension='T')
-    )
-    mean_volume = pe.Node(
-        fsl.maths.MeanImage(dimension='T')
-    )
-    merge_cov_inputs = pe.Node(
-        niu.Merge(1)
-    )
-    cov_volume = pe.Node(
-        fsl.maths.MultiImageMaths(op_string='-div %s'),
-    )
-    cov_mean = pe.Node(
-        fsl.ImageStats(op_string='-M'),
-    )
-    cov_std = pe.Node(
-        fsl.ImageStats(op_string='-S'),
-    )
     merge_cov_stats = pe.Node(
-        niu.Merge(2)
+        niu.Merge(2),
+        name="merge_cov_stats",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
+    cov_norm_modulate_ribbon = pe.Node(
+        fsl.ApplyMask(),
+        name="cov_norm_modulate_ribbon",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
     def _calc_upper_thr(in_stats):
-        return in_stats[0] + (in_stats[1] * 4)
+        return in_stats[0] + (in_stats[1] * 0.5)
 
     upper_thr_val = pe.Node(
         Function(
             input_names=["in_stats"],
             output_names=["upper_thresh"],
             function=_calc_upper_thr
-        )
+        ),
+        name="upper_thr_val",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     def _calc_lower_thr(in_stats):
-        return in_stats[0] - (in_stats[1] * 4)
+        return in_stats[1] - (in_stats[0] * 0.5)
 
     lower_thr_val = pe.Node(
         Function(
             input_names=["in_stats"],
             output_names=["lower_thresh"],
             function=_calc_lower_thr
-        )
+        ),
+        name="lower_thr_val",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     upper_thr_volume = pe.Node(
-        fsl.maths.Threshold(direction='below')
+        fsl.maths.Threshold(direction='below'),
+        name="upper_thr_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     lower_thr_volume = pe.Node(
-        fsl.maths.Threshold(direction='above')
+        fsl.maths.Threshold(direction='above'),
+        name="lower_thr_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     binarize_upper_volume = pe.Node(
-        fsl.maths.UnaryMaths(operation="bin")
+        fsl.maths.UnaryMaths(operation="bin"),
+        name="binarize_upper_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     binarize_lower_volume = pe.Node(
-        fsl.maths.UnaryMaths(operation="bin")
+        fsl.maths.UnaryMaths(operation="bin"),
+        name="binarize_lower_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     merge_thr_volume = pe.Node(
-        niu.Merge(1)
+        niu.Merge(1),
+        name="merge_thr_volume",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    mod_ribbon_mean = pe.Node(
+        fsl.ImageStats(op_string='-M '),
+        name="mod_ribbon_mean",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    mod_ribbon_std = pe.Node(
+        fsl.ImageStats(op_string='-S '),
+        name="mod_ribbon_std",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    merge_mod_ribbon_stats = pe.Node(
+        niu.Merge(2),
+        name="merge_mod_ribbon_stats",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    
+    merge_goodvoxels_operands = pe.Node(
+        niu.Merge(2),
+        name="merge_goodvoxels_operands",
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
-    filter_for_outliers = pe.Node(
-        fsl.maths.MultiImageMaths(),
-        op_string='-sub %s -mul -1'
+    goodvoxels_mask = pe.Node(
+        fsl.maths.MultiImageMaths(op_string='-thr %s, -bin, -sub %s -mul, -1'),
+        name="goodvoxels_mask",
+        mem_gb=mem_gb,
     )
 
     ConvertNIFTItoFS = pe.Node(
-        fs.MRIConvert(ext='.mgz')
+        fs.MRIConvert(out_type='mgz'),
+        name="ConvertNIFTItoFS",
+        mem_gb=mem_gb,
     )
 
     apply_goodvoxels_mask = pe.Node(
-        fs.ApplyMask()
+        fs.ApplyMask(),
+        name="apply_goodvoxels_mask",
+        mem_gb=mem_gb * 3,
     )
-
-    goodvoxels_sampler = pe.Node(
+    
+    goodvoxels_sampler = pe.MapNode(
         fs.SampleToSurface(
             cortex_mask=True,
             interp_method="trilinear",
@@ -301,45 +504,73 @@ The BOLD time-series were resampled onto the following surfaces
         name="goodvoxels_sampler",
         mem_gb=mem_gb * 3,
     )
-    sampler.inputs.hemi = ["lh", "rh"]
-
+    goodvoxels_sampler.inputs.hemi = ["lh", "rh"]
     # fmt:off
     workflow.connect([
-        (inputnode, medial_nans, [("subjects_dir", "subjects_dir")]),
-        (sampler, medial_nans, [("out_file", "in_file")]),
-        (medial_nans, sample_medial_wall_to_volume, [("out_file", "source_file")]),
-        (inputnode, sample_medial_wall_to_volume, [("source_file", "template_file")]),
-        (inputnode, sample_medial_wall_to_volume, [("subjects_dir", "subjects_dir")]),
-        (inputnode, sample_medial_wall_to_volume, [("subject_id", "subject_id")]),
-        (sample_medial_wall_to_volume, binarize_volume, [("out_file", "in_file")]),
-        (binarize_volume, mask_volume, [("out_file", "mask_file")]),
-        (inputnode, mask_volume, [("source_file", "in_file")]),
-        (mask_volume, ConvertFStoNIFTI, [("out_file", "in_file")]),
-        (ConvertFStoNIFTI, stdev_volume, [("out_file", "in_file")]),
-        (ConvertFStoNIFTI, mean_volume, [("out_file", "in_file")]),
-        (stdev_volume, merge_cov_inputs, [("out_file", "in1")]),
-        (merge_cov_inputs, cov_volume, [("out", "operand_files")]),
-        (mean_volume, cov_volume, [("out_file", "in_file")]),
-        (cov_volume, cov_mean, [("out_file", "in_file")]),
-        (cov_volume, cov_std, [("out_file", "in_file")]),
-        (cov_mean, merge_cov_stats, [("out_stat", "in1")]),
-        (cov_std, merge_cov_stats, [("out_stat", "in2")]),
-        (merge_cov_stats, upper_thr_val, [("out", "in_stats")]),
-        (merge_cov_stats, lower_thr_val, [("out", "in_stats")]),
-        (cov_volume, upper_thr_volume, [("out_file", "in_file")]),
-        (upper_thr_val, upper_thr_volume, [("upper_thresh", "thresh")]),
-        (cov_volume, lower_thr_volume, [("out_file", "in_file")]),
-        (lower_thr_val, lower_thr_volume, [("lower_thresh", "thresh")]),
-        (upper_thr_volume, binarize_upper_volume, [("out_file", "in_file")]),
-        (lower_thr_volume, binarize_lower_volume, [("out_file", "in_file")]),
-        (binarize_upper_volume, merge_thr_volume, [("out_file", "in1")]),
-        (merge_thr_volume, filter_for_outliers, [("out_file", "operand_files")]),
-        (binarize_lower_volume, filter_for_outliers, [("out_file", "in_file")]),
-        (filter_for_outliers, ConvertNIFTItoFS, [("out_file", "in_file")]),
+        # (inputnode, medial_nans, [("subjects_dir", "subjects_dir")]),
+        # (sampler, medial_nans, [("binary_file", "in_file")]),
+        # (medial_nans, sample_medial_wall_to_volume, [("out_file", "source_file")]),
+        # (inputnode, sample_medial_wall_to_volume, [("source_file", "template_file")]),
+        # (inputnode, sample_medial_wall_to_volume, [("subjects_dir", "subjects_dir")]),
+        # (inputnode, sample_medial_wall_to_volume, [("subject_id", "subject_id")]),
+        # (sample_medial_wall_to_volume, binarize_volume, [("out_file", "in_file")]),
+        # (binarize_volume, mask_volume, [("out_file", "mask_file")]),
+        # (inputnode, mask_volume, [("source_file", "in_file")]),
+        # (mask_volume, ConvertFStoNIFTI, [("out_file", "in_file")]),
+        # (ConvertFStoNIFTI, stdev_volume, [("out_file", "in_file")]),
+        # (ConvertFStoNIFTI, mean_volume, [("out_file", "in_file")]),
+        (rename_src, stdev_volume, [("out_file", "in_file")]),
+        (rename_src, mean_volume, [("out_file", "in_file")]),
+        (stdev_volume, cov_volume, [("out_file", "in_file")]),
+        (mean_volume, cov_volume, [("out_file", "operand_file")]),
+        (cov_volume, cov_ribbon, [("out_file", "in_file")]),
+        (combine_ribbon_vol_hemis, cov_ribbon, [("out_file", "mask_file")]),
+        (cov_ribbon, cov_ribbon_mean, [("out_file", "in_file")]),
+        (cov_ribbon, cov_ribbon_std, [("out_file", "in_file")]),
+        (cov_ribbon, cov_ribbon_norm, [("out_file", "in_file")]),
+        (cov_ribbon_mean, cov_ribbon_norm, [("out_file", "operand_file")]),
+        (cov_ribbon_norm, smooth_norm, [("out_file", "in_file")]),
+        (smooth_norm, merge_smooth_norm, [("out_file", "in1")]),
+        (cov_ribbon_norm, cov_ribbon_norm_smooth, [("out_file", "in_file")]),
+        (merge_smooth_norm, cov_ribbon_norm_smooth, [("out", "operand_files")]),
+        (cov_ribbon_mean, merge_cov_stats, [("out_file", "in1")]),
+        (cov_ribbon_norm_smooth, merge_cov_stats, [("out_file", "in2")]),
+        (merge_cov_stats, cov_norm_modulate[("out, operand_files")]),
+        (cov_volume, cov_norm_modulate, [("out_file, in_file")]),
+        (cov_norm_modulate, cov_norm_modulate_ribbon, [("out_file, in_file")]),
+        (combine_ribbon_vol_hemis, cov_norm_modulate_ribbon, [("out, mask_file")]),
+        (cov_norm_modulate_ribbon, mod_ribbon_mean, [("out_file", "in_file")]),
+        (cov_norm_modulate_ribbon, mod_ribbon_std, [("out_file", "in_file")]),
+        (mod_ribbon_mean, merge_mod_ribbon_stats, [("out_stat", "in1")]),
+        (mod_ribbon_std, merge_mod_ribbon_stats, [("out_stat", "in2")]),
+        (merge_mod_ribbon_stats, upper_thr_val, [("out, in_stats")]),
+        (merge_mod_ribbon_stats, lower_thr_val, [("out, in_stats")]),
+        (upper_thr_val, merge_goodvoxels_operands, [("out_thresh, in1")]),
+        (inputnode, merge_goodvoxels_operands, [("t1w_mask", "in2")]),
+        (cov_norm_modulate, goodvoxels_mask, [("out_file, in_file")]),
+        (merge_goodvoxels_operands, goodvoxels_mask, [("out_file, operand_files")]),
+
+
+        
+
+        # (merge_cov_stats, lower_thr_val, [("out", "in_stats")]),
+        # (cov_ribbon, upper_thr_volume, [("out_file", "in_file")]),
+        # (upper_thr_val, upper_thr_volume, [("upper_thresh", "thresh")]),
+        # (cov_ribbon, lower_thr_volume, [("out_file", "in_file")]),
+        # (lower_thr_val, lower_thr_volume, [("lower_thresh", "thresh")]),
+        # (upper_thr_volume, binarize_upper_volume, [("out_file", "in_file")]),
+        # (lower_thr_volume, binarize_lower_volume, [("out_file", "in_file")]),
+        # (binarize_upper_volume, merge_thr_volume, [("out_file", "in1")]),
+        # (merge_thr_volume, filter_for_outliers, [("out_file", "operand_files")]),
+        # (binarize_lower_volume, filter_for_outliers, [("out_file", "in_file")]),
+        # (filter_for_outliers, ConvertNIFTItoFS, [("out_file", "in_file")]),
+        (goodvoxels_mask, ConvertNIFTItoFS, [("out_file", "in_file")]),
         (ConvertNIFTItoFS, apply_goodvoxels_mask, [("out_file", "mask_file")]),
-        (mask_volume, apply_goodvoxels_mask, [("out_file", "in_file")]),
-        (apply_goodvoxels_mask, medial_nans, [("out_file", "in_file")]),
-        (goodvoxels_sampler, update_metadata, [("out_file", "in_file")])
+        (rename_src, apply_goodvoxels_mask, [("out_file", "in_file")]),
+        (apply_goodvoxels_mask, sampler, [("out_file", "in_file")]),
+        (sampler, update_metadata, [("out_file", "in_file")]),
+        (update_metadata, outputnode, [("out_file", "surfaces")]),
+        (itersource, outputnode, [("target", "target")]),
     ])
     # fmt:on
     return workflow
