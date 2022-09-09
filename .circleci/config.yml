@@ -43,8 +43,9 @@ _pull_from_registry: &pull_from_registry
 _check_skip_job: &check_skip_job
   name: Check commit message and determine if job should be skipped
   command: |
-    set -x +e
-    COMMIT_MSG="$(git log --format='format:%s' -n 1 $CIRCLE_SHA1)"
+    set +e
+    cd /tmp/src/fmriprep
+    COMMIT_MSG="$(git show -s --format=%s)"
     DOCBUILD="$(echo ${COMMIT_MSG} | grep -i -E '^docs?(\(\w+\))?:')"
     SKIP_PYTEST="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?tests\]')"
     SKIP_DS005="$(echo ${COMMIT_MSG} | grep -i -E '\[skip[ _]?ds005\]' )"
@@ -88,6 +89,8 @@ _setup_fmriprep_docker: &setup_fmriprep_docker
 
 
 version: 2.1
+aliases:
+  - &src "/tmp/src/fmriprep"
 orbs:
   docker: circleci/docker@1.6.0
 
@@ -95,7 +98,8 @@ jobs:
   build:
     <<: *machine_defaults
     steps:
-      - checkout
+      - checkout:
+          path: *src
       - run: *check_skip_job
       - restore_cache:
           keys:
@@ -318,7 +322,7 @@ jobs:
       CHECK_PYTEST: true
     steps:
       - checkout:
-          path: /home/circleci/src/fmriprep
+          path: *src
       - run: *check_skip_job
       - attach_workspace:
           at: /tmp
@@ -382,7 +386,7 @@ jobs:
       - CHECK_DS005: true
     steps:
       - checkout:
-          path: /home/circleci/src/fmriprep
+          path: *src
       - run: *check_skip_job
       - attach_workspace:
           at: /tmp
@@ -465,7 +469,7 @@ jobs:
                 --sloppy --write-graph --mem-mb 14336 \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsaverage5 fsnative \
-                --use-plugin /home/circleci/src/fmriprep/.circleci/legacy.yml \
+                --use-plugin /tmp/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 4 -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives
@@ -588,7 +592,7 @@ jobs:
       - CHECK_DS054: true
     steps:
       - checkout:
-          path: /home/circleci/src/fmriprep
+          path: *src
       - run: *check_skip_job
       - attach_workspace:
           at: /tmp
@@ -713,7 +717,7 @@ jobs:
       - CHECK_DS210: true
     steps:
       - checkout:
-          path: /home/circleci/src/fmriprep
+          path: *src
       - run: *check_skip_job
       - attach_workspace:
           at: /tmp
@@ -824,7 +828,7 @@ jobs:
 
   deploy_docker_patches:
     <<: *machine_defaults
-    working_directory: /tmp/src/fmriprep
+    working_directory: *src
     steps:
       - run:
           name: Check whether image should be deployed to Docker Hub
@@ -854,7 +858,7 @@ jobs:
     <<: *machine_defaults
     steps:
       - checkout:
-          path: /home/circleci/src/fmriprep
+          path: *src
       - run: *check_skip_job
       - restore_cache:
           keys:
