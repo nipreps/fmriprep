@@ -1,3 +1,13 @@
+22.0.1 (September 12, 2022)
+===========================
+Patch release in the 22.0.x series.
+
+This release includes relaxed tolerance in the case where fieldmap affines slightly differed,
+and a fix for running FreeSurfer 7 with an outdated fsaverage folder.
+
+  * ENH: Add check to ensure latest fsaverage folder is used (#2847)
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+
 22.0.0 (July 28, 2022)
 ======================
 New feature release in the 22.0.x series.
