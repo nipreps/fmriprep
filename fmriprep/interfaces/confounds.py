@@ -358,7 +358,11 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
 
     confounds_data = pd.DataFrame()
     for file_name in all_files:  # assumes they all have headings already
-        new = pd.read_csv(file_name, sep="\t")
+        try:
+            new = pd.read_csv(file_name, sep="\t")
+        except pd.errors.EmptyDataError:
+            # No data, nothing to concat
+            continue
         for column_name in new.columns:
             new.rename(columns={column_name: camel_to_snake(less_breakable(column_name))},
                        inplace=True)
