@@ -7,6 +7,7 @@ and a fix for running FreeSurfer 7 with an outdated fsaverage folder.
 
   * ENH: Add check to ensure latest fsaverage folder is used (#2847)
   * FIX: Filter sbrefs by BIDS filters if available (#2843)
+  * FIX: Avoid crashing on empty ACompCor results (#2850)
 
 22.0.0 (July 28, 2022)
 ======================
