@@ -364,6 +364,24 @@ Useful for further Tedana processing post-fMRIPrep."""
         "performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).",
     )
     g_conf.add_argument(
+        "--project-goodvoxels",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Exclude voxels whose timeseries have locally high coefficient of variation "
+        "from surface resampling. Only performed for GIFTI files mapped to a freesurfer subject "
+        "(fsaverage or fsnative).",
+    )
+    g_conf.add_argument(
+        "--surface-sampler",
+        action="store",
+        choices=("fs", "wb"),
+        default="fs",
+        help="select sampling method used for projection of BOLD timeseries to surface. "
+        "'fs' to use FreeSurfer mri_vol2surf (default).  "
+        "'wb' to use Workbench wb_command -volume-to-surface-mapping.",
+    )
+    g_conf.add_argument(
         "--slice-time-ref",
         required=False,
         action="store",
