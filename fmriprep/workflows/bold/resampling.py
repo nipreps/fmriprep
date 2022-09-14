@@ -36,11 +36,9 @@ from nipype import Function
 from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu, freesurfer as fs, fsl
 import nipype.interfaces.workbench as wb
-from niworkflows.interfaces.freesurfer import MakeMidthickness
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+from niworkflows.interfaces.freesurfer import MedialNaNs
 from ...interfaces.volume import CreateSignedDistanceVolume
-from ...interfaces.metric import MetricDilate
-
 
 
 def init_bold_surf_wf(mem_gb,
@@ -53,12 +51,7 @@ def init_bold_surf_wf(mem_gb,
 
     For each vertex, the cortical ribbon is sampled at six points (spaced 20% of thickness apart)
     and averaged.
-    
-    If --surface-sampler wb is used, Workbench's wb_command -volume-to-surface-mapping
-    with -ribbon-constrained option is used instead of the default FreeSurfer mri_vol2surf.
-    Note that unlike HCP, no additional spatial smoothing is applied to the surface-projected
-    data. 
-    
+
     If --project-goodvoxels is used, a "goodvoxels" BOLD mask, as described in [@hcppipelines],
     is generated and applied to the functional image before sampling to surface.
     Outputs are in GIFTI format.
@@ -72,9 +65,8 @@ def init_bold_surf_wf(mem_gb,
             wf = init_bold_surf_wf(mem_gb=0.1,
                                    surface_spaces=['fsnative', 'fsaverage5'],
                                    medial_surface_nan=False,
-                                   project_goodvoxels=False,
-                                   surface_sampler="fs")
-                                   
+                                   project_goodvoxels=False)
+
     Parameters
     ----------
     surface_spaces : :obj:`list`
@@ -87,9 +79,6 @@ def init_bold_surf_wf(mem_gb,
     project_goodvoxels : :obj:`bool`
         Exclude voxels with locally high coefficient of variation, or that lie outside the
         cortical surfaces, from the surface projection.
-    surface_sampler : :obj:`str`
-        'fs' (default) or 'wb' to specify FreeSurfer-based or Workbench-based 
-        volume to surface mapping
 
     Inputs
     ------
@@ -124,15 +113,15 @@ The BOLD time-series were resampled onto the following surfaces
 (FreeSurfer reconstruction nomenclature):
 {out_spaces}.
 """.format(
-        out_spaces=", ".join(["*%s*" % s for s in surface_spaces])
+        out_spaces=", ".join(["*%s*" % s for s in surface_spaces]),
     )
 
     if project_goodvoxels:
         workflow.__desc__ += """\
 Before resampling, a "goodvoxels" mask [@hcppipelines] was applied,
-excluding voxels whose time-series have a locally high coefficient of
-variation, or that lie outside the cortical surfaces,
-from the surface projection.
+excluding voxels whose time-series have a locally high coetfficient of
+variation, or that lie outside the cortical surfaces, from the
+surface projection.
 """
 
     inputnode = pe.Node(
@@ -141,7 +130,6 @@ from the surface projection.
                     "subject_id",
                     "subjects_dir",
                     "t1w2fsnative_xfm",
-                    "itk_bold_to_t1",
                     "anat_giftis",
                     "t1w_mask"]
         ),
@@ -190,12 +178,16 @@ from the surface projection.
         ),
         name_source=['source_file'],
         keep_extension=False,
-        name_template='%s.func.gii',
         iterfield=["hemi"],
         name="sampler",
         mem_gb=mem_gb * 3,
     )
     sampler.inputs.hemi = ["lh", "rh"]
+
+    # Refine if medial vertices should be NaNs
+    medial_nans = pe.MapNode(
+        MedialNaNs(), iterfield=["in_file"], name="medial_nans", mem_gb=DEFAULT_MEMORY_MIN_GB
+    )
 
     update_metadata = pe.MapNode(
         GiftiSetAnatomicalStructure(),
@@ -209,50 +201,11 @@ from the surface projection.
         joinsource="itersource",
         name="outputnode",
     )
-    
-    if not project_goodvoxels:
-        # fmt: off
-        workflow.connect([
-            (inputnode, get_fsnative, [('subject_id', 'subject_id'),
-                                       ('subjects_dir', 'subjects_dir')]),
-            (inputnode, targets, [('subject_id', 'subject_id')]),
-            (inputnode, rename_src, [('source_file', 'in_file')]),
-            (inputnode, itk2lta, [('source_file', 'src_file'),
-                                  ('t1w2fsnative_xfm', 'in_file')]),
-            (get_fsnative, itk2lta, [('T1', 'dst_file')]),  
-            (inputnode, sampler, [('subjects_dir', 'subjects_dir'),
-                                  ('subject_id', 'subject_id')]),
-            (itersource, targets, [('target', 'space')]),
-            (itersource, rename_src, [('target', 'subject')]),
-            (itk2lta, sampler, [('out', 'reg_file')]),
-            (targets, sampler, [('out', 'target_subject')]),
-            (rename_src, sampler, [('out_file', 'source_file')]),
-            (update_metadata, outputnode, [('out_file', 'surfaces')]),
-            (itersource, outputnode, [('target', 'target')]),
-        ])
-        # fmt: on
 
-        if not medial_surface_nan:
-            workflow.connect(sampler, "out_file", update_metadata, "in_file")
-            return workflow
-
-        from niworkflows.interfaces.freesurfer import MedialNaNs
-
-        # Refine if medial vertices should be NaNs
-        medial_nans = pe.MapNode(
-            MedialNaNs(), iterfield=["in_file"], name="medial_nans", mem_gb=DEFAULT_MEMORY_MIN_GB
-        )
-
-        # fmt: off
-        workflow.connect([
-            (inputnode, medial_nans, [('subjects_dir', 'subjects_dir')]),
-            (sampler, medial_nans, [('out_file', 'in_file')]),
-            (medial_nans, update_metadata, [('out_file', 'in_file')]),
-        ])
-        # fmt: on
-        return workflow
-
-    # 0, 1, 2, 3, 6, 7 = lh wm, rh wm, lh pial, rh pial, lh mid, rh mid
+    # 0, 1 = wm; 2, 3 = pial; 6, 7 = mid
+    # note that order of lh / rh within each surf type is not guaranteed due to use
+    # of unsorted glob by FreeSurferSource prior, but we can do a sort with
+    # _sorted_by_basename to ensure consistent ordering
     select_wm = pe.Node(
         niu.Select(index=[0, 1]),
         name="select_wm",
@@ -269,7 +222,7 @@ from the surface projection.
         niu.Select(index=[6, 7]),
         name="select_midthick",
         mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )    
+    )
 
     create_wm_distvol = pe.MapNode(
         CreateSignedDistanceVolume(),
@@ -504,12 +457,10 @@ from the surface projection.
         name="goodvoxels_mask",
         mem_gb=mem_gb,
     )
-
+    
     goodvoxels_ribbon_mask = pe.Node(
         fsl.ApplyMask(),
         name_source=['in_file'],
-        keep_extension=True,
-        name_template='%s',
         name="goodvoxels_ribbon_mask",
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
@@ -517,56 +468,53 @@ from the surface projection.
     apply_goodvoxels_ribbon_mask = pe.Node(
         fsl.ApplyMask(),
         name_source=['in_file'],
-        keep_extension=True,
-        name_template='%s',
         name="apply_goodvoxels_ribbon_mask",
         mem_gb=mem_gb * 3,
     )
 
-    get_target_wm = pe.MapNode(
-        FreeSurferSource(),
-        iterfield=["in_file", "surface"],
-        name="get_target_wm",
-        run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-    get_target_wm.inputs.hemi = ["lh", "rh"]
+    if not project_goodvoxels:
+        # fmt: off
+        workflow.connect([
+            (inputnode, get_fsnative, [('subject_id', 'subject_id'),
+                                       ('subjects_dir', 'subjects_dir')]),
+            (inputnode, targets, [('subject_id', 'subject_id')]),
+            (inputnode, rename_src, [('source_file', 'in_file')]),
+            (inputnode, itk2lta, [('source_file', 'src_file'),
+                                  ('t1w2fsnative_xfm', 'in_file')]),
+            (get_fsnative, itk2lta, [("T1", "dst_file")]),
+            (inputnode, sampler, [('subjects_dir', 'subjects_dir'),
+                                  ('subject_id', 'subject_id')]),
+            (itersource, targets, [('target', 'space')]),
+            (itersource, rename_src, [('target', 'subject')]),
+            (itk2lta, sampler, [('out', 'reg_file')]),
+            (targets, sampler, [('out', 'target_subject')]),
+            (rename_src, sampler, [('out_file', 'source_file')]),
+            (update_metadata, outputnode, [('out_file', 'surfaces')]),
+            (itersource, outputnode, [('target', 'target')]),
+        ])
+        # fmt: on
 
-    make_target_midthick = pe.MapNode(
-        MakeMidthickness(thickness=True, distance=0.5),
-        iterfield=["in_file"],
-        name="make_target_midthick",
-        run_without_submitting=True,
-        mem_gb=mem_gb * 3,
-    )
+        if not medial_surface_nan:
+            workflow.connect(sampler, "out_file", update_metadata, "in_file")
+            return workflow
 
-    target_midthick_gifti = pe.MapNode(
-        fs.MRIsConvert(out_datatype="gii"),
-        iterfield=["in_file"],
-        name="target_midthick_gifti",
-        run_without_submitting=True,
-        mem_gb=mem_gb,
-    )
+        # fmt: off
+        workflow.connect([
+            (inputnode, medial_nans, [('subjects_dir', 'subjects_dir')]),
+            (sampler, medial_nans, [('out_file', 'in_file')]),
+            (medial_nans, update_metadata, [('out_file', 'in_file')]),
+        ])
+        # fmt: on
+        return workflow
 
-    metric_dilate = pe.MapNode(
-        MetricDilate(
-            distance=10,
-            nearest=True,
-        ),
-        iterfield=["in_file", "surface"],
-        name="metric_dilate",
-        mem_gb=mem_gb * 3,
-    )
-
-    # make HCP-style ribbon volume in bold space
-    # fmt:off
+    # make HCP-style ribbon volume in T1w space
     workflow.connect([
         (inputnode, select_wm, [("anat_giftis", "inlist")]),
         (inputnode, select_pial, [("anat_giftis", "inlist")]),
         (inputnode, select_midthick, [("anat_giftis", "inlist")]),
-        (select_wm, create_wm_distvol, [("out", "surface")]),
+        (select_wm, create_wm_distvol, [(("out", _sorted_by_basename), "surface")]),
         (inputnode, create_wm_distvol, [("t1w_mask", "ref_space")]),
-        (select_pial, create_pial_distvol, [("out", "surface")]),
+        (select_pial, create_pial_distvol, [(("out", _sorted_by_basename), "surface")]),
         (inputnode, create_pial_distvol, [("t1w_mask", "ref_space")]),
         (create_wm_distvol, thresh_wm_distvol, [("out_vol", "in_file")]),
         (create_pial_distvol, uthresh_pial_distvol, [("out_vol", "in_file")]),
@@ -654,36 +602,15 @@ from the surface projection.
     if not medial_surface_nan:
         # fmt:off
         workflow.connect([
-            (inputnode, get_target_wm, [('subjects_dir', 'subjects_dir')]),
-            (targets, get_target_wm, [('out', 'subject_id')]),
-            (get_target_wm, make_target_midthick, [("white", "in_file")]),
-            (make_target_midthick, target_midthick_gifti, [("out_file", "in_file")]),
-            (sampler, metric_dilate, [("out_file", "in_file")]),
-            (target_midthick_gifti, metric_dilate, [("converted", "surface")]),
-            (metric_dilate, update_metadata, [("out_file", "in_file")]),
+            (sampler, update_metadata, [("out_file", "in_file")]),
         ])
         # fmt:on
         return workflow
 
-    from niworkflows.interfaces.freesurfer import MedialNaNs
-
-    # Refine if medial vertices should be NaNs
-    medial_nans = pe.MapNode(
-        MedialNaNs(),
-        iterfield=["in_file"],
-        name="medial_nans",
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-
     # fmt:off
     workflow.connect([
-        (inputnode, get_target_wm, [('subjects_dir', 'subjects_dir')]),
-        (targets, get_target_wm, [('out', 'subject_id')]),
-        (get_target_wm, make_target_midthick, [("white", "in_file")]),
-        (make_target_midthick, target_midthick_gifti, [("out_file", "in_file")]),
-        (sampler, metric_dilate, [("out_file", "in_file")]),
-        (target_midthick_gifti, metric_dilate, [("converted", "surface")]),
-        (metric_dilate, medial_nans, [("out_file", "in_file")]),
+        (inputnode, medial_nans, [('subjects_dir', 'subjects_dir')]),
+        (sampler, medial_nans, [("out_file", "in_file")]),
         (medial_nans, update_metadata, [("out_file", "in_file")]),
     ])
     # fmt:on
@@ -1419,3 +1346,8 @@ def _itk2lta(in_file, src_file, dst_file):
         in_file, fmt="fs" if in_file.endswith(".lta") else "itk", reference=src_file
     ).to_filename(out_file, moving=dst_file, fmt="fs")
     return str(out_file)
+
+
+def _sorted_by_basename(inlist):
+    from os.path import basename
+    return sorted(inlist, key=lambda x: str(basename(x)))
