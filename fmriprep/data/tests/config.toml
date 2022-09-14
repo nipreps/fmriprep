@@ -40,7 +40,6 @@ ignore = []
 longitudinal = false
 medial_surface_nan = false
 project_goodvoxels = false
-surface_sampler = "fs"
 regressors_all_comps = false
 regressors_dvars_th = 1.5
 regressors_fd_th = 0.5

@@ -479,18 +479,13 @@ EPI sampled to FreeSurfer surfaces
         mem_gb=1,
         surface_spaces=['fsnative', 'fsaverage5'],
         medial_surface_nan=False,
-        project_goodvoxels=False,
-        surface_sampler="fs")
+        project_goodvoxels=False)
 
 If FreeSurfer processing is enabled, the motion-corrected functional series
 (after single shot resampling to T1w space) is sampled to the
 surface by averaging across the cortical ribbon.
 Specifically, at each vertex, the segment normal to the white-matter surface, extending to the pial
 surface, is sampled at 6 intervals and averaged.
-
-With ``--surface-sampler wb``, Workbench wb_command -volume-to-surface-mapping
-(with -ribbon-constrained) is used for surface sampling instead of the default
-FreeSurfer method described above.
 
 Surfaces are generated for the "subject native" surface, as well as transformed to the
 ``fsaverage`` template space.
