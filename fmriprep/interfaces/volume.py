@@ -133,7 +133,7 @@ CREATE SIGNED DISTANCE VOLUME FROM SURFACE
       (negative) crossings of a vertical ray from the point, then counts as
       inside if the total is odd, negative, or nonzero, respectively.
 
-    >>> from nipype.interfaces.workbench import CreateSignedDistanceVolume
+    >>> from fmriprep.interfaces.volume import CreateSignedDistanceVolume
     >>> distvol = CreateSignedDistanceVolume()
     >>> distvol.inputs.surface = 'sub-01.L.pial.native.surf.gii'
     >>> distvol.inputs.refspace = 'sub-01_T1w.nii.gz'
