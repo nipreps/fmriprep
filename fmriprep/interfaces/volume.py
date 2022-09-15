@@ -133,27 +133,6 @@ CREATE SIGNED DISTANCE VOLUME FROM SURFACE
       (negative) crossings of a vertical ray from the point, then counts as
       inside if the total is odd, negative, or nonzero, respectively.
 
-    >>> from fmriprep.interfaces.volume import CreateSignedDistanceVolume
-    >>> distvol = CreateSignedDistanceVolume()
-    >>> distvol.inputs.surface = 'sub-01.L.pial.native.surf.gii'
-    >>> distvol.inputs.refspace = 'sub-01_T1w.nii.gz'
-    >>> distvol.inputs.out_vol = 'sub-01.L.pial.native.surf.distvol.nii.gz'
-    >>> distvol.inputs.roi_out = 'sub-01.L.pial.native.surf.distvolroi.nii.gz'
-    >>> distvol.inputs.fill_value = 0
-    >>> distvol.inputs.exact_limit = 5
-    >>> distvol.inputs.approx_limit = 20
-    >>> distvol.inputs.approx_neighborhood = 2
-    >>> distvol.inputs.winding_method = 'EVEN_ODD'
-    >>> distvol.cmdline
-    'wb_command -create-signed-distance-volume sub-01.L.pial.native.surf.gii \
-    sub-01_T1w.nii.gz \
-    sub-01.L.pial.native.surf.distvol.nii.gz \
-    -roi-out sub-01.L.pial.native.surf.distvolroi.nii.gz \
-    -fill-value 0 \
-    -exact-limit 5 \
-    -approx-limit 20 \
-    -approx-neighborhood 2 \
-    -winding EVEN_ODD'
     """
 
     input_spec = CreateSignedDistanceVolumeInputSpec
