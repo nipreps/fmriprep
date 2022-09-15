@@ -959,8 +959,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ("anat_giftis", "inputnode.anat_giftis"),
                 ("t1w_mask", "inputnode.t1w_mask"),
             ]),
-            (bold_reg_wf, bold_surf_wf, [("outputnode.itk_bold_to_t1",
-                                          "inputnode.itk_bold_to_t1")]),
             (bold_t1_trans_wf, bold_surf_wf, [("outputnode.bold_t1", "inputnode.source_file")]),
             (bold_surf_wf, outputnode, [("outputnode.surfaces", "surfaces")]),
             (bold_surf_wf, func_derivatives_wf, [("outputnode.target", "inputnode.surf_refs")]),

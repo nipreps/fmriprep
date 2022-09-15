@@ -92,8 +92,6 @@ def init_bold_surf_wf(mem_gb,
         FreeSurfer subject ID
     t1w2fsnative_xfm
         LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
-    itk_bold_to_t1
-        Affine transform from ``ref_bold_brain`` to T1 space (ITK format)
     anat_giftis
         GIFTI anatomical surfaces in T1w space
 
