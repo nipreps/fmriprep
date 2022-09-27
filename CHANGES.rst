@@ -1,3 +1,14 @@
+22.0.2 (September 27, 2022)
+===========================
+A patch release in the 22.0.x series.
+
+This release increases the minimum Nipype version to include better error messages on failures.
+Additionally, this includes a fix to allow SyN distortion correction in combination with the
+`--ignore fieldmaps` option.
+
+  * MAINT: Add `pre-commit`, dev installation for consistent styling (#2857)
+  * CI: Upgrade docker orb (#2858)
+
 22.0.1 (September 13, 2022)
 ===========================
 Patch release in the 22.0.x series.
