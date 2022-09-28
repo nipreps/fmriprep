@@ -369,6 +369,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "bold_t1_ref",
                 "bold2anat_xfm",
                 "anat2bold_xfm",
+                "hmc_xforms",
                 "bold_mask_t1",
                 "bold_aseg_t1",
                 "bold_aparc_t1",
@@ -453,6 +454,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("bold_t1_ref", "inputnode.bold_t1_ref"),
             ("bold2anat_xfm", "inputnode.bold2anat_xfm"),
             ("anat2bold_xfm", "inputnode.anat2bold_xfm"),
+            ("hmc_xforms", "inputnode.hmc_xforms"),
             ("bold_aseg_t1", "inputnode.bold_aseg_t1"),
             ("bold_aparc_t1", "inputnode.bold_aparc_t1"),
             ("bold_mask_t1", "inputnode.bold_mask_t1"),
@@ -621,6 +623,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (initial_boldref_wf, bold_hmc_wf, [
             ("outputnode.raw_ref_image", "inputnode.raw_ref_image"),
             ("outputnode.bold_file", "inputnode.bold_file"),
+        ]),
+        (bold_hmc_wf, outputnode, [
+            ("outputnode.xforms", "hmc_xforms"),
         ]),
         # EPI-T1w registration workflow
         (inputnode, bold_reg_wf, [

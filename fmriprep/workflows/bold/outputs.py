@@ -220,6 +220,7 @@ def init_func_derivatives_wf(
                 't2star_std',
                 'bold2anat_xfm',
                 'anat2bold_xfm',
+                'hmc_xforms',
                 'acompcor_masks',
                 'tcompcor_mask',
             ]
@@ -280,6 +281,40 @@ def init_func_derivatives_wf(
     ])
     # fmt:on
 
+    # Output HMC and reference volume
+    ds_bold_hmc_xfm = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='boldref',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'scanner'},
+        ),
+        name='ds_bold_hmc_xfm',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    ds_bold_native_ref = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir, suffix='boldref', compress=True, dismiss_entities=("echo",)
+        ),
+        name='ds_bold_native_ref',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    # fmt:off
+    workflow.connect([
+        (inputnode, ds_bold_hmc_xfm, [('source_file', 'source_file'),
+                                      ('hmc_xforms', 'in_file')]),
+        (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
+                                         ('bold_native_ref', 'in_file')])
+    ])
+    # fmt:on
+
     if nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')):
         ds_bold_native = pe.Node(
             DerivativesDataSink(
@@ -291,17 +326,6 @@ def init_func_derivatives_wf(
                 **timing_parameters,
             ),
             name='ds_bold_native',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        ds_bold_native_ref = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                suffix='boldref',
-                compress=True,
-                dismiss_entities=("echo",),
-            ),
-            name='ds_bold_native_ref',
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
@@ -321,8 +345,6 @@ def init_func_derivatives_wf(
         workflow.connect([
             (inputnode, ds_bold_native, [('source_file', 'source_file'),
                                          ('bold_native', 'in_file')]),
-            (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
-                                             ('bold_native_ref', 'in_file')]),
             (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
                                               ('bold_mask_native', 'in_file')]),
             (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
