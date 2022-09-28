@@ -44,7 +44,7 @@ from ...utils.meepi import combine_meepi_source
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
 from .hmc import init_bold_hmc_wf
-from .outputs import init_func_derivatives_wf
+from .outputs import init_derivatives_fit_wf, init_func_derivatives_wf
 from .registration import init_bold_reg_wf, init_bold_t1_trans_wf
 from .resampling import (
     init_bold_preproc_trans_wf,
@@ -435,6 +435,14 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     )
     summary.inputs.dummy_scans = config.workflow.dummy_scans
 
+    derivatives_fit_wf = init_derivatives_fit_wf(
+        bids_root=layout.root,
+        all_metadata=all_metadata,
+        multiecho=multiecho,
+        output_dir=fmriprep_dir,
+    )
+    func_derivatives_wf.inputs.inputnode.all_source_files = bold_file
+
     func_derivatives_wf = init_func_derivatives_wf(
         bids_root=layout.root,
         cifti_output=config.workflow.cifti_output,
@@ -452,15 +460,10 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (outputnode, func_derivatives_wf, [
             ("bold_t1", "inputnode.bold_t1"),
             ("bold_t1_ref", "inputnode.bold_t1_ref"),
-            ("bold2anat_xfm", "inputnode.bold2anat_xfm"),
-            ("anat2bold_xfm", "inputnode.anat2bold_xfm"),
-            ("hmc_xforms", "inputnode.hmc_xforms"),
             ("bold_aseg_t1", "inputnode.bold_aseg_t1"),
             ("bold_aparc_t1", "inputnode.bold_aparc_t1"),
             ("bold_mask_t1", "inputnode.bold_mask_t1"),
             ("bold_native", "inputnode.bold_native"),
-            ("bold_native_ref", "inputnode.bold_native_ref"),
-            ("bold_mask_native", "inputnode.bold_mask_native"),
             ("bold_echos_native", "inputnode.bold_echos_native"),
             ("confounds", "inputnode.confounds"),
             ("surfaces", "inputnode.surf_files"),
@@ -471,7 +474,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("cifti_variant", "inputnode.cifti_variant"),
             ("cifti_metadata", "inputnode.cifti_metadata"),
             ("cifti_density", "inputnode.cifti_density"),
-            ("t2star_bold", "inputnode.t2star_bold"),
             ("t2star_t1", "inputnode.t2star_t1"),
             ("t2star_std", "inputnode.t2star_std"),
             ("confounds_metadata", "inputnode.confounds_metadata"),
@@ -624,6 +626,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("outputnode.raw_ref_image", "inputnode.raw_ref_image"),
             ("outputnode.bold_file", "inputnode.bold_file"),
         ]),
+        (bold_hmc_wf, derivatives_fit_wf, [
+            ("outputnode.xforms", "inputnode.hmc_xforms"),
+        ]),
         (bold_hmc_wf, outputnode, [
             ("outputnode.xforms", "hmc_xforms"),
         ]),
@@ -645,6 +650,10 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("t1w_aparc", "inputnode.t1w_aparc"),
         ]),
         (t1w_brain, bold_t1_trans_wf, [("out_file", "inputnode.t1w_brain")]),
+        (bold_reg_wf, derivatives_fit_wf, [
+            ("outputnode.itk_bold_to_t1", "inputnode.bold2anat_xfm"),
+            ("outputnode.itk_t1_to_bold", "inputnode.anat2bold_xfm"),
+        ]),
         (bold_reg_wf, outputnode, [
             ("outputnode.itk_bold_to_t1", "bold2anat_xfm"),
             ("outputnode.itk_t1_to_bold", "anat2bold_xfm"),
@@ -695,6 +704,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("outputnode.tcompcor_mask", "tcompcor_mask"),
         ]),
         # Native-space BOLD files (if calculated)
+        (bold_final, derivatives_fit_wf, [
+            ("boldref", "bold_native_ref"),
+            ("mask", "bold_mask_native"),
+            ("t2star", "t2star_bold"),
+        ]),
         (bold_final, outputnode, [
             ("bold", "bold_native"),
             ("boldref", "bold_native_ref"),
