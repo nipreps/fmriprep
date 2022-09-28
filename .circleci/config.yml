@@ -745,7 +745,8 @@ jobs:
             set -x
             sudo mv /tmp/${DATASET}/derivatives/fmriprep/sub-100185.html \
                     /tmp/${DATASET}/derivatives/fmriprep/sub-100185_noerror.html
-            UUID=$(grep uuid /tmp/${DATASET}/work/*/config.toml | cut -d\" -f 2)
+            UUID=$(grep uuid /tmp/${DATASET}/work/*/config.toml | cut -d\" -f 2 | tail -n 1)
+            mkdir -p /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
             cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
                 /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
             set +e

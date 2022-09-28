@@ -277,6 +277,15 @@ ENV PATH="/opt/conda/bin:$PATH" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1
 
+COPY docker/files/environment.yml /usr/local/etc/environment.yml
+
+# Installing precomputed python packages
+RUN conda env update -n base -f /usr/local/etc/environment.yml; sync && \
+    chmod -R a+rX /usr/local/miniconda; sync && \
+    chmod +x /usr/local/miniconda/bin/*; sync && \
+    conda build purge-all; sync && \
+    conda clean -tipsy && sync
+
 # Unless otherwise specified each process should only use one thread - nipype
 # will handle parallelization
 ENV MKL_NUM_THREADS=1 \
