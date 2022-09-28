@@ -120,6 +120,176 @@ def prepare_timing_parameters(metadata):
     return timing_parameters
 
 
+def init_derivatives_fit_wf(
+    bids_root,
+    all_metadata,
+    multiecho,
+    output_dir,
+    name='derivatives_fit_wf',
+):
+    """
+    Set up a battery of datasinks to store derivatives generated while fitting fMRIPrep.
+
+    Parameters
+    ----------
+    bids_root : :obj:`str`
+        Original BIDS dataset path.
+    all_metadata : :obj:`dict`
+        Metadata dictionary associated to the BOLD run (or runs, for multiecho)
+    multiecho : :obj:`bool`
+        Derivatives were generated from multi-echo time series.
+    output_dir : :obj:`str`
+        Where derivatives should be written out to.
+    name : :obj:`str`
+        This workflow's identifier (default: ``derivatives_fit_wf``).
+
+    """
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.utility import KeySelect
+    from smriprep.workflows.outputs import _bids_relative
+
+    metadata = all_metadata[0]
+
+    nonstd_spaces = set(spaces.get_nonstandard())
+    workflow = Workflow(name=name)
+
+    # BOLD series will generally be unmasked unless multiecho,
+    # as the optimal combination is undefined outside a bounded mask
+    masked = multiecho
+    t2star_meta = {
+        'Units': 's',
+        'EstimationReference': 'doi:10.1002/mrm.20900',
+        'EstimationAlgorithm': 'monoexponential decay model',
+    }
+
+    fields = [
+        'bold_native_ref',
+        'bold_mask_native',
+        't2star_bold',
+        'bold2anat_xfm',
+        'anat2bold_xfm',
+        'hmc_xforms',
+    ]
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['source_file', 'all_source_files'] + fields),
+        name='inputnode',
+    )
+    outputnode = pe.Node(niu.IdentityInterface(fields=fields), name='inputnode')
+
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
+    raw_sources.inputs.bids_root = bids_root
+
+    ds_ref_t1w_xfm = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='T1w',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'scanner'},
+        ),
+        name='ds_ref_t1w_xfm',
+        run_without_submitting=True,
+    )
+    ds_ref_t1w_inv_xfm = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='scanner',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'T1w'},
+        ),
+        name='ds_t1w_tpl_inv_xfm',
+        run_without_submitting=True,
+    )
+    ds_bold_hmc_xfm = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='boldref',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'scanner'},
+        ),
+        name='ds_bold_hmc_xfm',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    ds_bold_native_ref = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir, suffix='boldref', compress=True, dismiss_entities=("echo",)
+        ),
+        name='ds_bold_native_ref',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    ds_bold_mask_native = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            desc='brain',
+            suffix='mask',
+            compress=True,
+            dismiss_entities=("echo",),
+        ),
+        name='ds_bold_mask_native',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    # fmt:off
+    workflow.connect([
+        # Inputs
+        (inputnode, raw_sources, [('all_source_files', 'in_files')]),
+        (inputnode, ds_ref_t1w_xfm, [('source_file', 'source_file'),
+                                     ('bold2anat_xfm', 'in_file')]),
+        (inputnode, ds_ref_t1w_inv_xfm, [('source_file', 'source_file'),
+                                         ('anat2bold_xfm', 'in_file')]),
+        (inputnode, ds_bold_hmc_xfm, [('source_file', 'source_file'),
+                                      ('hmc_xforms', 'in_file')]),
+        (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
+                                         ('bold_native_ref', 'in_file')])
+        (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
+                                          ('bold_mask_native', 'in_file')]),
+        (raw_sources, ds_bold_hmc_xfm, [('out', 'RawSources')]),
+        (raw_sources, ds_bold_native_ref, [('out', 'RawSources')]),
+        (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
+        # Outputs
+        (ds_ref_t1w_xfm, outputnode, [('out_file', 'bold2anat_xfm')]),
+        (ds_ref_t1w_inv_xfm, outputnode, [('out_file', 'anat2bold_xfm')]),
+        (ds_bold_hmc_xfm, outputnode, [('out_file', 'hmc_xforms')]),
+        (ds_bold_native_ref, outputnode, [('out_file', 'bold_native_ref')]),
+        (ds_bold_mask_native, outputnode, [('out_file', 'bold_mask_native')]),
+    ])
+    # fmt: on
+
+    if multiecho:
+        ds_t2star_bold = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                space='boldref',
+                suffix='T2starmap',
+                compress=True,
+                dismiss_entities=("echo",),
+                **t2star_meta,
+            ),
+            name='ds_t2star_bold',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
+        workflow.connect([
+            (inputnode, ds_t2star_bold, [('source_file', 'source_file'),
+                                         ('t2star_bold', 'in_file')]),
+            (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
+            (ds_t2star_bold, outputnode, [('out_file', 't2star_bold')]),
+        ])
+        # fmt:on
+
+
 def init_func_derivatives_wf(
     bids_root,
     cifti_output,
@@ -199,8 +369,6 @@ def init_func_derivatives_wf(
                 'bold_t1',
                 'bold_t1_ref',
                 'bold_native',
-                'bold_native_ref',
-                'bold_mask_native',
                 'bold_echos_native',
                 'cifti_variant',
                 'cifti_metadata',
@@ -215,12 +383,8 @@ def init_func_derivatives_wf(
                 'surf_refs',
                 'template',
                 'spatial_reference',
-                't2star_bold',
                 't2star_t1',
                 't2star_std',
-                'bold2anat_xfm',
-                'anat2bold_xfm',
-                'hmc_xforms',
                 'acompcor_masks',
                 'tcompcor_mask',
             ]
@@ -242,76 +406,12 @@ def init_func_derivatives_wf(
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
-    ds_ref_t1w_xfm = pe.Node(
-        DerivativesDataSink(
-            base_directory=output_dir,
-            to='T1w',
-            mode='image',
-            suffix='xfm',
-            extension='.txt',
-            dismiss_entities=('echo',),
-            **{'from': 'scanner'},
-        ),
-        name='ds_ref_t1w_xfm',
-        run_without_submitting=True,
-    )
-    ds_ref_t1w_inv_xfm = pe.Node(
-        DerivativesDataSink(
-            base_directory=output_dir,
-            to='scanner',
-            mode='image',
-            suffix='xfm',
-            extension='.txt',
-            dismiss_entities=('echo',),
-            **{'from': 'T1w'},
-        ),
-        name='ds_t1w_tpl_inv_xfm',
-        run_without_submitting=True,
-    )
     # fmt:off
     workflow.connect([
         (inputnode, raw_sources, [('all_source_files', 'in_files')]),
         (inputnode, ds_confounds, [('source_file', 'source_file'),
                                    ('confounds', 'in_file'),
                                    ('confounds_metadata', 'meta_dict')]),
-        (inputnode, ds_ref_t1w_xfm, [('source_file', 'source_file'),
-                                     ('bold2anat_xfm', 'in_file')]),
-        (inputnode, ds_ref_t1w_inv_xfm, [('source_file', 'source_file'),
-                                         ('anat2bold_xfm', 'in_file')]),
-    ])
-    # fmt:on
-
-    # Output HMC and reference volume
-    ds_bold_hmc_xfm = pe.Node(
-        DerivativesDataSink(
-            base_directory=output_dir,
-            to='boldref',
-            mode='image',
-            suffix='xfm',
-            extension='.txt',
-            dismiss_entities=('echo',),
-            **{'from': 'scanner'},
-        ),
-        name='ds_bold_hmc_xfm',
-        run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-
-    ds_bold_native_ref = pe.Node(
-        DerivativesDataSink(
-            base_directory=output_dir, suffix='boldref', compress=True, dismiss_entities=("echo",)
-        ),
-        name='ds_bold_native_ref',
-        run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-
-    # fmt:off
-    workflow.connect([
-        (inputnode, ds_bold_hmc_xfm, [('source_file', 'source_file'),
-                                      ('hmc_xforms', 'in_file')]),
-        (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
-                                         ('bold_native_ref', 'in_file')])
     ])
     # fmt:on
 
@@ -329,49 +429,13 @@ def init_func_derivatives_wf(
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
-        ds_bold_mask_native = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='brain',
-                suffix='mask',
-                compress=True,
-                dismiss_entities=("echo",),
-            ),
-            name='ds_bold_mask_native',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
         # fmt:off
         workflow.connect([
             (inputnode, ds_bold_native, [('source_file', 'source_file'),
                                          ('bold_native', 'in_file')]),
-            (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
-                                              ('bold_mask_native', 'in_file')]),
-            (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
+            (raw_sources, ds_bold_native, [('out', 'RawSources')]),
         ])
         # fmt:on
-
-        if multiecho:
-            ds_t2star_bold = pe.Node(
-                DerivativesDataSink(
-                    base_directory=output_dir,
-                    space='boldref',
-                    suffix='T2starmap',
-                    compress=True,
-                    dismiss_entities=("echo",),
-                    **t2star_meta,
-                ),
-                name='ds_t2star_bold',
-                run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB,
-            )
-            # fmt:off
-            workflow.connect([
-                (inputnode, ds_t2star_bold, [('source_file', 'source_file'),
-                                             ('t2star_bold', 'in_file')]),
-                (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
-            ])
-            # fmt:on
 
     if multiecho and config.execution.me_output_echos:
         ds_bold_echos_native = pe.MapNode(
