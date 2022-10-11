@@ -140,13 +140,13 @@ def main():
                 for crashfile in crashfolder.glob("crash*.*"):
                     process_crashfile(crashfile)
 
-            if "Workflow did not execute cleanly" not in str(e):
+            if sentry_sdk is not None and "Workflow did not execute cleanly" not in str(e):
                 sentry_sdk.capture_exception(e)
         config.loggers.workflow.critical("fMRIPrep failed: %s", e)
         raise
     else:
         config.loggers.workflow.log(25, "fMRIPrep finished successfully!")
-        if not config.execution.notrack:
+        if sentry_sdk is not None:
             success_message = "fMRIPrep finished without errors"
             sentry_sdk.add_breadcrumb(message=success_message, level="info")
             sentry_sdk.capture_message(success_message, level="info")
@@ -192,7 +192,7 @@ def main():
         write_derivative_description(config.execution.bids_dir, config.execution.fmriprep_dir)
         write_bidsignore(config.execution.fmriprep_dir)
 
-        if failed_reports and not config.execution.notrack:
+        if sentry_sdk is not None and failed_reports:
             sentry_sdk.capture_message(
                 "Report generation failed for %d subjects" % failed_reports,
                 level="error",
