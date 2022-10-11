@@ -203,7 +203,7 @@ except Exception:
 
 # Debug modes are names that influence the exposure of internal details to
 # the user, either through additional derivatives or increased verbosity
-DEBUG_MODES = ("compcor", "fieldmaps", "pdb")
+DEBUG_MODES = ("compcor", "fieldmaps")
 
 
 class _Config:

@@ -35,18 +35,11 @@ def main():
 
     from ..utils.bids import write_bidsignore, write_derivative_description
     from .parser import parse_args
-    from .workflow import build_workflow
 
     parse_args()
 
-    if "pdb" in config.execution.debug:
-        from fmriprep.utils.debug import setup_exceptionhook
-
-        setup_exceptionhook()
-        config.nipype.plugin = "Linear"
-
     sentry_sdk = None
-    if not config.execution.notrack and not config.execution.debug:
+    if not config.execution.notrack:
         import sentry_sdk
 
         from ..utils.sentry import sentry_setup
@@ -63,19 +56,16 @@ def main():
     # CRITICAL Call build_workflow(config_file, retval) in a subprocess.
     # Because Python on Linux does not ever free virtual memory (VM), running the
     # workflow construction jailed within a process preempts excessive VM buildup.
-    if "pdb" not in config.execution.debug:
-        with Manager() as mgr:
-            retval = mgr.dict()
-            p = Process(target=build_workflow, args=(str(config_file), retval))
-            p.start()
-            p.join()
-            retval = dict(retval.items())  # Convert to base dictionary
+    with Manager() as mgr:
+        from .workflow import build_workflow
 
-    else:
-        retval = build_workflow(str(config_file), {})
+        retval = mgr.dict()
+        p = Process(target=build_workflow, args=(str(config_file), retval))
+        p.start()
+        p.join()
 
-    retcode = p.exitcode or retval.get("return_code", 0)
-    fmriprep_wf = retval.get("workflow", None)
+        retcode = p.exitcode or retval.get("return_code", 0)
+        fmriprep_wf = retval.get("workflow", None)
 
     # CRITICAL Load the config from the file. This is necessary because the ``build_workflow``
     # function executed constrained in a process may change the config (and thus the global
