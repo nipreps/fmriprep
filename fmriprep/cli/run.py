@@ -71,10 +71,13 @@ def main():
             p.join()
             retval = dict(retval.items())  # Convert to base dictionary
 
+            if p.exitcode:
+                retval["return_code"] = p.exitcode
+
     else:
         retval = build_workflow(str(config_file), {})
 
-    retcode = p.exitcode or retval.get("return_code", 0)
+    retcode = retval.get("return_code", 0)
     fmriprep_wf = retval.get("workflow", None)
 
     # CRITICAL Load the config from the file. This is necessary because the ``build_workflow``
