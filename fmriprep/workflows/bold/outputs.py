@@ -22,8 +22,8 @@
 #
 """Writing out derivative files."""
 import numpy as np
-from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
 
 from fmriprep import config
 from fmriprep.config import DEFAULT_MEMORY_MIN_GB
@@ -31,7 +31,7 @@ from fmriprep.interfaces import DerivativesDataSink
 
 
 def prepare_timing_parameters(metadata):
-    """ Convert initial timing metadata to post-realignment timing metadata
+    """Convert initial timing metadata to post-realignment timing metadata
 
     In particular, SliceTiming metadata is invalid once STC or any realignment is applied,
     as a matrix of voxels no longer corresponds to an acquisition slice.
@@ -54,7 +54,7 @@ def prepare_timing_parameters(metadata):
     >>> prepare_timing_parameters(dict(RepetitionTime=2, DelayTime=0.5))
     {'RepetitionTime': 2, 'DelayTime': 0.5, 'SliceTimingCorrected': False}
     >>> prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
-    ...                                AcquisitionDuration=1.0))
+    ...                                AcquisitionDuration=1.0))  #doctest: +NORMALIZE_WHITESPACE
     {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'AcquisitionDuration': 1.0,
      'SliceTimingCorrected': False}
 
@@ -65,8 +65,9 @@ def prepare_timing_parameters(metadata):
     ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0, 0.2, 0.4, 0.6]))
     {'RepetitionTime': 2, 'SliceTimingCorrected': True, 'DelayTime': 1.2, 'StartTime': 0.3}
     >>> with mock.patch("fmriprep.config.workflow.ignore", []):
-    ...     prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
-    ...                                    SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
+    ...     prepare_timing_parameters(
+    ...         dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
+    ...              SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))  #doctest: +NORMALIZE_WHITESPACE
     {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'SliceTimingCorrected': True,
      'AcquisitionDuration': 1.0, 'StartTime': 0.4}
 
@@ -77,16 +78,23 @@ def prepare_timing_parameters(metadata):
     ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0, 0.2, 0.4, 0.6]))
     {'RepetitionTime': 2, 'SliceTimingCorrected': False, 'DelayTime': 1.2}
     >>> with mock.patch("fmriprep.config.workflow.ignore", ["slicetiming"]):
-    ...     prepare_timing_parameters(dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
-    ...                                    SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
+    ...     prepare_timing_parameters(
+    ...         dict(VolumeTiming=[0.0, 1.0, 2.0, 5.0, 6.0, 7.0],
+    ...              SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))  #doctest: +NORMALIZE_WHITESPACE
     {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'SliceTimingCorrected': False,
      'AcquisitionDuration': 1.0}
     """
     timing_parameters = {
         key: metadata[key]
-        for key in ("RepetitionTime", "VolumeTiming", "DelayTime",
-                    "AcquisitionDuration", "SliceTiming")
-        if key in metadata}
+        for key in (
+            "RepetitionTime",
+            "VolumeTiming",
+            "DelayTime",
+            "AcquisitionDuration",
+            "SliceTiming",
+        )
+        if key in metadata
+    }
 
     run_stc = "SliceTiming" in metadata and 'slicetiming' not in config.workflow.ignore
     timing_parameters["SliceTimingCorrected"] = run_stc
@@ -175,42 +183,92 @@ def init_func_derivatives_wf(
         'EstimationAlgorithm': 'monoexponential decay model',
     }
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=[
-        'aroma_noise_ics', 'bold_aparc_std', 'bold_aparc_t1', 'bold_aseg_std',
-        'bold_aseg_t1', 'bold_cifti', 'bold_mask_std', 'bold_mask_t1', 'bold_std',
-        'bold_std_ref', 'bold_t1', 'bold_t1_ref', 'bold_native', 'bold_native_ref',
-        'bold_mask_native', 'bold_echos_native',
-        'cifti_variant', 'cifti_metadata', 'cifti_density',
-        'confounds', 'confounds_metadata', 'melodic_mix', 'nonaggr_denoised_file',
-        'source_file', 'all_source_files',
-        'surf_files', 'surf_refs', 'template', 'spatial_reference',
-        't2star_bold', 't2star_t1', 't2star_std',
-        'bold2anat_xfm', 'anat2bold_xfm', 'acompcor_masks', 'tcompcor_mask']),
-        name='inputnode')
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                'aroma_noise_ics',
+                'bold_aparc_std',
+                'bold_aparc_t1',
+                'bold_aseg_std',
+                'bold_aseg_t1',
+                'bold_cifti',
+                'bold_mask_std',
+                'bold_mask_t1',
+                'bold_std',
+                'bold_std_ref',
+                'bold_t1',
+                'bold_t1_ref',
+                'bold_native',
+                'bold_native_ref',
+                'bold_mask_native',
+                'bold_echos_native',
+                'cifti_variant',
+                'cifti_metadata',
+                'cifti_density',
+                'confounds',
+                'confounds_metadata',
+                'melodic_mix',
+                'nonaggr_denoised_file',
+                'source_file',
+                'all_source_files',
+                'surf_files',
+                'surf_refs',
+                'template',
+                'spatial_reference',
+                't2star_bold',
+                't2star_t1',
+                't2star_std',
+                'bold2anat_xfm',
+                'anat2bold_xfm',
+                'hmc_xforms',
+                'acompcor_masks',
+                'tcompcor_mask',
+            ]
+        ),
+        name='inputnode',
+    )
 
     raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
     raw_sources.inputs.bids_root = bids_root
 
-    ds_confounds = pe.Node(DerivativesDataSink(
-        base_directory=output_dir, desc='confounds', suffix='timeseries',
-        dismiss_entities=("echo",)),
-        name="ds_confounds", run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
+    ds_confounds = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            desc='confounds',
+            suffix='timeseries',
+            dismiss_entities=("echo",),
+        ),
+        name="ds_confounds",
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
     ds_ref_t1w_xfm = pe.Node(
-        DerivativesDataSink(base_directory=output_dir, to='T1w',
-                            mode='image', suffix='xfm',
-                            extension='.txt',
-                            dismiss_entities=('echo',),
-                            **{'from': 'scanner'}),
-        name='ds_ref_t1w_xfm', run_without_submitting=True)
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='T1w',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'scanner'},
+        ),
+        name='ds_ref_t1w_xfm',
+        run_without_submitting=True,
+    )
     ds_ref_t1w_inv_xfm = pe.Node(
-        DerivativesDataSink(base_directory=output_dir, to='scanner',
-                            mode='image', suffix='xfm',
-                            extension='.txt',
-                            dismiss_entities=('echo',),
-                            **{'from': 'T1w'}),
-        name='ds_t1w_tpl_inv_xfm', run_without_submitting=True)
-
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='scanner',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'T1w'},
+        ),
+        name='ds_t1w_tpl_inv_xfm',
+        run_without_submitting=True,
+    )
+    # fmt:off
     workflow.connect([
         (inputnode, raw_sources, [('all_source_files', 'in_files')]),
         (inputnode, ds_confounds, [('source_file', 'source_file'),
@@ -221,85 +279,176 @@ def init_func_derivatives_wf(
         (inputnode, ds_ref_t1w_inv_xfm, [('source_file', 'source_file'),
                                          ('anat2bold_xfm', 'in_file')]),
     ])
+    # fmt:on
 
-    if nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')):
+    # Output HMC and reference volume
+    ds_bold_hmc_xfm = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            to='boldref',
+            mode='image',
+            suffix='xfm',
+            extension='.txt',
+            dismiss_entities=('echo',),
+            **{'from': 'scanner'},
+        ),
+        name='ds_bold_hmc_xfm',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    ds_bold_native_ref = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir, suffix='boldref', compress=True, dismiss_entities=("echo",)
+        ),
+        name='ds_bold_native_ref',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+
+    # fmt:off
+    workflow.connect([
+        (inputnode, ds_bold_hmc_xfm, [('source_file', 'source_file'),
+                                      ('hmc_xforms', 'in_file')]),
+        (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
+                                         ('bold_native_ref', 'in_file')])
+    ])
+    # fmt:on
+
+    bold_output = nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref'))
+    if bold_output:
         ds_bold_native = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=masked,
-                TaskName=metadata.get('TaskName'), **timing_parameters),
-            name='ds_bold_native', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_bold_native_ref = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, suffix='boldref', compress=True,
-                                dismiss_entities=("echo",)),
-            name='ds_bold_native_ref', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_bold_mask_native = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, desc='brain', suffix='mask',
-                                compress=True, dismiss_entities=("echo",)),
-            name='ds_bold_mask_native', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+                base_directory=output_dir,
+                desc='preproc',
+                compress=True,
+                SkullStripped=masked,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            name='ds_bold_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt: off
         workflow.connect([
             (inputnode, ds_bold_native, [('source_file', 'source_file'),
                                          ('bold_native', 'in_file')]),
-            (inputnode, ds_bold_native_ref, [('source_file', 'source_file'),
-                                             ('bold_native_ref', 'in_file')]),
+        ])
+        # fmt:on
+
+    # Save masks and boldref if we're going to save either orig BOLD series or echos
+    if bold_output or multiecho and config.execution.me_output_echos:
+        ds_bold_mask_native = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='brain',
+                suffix='mask',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_mask_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
+        workflow.connect([
             (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
                                               ('bold_mask_native', 'in_file')]),
             (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
         ])
+        # fmt:on
 
         if multiecho:
             ds_t2star_bold = pe.Node(
-                DerivativesDataSink(base_directory=output_dir, space='boldref',
-                                    suffix='T2starmap', compress=True, dismiss_entities=("echo",),
-                                    **t2star_meta),
-                name='ds_t2star_bold', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    space='boldref',
+                    suffix='T2starmap',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                    **t2star_meta,
+                ),
+                name='ds_t2star_bold',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            # fmt:off
             workflow.connect([
                 (inputnode, ds_t2star_bold, [('source_file', 'source_file'),
                                              ('t2star_bold', 'in_file')]),
                 (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
             ])
+            # fmt:on
 
     if multiecho and config.execution.me_output_echos:
         ds_bold_echos_native = pe.MapNode(
             DerivativesDataSink(
-                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=False,
-                TaskName=metadata.get('TaskName'), **timing_parameters),
+                base_directory=output_dir,
+                desc='preproc',
+                compress=True,
+                SkullStripped=False,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
             iterfield=['source_file', 'in_file', 'meta_dict'],
-            name='ds_bold_echos_native', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+            name='ds_bold_echos_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_bold_echos_native.inputs.meta_dict = [
             {"EchoTime": md["EchoTime"]} for md in all_metadata
         ]
-
+        # fmt:off
         workflow.connect([
             (inputnode, ds_bold_echos_native, [
                 ('all_source_files', 'source_file'),
                 ('bold_echos_native', 'in_file')]),
         ])
+        # fmt:on
 
     # Resample to T1w space
     if nonstd_spaces.intersection(('T1w', 'anat')):
         ds_bold_t1 = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, space='T1w', desc='preproc', compress=True,
-                SkullStripped=masked, TaskName=metadata.get('TaskName'), **timing_parameters),
-            name='ds_bold_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+                base_directory=output_dir,
+                space='T1w',
+                desc='preproc',
+                compress=True,
+                SkullStripped=masked,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            name='ds_bold_t1',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_bold_t1_ref = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space='T1w', suffix='boldref',
-                                compress=True, dismiss_entities=("echo",)),
-            name='ds_bold_t1_ref', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+            DerivativesDataSink(
+                base_directory=output_dir,
+                space='T1w',
+                suffix='boldref',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_t1_ref',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_bold_mask_t1 = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, space='T1w', desc='brain',
-                                suffix='mask', compress=True, dismiss_entities=("echo",)),
-            name='ds_bold_mask_t1', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+            DerivativesDataSink(
+                base_directory=output_dir,
+                space='T1w',
+                desc='brain',
+                suffix='mask',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_mask_t1',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, ds_bold_t1, [('source_file', 'source_file'),
                                      ('bold_t1', 'in_file')]),
@@ -309,54 +458,98 @@ def init_func_derivatives_wf(
                                           ('bold_mask_t1', 'in_file')]),
             (raw_sources, ds_bold_mask_t1, [('out', 'RawSources')]),
         ])
+        # fmt:on
         if freesurfer:
-            ds_bold_aseg_t1 = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, space='T1w', desc='aseg', suffix='dseg',
-                compress=True, dismiss_entities=("echo",)),
-                name='ds_bold_aseg_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            ds_bold_aparc_t1 = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, space='T1w', desc='aparcaseg', suffix='dseg',
-                compress=True, dismiss_entities=("echo",)),
-                name='ds_bold_aparc_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            ds_bold_aseg_t1 = pe.Node(
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    space='T1w',
+                    desc='aseg',
+                    suffix='dseg',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                ),
+                name='ds_bold_aseg_t1',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            ds_bold_aparc_t1 = pe.Node(
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    space='T1w',
+                    desc='aparcaseg',
+                    suffix='dseg',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                ),
+                name='ds_bold_aparc_t1',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            # fmt:off
             workflow.connect([
                 (inputnode, ds_bold_aseg_t1, [('source_file', 'source_file'),
                                               ('bold_aseg_t1', 'in_file')]),
                 (inputnode, ds_bold_aparc_t1, [('source_file', 'source_file'),
                                                ('bold_aparc_t1', 'in_file')]),
             ])
+            # fmt:on
         if multiecho:
             ds_t2star_t1 = pe.Node(
-                DerivativesDataSink(base_directory=output_dir, space='T1w',
-                                    suffix='T2starmap', compress=True, dismiss_entities=("echo",),
-                                    **t2star_meta),
-                name='ds_t2star_t1', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    space='T1w',
+                    suffix='T2starmap',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                    **t2star_meta,
+                ),
+                name='ds_t2star_t1',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            # fmt:off
             workflow.connect([
                 (inputnode, ds_t2star_t1, [('source_file', 'source_file'),
                                            ('t2star_t1', 'in_file')]),
                 (raw_sources, ds_t2star_t1, [('out', 'RawSources')]),
             ])
+            # fmt:on
 
     if use_aroma:
-        ds_aroma_noise_ics = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix='AROMAnoiseICs', dismiss_entities=("echo",)),
-            name="ds_aroma_noise_ics", run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-        ds_melodic_mix = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, desc='MELODIC', suffix='mixing',
-            dismiss_entities=("echo",)),
-            name="ds_melodic_mix", run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+        ds_aroma_noise_ics = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir, suffix='AROMAnoiseICs', dismiss_entities=("echo",)
+            ),
+            name="ds_aroma_noise_ics",
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        ds_melodic_mix = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='MELODIC',
+                suffix='mixing',
+                dismiss_entities=("echo",),
+            ),
+            name="ds_melodic_mix",
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_aroma_std = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, space='MNI152NLin6Asym', desc='smoothAROMAnonaggr',
-                compress=True, TaskName=metadata.get('TaskName'), **timing_parameters),
-            name='ds_aroma_std', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+                base_directory=output_dir,
+                space='MNI152NLin6Asym',
+                desc='smoothAROMAnonaggr',
+                compress=True,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            name='ds_aroma_std',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, ds_aroma_noise_ics, [('source_file', 'source_file'),
                                              ('aroma_noise_ics', 'in_file')]),
@@ -365,6 +558,7 @@ def init_func_derivatives_wf(
             (inputnode, ds_aroma_std, [('source_file', 'source_file'),
                                        ('nonaggr_denoised_file', 'in_file')]),
         ])
+        # fmt:on
 
     if getattr(spaces, '_cached') is None:
         return workflow
@@ -373,33 +567,59 @@ def init_func_derivatives_wf(
     if spaces.cached.references:
         from niworkflows.interfaces.space import SpaceDataSource
 
-        spacesource = pe.Node(SpaceDataSource(),
-                              name='spacesource', run_without_submitting=True)
-        spacesource.iterables = ('in_tuple', [
-            (s.fullname, s.spec) for s in spaces.cached.get_standard(dim=(3,))
-        ])
+        spacesource = pe.Node(SpaceDataSource(), name='spacesource', run_without_submitting=True)
+        spacesource.iterables = (
+            'in_tuple',
+            [(s.fullname, s.spec) for s in spaces.cached.get_standard(dim=(3,))],
+        )
 
         fields = ['template', 'bold_std', 'bold_std_ref', 'bold_mask_std']
         if multiecho:
             fields.append('t2star_std')
-        select_std = pe.Node(KeySelect(fields=fields),
-                             name='select_std', run_without_submitting=True,
-                             mem_gb=DEFAULT_MEMORY_MIN_GB)
+        select_std = pe.Node(
+            KeySelect(fields=fields),
+            name='select_std',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
 
         ds_bold_std = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc='preproc', compress=True, SkullStripped=masked,
-                TaskName=metadata.get('TaskName'), **timing_parameters),
-            name='ds_bold_std', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+                base_directory=output_dir,
+                desc='preproc',
+                compress=True,
+                SkullStripped=masked,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            name='ds_bold_std',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_bold_std_ref = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, suffix='boldref', compress=True,
-                                dismiss_entities=("echo",)),
-            name='ds_bold_std_ref', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+            DerivativesDataSink(
+                base_directory=output_dir,
+                suffix='boldref',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_std_ref',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         ds_bold_mask_std = pe.Node(
-            DerivativesDataSink(base_directory=output_dir, desc='brain', suffix='mask',
-                                compress=True, dismiss_entities=("echo",)),
-            name='ds_bold_mask_std', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='brain',
+                suffix='mask',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_mask_std',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, ds_bold_std, [('source_file', 'source_file')]),
             (inputnode, ds_bold_std_ref, [('source_file', 'source_file')]),
@@ -428,21 +648,39 @@ def init_func_derivatives_wf(
                                              ('density', 'density')]),
             (raw_sources, ds_bold_mask_std, [('out', 'RawSources')]),
         ])
-
+        # fmt:on
         if freesurfer:
-            select_fs_std = pe.Node(KeySelect(
-                fields=['bold_aseg_std', 'bold_aparc_std', 'template']),
-                name='select_fs_std', run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-            ds_bold_aseg_std = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, desc='aseg', suffix='dseg', compress=True,
-                dismiss_entities=("echo",)),
-                name='ds_bold_aseg_std', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-            ds_bold_aparc_std = pe.Node(DerivativesDataSink(
-                base_directory=output_dir, desc='aparcaseg', suffix='dseg', compress=True,
-                dismiss_entities=("echo",)),
-                name='ds_bold_aparc_std', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
+            select_fs_std = pe.Node(
+                KeySelect(fields=['bold_aseg_std', 'bold_aparc_std', 'template']),
+                name='select_fs_std',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            ds_bold_aseg_std = pe.Node(
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    desc='aseg',
+                    suffix='dseg',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                ),
+                name='ds_bold_aseg_std',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            ds_bold_aparc_std = pe.Node(
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    desc='aparcaseg',
+                    suffix='dseg',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                ),
+                name='ds_bold_aparc_std',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            # fmt:off
             workflow.connect([
                 (spacesource, select_fs_std, [('uid', 'key')]),
                 (inputnode, select_fs_std, [('bold_aseg_std', 'bold_aseg_std'),
@@ -462,15 +700,21 @@ def init_func_derivatives_wf(
                 (inputnode, ds_bold_aseg_std, [('source_file', 'source_file')]),
                 (inputnode, ds_bold_aparc_std, [('source_file', 'source_file')])
             ])
-
+            # fmt:on
         if multiecho:
             ds_t2star_std = pe.Node(
-                DerivativesDataSink(base_directory=output_dir, suffix='T2starmap',
-                                    compress=True, dismiss_entities=("echo",),
-                                    **t2star_meta),
-                name='ds_t2star_std', run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    suffix='T2starmap',
+                    compress=True,
+                    dismiss_entities=("echo",),
+                    **t2star_meta,
+                ),
+                name='ds_t2star_std',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            # fmt:off
             workflow.connect([
                 (inputnode, ds_t2star_std, [('source_file', 'source_file')]),
                 (select_std, ds_t2star_std, [('t2star_std', 'in_file')]),
@@ -480,27 +724,41 @@ def init_func_derivatives_wf(
                                               ('density', 'density')]),
                 (raw_sources, ds_t2star_std, [('out', 'RawSources')]),
             ])
+            # fmt:on
 
     fs_outputs = spaces.cached.get_fs_spaces()
     if freesurfer and fs_outputs:
         from niworkflows.interfaces.surf import Path2BIDS
 
-        select_fs_surf = pe.Node(KeySelect(
-            fields=['surfaces', 'surf_kwargs']), name='select_fs_surf',
-            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
+        select_fs_surf = pe.Node(
+            KeySelect(fields=['surfaces', 'surf_kwargs']),
+            name='select_fs_surf',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
         select_fs_surf.iterables = [('key', fs_outputs)]
         select_fs_surf.inputs.surf_kwargs = [{'space': s} for s in fs_outputs]
 
-        name_surfs = pe.MapNode(Path2BIDS(pattern=r'(?P<hemi>[lr])h.\w+'),
-                                iterfield='in_file', name='name_surfs',
-                                run_without_submitting=True)
+        name_surfs = pe.MapNode(
+            Path2BIDS(pattern=r'(?P<hemi>[lr])h.\w+'),
+            iterfield='in_file',
+            name='name_surfs',
+            run_without_submitting=True,
+        )
 
-        ds_bold_surfs = pe.MapNode(DerivativesDataSink(
-            base_directory=output_dir, extension=".func.gii",
-            TaskName=metadata.get('TaskName'), **timing_parameters),
-            iterfield=['in_file', 'hemi'], name='ds_bold_surfs',
-            run_without_submitting=True, mem_gb=DEFAULT_MEMORY_MIN_GB)
-
+        ds_bold_surfs = pe.MapNode(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                extension=".func.gii",
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            iterfield=['in_file', 'hemi'],
+            name='ds_bold_surfs',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, select_fs_surf, [
                 ('surf_files', 'surfaces'),
@@ -511,14 +769,23 @@ def init_func_derivatives_wf(
                                              ('key', 'space')]),
             (name_surfs, ds_bold_surfs, [('hemi', 'hemi')]),
         ])
+        # fmt:on
 
     # CIFTI output
     if cifti_output:
-        ds_bold_cifti = pe.Node(DerivativesDataSink(
-            base_directory=output_dir, suffix='bold', compress=False,
-            TaskName=metadata.get('TaskName'), **timing_parameters),
-            name='ds_bold_cifti', run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB)
+        ds_bold_cifti = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                suffix='bold',
+                compress=False,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            name='ds_bold_cifti',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, ds_bold_cifti, [(('bold_cifti', _unlist), 'in_file'),
                                         ('source_file', 'source_file'),
@@ -526,23 +793,34 @@ def init_func_derivatives_wf(
                                         ('cifti_density', 'density'),
                                         (('cifti_metadata', _read_json), 'meta_dict')])
         ])
+        # fmt:on
 
     if "compcor" in config.execution.debug:
         ds_acompcor_masks = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc=[f"CompCor{_}" for _ in "CWA"],
-                suffix="mask", compress=True),
-            name="ds_acompcor_masks", run_without_submitting=True)
+                base_directory=output_dir,
+                desc=[f"CompCor{_}" for _ in "CWA"],
+                suffix="mask",
+                compress=True,
+            ),
+            name="ds_acompcor_masks",
+            run_without_submitting=True,
+        )
         ds_tcompcor_mask = pe.Node(
             DerivativesDataSink(
-                base_directory=output_dir, desc="CompCorT", suffix="mask", compress=True),
-            name="ds_tcompcor_mask", run_without_submitting=True)
+                base_directory=output_dir, desc="CompCorT", suffix="mask", compress=True
+            ),
+            name="ds_tcompcor_mask",
+            run_without_submitting=True,
+        )
+        # fmt:off
         workflow.connect([
             (inputnode, ds_acompcor_masks, [("acompcor_masks", "in_file"),
                                             ("source_file", "source_file")]),
             (inputnode, ds_tcompcor_mask, [("tcompcor_mask", "in_file"),
                                            ("source_file", "source_file")]),
         ])
+        # fmt:on
 
     return workflow
 
@@ -585,25 +863,31 @@ def init_bold_preproc_report_wf(mem_gb, reportlets_dir, name='bold_preproc_repor
     from nipype.algorithms.confounds import TSNR
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.reportlets.registration import SimpleBeforeAfterRPT
+
     from ...interfaces import DerivativesDataSink
 
     workflow = Workflow(name=name)
 
-    inputnode = pe.Node(niu.IdentityInterface(
-        fields=['in_pre', 'in_post', 'name_source']), name='inputnode')
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['in_pre', 'in_post', 'name_source']), name='inputnode'
+    )
 
     pre_tsnr = pe.Node(TSNR(), name='pre_tsnr', mem_gb=mem_gb * 4.5)
     pos_tsnr = pe.Node(TSNR(), name='pos_tsnr', mem_gb=mem_gb * 4.5)
 
-    bold_rpt = pe.Node(SimpleBeforeAfterRPT(), name='bold_rpt',
-                       mem_gb=0.1)
+    bold_rpt = pe.Node(SimpleBeforeAfterRPT(), name='bold_rpt', mem_gb=0.1)
     ds_report_bold = pe.Node(
-        DerivativesDataSink(base_directory=reportlets_dir, desc='preproc',
-                            datatype="figures", dismiss_entities=("echo",)),
-        name='ds_report_bold', mem_gb=DEFAULT_MEMORY_MIN_GB,
-        run_without_submitting=True
+        DerivativesDataSink(
+            base_directory=reportlets_dir,
+            desc='preproc',
+            datatype="figures",
+            dismiss_entities=("echo",),
+        ),
+        name='ds_report_bold',
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+        run_without_submitting=True,
     )
-
+    # fmt:off
     workflow.connect([
         (inputnode, ds_report_bold, [('name_source', 'source_file')]),
         (inputnode, pre_tsnr, [('in_pre', 'in_file')]),
@@ -612,6 +896,7 @@ def init_bold_preproc_report_wf(mem_gb, reportlets_dir, name='bold_preproc_repor
         (pos_tsnr, bold_rpt, [('stddev_file', 'after')]),
         (bold_rpt, ds_report_bold, [('out_report', 'in_file')]),
     ])
+    # fmt:on
 
     return workflow
 
@@ -623,12 +908,14 @@ def _unlist(in_file):
 
 
 def _get_surface(in_file):
-    from pathlib import Path
     from json import loads
+    from pathlib import Path
+
     return loads(Path(in_file).read_text())["surface"]
 
 
 def _read_json(in_file):
-    from pathlib import Path
     from json import loads
+    from pathlib import Path
+
     return loads(Path(in_file).read_text())

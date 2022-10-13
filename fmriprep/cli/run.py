@@ -27,13 +27,15 @@ from .. import config
 
 def main():
     """Entry point."""
+    import gc
+    import sys
+    from multiprocessing import Manager, Process
     from os import EX_SOFTWARE
     from pathlib import Path
-    import sys
-    import gc
-    from multiprocessing import Process, Manager
+
+    from ..utils.bids import write_bidsignore, write_derivative_description
     from .parser import parse_args
-    from ..utils.bids import write_derivative_description, write_bidsignore
+    from .workflow import build_workflow
 
     parse_args()
 
@@ -50,9 +52,16 @@ def main():
         tracker = OfflineEmissionsTracker(output_dir=CC_log_dir, country_iso_code=country_iso_code)
         tracker.start()
 
+    if "pdb" in config.execution.debug:
+        from fmriprep.utils.debug import setup_exceptionhook
+
+        setup_exceptionhook()
+        config.nipype.plugin = "Linear"
+
     sentry_sdk = None
-    if not config.execution.notrack:
+    if not config.execution.notrack and not config.execution.debug:
         import sentry_sdk
+
         from ..utils.sentry import sentry_setup
 
         sentry_setup()
@@ -67,16 +76,22 @@ def main():
     # CRITICAL Call build_workflow(config_file, retval) in a subprocess.
     # Because Python on Linux does not ever free virtual memory (VM), running the
     # workflow construction jailed within a process preempts excessive VM buildup.
-    with Manager() as mgr:
-        from .workflow import build_workflow
+    if "pdb" not in config.execution.debug:
+        with Manager() as mgr:
+            retval = mgr.dict()
+            p = Process(target=build_workflow, args=(str(config_file), retval))
+            p.start()
+            p.join()
+            retval = dict(retval.items())  # Convert to base dictionary
 
-        retval = mgr.dict()
-        p = Process(target=build_workflow, args=(str(config_file), retval))
-        p.start()
-        p.join()
+            if p.exitcode:
+                retval["return_code"] = p.exitcode
 
-        retcode = p.exitcode or retval.get("return_code", 0)
-        fmriprep_wf = retval.get("workflow", None)
+    else:
+        retval = build_workflow(str(config_file), {})
+
+    retcode = retval.get("return_code", 0)
+    fmriprep_wf = retval.get("workflow", None)
 
     # CRITICAL Load the config from the file. This is necessary because the ``build_workflow``
     # function executed constrained in a process may change the config (and thus the global
@@ -117,9 +132,7 @@ def main():
 
     config.loggers.workflow.log(
         15,
-        "\n".join(
-            ["fMRIPrep config:"] + ["\t\t%s" % s for s in config.dumps().splitlines()]
-        ),
+        "\n".join(["fMRIPrep config:"] + ["\t\t%s" % s for s in config.dumps().splitlines()]),
     )
     config.loggers.workflow.log(25, "fMRIPrep started!")
     errno = 1  # Default is error exit unless otherwise set
@@ -140,13 +153,13 @@ def main():
                 for crashfile in crashfolder.glob("crash*.*"):
                     process_crashfile(crashfile)
 
-            if "Workflow did not execute cleanly" not in str(e):
+            if sentry_sdk is not None and "Workflow did not execute cleanly" not in str(e):
                 sentry_sdk.capture_exception(e)
         config.loggers.workflow.critical("fMRIPrep failed: %s", e)
         raise
     else:
         config.loggers.workflow.log(25, "fMRIPrep finished successfully!")
-        if not config.execution.notrack:
+        if sentry_sdk is not None:
             success_message = "fMRIPrep finished without errors"
             sentry_sdk.add_breadcrumb(message=success_message, level="info")
             sentry_sdk.capture_message(success_message, level="info")
@@ -169,19 +182,14 @@ def main():
             )
 
         if config.workflow.run_reconall:
-            from templateflow import api
             from niworkflows.utils.misc import _copy_any
+            from templateflow import api
 
             dseg_tsv = str(api.get("fsaverage", suffix="dseg", extension=[".tsv"]))
-            _copy_any(
-                dseg_tsv, str(config.execution.fmriprep_dir / "desc-aseg_dseg.tsv")
-            )
-            _copy_any(
-                dseg_tsv, str(config.execution.fmriprep_dir / "desc-aparcaseg_dseg.tsv")
-            )
+            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / "desc-aseg_dseg.tsv"))
+            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / "desc-aparcaseg_dseg.tsv"))
         errno = 0
     finally:
-        from fmriprep.reports.core import generate_reports
         from pkg_resources import resource_filename as pkgrf
 
         # Code Carbon
@@ -191,6 +199,8 @@ def main():
             config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
             config.loggers.workflow.log(25, f"Carbon emissions: {emissions} kg")
 
+        from fmriprep.reports.core import generate_reports
+
         # Generate reports phase
         failed_reports = generate_reports(
             config.execution.participant_label,
@@ -199,12 +209,10 @@ def main():
             config=pkgrf("fmriprep", "data/reports-spec.yml"),
             packagename="fmriprep",
         )
-        write_derivative_description(
-            config.execution.bids_dir, config.execution.fmriprep_dir
-        )
+        write_derivative_description(config.execution.bids_dir, config.execution.fmriprep_dir)
         write_bidsignore(config.execution.fmriprep_dir)
 
-        if failed_reports and not config.execution.notrack:
+        if sentry_sdk is not None and failed_reports:
             sentry_sdk.capture_message(
                 "Report generation failed for %d subjects" % failed_reports,
                 level="error",

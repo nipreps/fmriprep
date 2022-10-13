@@ -12,31 +12,3 @@ fmriprep.egg-info/**/*
 fmriprep.egg-info
 .eggs/**/*
 .eggs
-
-# housekeeping tools
-get_version.py
-update_changes.sh
-tox.ini
-
-# pip installs
-src/**/*
-src/
-
-# git
-.gitignore
-.git/**/*
-.git
-
-# other
-work/**/*
-work
-out/**/*
-out/
-
-# CI, etc.
-.circleci
-.circleci/**/*
-.zenodo.json
-.travis.yml
-.readthedocs.yml
-CONTRIBUTING.md

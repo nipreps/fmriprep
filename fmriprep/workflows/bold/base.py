@@ -28,35 +28,31 @@ Orchestrating the BOLD-preprocessing workflow
 .. autofunction:: init_func_derivatives_wf
 
 """
-from ... import config
-
 import os
 
 import nibabel as nb
+from nipype.interfaces import utility as niu
 from nipype.interfaces.fsl import Split as FSLSplit
 from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu
+from niworkflows.utils.connections import listify, pop_file
 
-from niworkflows.utils.connections import pop_file, listify
-
-
-from ...utils.meepi import combine_meepi_source
-
+from ... import config
 from ...interfaces import DerivativesDataSink
 from ...interfaces.reports import FunctionalSummary
+from ...utils.meepi import combine_meepi_source
 
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
 from .hmc import init_bold_hmc_wf
+from .outputs import init_func_derivatives_wf
+from .registration import init_bold_reg_wf, init_bold_t1_trans_wf
+from .resampling import (
+    init_bold_preproc_trans_wf,
+    init_bold_std_trans_wf,
+    init_bold_surf_wf,
+)
 from .stc import init_bold_stc_wf
 from .t2s import init_bold_t2s_wf, init_t2s_reporting_wf
-from .registration import init_bold_t1_trans_wf, init_bold_reg_wf
-from .resampling import (
-    init_bold_surf_wf,
-    init_bold_std_trans_wf,
-    init_bold_preproc_trans_wf,
-)
-from .outputs import init_func_derivatives_wf
 
 
 def init_func_preproc_wf(bold_file, has_fieldmap=False):
@@ -125,6 +121,8 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         Affine transform from BOLD reference space to T1w space
     anat2bold_xfm
         Affine transform from T1w space to BOLD reference space
+    hmc_xforms
+        Affine transforms for each BOLD volume to the BOLD reference
     bold_mask_t1
         BOLD series mask in T1w space
     bold_aseg_t1
@@ -201,14 +199,13 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.func.util import init_bold_reference_wf
     from niworkflows.interfaces.nibabel import ApplyMask
-    from niworkflows.interfaces.utility import KeySelect, DictMerge
     from niworkflows.interfaces.reportlets.registration import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
+    from niworkflows.interfaces.utility import DictMerge, KeySelect
 
-    if nb.load(
-        bold_file[0] if isinstance(bold_file, (list, tuple)) else bold_file
-    ).shape[3:] <= (5 - config.execution.sloppy,):
+    nvols = nb.load(bold_file[0] if isinstance(bold_file, (list, tuple)) else bold_file).shape[3]
+    if nvols <= 5 - config.execution.sloppy:
         config.loggers.workflow.warning(
             f"Too short BOLD series (<= 5 timepoints). Skipping processing of <{bold_file}>."
         )
@@ -273,9 +270,14 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
     )
 
     # Find associated sbref, if possible
-    entities["suffix"] = "sbref"
-    entities["extension"] = [".nii", ".nii.gz"]  # Overwrite extensions
-    sbref_files = layout.get(return_type="file", **entities)
+    overrides = {
+        "suffix": "sbref",
+        "extension": [".nii", ".nii.gz"],
+    }
+    if config.execution.bids_filters:
+        overrides.update(config.execution.bids_filters.get('sbref', {}))
+    sb_ents = {**entities, **overrides}
+    sbref_files = layout.get(return_type="file", **sb_ents)
 
     sbref_msg = f"No single-band-reference found for {os.path.basename(ref_file)}."
     if sbref_files and "sbref" in config.workflow.ignore:
@@ -292,17 +294,16 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         estimator_key = listify(metadata.get("B0FieldSource"))
 
         if not estimator_key:
-            from pathlib import Path
             import re
+            from pathlib import Path
+
             from sdcflows.fieldmaps import get_identifier
 
             # Fallback to IntendedFor
             intended_rel = re.sub(
                 r"^sub-[a-zA-Z0-9]*/",
                 "",
-                str(Path(
-                    bold_file if not multiecho else bold_file[0]
-                ).relative_to(layout.root))
+                str(Path(bold_file if not multiecho else bold_file[0]).relative_to(layout.root)),
             )
             estimator_key = get_identifier(intended_rel)
 
@@ -314,13 +315,11 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         else:
             config.loggers.workflow.info(
                 f"Found usable B0-map (fieldmap) estimator(s) <{', '.join(estimator_key)}> "
-                f"to correct <{bold_file}> for susceptibility-derived distortions.")
+                f"to correct <{bold_file}> for susceptibility-derived distortions."
+            )
 
     # Check whether STC must/can be run
-    run_stc = (
-        bool(metadata.get("SliceTiming"))
-        and "slicetiming" not in config.workflow.ignore
-    )
+    run_stc = bool(metadata.get("SliceTiming")) and "slicetiming" not in config.workflow.ignore
 
     # Build workflow
     workflow = Workflow(name=wf_name)
@@ -372,6 +371,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "bold_t1_ref",
                 "bold2anat_xfm",
                 "anat2bold_xfm",
+                "hmc_xforms",
                 "bold_mask_t1",
                 "bold_aseg_t1",
                 "bold_aparc_t1",
@@ -456,6 +456,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("bold_t1_ref", "inputnode.bold_t1_ref"),
             ("bold2anat_xfm", "inputnode.bold2anat_xfm"),
             ("anat2bold_xfm", "inputnode.anat2bold_xfm"),
+            ("hmc_xforms", "inputnode.hmc_xforms"),
             ("bold_aseg_t1", "inputnode.bold_aseg_t1"),
             ("bold_aparc_t1", "inputnode.bold_aparc_t1"),
             ("bold_mask_t1", "inputnode.bold_mask_t1"),
@@ -496,9 +497,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     select_bold = pe.Node(niu.Select(), name="select_bold")
 
     # Top-level BOLD splitter
-    bold_split = pe.Node(
-        FSLSplit(dimension="t"), name="bold_split", mem_gb=mem_gb["filesize"] * 3
-    )
+    bold_split = pe.Node(FSLSplit(dimension="t"), name="bold_split", mem_gb=mem_gb["filesize"] * 3)
 
     # HMC on the BOLD
     bold_hmc_wf = init_bold_hmc_wf(
@@ -600,7 +599,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     bold_final = pe.Node(
         niu.IdentityInterface(fields=["bold", "boldref", "mask", "bold_echos", "t2star"]),
-        name="bold_final"
+        name="bold_final",
     )
 
     # Generate a final BOLD reference
@@ -626,6 +625,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (initial_boldref_wf, bold_hmc_wf, [
             ("outputnode.raw_ref_image", "inputnode.raw_ref_image"),
             ("outputnode.bold_file", "inputnode.bold_file"),
+        ]),
+        (bold_hmc_wf, outputnode, [
+            ("outputnode.xforms", "hmc_xforms"),
         ]),
         # EPI-T1w registration workflow
         (inputnode, bold_reg_wf, [
@@ -1040,18 +1042,14 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     # REPORTING ############################################################
     ds_report_summary = pe.Node(
-        DerivativesDataSink(
-            desc="summary", datatype="figures", dismiss_entities=("echo",)
-        ),
+        DerivativesDataSink(desc="summary", datatype="figures", dismiss_entities=("echo",)),
         name="ds_report_summary",
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
 
     ds_report_validation = pe.Node(
-        DerivativesDataSink(
-            desc="validation", datatype="figures", dismiss_entities=("echo",)
-        ),
+        DerivativesDataSink(desc="validation", datatype="figures", dismiss_entities=("echo",)),
         name="ds_report_validation",
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
@@ -1114,12 +1112,13 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         return workflow
 
     from niworkflows.interfaces.utility import KeySelect
-    from sdcflows.workflows.apply.registration import init_coeff2epi_wf
     from sdcflows.workflows.apply.correction import init_unwarp_wf
+    from sdcflows.workflows.apply.registration import init_coeff2epi_wf
 
     coeff2epi_wf = init_coeff2epi_wf(
         debug="fieldmaps" in config.execution.debug,
         omp_nthreads=config.nipype.omp_nthreads,
+        sloppy=config.execution.sloppy,
         write_coeff=True,
     )
     unwarp_wf = init_unwarp_wf(
@@ -1195,6 +1194,72 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     ])
     # fmt:on
 
+    if "fieldmaps" in config.execution.debug:
+        # Generate additional reportlets to assess SDC
+        from sdcflows.interfaces.reportlets import FieldmapReportlet
+
+        # First, one for checking the co-registration between fieldmap and EPI
+        sdc_coreg_report = pe.Node(
+            SimpleBeforeAfter(
+                before_label="Distorted target",
+                after_label="Fieldmap ref.",
+            ),
+            name="sdc_coreg_report",
+            mem_gb=0.1,
+        )
+        ds_report_sdc_coreg = pe.Node(
+            DerivativesDataSink(
+                base_directory=fmriprep_dir,
+                datatype="figures",
+                desc="fmapCoreg",
+                dismiss_entities=("echo",),
+                suffix="bold",
+            ),
+            name="ds_report_sdc_coreg",
+            run_without_submitting=True,
+        )
+
+        # Second, showing the fieldmap reconstructed from coefficients in the EPI space
+        fmap_report = pe.Node(FieldmapReportlet(), "fmap_report")
+
+        ds_fmap_report = pe.Node(
+            DerivativesDataSink(
+                base_directory=fmriprep_dir,
+                datatype="figures",
+                desc="fieldmap",
+                dismiss_entities=("echo",),
+                suffix="bold",
+            ),
+            name="ds_fmap_report",
+            run_without_submitting=True,
+        )
+
+        # fmt:off
+        workflow.connect([
+            (initial_boldref_wf, sdc_coreg_report, [
+                ("outputnode.ref_image", "before"),
+            ]),
+            (coeff2epi_wf, sdc_coreg_report, [
+                ("coregister.inverse_warped_image", "after"),
+            ]),
+            (final_boldref_wf, sdc_coreg_report, [
+                ("outputnode.bold_mask", "wm_seg"),
+            ]),
+            (inputnode, ds_report_sdc_coreg, [("bold_file", "source_file")]),
+            (sdc_coreg_report, ds_report_sdc_coreg, [("out_report", "in_file")]),
+            (unwarp_wf, fmap_report, [(("outputnode.fieldmap", pop_file), "fieldmap")]),
+            (coeff2epi_wf, fmap_report, [
+                ("coregister.inverse_warped_image", "reference"),
+            ]),
+            (final_boldref_wf, fmap_report, [
+                ("outputnode.bold_mask", "mask"),
+            ]),
+
+            (fmap_report, ds_fmap_report, [("out_report", "in_file")]),
+            (inputnode, ds_fmap_report, [("bold_file", "source_file")]),
+        ])
+        # fmt:on
+
     if not multiecho:
         # fmt:off
         workflow.connect([
@@ -1266,7 +1331,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
 
 def _create_mem_gb(bold_fname):
-    bold_size_gb = os.path.getsize(bold_fname) / (1024 ** 3)
+    bold_size_gb = os.path.getsize(bold_fname) / (1024**3)
     bold_tlen = nb.load(bold_fname).shape[-1]
     mem_gb = {
         "filesize": bold_size_gb,
@@ -1320,18 +1385,16 @@ def extract_entities(file_list):
     {'subject': '01', 'suffix': 'T1w', 'datatype': 'anat', 'extension': '.nii.gz'}
     >>> extract_entities(["sub-01/anat/sub-01_run-1_T1w.nii.gz",
     ...                   "sub-01/anat/sub-01_run-2_T1w.nii.gz"])
-    {'subject': '01', 'run': [1, 2], 'suffix': 'T1w', 'datatype': 'anat',
-     'extension': '.nii.gz'}
+    {'subject': '01', 'run': [1, 2], 'suffix': 'T1w', 'datatype': 'anat', 'extension': '.nii.gz'}
 
     """
     from collections import defaultdict
+
     from bids.layout import parse_file_entities
 
     entities = defaultdict(list)
     for e, v in [
-        ev_pair
-        for f in listify(file_list)
-        for ev_pair in parse_file_entities(f).items()
+        ev_pair for f in listify(file_list) for ev_pair in parse_file_entities(f).items()
     ]:
         entities[e].append(v)
 

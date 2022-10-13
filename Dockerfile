@@ -22,6 +22,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+FROM python:slim AS src
+RUN pip install build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git
+COPY . /src/fmriprep
+RUN python -m build /src/fmriprep
+
 # Use Ubuntu 20.04 LTS
 FROM ubuntu:focal-20210416
 
@@ -283,12 +290,8 @@ RUN /opt/conda/bin/python fetch_templates.py && \
     find $HOME/.cache/templateflow -type f -exec chmod go=u {} +
 
 # Installing FMRIPREP
-COPY . /src/fmriprep
-ARG VERSION
-# Force static versioning within container
-RUN echo "${VERSION}" > /src/fmriprep/fmriprep/VERSION && \
-    echo "include fmriprep/VERSION" >> /src/fmriprep/MANIFEST.in && \
-    /opt/conda/bin/python -m pip install --no-cache-dir "/src/fmriprep[all]"
+COPY --from=src /src/fmriprep/dist/*.whl .
+RUN /opt/conda/bin/python -m pip install --no-cache-dir $( ls *.whl )[all]
 
 RUN find $HOME -type d -exec chmod go=u {} + && \
     find $HOME -type f -exec chmod go=u {} + && \

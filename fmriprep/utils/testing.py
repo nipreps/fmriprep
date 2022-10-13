@@ -26,33 +26,31 @@ Class and utilities for testing the workflows module
 
 """
 
-import unittest
 import logging
-from networkx.exception import NetworkXUnfeasible
+import unittest
 
-from nipype.pipeline import engine as pe
-from nipype.interfaces.base import isdefined
+from networkx.exception import NetworkXUnfeasible
 from nipype.interfaces import utility as niu
+from nipype.interfaces.base import isdefined
+from nipype.pipeline import engine as pe
 
 logging.disable(logging.INFO)  # <- do we really want to do this?
 
 
 class TestWorkflow(unittest.TestCase):
-    ''' Subclass for test within the workflow module.
+    '''Subclass for test within the workflow module.
     invoke tests with ``python -m unittest discover test'''
 
-    def assertIsAlmostExpectedWorkflow(self, expected_name, expected_interfaces,
-                                       expected_inputs, expected_outputs,
-                                       actual):
-        ''' somewhat hacky way to confirm workflows are as expected, but with low confidence '''
+    def assertIsAlmostExpectedWorkflow(
+        self, expected_name, expected_interfaces, expected_inputs, expected_outputs, actual
+    ):
+        '''somewhat hacky way to confirm workflows are as expected, but with low confidence'''
         self.assertIsInstance(actual, pe.Workflow)
         self.assertEqual(expected_name, actual.name)
 
         # assert it has the same nodes
-        actual_nodes = [actual.get_node(name)
-                        for name in actual.list_node_names()]
-        actual_interfaces = [node.interface.__class__.__name__
-                             for node in actual_nodes]
+        actual_nodes = [actual.get_node(name) for name in actual.list_node_names()]
+        actual_interfaces = [node.interface.__class__.__name__ for node in actual_nodes]
 
         # assert lists equal
         self.assertIsSubsetOfList(expected_interfaces, actual_interfaces)
@@ -74,8 +72,7 @@ class TestWorkflow(unittest.TestCase):
 
         actual_inputs = []
         actual_outputs = []
-        node_tuples = [(node.name, node.inputs.items(), node.outputs.items())
-                       for node in nodes]
+        node_tuples = [(node.name, node.inputs.items(), node.outputs.items()) for node in nodes]
         for name, inputs, outputs in node_tuples:
             pre = str(name) + "."
             actual_inputs += get_io_names(pre, inputs)
@@ -86,7 +83,7 @@ class TestWorkflow(unittest.TestCase):
         return actual_inputs, actual_outputs
 
     def assert_circular(self, workflow, circular_connections):
-        ''' check key paths in workflow by specifying some connections that should induce
+        '''check key paths in workflow by specifying some connections that should induce
         circular paths, which trips a NetworkX error.
         circular_connections is a list of tuples:
             [('from_node_name', 'to_node_name', ('from_node.output_field','to_node.input_field'))]

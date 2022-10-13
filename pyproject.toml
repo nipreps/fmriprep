@@ -1,9 +1,22 @@
 [build-system]
 # Keep synchronized with the minimum version to install in setup.py
-requires = ["setuptools >= 40.8.0", "wheel"]
+requires = ["setuptools >= 40.8.0", "wheel", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "fmriprep/_version.py"
+versionfile_build = "fmriprep/_version.py"
+tag_prefix = ""
+parentdir_prefix = ""
 
 [tool.black]
 line-length = 99
-target-version = ['py37']
+target-version = ['py39']
 skip-string-normalization = true
 extend-exclude = '_version.py|versioneer.py'
+
+[tool.isort]
+profile = 'black'
+extend_skip = '_version.py'

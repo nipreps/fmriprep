@@ -66,7 +66,7 @@ sections:
       (for instance, T1w or T2w), it is possible to estimate the inhomogeneity of the field by means of nonlinear
       registration. The plot below shows a reference EPI (echo-planar imaging) volume generated
       using two or more EPI images with the same PE encoding, after alignment to the anatomical scan.
-    description: Hover on the panels with the mouse pointer to also visualize the intensity of the
+    description: Hover on the panels with the mouse pointer to also visualize the intensity of the 
       inhomogeneity of the field in Hertz.
     static: false
     subtitle: "Preprocessed estimation by nonlinear registration to an anatomical scan (&ldquo;<em>fieldmap-less</em>&rdquo;)"
@@ -76,17 +76,26 @@ sections:
   reportlets:
   - bids: {datatype: figures, desc: summary, suffix: bold}
   - bids: {datatype: figures, desc: validation, suffix: bold}
-  - bids: {datatype: figures, desc: fieldmap, suffix: bold}
+  - bids: {datatype: figures, desc: fmapCoreg, suffix: bold}
     caption: The estimated fieldmap was aligned to the corresponding EPI reference
-      with a rigid-registration process of the magnitude part of the fieldmap,
+      with a rigid-registration process of the anatomical reference of the fieldmap,
       using <code>antsRegistration</code>.
-      Overlaid on top of the co-registration results, the displacements along the
-      phase-encoding direction are represented in arbitrary units.
-      Please note that the color scale is centered around zero (i.e. full transparency),
-      but the extremes might be different (i.e., the maximum of red colors could be
-      orders of magnitude above or below the minimum of blue colors.)
+      Overlaid on top of the co-registration results, the final BOLD mask is represented
+      with a red contour for reference.
     static: false
-    subtitle: Estimated fieldmap and alignment to the corresponding EPI reference
+    subtitle: Alignment between the anatomical reference of the fieldmap and the target EPI (debug mode)
+  - bids: {datatype: figures, desc: fieldmap, suffix: bold}
+    caption: Estimated fieldmap, as reconstructed on the target BOLD run space to allow
+      the assessment of its alignement with the distorted data.
+      The anatomical reference is the fieldmap's reference moved into the target EPI's grid through
+      the estimated transformation.
+      In other words, this plot should be equivalent to that of the 
+      <em>Preprocessed estimation with varying Phase-Encoding (PE) blips</em> shown above in the
+      fieldmap section.
+      Therefore, the fieldmap should be positioned relative to the anatomical reference exactly
+      as it is positioned in the reportlet above.
+    static: false
+    subtitle: "Reconstructed <em>B<sub>0</sub></em> map in the corresponding run's space (debug mode)"
   - bids: {datatype: figures, desc: sdc, suffix: bold}
     caption: Results of performing susceptibility distortion correction (SDC) on the
       EPI

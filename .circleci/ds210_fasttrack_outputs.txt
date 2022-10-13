@@ -14,6 +14,9 @@ fmriprep/sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-magnitude_fieldmap.nii.
 fmriprep/sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-preproc_fieldmap.json
 fmriprep/sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
 fmriprep/sub-02/func
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_boldref.nii.gz
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_desc-brain_mask.json
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_desc-brain_mask.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_desc-confounds_timeseries.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_desc-confounds_timeseries.tsv
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-1_desc-preproc_bold.json
@@ -22,8 +25,11 @@ fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-2_desc-preproc_bold.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-2_desc-preproc_bold.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-3_desc-preproc_bold.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_echo-3_desc-preproc_bold.nii.gz
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_from-scanner_to-boldref_mode-image_xfm.txt
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_from-scanner_to-T1w_mode-image_xfm.txt
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_from-T1w_to-scanner_mode-image_xfm.txt
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-boldref_T2starmap.json
+fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-boldref_T2starmap.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_boldref.nii.gz
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_desc-brain_mask.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_desc-brain_mask.nii.gz

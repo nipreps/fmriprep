@@ -91,9 +91,7 @@ import os
 from multiprocessing import set_start_method
 
 # Disable NiPype etelemetry always
-_disable_et = bool(
-    os.getenv("NO_ET") is not None or os.getenv("NIPYPE_NO_ET") is not None
-)
+_disable_et = bool(os.getenv("NO_ET") is not None or os.getenv("NIPYPE_NO_ET") is not None)
 os.environ["NIPYPE_NO_ET"] = "1"
 os.environ["NO_ET"] = "1"
 
@@ -106,14 +104,15 @@ except RuntimeError:
 finally:
     # Defer all custom import for after initializing the forkserver and
     # ignoring the most annoying warnings
-    import sys
     import random
-    from uuid import uuid4
-    from time import strftime
-
+    import sys
     from pathlib import Path
+    from time import strftime
+    from uuid import uuid4
+
     from nipype import __version__ as _nipype_ver
     from templateflow import __version__ as _tf_ver
+
     from . import __version__
 
 if not hasattr(sys, "_is_pytest_session"):
@@ -146,7 +145,9 @@ DEFAULT_MEMORY_MIN_GB = 0.01
 if not _disable_et:
     # Just get so analytics track one hit
     from contextlib import suppress
-    from requests import get as _get_url, ConnectionError, ReadTimeout
+
+    from requests import ConnectionError, ReadTimeout
+    from requests import get as _get_url
 
     with suppress((ConnectionError, ReadTimeout)):
         _get_url("https://rig.mit.edu/et/projects/nipy/nipype", timeout=0.05)
@@ -171,15 +172,13 @@ if not _fs_license and os.getenv("FREESURFER_HOME"):
     del _fs_home
 
 _templateflow_home = Path(
-    os.getenv(
-        "TEMPLATEFLOW_HOME", os.path.join(os.getenv("HOME"), ".cache", "templateflow")
-    )
+    os.getenv("TEMPLATEFLOW_HOME", os.path.join(os.getenv("HOME"), ".cache", "templateflow"))
 )
 
 try:
     from psutil import virtual_memory
 
-    _free_mem_at_start = round(virtual_memory().free / 1024 ** 3, 1)
+    _free_mem_at_start = round(virtual_memory().free / 1024**3, 1)
 except Exception:
     _free_mem_at_start = None
 
@@ -196,20 +195,15 @@ try:
             _proc_oc_kbytes = Path("/proc/sys/vm/overcommit_kbytes")
             if _proc_oc_kbytes.exists():
                 _oc_limit = _proc_oc_kbytes.read_text().strip()
-            if (
-                _oc_limit in ("0", "n/a")
-                and Path("/proc/sys/vm/overcommit_ratio").exists()
-            ):
-                _oc_limit = "{}%".format(
-                    Path("/proc/sys/vm/overcommit_ratio").read_text().strip()
-                )
+            if _oc_limit in ("0", "n/a") and Path("/proc/sys/vm/overcommit_ratio").exists():
+                _oc_limit = "{}%".format(Path("/proc/sys/vm/overcommit_ratio").read_text().strip())
 except Exception:
     pass
 
 
 # Debug modes are names that influence the exposure of internal details to
 # the user, either through additional derivatives or increased verbosity
-DEBUG_MODES = ("compcor", "fieldmaps")
+DEBUG_MODES = ("compcor", "fieldmaps", "pdb")
 
 
 class _Config:
@@ -242,7 +236,7 @@ class _Config:
     @classmethod
     def get(cls):
         """Return defined settings."""
-        from niworkflows.utils.spaces import SpatialReferences, Reference
+        from niworkflows.utils.spaces import Reference, SpatialReferences
 
         out = {}
         for k, v in cls.__dict__.items():
@@ -364,9 +358,7 @@ class nipype(_Config):
         )
 
         if cls.omp_nthreads is None:
-            cls.omp_nthreads = min(
-                cls.nprocs - 1 if cls.nprocs > 1 else os.cpu_count(), 8
-            )
+            cls.omp_nthreads = min(cls.nprocs - 1 if cls.nprocs > 1 else os.cpu_count(), 8)
 
 
 class execution(_Config):
@@ -460,12 +452,11 @@ class execution(_Config):
 
         if cls._layout is None:
             import re
-            from bids.layout.index import BIDSLayoutIndexer
-            from bids.layout import BIDSLayout
 
-            _db_path = cls.bids_database_dir or (
-                cls.work_dir / cls.run_uuid / "bids_db"
-            )
+            from bids.layout import BIDSLayout
+            from bids.layout.index import BIDSLayoutIndexer
+
+            _db_path = cls.bids_database_dir or (cls.work_dir / cls.run_uuid / "bids_db")
             _db_path.mkdir(exist_ok=True, parents=True)
 
             # Recommended after PyBIDS 12.1
@@ -496,9 +487,7 @@ class execution(_Config):
             # unserialize pybids Query enum values
             for acq, filters in cls.bids_filters.items():
                 cls.bids_filters[acq] = {
-                    k: getattr(Query, v[7:-4])
-                    if not isinstance(v, Query) and "Query" in v
-                    else v
+                    k: getattr(Query, v[7:-4]) if not isinstance(v, Query) and "Query" in v else v
                     for k, v in filters.items()
                 }
 
@@ -659,6 +648,7 @@ def _set_ants_seed():
 def _set_numpy_seed():
     """NumPy's random seed is independant from Python's `random` module"""
     import numpy as np
+
     val = random.randint(1, 65536)
     np.random.seed(val)
     return val

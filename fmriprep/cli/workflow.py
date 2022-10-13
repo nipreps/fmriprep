@@ -35,10 +35,12 @@ a hard-limited memory-scope.
 def build_workflow(config_file, retval):
     """Create the Nipype Workflow that supports the whole execution graph."""
     from pathlib import Path
-    from pkg_resources import resource_filename as pkgrf
-    from niworkflows.utils.bids import collect_participants, check_pipeline_version
-    from niworkflows.utils.misc import check_valid_fs_license
+
     from niworkflows.reports import generate_reports
+    from niworkflows.utils.bids import check_pipeline_version, collect_participants
+    from niworkflows.utils.misc import check_valid_fs_license
+    from pkg_resources import resource_filename as pkgrf
+
     from .. import config
     from ..utils.misc import check_deps
     from ..workflows.base import init_fmriprep_wf
@@ -82,9 +84,7 @@ def build_workflow(config_file, retval):
 
     # Called with reports only
     if config.execution.reports_only:
-        build_log.log(
-            25, "Running --reports-only on participants %s", ", ".join(subject_list)
-        )
+        build_log.log(25, "Running --reports-only on participants %s", ", ".join(subject_list))
         retval["return_code"] = generate_reports(
             subject_list,
             fmriprep_dir,
@@ -104,14 +104,10 @@ def build_workflow(config_file, retval):
     ]
 
     if config.execution.anat_derivatives:
-        init_msg += [
-            f"Anatomical derivatives: {config.execution.anat_derivatives}."
-        ]
+        init_msg += [f"Anatomical derivatives: {config.execution.anat_derivatives}."]
 
     if config.execution.fs_subjects_dir:
-        init_msg += [
-            f"Pre-run FreeSurfer's SUBJECTS_DIR: {config.execution.fs_subjects_dir}."
-        ]
+        init_msg += [f"Pre-run FreeSurfer's SUBJECTS_DIR: {config.execution.fs_subjects_dir}."]
 
     build_log.log(25, f"\n{' ' * 11}* ".join(init_msg))
 
@@ -120,17 +116,22 @@ def build_workflow(config_file, retval):
     # Check for FS license after building the workflow
     if not check_valid_fs_license():
         from ..utils.misc import fips_enabled
+
         if fips_enabled():
-            build_log.critical("""\
+            build_log.critical(
+                """\
 ERROR: Federal Information Processing Standard (FIPS) mode is enabled on your system. \
 FreeSurfer (and thus fMRIPrep) cannot be used in FIPS mode. \
-Contact your system administrator for assistance.""")
+Contact your system administrator for assistance."""
+            )
         else:
-            build_log.critical("""\
+            build_log.critical(
+                """\
 ERROR: a valid license file is required for FreeSurfer to run. fMRIPrep looked for an existing \
 license file at several paths, in this order: 1) command line argument ``--fs-license-file``; \
 2) ``$FS_LICENSE`` environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. Get it \
-(for free) by registering at https://surfer.nmr.mgh.harvard.edu/registration.html""")
+(for free) by registering at https://surfer.nmr.mgh.harvard.edu/registration.html"""
+            )
         retval["return_code"] = 126  # 126 == Command invoked cannot execute.
         return retval
 
@@ -139,9 +140,7 @@ license file at several paths, in this order: 1) command line argument ``--fs-li
     if missing:
         build_log.critical(
             "Cannot run fMRIPrep. Missing dependencies:%s",
-            "\n\t* ".join(
-                [""] + [f"{cmd} (Interface: {iface})" for iface, cmd in missing]
-            ),
+            "\n\t* ".join([""] + [f"{cmd} (Interface: {iface})" for iface, cmd in missing]),
         )
         retval["return_code"] = 127  # 127 == command not found.
         return retval
@@ -180,7 +179,8 @@ def build_boilerplate(config_file, workflow):
 
     if not config.execution.md_only_boilerplate and citation_files["md"].exists():
         from pathlib import Path
-        from subprocess import check_call, CalledProcessError, TimeoutExpired
+        from subprocess import CalledProcessError, TimeoutExpired, check_call
+
         from pkg_resources import resource_filename as pkgrf
 
         bib_text = Path(pkgrf("fmriprep", "data/boilerplate.bib")).read_text()
@@ -202,15 +202,11 @@ def build_boilerplate(config_file, workflow):
             str(citation_files["html"]),
         ]
 
-        config.loggers.cli.info(
-            "Generating an HTML version of the citation boilerplate..."
-        )
+        config.loggers.cli.info("Generating an HTML version of the citation boilerplate...")
         try:
             check_call(cmd, timeout=10)
         except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            config.loggers.cli.warning(
-                "Could not generate CITATION.html file:\n%s", " ".join(cmd)
-            )
+            config.loggers.cli.warning("Could not generate CITATION.html file:\n%s", " ".join(cmd))
 
         # Generate LaTex file resolving citations
         cmd = [
@@ -223,12 +219,8 @@ def build_boilerplate(config_file, workflow):
             "-o",
             str(citation_files["tex"]),
         ]
-        config.loggers.cli.info(
-            "Generating a LaTeX version of the citation boilerplate..."
-        )
+        config.loggers.cli.info("Generating a LaTeX version of the citation boilerplate...")
         try:
             check_call(cmd, timeout=10)
         except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            config.loggers.cli.warning(
-                "Could not generate CITATION.tex file:\n%s", " ".join(cmd)
-            )
+            config.loggers.cli.warning("Could not generate CITATION.tex file:\n%s", " ".join(cmd))

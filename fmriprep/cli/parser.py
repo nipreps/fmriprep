@@ -22,6 +22,7 @@
 #
 """Parser."""
 import sys
+
 from .. import config
 
 
@@ -30,15 +31,14 @@ def _build_parser(**kwargs):
 
     ``kwargs`` are passed to ``argparse.ArgumentParser`` (mainly useful for debugging).
     """
+    from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
     from functools import partial
     from pathlib import Path
-    from argparse import (
-        ArgumentParser,
-        ArgumentDefaultsHelpFormatter,
-    )
+
+    from niworkflows.utils.spaces import OutputReferencesAction, Reference
     from packaging.version import Version
+
     from .version import check_latest, is_flagged
-    from niworkflows.utils.spaces import Reference, OutputReferencesAction
 
     def _path_exists(path, parser):
         """Ensure a given path exists."""
@@ -61,9 +61,9 @@ def _build_parser(**kwargs):
         return value
 
     def _to_gb(value):
-        scale = {"G": 1, "T": 10 ** 3, "M": 1e-3, "K": 1e-6, "B": 1e-9}
+        scale = {"G": 1, "T": 10**3, "M": 1e-3, "K": 1e-6, "B": 1e-9}
         digits = "".join([c for c in value if c.isdigit()])
-        units = value[len(digits):] or "M"
+        units = value[len(digits) :] or "M"
         return int(digits) * scale[units[0]]
 
     def _drop_sub(value):
@@ -71,15 +71,14 @@ def _build_parser(**kwargs):
 
     def _filter_pybids_none_any(dct):
         import bids
+
         return {
-            k: bids.layout.Query.NONE
-            if v is None
-            else (bids.layout.Query.ANY if v == "*" else v)
+            k: bids.layout.Query.NONE if v is None else (bids.layout.Query.ANY if v == "*" else v)
             for k, v in dct.items()
         }
 
     def _bids_filter(value, parser):
-        from json import loads, JSONDecodeError
+        from json import JSONDecodeError, loads
 
         if value:
             if Path(value).exists():
@@ -98,17 +97,16 @@ def _build_parser(**kwargs):
         try:
             value = float(value)
         except ValueError:
-            raise parser.error("Slice time reference must be number, 'start', or 'middle'. "
-                               f"Received {value}.")
+            raise parser.error(
+                "Slice time reference must be number, 'start', or 'middle'. " f"Received {value}."
+            )
         if not 0 <= value <= 1:
             raise parser.error(f"Slice time reference must be in range 0-1. Received {value}.")
         return value
 
     verstr = f"fMRIPrep v{config.environment.version}"
     currentv = Version(config.environment.version)
-    is_release = not any(
-        (currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease)
-    )
+    is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
 
     parser = ArgumentParser(
         description="fMRIPrep: fMRI PREProcessing workflows v{}".format(
@@ -206,7 +204,7 @@ def _build_parser(**kwargs):
         metavar="PATH",
         type=Path,
         help="Path to a PyBIDS database folder, for faster indexing (especially "
-             "useful for large datasets). Will be created if not present."
+        "useful for large datasets). Will be created if not present.",
     )
 
     g_perfm = parser.add_argument_group("Options to handle performance")
@@ -239,8 +237,7 @@ def _build_parser(**kwargs):
     g_perfm.add_argument(
         "--low-mem",
         action="store_true",
-        help="attempt to reduce memory usage (will increase disk usage "
-        "in working directory)",
+        help="attempt to reduce memory usage (will increase disk usage " "in working directory)",
     )
     g_perfm.add_argument(
         "--use-plugin",
@@ -250,9 +247,7 @@ def _build_parser(**kwargs):
         type=IsFile,
         help="nipype plugin configuration file",
     )
-    g_perfm.add_argument(
-        "--anat-only", action="store_true", help="run anatomical workflows only"
-    )
+    g_perfm.add_argument("--anat-only", action="store_true", help="run anatomical workflows only")
     g_perfm.add_argument(
         "--boilerplate_only",
         action="store_true",
@@ -321,7 +316,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=False,
         help="""\
 Output individual echo time series with slice, motion and susceptibility correction. \
-Useful for further Tedana processing post-fMRIPrep."""
+Useful for further Tedana processing post-fMRIPrep.""",
     )
 
     g_conf.add_argument(
@@ -370,9 +365,9 @@ Useful for further Tedana processing post-fMRIPrep."""
         default=None,
         type=SliceTimeRef,
         help="The time of the reference slice to correct BOLD values to, as a fraction "
-             "acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end "
-             "of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. "
-             "The default value is 0.5.",
+        "acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end "
+        "of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. "
+        "The default value is 0.5.",
     )
     g_conf.add_argument(
         "--dummy-scans",
@@ -438,8 +433,7 @@ Useful for further Tedana processing post-fMRIPrep."""
         action="store",
         default=1.5,
         type=float,
-        help="Threshold for flagging a frame as an outlier on the basis of standardised "
-        "DVARS",
+        help="Threshold for flagging a frame as an outlier on the basis of standardised " "DVARS",
     )
 
     #  ANTs options
@@ -499,7 +493,7 @@ Useful for further Tedana processing post-fMRIPrep."""
         const="error",
         default=False,
         help="EXPERIMENTAL: Use fieldmap-free distortion correction; "
-             "if unable, error (default) or warn based on optional argument.",
+        "if unable, error (default) or warn based on optional argument.",
     )
     g_syn.add_argument(
         "--force-syn",
@@ -562,7 +556,7 @@ Useful for further Tedana processing post-fMRIPrep."""
         help="Organization of outputs. bids (default) places fMRIPrep derivatives "
         "directly in the output directory, and defaults to placing FreeSurfer "
         "derivatives in <output-dir>/sourcedata/freesurfer. legacy creates "
-        "derivative datasets as subdirectories of outputs."
+        "derivative datasets as subdirectories of outputs.",
     )
     g_other.add_argument(
         "-w",
@@ -597,7 +591,8 @@ Useful for further Tedana processing post-fMRIPrep."""
         action="store",
         metavar="FILE",
         help="Use pre-generated configuration file. Values in file will be overridden "
-             "by command-line arguments.")
+        "by command-line arguments.",
+    )
     g_other.add_argument(
         "--write-graph",
         action="store_true",
@@ -608,8 +603,7 @@ Useful for further Tedana processing post-fMRIPrep."""
         "--stop-on-first-crash",
         action="store_true",
         default=False,
-        help="Force stopping on first crash, even if a work directory"
-        " was specified.",
+        help="Force stopping on first crash, even if a work directory" " was specified.",
     )
     g_other.add_argument(
         "--notrack",
@@ -679,6 +673,7 @@ discourage its usage."""
 def parse_args(args=None, namespace=None):
     """Parse args and run further checks on the command line."""
     import logging
+
     from niworkflows.utils.spaces import Reference, SpatialReferences
 
     parser = _build_parser()
@@ -694,6 +689,7 @@ def parse_args(args=None, namespace=None):
 
     if not config.execution.notrack:
         import pkgutil
+
         if pkgutil.find_loader("sentry_sdk") is None:
             config.execution.notrack = True
             config.loggers.cli.warning("Telemetry disabled because sentry_sdk is not installed.")
@@ -773,9 +769,7 @@ applied."""
 
         build_log.info(f"Clearing previous fMRIPrep working directory: {work_dir}")
         if not clean_directory(work_dir):
-            build_log.warning(
-                f"Could not clear all contents of working directory: {work_dir}"
-            )
+            build_log.warning(f"Could not clear all contents of working directory: {work_dir}")
 
     # Update the config with an empty dict to trigger initialization of all config
     # sections (we used `init=False` above).
@@ -807,9 +801,7 @@ applied."""
             "Making sure the input data is BIDS compliant (warnings can be ignored in most "
             "cases)."
         )
-        validate_input_dir(
-            config.environment.exec_env, opts.bids_dir, opts.participant_label
-        )
+        validate_input_dir(config.environment.exec_env, opts.bids_dir, opts.participant_label)
 
     # Setup directories
     config.execution.log_dir = config.execution.fmriprep_dir / "logs"

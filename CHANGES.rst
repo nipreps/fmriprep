@@ -1,3 +1,25 @@
+22.0.2 (September 27, 2022)
+===========================
+A patch release in the 22.0.x series.
+
+This release increases the minimum Nipype version to include better error messages on failures.
+Additionally, this includes a fix to allow SyN distortion correction in combination with the
+`--ignore fieldmaps` option.
+
+  * MAINT: Add `pre-commit`, dev installation for consistent styling (#2857)
+  * CI: Upgrade docker orb (#2858)
+
+22.0.1 (September 13, 2022)
+===========================
+Patch release in the 22.0.x series.
+
+This release includes relaxed tolerance in the case where fieldmap affines slightly differed,
+and a fix for running FreeSurfer 7 with an outdated fsaverage folder.
+
+  * ENH: Add check to ensure latest fsaverage folder is used (#2847)
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+  * FIX: Avoid crashing on empty ACompCor results (#2850)
+
 22.0.0 (July 28, 2022)
 ======================
 New feature release in the 22.0.x series.
@@ -34,9 +56,25 @@ any issues you find.
   * CI: Touch up CircleCI configuration (#2764)
   * CI: Update package builds to use python -m build (#2746)
 
+21.0.4 (September 29, 2022)
+===========================
+Bug-fix release in the 21.0.x series.
+
+  * FIX: Output brain mask and boldref in BOLD space if individual echos requested (#2852)
+  * FIX: Check for empty ACompCor results before trying to rename (#2851)
+  * CI: Fix non-fasttrack outputs for maint/21.0.x (#2866)
+
+21.0.3 (September 6, 2022)
+==========================
+Bug-fix release in the 21.0.x series.
+
+This release includes a fix for `--bids-filter-file` not respecting `sbref` filtering.
+
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+
 21.0.2 (April 21, 2022)
 =======================
-Bug-fix releaase in the 21.0.x series.
+Bug-fix release in the 21.0.x series.
 
 This release includes a few bug-fixes for susceptibility distortion correction (SDC) and multi-echo (ME).
 A few notable fixes include:

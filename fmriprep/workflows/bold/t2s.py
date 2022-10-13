@@ -27,21 +27,19 @@ Generate T2* map from multi-echo BOLD images
 .. autofunction:: init_bold_t2s_wf
 
 """
-from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
 
-from ...interfaces.multiecho import T2SMap
-from ...interfaces.maths import Label2Mask, Clip
-from ...interfaces.reports import LabeledHistogram
 from ... import config
-
+from ...interfaces.maths import Clip, Label2Mask
+from ...interfaces.multiecho import T2SMap
+from ...interfaces.reports import LabeledHistogram
 
 LOGGER = config.loggers.workflow
 
 
 # pylint: disable=R0914
-def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads,
-                     name='bold_t2s_wf'):
+def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
     r"""
     Combine multiple echos of :abbr:`ME-EPI (multi-echo echo-planar imaging)`.
 
@@ -101,13 +99,14 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
     LOGGER.log(25, 'Generating T2* map and optimally combined ME-EPI time series.')
 
     t2smap_node = pe.Node(T2SMap(echo_times=list(echo_times)), name='t2smap_node')
-
+    # fmt:off
     workflow.connect([
         (inputnode, t2smap_node, [('bold_file', 'in_files'),
                                   ('bold_mask', 'mask_file')]),
         (t2smap_node, outputnode, [('optimal_comb', 'bold'),
                                    ('t2star_map', 't2star_map')]),
     ])
+    # fmt:on
 
     return workflow
 
@@ -156,14 +155,13 @@ def init_t2s_reporting_wf(name='t2s_reporting_wf'):
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['t2star_file', 'boldref', 'label_file', 'label_bold_xform']
-        ),
-        name='inputnode')
+        niu.IdentityInterface(fields=['t2star_file', 'boldref', 'label_file', 'label_bold_xform']),
+        name='inputnode',
+    )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['t2star_hist', 't2s_comp_report']),
-        name='outputnode')
+        niu.IdentityInterface(fields=['t2star_hist', 't2s_comp_report']), name='outputnode'
+    )
 
     label_tfm = pe.Node(ApplyTransforms(interpolation="MultiLabel"), name="label_tfm")
 
@@ -171,8 +169,9 @@ def init_t2s_reporting_wf(name='t2s_reporting_wf'):
 
     clip_t2star = pe.Node(Clip(maximum=0.1), name="clip_t2star")
 
-    t2s_hist = pe.Node(LabeledHistogram(mapping={1: "Gray matter"}, xlabel='T2* (s)'),
-                       name='t2s_hist')
+    t2s_hist = pe.Node(
+        LabeledHistogram(mapping={1: "Gray matter"}, xlabel='T2* (s)'), name='t2s_hist'
+    )
 
     t2s_comparison = pe.Node(
         SimpleBeforeAfter(
@@ -183,7 +182,7 @@ def init_t2s_reporting_wf(name='t2s_reporting_wf'):
         name="t2s_comparison",
         mem_gb=0.1,
     )
-
+    # fmt:off
     workflow.connect([
         (inputnode, label_tfm, [('label_file', 'input_image'),
                                 ('t2star_file', 'reference_image'),
@@ -198,5 +197,5 @@ def init_t2s_reporting_wf(name='t2s_reporting_wf'):
         (t2s_hist, outputnode, [('out_report', 't2star_hist')]),
         (t2s_comparison, outputnode, [('out_report', 't2s_comp_report')]),
     ])
-
+    # fmt:on
     return workflow

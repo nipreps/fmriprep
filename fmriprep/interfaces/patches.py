@@ -29,8 +29,8 @@ Temporary patches
 from random import randint
 from time import sleep
 
-from numpy.linalg.linalg import LinAlgError
 from nipype.algorithms import confounds as nac
+from numpy.linalg.linalg import LinAlgError
 
 
 class RobustACompCor(nac.ACompCor):

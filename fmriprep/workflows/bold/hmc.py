@@ -28,8 +28,9 @@ Head-Motion Estimation and Correction (HMC) of BOLD images
 
 """
 
+from nipype.interfaces import fsl
+from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu, fsl
 
 from ...config import DEFAULT_MEMORY_MIN_GB
 
@@ -88,31 +89,34 @@ Head-motion parameters with respect to the BOLD reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
 `mcflirt` [FSL {fsl_ver}, @mcflirt].
-""".format(fsl_ver=fsl.Info().version() or '<ver>')
+""".format(
+        fsl_ver=fsl.Info().version() or '<ver>'
+    )
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']),
-        name='inputnode')
+        niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']), name='inputnode'
+    )
     outputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['xforms', 'movpar_file', 'rmsd_file']),
-        name='outputnode')
+        niu.IdentityInterface(fields=['xforms', 'movpar_file', 'rmsd_file']), name='outputnode'
+    )
 
     # Head motion correction (hmc)
     mcflirt = pe.Node(
         fsl.MCFLIRT(save_mats=True, save_plots=True, save_rms=True),
-        name='mcflirt', mem_gb=mem_gb * 3)
+        name='mcflirt',
+        mem_gb=mem_gb * 3,
+    )
 
-    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk',
-                      mem_gb=0.05, n_procs=omp_nthreads)
+    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
 
-    normalize_motion = pe.Node(NormalizeMotionParams(format='FSL'),
-                               name="normalize_motion",
-                               mem_gb=DEFAULT_MEMORY_MIN_GB)
+    normalize_motion = pe.Node(
+        NormalizeMotionParams(format='FSL'), name="normalize_motion", mem_gb=DEFAULT_MEMORY_MIN_GB
+    )
 
     def _pick_rel(rms_files):
         return rms_files[-1]
 
+    # fmt:off
     workflow.connect([
         (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
                               ('bold_file', 'in_file')]),
@@ -124,5 +128,6 @@ parameters) are estimated before any spatiotemporal filtering using
         (fsl2itk, outputnode, [('out_file', 'xforms')]),
         (normalize_motion, outputnode, [('out_file', 'movpar_file')]),
     ])
+    # fmt:on
 
     return workflow

@@ -23,8 +23,9 @@
 """Stripped out routines for Sentry."""
 import os
 import re
-from niworkflows.utils.misc import read_crashfile
+
 from nibabel.optpkg import optional_package
+from niworkflows.utils.misc import read_crashfile
 
 from .. import config
 
@@ -33,21 +34,14 @@ sentry_sdk = optional_package("sentry_sdk")[0]
 CHUNK_SIZE = 16384
 # Group common events with pre specified fingerprints
 KNOWN_ERRORS = {
-    'permission-denied': [
-        "PermissionError: [Errno 13] Permission denied"
-    ],
+    'permission-denied': ["PermissionError: [Errno 13] Permission denied"],
     'memory-error': [
         "MemoryError",
         "Cannot allocate memory",
         "Return code: 134",
     ],
-    'reconall-already-running': [
-        "ERROR: it appears that recon-all is already running"
-    ],
-    'no-disk-space': [
-        "[Errno 28] No space left on device",
-        "[Errno 122] Disk quota exceeded"
-    ],
+    'reconall-already-running': ["ERROR: it appears that recon-all is already running"],
+    'no-disk-space': ["[Errno 28] No space left on device", "[Errno 122] Disk quota exceeded"],
     'segfault': [
         "Segmentation Fault",
         "Segfault",
@@ -66,15 +60,21 @@ KNOWN_ERRORS = {
 def sentry_setup():
     """Set-up sentry."""
     release = config.environment.version or "dev"
-    environment = "dev" if (
-        os.getenv('FMRIPREP_DEV', '').lower in ('1', 'on', 'yes', 'y', 'true')
-        or ('+' in release)
-    ) else "prod"
+    environment = (
+        "dev"
+        if (
+            os.getenv('FMRIPREP_DEV', '').lower in ('1', 'on', 'yes', 'y', 'true')
+            or ('+' in release)
+        )
+        else "prod"
+    )
 
-    sentry_sdk.init("https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
-                    release=release,
-                    environment=environment,
-                    before_send=before_send)
+    sentry_sdk.init(
+        "https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
+        release=release,
+        environment=environment,
+        before_send=before_send,
+    )
     with sentry_sdk.configure_scope() as scope:
         for k, v in config.get(flat=True).items():
             scope.set_tag(k, v)
@@ -100,8 +100,7 @@ def process_crashfile(crashfile):
                 break
             exception_text_start += 1
 
-        exception_text = '\n'.join(
-            traceback.splitlines()[exception_text_start:])
+        exception_text = '\n'.join(traceback.splitlines()[exception_text_start:])
 
         # Extract inputs, if present
         inputs = crash_info.pop('inputs', None)
@@ -129,7 +128,7 @@ def process_crashfile(crashfile):
                 break
 
         message = issue_title + '\n\n'
-        message += exception_text[-(8192 - len(message)):]
+        message += exception_text[-(8192 - len(message)) :]
         if fingerprint:
             sentry_sdk.add_breadcrumb(message=fingerprint, level='fatal')
         else:
@@ -159,8 +158,12 @@ def before_send(event, hints):
             return None
 
     if 'breadcrumbs' in event and isinstance(event['breadcrumbs'], list):
-        fingerprints_to_propagate = ['no-disk-space', 'memory-error', 'permission-denied',
-                                     'keyboard-interrupt']
+        fingerprints_to_propagate = [
+            'no-disk-space',
+            'memory-error',
+            'permission-denied',
+            'keyboard-interrupt',
+        ]
         for bc in event['breadcrumbs']:
             msg = bc.get('message', 'empty-msg')
             if msg in fingerprints_to_propagate:
@@ -178,5 +181,4 @@ def _chunks(string, length=CHUNK_SIZE):
     ['som', 'e l', 'ong', 'er ', 'str', 'ing', '.']
 
     """
-    return (string[i:i + length]
-            for i in range(0, len(string), length))
+    return (string[i : i + length] for i in range(0, len(string), length))

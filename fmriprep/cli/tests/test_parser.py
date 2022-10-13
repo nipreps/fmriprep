@@ -21,15 +21,17 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Test parser."""
-from packaging.version import Version
-from pkg_resources import resource_filename as pkgrf
 from argparse import ArgumentError
 from contextlib import nullcontext
+
 import pytest
-from ..parser import _build_parser, parse_args
-from .. import version as _version
+from packaging.version import Version
+from pkg_resources import resource_filename as pkgrf
+
 from ... import config
 from ...tests.test_config import _reset_config
+from .. import version as _version
+from ..parser import _build_parser, parse_args
 
 MIN_ARGS = ["data/", "out/", "participant"]
 
@@ -123,9 +125,7 @@ https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""" % (
     assert (msg in captured) is expectation
 
 
-@pytest.mark.parametrize(
-    "flagged", [(True, None), (True, "random reason"), (False, None)]
-)
+@pytest.mark.parametrize("flagged", [(True, None), (True, "random reason"), (False, None)])
 def test_get_parser_blacklist(monkeypatch, capsys, flagged):
     """Make sure the blacklisting banner is shown."""
 
@@ -149,9 +149,16 @@ def test_parse_args(tmp_path):
     out_dir = tmp_path / "out"
     work_dir = tmp_path / "work"
 
-    parse_args(args=[bids_dir, str(out_dir), "participant",  # BIDS App
-                     "-w", str(work_dir),                    # Don't pollute CWD
-                     "--skip-bids-validation"])              # Empty files make BIDS sad
+    parse_args(
+        args=[
+            bids_dir,
+            str(out_dir),
+            "participant",  # BIDS App
+            "-w",
+            str(work_dir),  # Don't pollute CWD
+            "--skip-bids-validation",  # Empty files make BIDS sad
+        ]
+    )
     assert config.execution.layout.root == bids_dir
     _reset_config()
 
@@ -160,8 +167,7 @@ def test_bids_filter_file(tmp_path, capsys):
     bids_path = tmp_path / "data"
     out_path = tmp_path / "out"
     bff = tmp_path / "filter.json"
-    args = [str(bids_path), str(out_path), "participant",
-            "--bids-filter-file", str(bff)]
+    args = [str(bids_path), str(out_path), "participant", "--bids-filter-file", str(bff)]
     bids_path.mkdir()
 
     parser = _build_parser()
@@ -197,13 +203,16 @@ def test_slice_time_ref(tmp_path, st_ref):
     _reset_config()
 
 
-@pytest.mark.parametrize("args, expectation", (
-    ([], False),
-    (["--use-syn-sdc"], "error"),
-    (["--use-syn-sdc", "error"], "error"),
-    (["--use-syn-sdc", "warn"], "warn"),
-    (["--use-syn-sdc", "other"], (SystemExit, ArgumentError)),
-))
+@pytest.mark.parametrize(
+    "args, expectation",
+    (
+        ([], False),
+        (["--use-syn-sdc"], "error"),
+        (["--use-syn-sdc", "error"], "error"),
+        (["--use-syn-sdc", "warn"], "warn"),
+        (["--use-syn-sdc", "other"], (SystemExit, ArgumentError)),
+    ),
+)
 def test_use_syn_sdc(tmp_path, args, expectation):
     bids_path = tmp_path / "data"
     out_path = tmp_path / "out"

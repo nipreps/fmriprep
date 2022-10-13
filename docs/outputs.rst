@@ -260,6 +260,8 @@ Then the output will include::
 
   sub-01/
     func/
+      sub-01_task-rest_boldref.nii.gz
+      sub-01_task-rest_desc-brain_mask.nii.gz
       sub-01_task-rest_echo-1_desc-preproc_bold.nii.gz
       sub-01_task-rest_echo-2_desc-preproc_bold.nii.gz
       sub-01_task-rest_echo-3_desc-preproc_bold.nii.gz

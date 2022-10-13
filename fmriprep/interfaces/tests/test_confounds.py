@@ -1,11 +1,12 @@
-from nipype.pipeline import engine as pe
-from fmriprep.interfaces import confounds
 from pathlib import Path
+
+from nipype.pipeline import engine as pe
+
+from fmriprep.interfaces import confounds
 
 
 def test_RenameACompCor(tmp_path, data_dir):
-    renamer = pe.Node(confounds.RenameACompCor(), name="renamer",
-                      base_dir=str(tmp_path))
+    renamer = pe.Node(confounds.RenameACompCor(), name="renamer", base_dir=str(tmp_path))
     renamer.inputs.components_file = data_dir / "acompcor_truncated.tsv"
     renamer.inputs.metadata_file = data_dir / "component_metadata_truncated.tsv"
 

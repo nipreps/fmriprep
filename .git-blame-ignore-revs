@@ -1,3 +1,7 @@
+# 2022-09-22 - goncalves.mathias@gmail.com - STY: black/isort the docker wrapper
+9976458388f369cba4b7d81359acc40b52f6621c
+# 2022-09-22 - goncalves.mathias@gmail.com - STY: Apply black/isort to codebase
+7eedab8b29497cee1d8dd540c2266e740f484a86
 # 2021-11-05 - markiewicz@stanford.edu - STY: Update black config
 d2ad20301306f283d504ec7b5a1bd73ce58c2b11
 # 2021-09-22 - code@oscaresteban.es - sty: run black

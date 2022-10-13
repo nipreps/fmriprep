@@ -27,14 +27,14 @@ Slice-Timing Correction (STC) of BOLD images
 .. autofunction:: init_bold_stc_wf
 
 """
-import numpy as np
 import nibabel as nb
-from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu, afni
+import numpy as np
+from nipype.interfaces import afni
+from nipype.interfaces import utility as niu
 from nipype.interfaces.base import isdefined
+from nipype.pipeline import engine as pe
 
 from ... import config
-
 
 LOGGER = config.loggers.workflow
 
@@ -112,15 +112,18 @@ BOLD runs were slice-time corrected to {tzero:0.3g}s ({frac:g} of slice acquisit
 
     # It would be good to fingerprint memory use of afni.TShift
     slice_timing_correction = pe.Node(
-        TShift(outputtype='NIFTI_GZ',
-               tr=f"{metadata['RepetitionTime']}s",
-               slice_timing=metadata['SliceTiming'],
-               slice_encoding_direction=metadata.get('SliceEncodingDirection', 'k'),
-               tzero=tzero),
-        name='slice_timing_correction')
+        TShift(
+            outputtype='NIFTI_GZ',
+            tr=f"{metadata['RepetitionTime']}s",
+            slice_timing=metadata['SliceTiming'],
+            slice_encoding_direction=metadata.get('SliceEncodingDirection', 'k'),
+            tzero=tzero,
+        ),
+        name='slice_timing_correction',
+    )
 
     copy_xform = pe.Node(CopyXForm(), name='copy_xform', mem_gb=0.1)
-
+    # fmt:off
     workflow.connect([
         (inputnode, slice_timing_correction, [('bold_file', 'in_file'),
                                               ('skip_vols', 'ignore')]),
@@ -128,5 +131,6 @@ BOLD runs were slice-time corrected to {tzero:0.3g}s ({frac:g} of slice acquisit
         (inputnode, copy_xform, [('bold_file', 'hdr_file')]),
         (copy_xform, outputnode, [('out_file', 'stc_file')]),
     ])
+    # fmt:on
 
     return workflow

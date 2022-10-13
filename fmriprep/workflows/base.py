@@ -29,18 +29,17 @@ fMRIPrep base processing workflows
 
 """
 
-import sys
 import os
+import sys
 from copy import deepcopy
 
-from packaging.version import Version
-
-from nipype.pipeline import engine as pe
 from nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
+from packaging.version import Version
 
 from .. import config
 from ..interfaces import DerivativesDataSink
-from ..interfaces.reports import SubjectSummary, AboutSummary
+from ..interfaces.reports import AboutSummary, SubjectSummary
 from .bold import init_func_preproc_wf
 
 
@@ -79,9 +78,12 @@ def init_fmriprep_wf():
             BIDSFreeSurferDir(
                 derivatives=config.execution.output_dir,
                 freesurfer_home=os.getenv('FREESURFER_HOME'),
-                spaces=config.workflow.spaces.get_fs_spaces()),
+                spaces=config.workflow.spaces.get_fs_spaces(),
+                minimum_fs_version="7.0.0",
+            ),
             name='fsdir_run_%s' % config.execution.run_uuid.replace('-', '_'),
-            run_without_submitting=True)
+            run_without_submitting=True,
+        )
         if config.execution.fs_subjects_dir is not None:
             fsdir.inputs.subjects_dir = str(config.execution.fs_subjects_dir.absolute())
 
@@ -89,20 +91,19 @@ def init_fmriprep_wf():
         single_subject_wf = init_single_subject_wf(subject_id)
 
         single_subject_wf.config['execution']['crashdump_dir'] = str(
-            config.execution.fmriprep_dir / f"sub-{subject_id}"
-            / "log" / config.execution.run_uuid
+            config.execution.fmriprep_dir / f"sub-{subject_id}" / "log" / config.execution.run_uuid
         )
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
         if freesurfer:
-            fmriprep_wf.connect(fsdir, 'subjects_dir',
-                                single_subject_wf, 'inputnode.subjects_dir')
+            fmriprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
         else:
             fmriprep_wf.add_nodes([single_subject_wf])
 
         # Dump a copy of the config file into the log directory
-        log_dir = config.execution.fmriprep_dir / f"sub-{subject_id}" \
-            / 'log' / config.execution.run_uuid
+        log_dir = (
+            config.execution.fmriprep_dir / f"sub-{subject_id}" / 'log' / config.execution.run_uuid
+        )
         log_dir.mkdir(exist_ok=True, parents=True)
         config.to_filename(log_dir / 'fmriprep.toml')
 
@@ -142,7 +143,7 @@ def init_single_subject_wf(subject_id):
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.bids import BIDSInfo, BIDSDataGrabber
+    from niworkflows.interfaces.bids import BIDSDataGrabber, BIDSInfo
     from niworkflows.interfaces.nilearn import NILEARN_VERSION
     from niworkflows.utils.bids import collect_data
     from niworkflows.utils.misc import fix_multi_T1w_source_name
@@ -155,7 +156,8 @@ def init_single_subject_wf(subject_id):
         subject_id,
         task=config.execution.task_id,
         echo=config.execution.echo_idx,
-        bids_filters=config.execution.bids_filters)[0]
+        bids_filters=config.execution.bids_filters,
+    )[0]
 
     if 'flair' in config.workflow.ignore:
         subject_data['flair'] = []
@@ -171,11 +173,13 @@ def init_single_subject_wf(subject_id):
         raise RuntimeError(
             "No BOLD images found for participant {} and task {}. "
             "All workflows require BOLD images.".format(
-                subject_id, task_id if task_id else '<all>')
+                subject_id, task_id if task_id else '<all>'
+            )
         )
 
     if anat_derivatives:
         from smriprep.utils.bids import collect_derivatives
+
         std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
         anat_derivatives = collect_derivatives(
             anat_derivatives.absolute(),
@@ -184,15 +188,19 @@ def init_single_subject_wf(subject_id):
             config.workflow.run_reconall,
         )
         if anat_derivatives is None:
-            config.loggers.workflow.warning(f"""\
+            config.loggers.workflow.warning(
+                f"""\
 Attempted to access pre-existing anatomical derivatives at \
 <{config.execution.anat_derivatives}>, however not all expectations of fMRIPrep \
 were met (for participant <{subject_id}>, spaces <{', '.join(std_spaces)}>, \
-reconall <{config.workflow.run_reconall}>).""")
+reconall <{config.workflow.run_reconall}>)."""
+            )
 
     if not anat_derivatives and not subject_data['t1w']:
-        raise Exception("No T1w images found for participant {}. "
-                        "All workflows require T1w images.".format(subject_id))
+        raise Exception(
+            "No T1w images found for participant {}. "
+            "All workflows require T1w images.".format(subject_id)
+        )
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """
@@ -202,8 +210,9 @@ performed using *fMRIPrep* {fmriprep_ver}
 which is based on *Nipype* {nipype_ver}
 (@nipype1; @nipype2; RRID:SCR_002502).
 
-""".format(fmriprep_ver=config.environment.version,
-           nipype_ver=config.environment.nipype_version)
+""".format(
+        fmriprep_ver=config.environment.version, nipype_ver=config.environment.nipype_version
+    )
     workflow.__postdesc__ = """
 
 Many internal operations of *fMRIPrep* use
@@ -225,39 +234,64 @@ It is released under the [CC0]\
 
 ### References
 
-""".format(nilearn_ver=NILEARN_VERSION)
+""".format(
+        nilearn_ver=NILEARN_VERSION
+    )
 
     fmriprep_dir = str(config.execution.fmriprep_dir)
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']),
-                        name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
 
-    bidssrc = pe.Node(BIDSDataGrabber(subject_data=subject_data,
-                                      anat_only=anat_only,
-                                      anat_derivatives=anat_derivatives,
-                                      subject_id=subject_id),
-                      name='bidssrc')
+    bidssrc = pe.Node(
+        BIDSDataGrabber(
+            subject_data=subject_data,
+            anat_only=anat_only,
+            anat_derivatives=anat_derivatives,
+            subject_id=subject_id,
+        ),
+        name='bidssrc',
+    )
 
-    bids_info = pe.Node(BIDSInfo(
-        bids_dir=config.execution.bids_dir, bids_validate=False), name='bids_info')
+    bids_info = pe.Node(
+        BIDSInfo(bids_dir=config.execution.bids_dir, bids_validate=False), name='bids_info'
+    )
 
-    summary = pe.Node(SubjectSummary(std_spaces=spaces.get_spaces(nonstandard=False),
-                                     nstd_spaces=spaces.get_spaces(standard=False)),
-                      name='summary', run_without_submitting=True)
+    summary = pe.Node(
+        SubjectSummary(
+            std_spaces=spaces.get_spaces(nonstandard=False),
+            nstd_spaces=spaces.get_spaces(standard=False),
+        ),
+        name='summary',
+        run_without_submitting=True,
+    )
 
-    about = pe.Node(AboutSummary(version=config.environment.version,
-                                 command=' '.join(sys.argv)),
-                    name='about', run_without_submitting=True)
+    about = pe.Node(
+        AboutSummary(version=config.environment.version, command=' '.join(sys.argv)),
+        name='about',
+        run_without_submitting=True,
+    )
 
     ds_report_summary = pe.Node(
-        DerivativesDataSink(base_directory=fmriprep_dir, desc='summary', datatype="figures",
-                            dismiss_entities=("echo",)),
-        name='ds_report_summary', run_without_submitting=True)
+        DerivativesDataSink(
+            base_directory=fmriprep_dir,
+            desc='summary',
+            datatype="figures",
+            dismiss_entities=("echo",),
+        ),
+        name='ds_report_summary',
+        run_without_submitting=True,
+    )
 
     ds_report_about = pe.Node(
-        DerivativesDataSink(base_directory=fmriprep_dir, desc='about', datatype="figures",
-                            dismiss_entities=("echo",)),
-        name='ds_report_about', run_without_submitting=True)
+        DerivativesDataSink(
+            base_directory=fmriprep_dir,
+            desc='about',
+            datatype="figures",
+            dismiss_entities=("echo",),
+        ),
+        name='ds_report_about',
+        run_without_submitting=True,
+    )
 
     # Preprocessing of T1w (includes registration to MNI)
     anat_preproc_wf = init_anat_preproc_wf(
@@ -271,12 +305,11 @@ It is released under the [CC0]\
         output_dir=fmriprep_dir,
         skull_strip_fixed_seed=config.workflow.skull_strip_fixed_seed,
         skull_strip_mode=config.workflow.skull_strip_t1w,
-        skull_strip_template=Reference.from_string(
-            config.workflow.skull_strip_template)[0],
+        skull_strip_template=Reference.from_string(config.workflow.skull_strip_template)[0],
         spaces=spaces,
         t1w=subject_data['t1w'],
     )
-
+    # fmt:off
     workflow.connect([
         (inputnode, anat_preproc_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
@@ -306,6 +339,7 @@ It is released under the [CC0]\
             (anat_preproc_wf, ds_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
             (anat_preproc_wf, ds_report_about, [('outputnode.t1w_preproc', 'source_file')]),
         ])
+    # fmt:on
 
     # Overwrite ``out_path_base`` of smriprep's DataSinks
     for node in workflow.list_node_names():
@@ -316,11 +350,16 @@ It is released under the [CC0]\
         return workflow
 
     from sdcflows import fieldmaps as fm
+
     fmap_estimators = None
 
-    if any(("fieldmaps" not in config.workflow.ignore,
+    if any(
+        (
+            "fieldmaps" not in config.workflow.ignore,
             config.workflow.use_syn_sdc,
-            config.workflow.force_syn)):
+            config.workflow.force_syn,
+        )
+    ):
         from sdcflows.utils.wrangler import find_estimators
 
         # SDC Step 1: Run basic heuristics to identify available data for fieldmap estimation
@@ -333,24 +372,22 @@ It is released under the [CC0]\
         )
 
         if config.workflow.use_syn_sdc and not fmap_estimators:
-            message = ("Fieldmap-less (SyN) estimation was requested, but "
-                       "PhaseEncodingDirection information appears to be "
-                       "absent.")
+            message = (
+                "Fieldmap-less (SyN) estimation was requested, but PhaseEncodingDirection "
+                "information appears to be absent."
+            )
             config.loggers.workflow.error(message)
             if config.workflow.use_syn_sdc == "error":
                 raise ValueError(message)
 
-        if (
-            "fieldmaps" in config.workflow.ignore
-            and [f for f in fmap_estimators
-                 if f.method != fm.EstimatorType.ANAT]
+        if "fieldmaps" in config.workflow.ignore and any(
+            f.method == fm.EstimatorType.ANAT for f in fmap_estimators
         ):
             config.loggers.workflow.info(
                 'Option "--ignore fieldmaps" was set, but either "--use-syn-sdc" '
                 'or "--force-syn" were given, so fieldmap-less estimation will be executed.'
             )
-            fmap_estimators = [f for f in fmap_estimators
-                               if f.method == fm.EstimatorType.ANAT]
+            fmap_estimators = [f for f in fmap_estimators if f.method == fm.EstimatorType.ANAT]
 
         if fmap_estimators:
             config.loggers.workflow.info(
@@ -366,7 +403,9 @@ Functional data preprocessing
 
 : For each of the {num_bold} BOLD runs found per subject (across all
 tasks and sessions), the following preprocessing was performed.
-""".format(num_bold=len(subject_data['bold']))
+""".format(
+        num_bold=len(subject_data['bold'])
+    )
 
     func_preproc_wfs = []
     has_fieldmap = bool(fmap_estimators)
@@ -376,23 +415,25 @@ tasks and sessions), the following preprocessing was performed.
             continue
 
         func_preproc_wf.__desc__ = func_pre_desc + (func_preproc_wf.__desc__ or "")
+        # fmt:off
         workflow.connect([
-            (anat_preproc_wf, func_preproc_wf,
-             [('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
-              ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
-              ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
-              ('outputnode.t1w_aseg', 'inputnode.t1w_aseg'),
-              ('outputnode.t1w_aparc', 'inputnode.t1w_aparc'),
-              ('outputnode.t1w_tpms', 'inputnode.t1w_tpms'),
-              ('outputnode.template', 'inputnode.template'),
-              ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
-              ('outputnode.std2anat_xfm', 'inputnode.std2anat_xfm'),
-              # Undefined if --fs-no-reconall, but this is safe
-              ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
-              ('outputnode.subject_id', 'inputnode.subject_id'),
-              ('outputnode.t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm'),
-              ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
+            (anat_preproc_wf, func_preproc_wf, [
+                ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
+                ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
+                ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
+                ('outputnode.t1w_aseg', 'inputnode.t1w_aseg'),
+                ('outputnode.t1w_aparc', 'inputnode.t1w_aparc'),
+                ('outputnode.t1w_tpms', 'inputnode.t1w_tpms'),
+                ('outputnode.template', 'inputnode.template'),
+                ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
+                ('outputnode.std2anat_xfm', 'inputnode.std2anat_xfm'),
+                # Undefined if --fs-no-reconall, but this is safe
+                ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
+                ('outputnode.subject_id', 'inputnode.subject_id'),
+                ('outputnode.t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm'),
+                ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
         ])
+        # fmt:on
         func_preproc_wfs.append(func_preproc_wf)
 
     if not has_fieldmap:
@@ -415,7 +456,7 @@ Preprocessing of B<sub>0</sub> inhomogeneity mappings
 BIDS structure for this particular subject.
 """
     for func_preproc_wf in func_preproc_wfs:
-        # fmt: off
+        # fmt:off
         workflow.connect([
             (fmap_wf, func_preproc_wf, [
                 ("outputnode.fmap", "inputnode.fmap"),
@@ -426,7 +467,7 @@ BIDS structure for this particular subject.
                 ("outputnode.method", "inputnode.sdc_method"),
             ]),
         ])
-        # fmt: on
+        # fmt:on
 
     # Overwrite ``out_path_base`` of sdcflows's DataSinks
     for node in fmap_wf.list_node_names():
@@ -438,6 +479,7 @@ BIDS structure for this particular subject.
     # Select "MNI152NLin2009cAsym" from standard references.
     # This node may be used by multiple ANAT estimators, so define outside loop.
     from niworkflows.interfaces.utility import KeySelect
+
     fmap_select_std = pe.Node(
         KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
         name="fmap_select_std",
@@ -453,9 +495,11 @@ BIDS structure for this particular subject.
         # fmt:on
 
     for estimator in fmap_estimators:
-        config.loggers.workflow.info(f"""\
+        config.loggers.workflow.info(
+            f"""\
 Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
-<{', '.join(s.path.name for s in estimator.sources)}>""")
+<{', '.join(s.path.name for s in estimator.sources)}>"""
+        )
 
         # Mapped and phasediff can be connected internally by SDCFlows
         if estimator.method in (fm.EstimatorType.MAPPED, fm.EstimatorType.PHASEDIFF):
@@ -474,9 +518,7 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 flatten = fmap_wf.get_node(f"wf_{estimator.bids_id}.flatten")
                 flatten.inputs.max_trs = config.workflow.topup_max_vols
             else:
-                raise NotImplementedError(
-                    "Sophisticated PEPOLAR schemes are unsupported."
-                )
+                raise NotImplementedError("Sophisticated PEPOLAR schemes are unsupported.")
 
         elif estimator.method == fm.EstimatorType.ANAT:
             from sdcflows.workflows.fit.syn import init_syn_preprocessing_wf

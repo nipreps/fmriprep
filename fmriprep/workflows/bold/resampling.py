@@ -29,11 +29,12 @@ Resampling workflows
 .. autofunction:: init_bold_preproc_trans_wf
 
 """
-from ...config import DEFAULT_MEMORY_MIN_GB
-
-from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu, freesurfer as fs
 import nipype.interfaces.workbench as wb
+from nipype.interfaces import freesurfer as fs
+from nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
+
+from ...config import DEFAULT_MEMORY_MIN_GB
 
 
 def init_bold_surf_wf(mem_gb, surface_spaces, medial_surface_nan, name="bold_surf_wf"):
@@ -105,9 +106,7 @@ The BOLD time-series were resampled onto the following surfaces
     itersource = pe.Node(niu.IdentityInterface(fields=["target"]), name="itersource")
     itersource.iterables = [("target", surface_spaces)]
 
-    get_fsnative = pe.Node(
-        FreeSurferSource(), name="get_fsnative", run_without_submitting=True
-    )
+    get_fsnative = pe.Node(FreeSurferSource(), name="get_fsnative", run_without_submitting=True)
 
     def select_target(subject_id, space):
         """Get the target subject ID, given a source subject ID and a target space."""
@@ -127,9 +126,7 @@ The BOLD time-series were resampled onto the following surfaces
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
-    itk2lta = pe.Node(
-        niu.Function(function=_itk2lta), name="itk2lta", run_without_submitting=True
-    )
+    itk2lta = pe.Node(niu.Function(function=_itk2lta), name="itk2lta", run_without_submitting=True)
     sampler = pe.MapNode(
         fs.SampleToSurface(
             cortex_mask=True,
@@ -313,15 +310,16 @@ def init_bold_std_trans_wf(
         described outputs.
 
     """
-    from fmriprep.interfaces.maths import Clip
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.func.util import init_bold_reference_wf
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
     from niworkflows.interfaces.itk import MultiApplyTransforms
-    from niworkflows.interfaces.utility import KeySelect
     from niworkflows.interfaces.nibabel import GenerateSamplingReference
     from niworkflows.interfaces.nilearn import Merge
+    from niworkflows.interfaces.utility import KeySelect
     from niworkflows.utils.spaces import format_reference
+
+    from fmriprep.interfaces.maths import Clip
 
     workflow = Workflow(name=name)
     output_references = spaces.cached.get_spaces(nonstandard=False, dim=(3,))
@@ -364,9 +362,7 @@ preprocessed BOLD runs*: {tpl}.
         name="inputnode",
     )
 
-    iterablesource = pe.Node(
-        niu.IdentityInterface(fields=["std_target"]), name="iterablesource"
-    )
+    iterablesource = pe.Node(niu.IdentityInterface(fields=["std_target"]), name="iterablesource")
     # Generate conversions for every template+spec at the input
     iterablesource.iterables = [("std_target", std_vol_references)]
 
@@ -416,9 +412,7 @@ preprocessed BOLD runs*: {tpl}.
     )
 
     bold_to_std_transform = pe.Node(
-        MultiApplyTransforms(
-            interpolation="LanczosWindowedSinc", float=True, copy_dtype=True
-        ),
+        MultiApplyTransforms(interpolation="LanczosWindowedSinc", float=True, copy_dtype=True),
         name="bold_to_std_transform",
         mem_gb=mem_gb * 3 * omp_nthreads,
         n_procs=omp_nthreads,
@@ -426,10 +420,8 @@ preprocessed BOLD runs*: {tpl}.
 
     # Interpolation can occasionally produce below-zero values as an artifact
     threshold = pe.MapNode(
-        Clip(minimum=0),
-        name="threshold",
-        iterfield=['in_file'],
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
+        Clip(minimum=0), name="threshold", iterfield=['in_file'], mem_gb=DEFAULT_MEMORY_MIN_GB
+    )
 
     merge = pe.Node(Merge(compress=use_compression), name="merge", mem_gb=mem_gb * 3)
 
@@ -477,9 +469,7 @@ preprocessed BOLD runs*: {tpl}.
     if multiecho:
         output_names.append("t2star_std")
 
-    poutputnode = pe.Node(
-        niu.IdentityInterface(fields=output_names), name="poutputnode"
-    )
+    poutputnode = pe.Node(niu.IdentityInterface(fields=output_names), name="poutputnode")
     # fmt:off
     workflow.connect([
         # Connecting outputnode
@@ -516,7 +506,8 @@ preprocessed BOLD runs*: {tpl}.
     if multiecho:
         t2star_std_tfm = pe.Node(
             ApplyTransforms(interpolation="LanczosWindowedSinc", float=True),
-            name="t2star_std_tfm", mem_gb=1
+            name="t2star_std_tfm",
+            mem_gb=1,
         )
         # fmt:off
         workflow.connect([
@@ -597,10 +588,11 @@ def init_bold_preproc_trans_wf(
         BOLD series, resampled in native space, including all preprocessing
 
     """
-    from fmriprep.interfaces.maths import Clip
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.itk import MultiApplyTransforms
     from niworkflows.interfaces.nilearn import Merge
+
+    from fmriprep.interfaces.maths import Clip
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -619,9 +611,7 @@ the transforms to correct for head-motion"""
     )
 
     inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=["name_source", "bold_file", "hmc_xforms", "fieldwarp"]
-        ),
+        niu.IdentityInterface(fields=["name_source", "bold_file", "hmc_xforms", "fieldwarp"]),
         name="inputnode",
     )
 
@@ -646,10 +636,8 @@ the transforms to correct for head-motion"""
 
     # Interpolation can occasionally produce below-zero values as an artifact
     threshold = pe.MapNode(
-        Clip(minimum=0),
-        name="threshold",
-        iterfield=['in_file'],
-        mem_gb=DEFAULT_MEMORY_MIN_GB)
+        Clip(minimum=0), name="threshold", iterfield=['in_file'], mem_gb=DEFAULT_MEMORY_MIN_GB
+    )
 
     merge = pe.Node(Merge(compress=use_compression), name="merge", mem_gb=mem_gb * 3)
 
@@ -669,9 +657,7 @@ the transforms to correct for head-motion"""
     return workflow
 
 
-def init_bold_grayords_wf(
-    grayord_density, mem_gb, repetition_time, name="bold_grayords_wf"
-):
+def init_bold_grayords_wf(grayord_density, mem_gb, repetition_time, name="bold_grayords_wf"):
     """
     Sample Grayordinates files onto the fsLR atlas.
 
@@ -733,9 +719,7 @@ surface space.
         density=grayord_density
     )
 
-    fslr_density, mni_density = (
-        ("32k", "2") if grayord_density == "91k" else ("59k", "1")
-    )
+    fslr_density, mni_density = ("32k", "2") if grayord_density == "91k" else ("59k", "1")
 
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -924,8 +908,9 @@ def _is_native(in_value):
 
 
 def _itk2lta(in_file, src_file, dst_file):
-    import nitransforms as nt
     from pathlib import Path
+
+    import nitransforms as nt
 
     out_file = Path("out.lta").absolute()
     nt.linear.load(
