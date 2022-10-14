@@ -37,7 +37,7 @@ from nipype.pipeline import engine as pe
 from ...config import DEFAULT_MEMORY_MIN_GB
 
 
-def init_bold_surf_wf(mem_gb, surface_spaces, medial_surface_nan, name="bold_surf_wf"):
+def init_bold_surf_wf(*, mem_gb, surface_spaces, medial_surface_nan, name="bold_surf_wf"):
     """
     Sample functional images to FreeSurfer surfaces.
 
@@ -129,7 +129,6 @@ The BOLD time-series were resampled onto the following surfaces
     itk2lta = pe.Node(niu.Function(function=_itk2lta), name="itk2lta", run_without_submitting=True)
     sampler = pe.MapNode(
         fs.SampleToSurface(
-            cortex_mask=True,
             interp_method="trilinear",
             out_type="gii",
             override_reg_subj=True,
