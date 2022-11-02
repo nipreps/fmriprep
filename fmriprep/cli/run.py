@@ -44,12 +44,11 @@ def main():
         from codecarbon import OfflineEmissionsTracker
 
         country_iso_code = config.execution.country_code
-        CC_log_dir = "/output/"
         config.loggers.workflow.log(25, "CodeCarbon tracker started ...")
         config.loggers.workflow.log(25, f"Using country_iso_code: {country_iso_code}")
-        config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
+        config.loggers.workflow.log(25, f"Saving logs at: {config.execution.log_dir}")
 
-        tracker = OfflineEmissionsTracker(output_dir=CC_log_dir, country_iso_code=country_iso_code)
+        tracker = OfflineEmissionsTracker(output_dir=config.execution.log_dir, country_iso_code=country_iso_code)
         tracker.start()
 
     if "pdb" in config.execution.debug:
