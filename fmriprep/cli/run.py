@@ -195,7 +195,7 @@ def main():
         if config.execution.track_carbon:
             emissions: float = tracker.stop()
             config.loggers.workflow.log(25, "CodeCarbon tracker has stopped.")
-            config.loggers.workflow.log(25, f"Saving logs at: {CC_log_dir}")
+            config.loggers.workflow.log(25, f"Saving logs at: {config.execution.log_dir}")
             config.loggers.workflow.log(25, f"Carbon emissions: {emissions} kg")
 
         from fmriprep.reports.core import generate_reports
