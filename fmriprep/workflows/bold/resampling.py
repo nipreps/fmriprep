@@ -912,6 +912,7 @@ preprocessed BOLD runs*: {tpl}.
                 "bold_split",
                 "t2star",
                 "fieldwarp",
+                "gradient_warp",
                 "hmc_xforms",
                 "itk_bold_to_t1",
                 "name_source",
@@ -964,7 +965,7 @@ preprocessed BOLD runs*: {tpl}.
     )
 
     merge_xforms = pe.Node(
-        niu.Merge(4),
+        niu.Merge(5),
         name="merge_xforms",
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
@@ -994,7 +995,8 @@ preprocessed BOLD runs*: {tpl}.
                                  ("templates", "keys")]),
         (inputnode, mask_std_tfm, [("bold_mask", "input_image")]),
         (inputnode, gen_ref, [(("bold_split", _first), "moving_image")]),
-        (inputnode, merge_xforms, [("hmc_xforms", "in4"),
+        (inputnode, merge_xforms, [("gradient_warp", "in5"),
+                                   ("hmc_xforms", "in4"),
                                    ("fieldwarp", "in3"),
                                    (("itk_bold_to_t1", _aslist), "in2")]),
         (inputnode, merge, [("name_source", "header_source")]),
@@ -1170,7 +1172,9 @@ the transforms to correct for head-motion"""
     )
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["name_source", "bold_file", "hmc_xforms", "fieldwarp"]),
+        niu.IdentityInterface(
+            fields=["name_source", "bold_file", "hmc_xforms", "fieldwarp", "gradient_warp"]
+        ),
         name="inputnode",
     )
 
@@ -1203,7 +1207,8 @@ the transforms to correct for head-motion"""
     # fmt:off
     workflow.connect([
         (inputnode, merge_xforms, [("fieldwarp", "in1"),
-                                   ("hmc_xforms", "in2")]),
+                                   ("hmc_xforms", "in2"),
+                                   ("gradient_warp", "in3")]),
         (inputnode, bold_transform, [("bold_file", "input_image"),
                                      (("bold_file", _first), "reference_image")]),
         (inputnode, merge, [("name_source", "header_source")]),

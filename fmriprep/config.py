@@ -536,7 +536,9 @@ class workflow(_Config):
     ignore = None
     """Ignore particular steps for *fMRIPrep*."""
     longitudinal = False
-    """Run FreeSurfer ``recon-all`` with the ``-logitudinal`` flag."""
+    """Run FreeSurfer ``recon-all`` with the ``-longitudinal`` flag."""
+    gradunwarp_file = None
+    """Run GradUnwarp using the provided gradient or coefficient file"""
     medial_surface_nan = None
     """Fill medial surface with :abbr:`NaNs (not-a-number)` when sampling."""
     project_goodvoxels = False

@@ -111,6 +111,8 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
     fsnative2t1w_xfm
         LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    gradunwarp_file
+        Vendor provided .coeff or .grad file for gradient distortion correction.
 
     Outputs
     -------
@@ -187,6 +189,7 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.workflows.gradunwarp import init_gradunwarp_wf
     from niworkflows.func.util import init_bold_reference_wf
     from niworkflows.interfaces.nibabel import ApplyMask
     from niworkflows.interfaces.reportlets.registration import (
@@ -478,6 +481,14 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     # Top-level BOLD splitter
     bold_split = pe.Node(FSLSplit(dimension="t"), name="bold_split", mem_gb=mem_gb["filesize"] * 3)
 
+    # Gradient unwarping
+    if config.workflow.gradunwarp_file:
+        gradunwarp_wf = init_gradunwarp_wf()
+        gradunwarp_wf.inputs.inputnode.grad_file = gradunwarp_file
+        workflow.connect(
+            [(initial_boldref_wf, gradunwarp_wf, [('raw_ref_image', 'in_file')])]
+        )
+
     # HMC on the BOLD
     bold_hmc_wf = init_bold_hmc_wf(
         name="bold_hmc_wf", mem_gb=mem_gb["filesize"], omp_nthreads=omp_nthreads
@@ -505,6 +516,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         use_compression=False,
     )
     bold_t1_trans_wf.inputs.inputnode.fieldwarp = "identity"
+    bold_t1_trans_wf.inputs.inputnode.gradient_warp = "identity"
 
     # get confounds
     bold_confounds_wf = init_bold_confs_wf(
@@ -779,6 +791,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             use_compression=not config.execution.low_mem,
         )
         bold_std_trans_wf.inputs.inputnode.fieldwarp = "identity"
+        bold_std_trans_wf.inputs.inputnode.gradient_warp = "identity"
 
         # fmt:off
         workflow.connect([
@@ -1010,6 +1023,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             name="bold_bold_trans_wf",
         )
         bold_bold_trans_wf.inputs.inputnode.fieldwarp = "identity"
+        bold_bold_trans_wf.inputs.inputnode.gradient_warp = "identity"
 
         # fmt:off
         workflow.connect([
