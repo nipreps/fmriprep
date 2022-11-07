@@ -48,7 +48,9 @@ def main():
         config.loggers.workflow.log(25, f"Using country_iso_code: {country_iso_code}")
         config.loggers.workflow.log(25, f"Saving logs at: {config.execution.log_dir}")
 
-        tracker = OfflineEmissionsTracker(output_dir=config.execution.log_dir, country_iso_code=country_iso_code)
+        tracker = OfflineEmissionsTracker(
+            output_dir=config.execution.log_dir, country_iso_code=country_iso_code
+        )
         tracker.start()
 
     if "pdb" in config.execution.debug:
