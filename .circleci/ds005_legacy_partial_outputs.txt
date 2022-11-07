@@ -73,7 +73,6 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsaverage5
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsaverage5_bold.json
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsnative_bold.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsnative_bold.json
-fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-91k_bold.dtseries.json
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-91k_bold.dtseries.nii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-fsLR_den-91k_bold.json
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_space-MNI152NLin2009cAsym_boldref.nii.gz

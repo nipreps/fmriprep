@@ -679,6 +679,12 @@ def parse_args(args=None, namespace=None):
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
 
+    # Deprecations
+    if opts.topup_max_vols:
+        config.loggers.cli.warning(
+            "--topup-max-vols input is no longer used and the flag will be removed in a future release."
+        )
+
     if opts.config_file:
         skip = {} if opts.reports_only else {"execution": ("run_uuid",)}
         config.load(opts.config_file, skip=skip, init=False)

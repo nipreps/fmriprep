@@ -149,12 +149,8 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         Per-echo BOLD series, with distortion corrections applied
     bold_cifti
         BOLD CIFTI image
-    cifti_variant
-        combination of target spaces for ``bold_cifti``
     cifti_metadata
         Path of metadata files corresponding to ``bold_cifti``.
-    cifti_density
-        Density (i.e., either ``91k`` or ``170k``) of ``bold_cifti``.
     surfaces
         BOLD series, resampled to FreeSurfer surfaces
     t2star_bold
@@ -385,9 +381,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "bold_mask_native",
                 "bold_echos_native",
                 "bold_cifti",
-                "cifti_variant",
                 "cifti_metadata",
-                "cifti_density",
                 "surfaces",
                 "t2star_bold",
                 "t2star_t1",
@@ -448,6 +442,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         use_aroma=config.workflow.use_aroma,
     )
     func_derivatives_wf.inputs.inputnode.all_source_files = bold_file
+    func_derivatives_wf.inputs.inputnode.cifti_density = config.workflow.cifti_output
 
     # fmt:off
     workflow.connect([
@@ -470,9 +465,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("melodic_mix", "inputnode.melodic_mix"),
             ("nonaggr_denoised_file", "inputnode.nonaggr_denoised_file"),
             ("bold_cifti", "inputnode.bold_cifti"),
-            ("cifti_variant", "inputnode.cifti_variant"),
             ("cifti_metadata", "inputnode.cifti_metadata"),
-            ("cifti_density", "inputnode.cifti_density"),
             ("t2star_bold", "inputnode.t2star_bold"),
             ("t2star_t1", "inputnode.t2star_t1"),
             ("t2star_std", "inputnode.t2star_std"),
@@ -975,7 +968,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
             # fmt:off
             workflow.connect([
-                (inputnode, bold_grayords_wf, [("subjects_dir", "inputnode.subjects_dir")]),
                 (bold_std_trans_wf, bold_grayords_wf, [
                     ("outputnode.bold_std", "inputnode.bold_std"),
                     ("outputnode.spatial_reference", "inputnode.spatial_reference"),
@@ -986,9 +978,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ]),
                 (bold_grayords_wf, outputnode, [
                     ("outputnode.cifti_bold", "bold_cifti"),
-                    ("outputnode.cifti_variant", "cifti_variant"),
                     ("outputnode.cifti_metadata", "cifti_metadata"),
-                    ("outputnode.cifti_density", "cifti_density"),
                 ]),
             ])
             # fmt:on
@@ -1009,12 +999,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         )
 
         if config.workflow.cifti_output:
+            # fmt:off
             workflow.connect(
-                bold_grayords_wf,
-                "outputnode.cifti_bold",
-                carpetplot_wf,
-                "inputnode.cifti_bold",
+                bold_grayords_wf, "outputnode.cifti_bold", carpetplot_wf, "inputnode.cifti_bold",
             )
+            # fmt:on
 
         # fmt:off
         workflow.connect([

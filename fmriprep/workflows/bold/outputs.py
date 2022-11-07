@@ -202,7 +202,6 @@ def init_func_derivatives_wf(
                 'bold_native_ref',
                 'bold_mask_native',
                 'bold_echos_native',
-                'cifti_variant',
                 'cifti_metadata',
                 'cifti_density',
                 'confounds',
@@ -779,6 +778,7 @@ def init_func_derivatives_wf(
                 suffix='bold',
                 compress=False,
                 TaskName=metadata.get('TaskName'),
+                space='fsLR',
                 **timing_parameters,
             ),
             name='ds_bold_cifti',
@@ -789,7 +789,6 @@ def init_func_derivatives_wf(
         workflow.connect([
             (inputnode, ds_bold_cifti, [(('bold_cifti', _unlist), 'in_file'),
                                         ('source_file', 'source_file'),
-                                        (('cifti_metadata', _get_surface), 'space'),
                                         ('cifti_density', 'density'),
                                         (('cifti_metadata', _read_json), 'meta_dict')])
         ])
@@ -905,13 +904,6 @@ def _unlist(in_file):
     while isinstance(in_file, (list, tuple)) and len(in_file) == 1:
         in_file = in_file[0]
     return in_file
-
-
-def _get_surface(in_file):
-    from json import loads
-    from pathlib import Path
-
-    return loads(Path(in_file).read_text())["surface"]
 
 
 def _read_json(in_file):

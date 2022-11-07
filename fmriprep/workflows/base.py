@@ -512,11 +512,6 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 wf_inputs = getattr(fmap_wf.inputs, f"in_{estimator.bids_id}")
                 wf_inputs.in_data = [str(s.path) for s in estimator.sources]
                 wf_inputs.metadata = [s.metadata for s in estimator.sources]
-
-                # 21.0.x hack to change the number of volumes used
-                # The default of 50 takes excessively long
-                flatten = fmap_wf.get_node(f"wf_{estimator.bids_id}.flatten")
-                flatten.inputs.max_trs = config.workflow.topup_max_vols
             else:
                 raise NotImplementedError("Sophisticated PEPOLAR schemes are unsupported.")
 

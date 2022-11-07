@@ -686,8 +686,6 @@ def init_bold_grayords_wf(grayord_density, mem_gb, repetition_time, name="bold_g
         List of BOLD conversions to standard spaces.
     spatial_reference :obj:`str`
         List of unique identifiers corresponding to the BOLD standard-conversions.
-    subjects_dir : :obj:`str`
-        FreeSurfer's subjects directory.
     surf_files : :obj:`str`
         List of BOLD files resampled on the fsaverage (ico7) surfaces.
     surf_refs :
@@ -696,13 +694,9 @@ def init_bold_grayords_wf(grayord_density, mem_gb, repetition_time, name="bold_g
     Outputs
     -------
     cifti_bold : :obj:`str`
-        List of BOLD grayordinates files - (L)eft and (R)ight.
-    cifti_variant : :obj:`str`
-        Only ``"HCP Grayordinates"`` is currently supported.
+        BOLD CIFTI dtseries.
     cifti_metadata : :obj:`str`
-        Path of metadata files corresponding to ``cifti_bold``.
-    cifti_density : :obj:`str`
-        Density (i.e., either `91k` or `170k`) of ``cifti_bold``.
+        BIDS metadata file corresponding to ``cifti_bold``.
 
     """
     import templateflow.api as tf
@@ -726,7 +720,6 @@ surface space.
             fields=[
                 "bold_std",
                 "spatial_reference",
-                "subjects_dir",
                 "surf_files",
                 "surf_refs",
             ]
@@ -735,14 +728,7 @@ surface space.
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=[
-                "cifti_bold",
-                "cifti_variant",
-                "cifti_metadata",
-                "cifti_density",
-            ]
-        ),
+        niu.IdentityInterface(fields=["cifti_bold", "cifti_metadata"]),
         name="outputnode",
     )
 
@@ -835,17 +821,14 @@ surface space.
 
     gen_cifti = pe.Node(
         GenerateCifti(
-            volume_target="MNI152NLin6Asym",
-            surface_target="fsLR",
             TR=repetition_time,
-            surface_density=fslr_density,
+            grayordinates=grayord_density,
         ),
         name="gen_cifti",
     )
 
     # fmt:off
     workflow.connect([
-        (inputnode, gen_cifti, [("subjects_dir", "subjects_dir")]),
         (inputnode, select_std, [("bold_std", "bold_std"),
                                  ("spatial_reference", "keys")]),
         (inputnode, select_fs_surf, [("surf_files", "surf_files"),
@@ -854,9 +837,7 @@ surface space.
         (select_std, gen_cifti, [("bold_std", "bold_file")]),
         (resample, gen_cifti, [("out_file", "surface_bolds")]),
         (gen_cifti, outputnode, [("out_file", "cifti_bold"),
-                                 ("variant", "cifti_variant"),
-                                 ("out_metadata", "cifti_metadata"),
-                                 ("density", "cifti_density")]),
+                                 ("out_metadata", "cifti_metadata")]),
     ])
     # fmt:on
     return workflow
