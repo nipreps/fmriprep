@@ -247,18 +247,18 @@ jobs:
             if [[ ! -d /tmp/ds005/freesurfer ]]; then
               mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005
+                -O ds005_derivatives_freesurfer.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bab2c92a98a1c0606e6a0"
+              unzip -d /tmp/ds005 ds005_derivatives_freesurfer.zip
             else
               echo "FreeSurfer derivatives of ds000005 were cached"
             fi
       - run:
           name: Get sMRIPrep derivatives for ds000005
           command: |
-            if [[ ! -d /tmp/ds005/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds005/smriprep ]]; then
               mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e860c528140b402134249d1"
+                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637babcb610dd51f70f5e0ec"
               unzip -d /tmp/ds005 ds005_sub-01_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000005 were cached"
@@ -266,10 +266,10 @@ jobs:
       - run:
           name: Get sMRIPrep derivatives for ds000054
           command: |
-            if [[ ! -d /tmp/ds054/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds054/smriprep ]]; then
               mkdir -p /tmp/ds054
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds054_sub-100185_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e86be591ab243025be0c6f1"
+                -O ds054_sub-100185_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bae8a0ab44b10ed6c43b6"
               unzip -d /tmp/ds054 ds054_sub-100185_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000054 were cached"
@@ -277,10 +277,11 @@ jobs:
       - run:
           name: Get sMRIPrep derivatives for ds000210
           command: |
-            if [[ ! -d /tmp/ds210/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds210/smriprep ]]; then
               mkdir -p /tmp/ds210
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds210_sub-02_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e86e9bb1ab2430268e03873"
+                -O ds210_sub-02_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bae7e4e8c3c20843b4b53"
+                https://osf.io/fvuh8/files/osfstorage/637bae7e4e8c3c20843b4b53/?pid=fvuh8
               unzip -d /tmp/ds210 ds210_sub-02_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000210 were cached"
@@ -290,9 +291,9 @@ jobs:
          paths:
             - /tmp/data
             - /tmp/ds005/freesurfer
-            - /tmp/ds005/smriprep-0.6
-            - /tmp/ds054/smriprep-0.6
-            - /tmp/ds210/smriprep-0.6
+            - /tmp/ds005/smriprep
+            - /tmp/ds054/smriprep
+            - /tmp/ds210/smriprep
       - run:
           name: Store FreeSurfer license file
           command: |
@@ -448,7 +449,7 @@ jobs:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -504,7 +505,7 @@ jobs:
           name: Re-run with BIDS layout
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -536,7 +537,7 @@ jobs:
           no_output_timeout: 2h
           command: |
             rm /tmp/data/${DATASET}/sub-01/func/*_run-01_*
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -650,7 +651,7 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -782,7 +783,7 @@ jobs:
           name: Run full fMRIPrep on ds000210
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
