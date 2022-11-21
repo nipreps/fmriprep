@@ -281,7 +281,6 @@ jobs:
               mkdir -p /tmp/ds210
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
                 -O ds210_sub-02_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bae7e4e8c3c20843b4b53"
-                https://osf.io/fvuh8/files/osfstorage/637bae7e4e8c3c20843b4b53/?pid=fvuh8
               unzip -d /tmp/ds210 ds210_sub-02_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000210 were cached"
