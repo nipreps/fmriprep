@@ -258,7 +258,7 @@ jobs:
             if [[ ! -d /tmp/ds005/smriprep ]]; then
               mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637babcb610dd51f70f5e0ec"
+                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637cf6505ea438007b0497d3"
               unzip -d /tmp/ds005 ds005_sub-01_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000005 were cached"
