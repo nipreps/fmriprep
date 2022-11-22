@@ -205,11 +205,11 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
-            - data-v9--{{ .Revision }}
-            - data-v9-{{ .Branch }}-
-            - data-v9-master-
-            - data-v9-
+            - data-v0-{{ .Branch }}-{{ .Revision }}
+            - data-v0--{{ .Revision }}
+            - data-v0-{{ .Branch }}-
+            - data-v0-master-
+            - data-v0-
       - run:
           name: Get test data from ds000005
           command: |
@@ -286,7 +286,7 @@ jobs:
               echo "sMRIPrep derivatives of ds000210 were cached"
             fi
       - save_cache:
-         key: data-v9-{{ .Branch }}-{{ .Revision }}
+         key: data-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/data
             - /tmp/ds005/freesurfer
@@ -334,7 +334,7 @@ jobs:
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -398,14 +398,14 @@ jobs:
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
-            - ds005-anat-v18--{{ .Revision }}
-            - ds005-anat-v18-{{ .Branch }}-
-            - ds005-anat-v18-master-
-            - ds005-anat-v18-
+            - ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
+            - ds005-anat-v0--{{ .Revision }}
+            - ds005-anat-v0-{{ .Branch }}-
+            - ds005-anat-v0-master-
+            - ds005-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -436,7 +436,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
+         key: ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds005/work
       - run:
@@ -607,14 +607,14 @@ jobs:
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
-            - ds054-anat-v14--{{ .Revision }}
-            - ds054-anat-v14-{{ .Branch }}-
-            - ds054-anat-v14-master-
-            - ds054-anat-v14-
+            - ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
+            - ds054-anat-v0--{{ .Revision }}
+            - ds054-anat-v0-{{ .Branch }}-
+            - ds054-anat-v0-master-
+            - ds054-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -642,7 +642,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
+         key: ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds054/work
 
@@ -733,14 +733,14 @@ jobs:
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
-            - ds210-anat-v12--{{ .Revision }}
-            - ds210-anat-v12-{{ .Branch }}-
-            - ds210-anat-v12-master-
-            - ds210-anat-v12-
+            - ds210-anat-v0-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v0--{{ .Revision }}
+            - ds210-anat-v0-{{ .Branch }}-
+            - ds210-anat-v0-master-
+            - ds210-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -768,7 +768,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
+         key: ds210-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds210/work
 
