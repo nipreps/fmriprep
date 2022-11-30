@@ -41,9 +41,9 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
     "sphinx.ext.linkcode",
+    "sphinx.ext.napoleon",
     "sphinxarg.ext",  # argparse extension
     "nipype.sphinxext.plot_workflow",
-    "sphinxcontrib.napoleon",
 ]
 
 # Mock modules in autodoc:
@@ -103,7 +103,7 @@ release = "version"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -336,8 +336,8 @@ linkcode_resolve = make_linkcode_resolve("fmriprep",
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
-    "matplotlib": ("https://matplotlib.org/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
     "bids": ("https://bids-standard.github.io/pybids/", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
     "nipype": ("https://nipype.readthedocs.io/en/latest/", None),
