@@ -555,6 +555,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         (tcompcor, concat, [("components_file", "tcompcor"),
                             ("pre_filter_file", "cos_basis")]),
         (rename_acompcor, concat, [("components_file", "acompcor")]),
+        (crowncompcor, concat, [("components_file", "crowncompcor")]),
         (add_motion_headers, concat, [("out_file", "motion")]),
         (add_rmsd_header, concat, [("out_file", "rmsd")]),
         (add_dvars_header, concat, [("out_file", "dvars")]),
