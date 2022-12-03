@@ -81,6 +81,15 @@ def prepare_timing_parameters(metadata):
     ...                                    SliceTiming=[0.0, 0.2, 0.4, 0.6, 0.8]))
     {'VolumeTiming': [0.0, 1.0, 2.0, 5.0, 6.0, 7.0], 'SliceTimingCorrected': False,
      'AcquisitionDuration': 1.0}
+
+    If SliceTiming metadata is present but empty, then treat it as missing:
+
+    >>> with mock.patch("fmriprep.config.workflow.ignore", []):
+    ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[]))
+    {'RepetitionTime': 2, 'SliceTimingCorrected': False}
+    >>> with mock.patch("fmriprep.config.workflow.ignore", []):
+    ...     prepare_timing_parameters(dict(RepetitionTime=2, SliceTiming=[0.0]))
+    {'RepetitionTime': 2, 'SliceTimingCorrected': False}
     """
     timing_parameters = {
         key: metadata[key]
@@ -94,12 +103,15 @@ def prepare_timing_parameters(metadata):
         if key in metadata
     }
 
-    run_stc = "SliceTiming" in metadata and 'slicetiming' not in config.workflow.ignore
-    timing_parameters["SliceTimingCorrected"] = run_stc
+    # Treat SliceTiming of [] or length 1 as equivalent to missing and remove it in any case
+    slice_timing = timing_parameters.pop("SliceTiming", [])
 
-    if "SliceTiming" in timing_parameters:
-        st = sorted(timing_parameters.pop("SliceTiming"))
-        TA = st[-1] + (st[1] - st[0])  # Final slice onset - slice duration
+    run_stc = len(slice_timing) > 1 and 'slicetiming' not in config.workflow.ignore
+    timing_parameters["SliceTimingCorrected"] = bool(run_stc)
+
+    if len(slice_timing) > 1:
+        st = sorted(slice_timing)
+        TA = st[-1] + (st[1] - st[0])  # Final slice onset + slice duration
         # For constant TR paradigms, use DelayTime
         if "RepetitionTime" in timing_parameters:
             TR = timing_parameters["RepetitionTime"]
