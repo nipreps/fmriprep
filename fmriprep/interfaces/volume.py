@@ -12,82 +12,75 @@ iflogger = logging.getLogger("nipype.interface")
 
 
 class CreateSignedDistanceVolumeInputSpec(CommandLineInputSpec):
-    surface = File(
+    surf_file = File(
         exists=True,
         mandatory=True,
-        argstr="%s ",
+        argstr="%s",
         position=0,
-        desc="the input surface",
+        desc="Input surface GIFTI file (.surf.gii)",
     )
-    ref_space = File(
+    ref_file = File(
         exists=True,
         mandatory=True,
-        argstr="%s ",
+        argstr="%s",
         position=1,
-        desc="a volume in the desired output space (dims, spacing, origin)",
+        desc="NIfTI volume in the desired output space (dims, spacing, origin)",
     )
-    out_vol = File(
+    out_file = File(
         name_source=["surface"],
-        name_template="%s.distvol.nii.gz",
-        argstr="%s ",
+        name_template="%s_distvol.nii.gz",
+        argstr="%s",
         position=2,
-        desc="output - the output volume",
+        desc="Name of output volume containing signed distances",
     )
-    roi_out = File(
+    out_mask = File(
         name_source=["surface"],
-        name_template="%s.distvolroi.nii.gz",
-        argstr="-roi-out %s ",
-        position=3,
-        desc="output roi volume of where the output has a computed value",
+        name_template="%s_distmask.nii.gz",
+        argstr="-roi-out %s",
+        desc="Name of file to store a mask where the ``out_file`` has a computed value",
     )    
     fill_value = traits.Float(
         mandatory=False,
-        argstr="-fill-value %f ",
-        position=4,
-        desc="specify a value to put in all voxels that don't get assigned a distance, default 0",
+        default=0.,
+        usedefault=True,
+        argstr="-fill-value %f",
+        desc="value to put in all voxels that don't get assigned a distance",
     )
     exact_limit = traits.Float(
-        mandatory=False,
-        argstr="-exact-limit %f ",
-        position=5,
-        desc="specify distance for exact output in mm, default 5",
+        default=5.,
+        usedefault=True,
+        argstr="-exact-limit %f",
+        desc="distance for exact output in mm",
     )
     approx_limit = traits.Float(
-        mandatory=False,
-        argstr="-approx-limit %f ",
-        position=6,
-        desc="specify distance for approximate output in mm, default 20",
+        default=20.,
+        usedefault=True,
+        argstr="-approx-limit %f",
+        desc="distance for approximate output in mm",
     )
     approx_neighborhood = traits.Int(
-        mandatory=False,
-        argstr="-approx-neighborhood %d ",
-        position=7,
-        desc="size of neighborhood cube measured from center to face, default 2 = 5x5x5",
+        default=2,
+        usedefault=True,
+        argstr="-approx-neighborhood %d",
+        desc="size of neighborhood cube measured from center to face in voxels, default 2 = 5x5x5",
     )
     winding_method = traits.Enum(
         "EVEN_ODD",
         "NEGATIVE",
         "NONZERO",
         "NORMALS",    
-        argstr="-winding %s ",
+        argstr="-winding %s",
         usedefault=True,
-        position=8,        
-        desc="winding method for point inside surface test, choices: "
-             "EVEN_ODD (default) "
-             "NEGATIVE "
-             "NONZERO "
-             "NORMALS "
+        desc="winding method for point inside surface test"
     )
 
-
 class CreateSignedDistanceVolumeOutputSpec(TraitedSpec):
-    out_vol = File(exists=True, desc="output - the output volume")
-    roi_out = File(desc="output roi volume of where the output has a computed value")
+    out_file = File(desc="Name of output volume containing signed distances")
+    out_mask = File(desc="Name of file to store a mask where the ``out_file`` has a computed value")
 
 
 class CreateSignedDistanceVolume(WBCommand):
-    """
-CREATE SIGNED DISTANCE VOLUME FROM SURFACE
+    """CREATE SIGNED DISTANCE VOLUME FROM SURFACE
    wb_command -create-signed-distance-volume
       <surface> - the input surface
       <refspace> - a volume in the desired output space (dims, spacing, origin)
@@ -138,7 +131,3 @@ CREATE SIGNED DISTANCE VOLUME FROM SURFACE
     input_spec = CreateSignedDistanceVolumeInputSpec
     output_spec = CreateSignedDistanceVolumeOutputSpec
     _cmd = "wb_command -create-signed-distance-volume"
-
-    def _list_outputs(self):
-        outputs = super(CreateSignedDistanceVolume, self)._list_outputs()
-        return outputs
