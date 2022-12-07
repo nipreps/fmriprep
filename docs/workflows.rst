@@ -139,10 +139,9 @@ In the case of multiple T1w images (across sessions and/or runs), T1w images are
 merged into a single template image using FreeSurfer's `mri_robust_template`_.
 This template may be *unbiased*, or equidistant from all source images, or
 aligned to the first image (determined lexicographically by session label).
-For two images, the additional cost of estimating an unbiased template is
-trivial and is the default behavior, but, for greater than two images, the cost
-can be a slowdown of an order of magnitude.
-Therefore, in the case of three or more images, *fMRIPrep* constructs
+For two images, the additional cost of estimating an unbiased template is trivial,
+but aligning three or more images is too expensive to justify being the default behavior.
+For consistency, in the case of multiple images, *fMRIPrep* constructs
 templates aligned to the first image, unless passed the ``--longitudinal``
 flag, which forces the estimation of an unbiased template.
 
