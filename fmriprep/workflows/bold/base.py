@@ -345,6 +345,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "t1w_tpms",
                 "t1w_aseg",
                 "t1w_aparc",
+                "anat_ribbon",
                 "anat2std_xfm",
                 "std2anat_xfm",
                 "template",
@@ -943,6 +944,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             mem_gb=mem_gb["resampled"],
             surface_spaces=freesurfer_spaces,
             medial_surface_nan=config.workflow.medial_surface_nan,
+            project_goodvoxels=config.workflow.project_goodvoxels,
             name="bold_surf_wf",
         )
         # fmt:off
@@ -951,6 +953,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ("subjects_dir", "inputnode.subjects_dir"),
                 ("subject_id", "inputnode.subject_id"),
                 ("t1w2fsnative_xfm", "inputnode.t1w2fsnative_xfm"),
+                ("anat_ribbon", "inputnode.anat_ribbon"),
+                ("t1w_mask", "inputnode.t1w_mask"),
             ]),
             (bold_t1_trans_wf, bold_surf_wf, [("outputnode.bold_t1", "inputnode.source_file")]),
             (bold_surf_wf, outputnode, [("outputnode.surfaces", "surfaces")]),

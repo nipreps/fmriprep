@@ -352,6 +352,15 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         help="Number of nonsteady-state volumes. Overrides automatic detection.",
     )
     g_conf.add_argument(
+        "--project-goodvoxels",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Exclude voxels whose timeseries have locally high coefficient of variation "
+        "from surface resampling. Only performed for GIFTI files mapped to a freesurfer subject "
+        "(fsaverage or fsnative).",
+    )
+    g_conf.add_argument(
         "--random-seed",
         dest="_random_seed",
         action="store",

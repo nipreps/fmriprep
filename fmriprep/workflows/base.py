@@ -444,7 +444,9 @@ tasks and sessions), the following preprocessing was performed.
                 ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
                 ('outputnode.subject_id', 'inputnode.subject_id'),
                 ('outputnode.t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm'),
-                ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
+                ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
+                ('outputnode.anat_ribbon', 'inputnode.anat_ribbon'),
+            ]),
         ])
         # fmt:on
         func_preproc_wfs.append(func_preproc_wf)

@@ -539,6 +539,8 @@ class workflow(_Config):
     """Run FreeSurfer ``recon-all`` with the ``-logitudinal`` flag."""
     medial_surface_nan = None
     """Fill medial surface with :abbr:`NaNs (not-a-number)` when sampling."""
+    project_goodvoxels = False
+    """Exclude voxels with locally high coefficient of variation from sampling."""
     regressors_all_comps = None
     """Return all CompCor components."""
     regressors_dvars_th = None
