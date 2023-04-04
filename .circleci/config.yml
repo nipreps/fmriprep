@@ -150,11 +150,11 @@ jobs:
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
-            - build-v0--{{ .Revision }}
-            - build-v0-{{ .Branch }}-
-            - build-v0-master-
-            - build-v0-
+            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v1--{{ .Revision }}
+            - build-v1-{{ .Branch }}-
+            - build-v1-master-
+            - build-v1-
           paths:
             - /tmp/docker
             - /tmp/images
@@ -257,7 +257,7 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v0-{{ .Branch }}-{{ .Revision }}
+         key: build-v1-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
@@ -390,7 +390,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -463,7 +463,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -653,7 +653,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -769,7 +769,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -875,7 +875,7 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -898,7 +898,7 @@ jobs:
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v0-{{ .Branch }}-{{ .Revision }}
+            - build-v1-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
