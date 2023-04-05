@@ -173,6 +173,7 @@ jobs:
           command: |
             set +e
             # Source layers if available
+            docker pull localhost:5000/downloader
             docker pull localhost:5000/freesurfer
             docker pull localhost:5000/afni
             docker pull localhost:5000/ants
@@ -251,6 +252,7 @@ jobs:
           name: Build and tag stages
           no_output_timeout: 40m
           command: |
+            docker build -t localhost:5000/downloader --target downloader .
             docker build -t localhost:5000/freesurfer --target freesurfer .
             docker build -t localhost:5000/afni --target afni .
             docker build -t localhost:5000/ants --target ants .
@@ -262,6 +264,7 @@ jobs:
           command: |
             docker tag nipreps/fmriprep:latest localhost:5000/fmriprep
             docker push localhost:5000/fmriprep
+            docker push localhost:5000/downloader
             docker push localhost:5000/freesurfer
             docker push localhost:5000/afni
             docker push localhost:5000/ants
