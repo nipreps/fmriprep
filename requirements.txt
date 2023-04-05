@@ -98,7 +98,7 @@ matplotlib==3.7.1
     #   seaborn
     #   smriprep
     #   tedana
-networkx==3.1
+networkx==2.8.8
     # via
     #   nipype
     #   nitime
