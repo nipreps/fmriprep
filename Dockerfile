@@ -93,7 +93,25 @@ RUN mkdir /opt/workbench && \
 # Micromamba
 FROM downloader as micromamba
 WORKDIR /
+# Bump the date to current to force update micromamba
+RUN echo "2023.04.05"
 RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+
+ENV MAMBA_ROOT_PREFIX="/opt/conda"
+COPY env.yml /tmp/env.yml
+RUN micromamba create -y -f /tmp/env.yml && \
+    micromamba clean -y -a
+
+ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH"
+RUN /opt/conda/envs/fmriprep/bin/npm install -g svgo@^2.8 bids-validator@1.11.0 && \
+    rm -r ~/.npm
+
+COPY requirements.txt /tmp/requirements.txt
+RUN /opt/conda/envs/fmriprep/bin/pip install --no-cache-dir -r /tmp/requirements.txt
+
+#
+# Main stage
+#
 
 # Use Ubuntu 22.04 LTS
 FROM ubuntu:jammy-20221130
@@ -199,25 +217,14 @@ ENV HOME="/home/fmriprep" \
     LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 COPY --from=micromamba /bin/micromamba /bin/micromamba
+COPY --from=micromamba /opt/conda/envs/fmriprep /opt/conda/envs/fmriprep
 
 ENV MAMBA_ROOT_PREFIX="/opt/conda"
-RUN micromamba shell init -s bash
-
-# Create fmriprep environment
-COPY env.yml /tmp/env.yml
-RUN micromamba create -y -f /tmp/env.yml && \
-    micromamba clean -a && \
+RUN micromamba shell init -s bash && \
     echo "micromamba activate fmriprep" >> $HOME/.bashrc
 ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH" \
     CPATH="/opt/conda/envs/fmriprep/include:$CPATH" \
     LD_LIBRARY_PATH="/opt/conda/envs/fmriprep/lib:$LD_LIBRARY_PATH"
-
-# Install NPM packages
-RUN npm install -g svgo@^2.8 bids-validator@1.11.0 && \
-    rm -r ~/.npm
-
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Precaching atlases
 COPY scripts/fetch_templates.py fetch_templates.py
