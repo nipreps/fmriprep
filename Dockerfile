@@ -114,7 +114,7 @@ RUN /opt/conda/envs/fmriprep/bin/pip install --no-cache-dir -r /tmp/requirements
 #
 
 # Use Ubuntu 22.04 LTS
-FROM ubuntu:jammy-20221130
+FROM ubuntu:jammy-20221130 as fmriprep
 
 # Configure apt
 ENV DEBIAN_FRONTEND="noninteractive" \
