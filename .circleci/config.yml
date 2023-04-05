@@ -119,6 +119,8 @@ orbs:
 jobs:
   build_clean:
     <<: *machine_defaults
+    environment:
+      DOCKER_BUILDKIT: 1
     steps:
       - checkout:
           path: *src
@@ -144,6 +146,8 @@ jobs:
 
   build:
     <<: *machine_defaults
+    environment:
+      DOCKER_BUILDKIT: 1
     steps:
       - checkout:
           path: *src
@@ -227,6 +231,12 @@ jobs:
             e=1 && for i in {1..5}; do
               docker build --rm \
                 --cache-from=nipreps/fmriprep \
+                --cache-from=localhost:5000/downloader \
+                --cache-from=localhost:5000/freesurfer \
+                --cache-from=localhost:5000/afni \
+                --cache-from=localhost:5000/ants \
+                --cache-from=localhost:5000/workbench \
+                --cache-from=localhost:5000/micromamba \
                 -t nipreps/fmriprep:latest \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
                 --build-arg VCS_REF=`git rev-parse --short HEAD` \
