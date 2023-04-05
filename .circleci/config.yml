@@ -150,11 +150,11 @@ jobs:
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
-            - build-v1--{{ .Revision }}
-            - build-v1-{{ .Branch }}-
-            - build-v1-master-
-            - build-v1-
+            - build-v2-{{ .Branch }}-{{ .Revision }}
+            - build-v2--{{ .Revision }}
+            - build-v2-{{ .Branch }}-
+            - build-v2-master-
+            - build-v2-
           paths:
             - /tmp/docker
             - /tmp/images
@@ -172,6 +172,13 @@ jobs:
           name: Pull Ubuntu/jammy image
           command: |
             set +e
+            # Source layers if available
+            docker pull localhost:5000/freesurfer
+            docker pull localhost:5000/afni
+            docker pull localhost:5000/ants
+            docker pull localhost:5000/workbench
+            docker pull localhost:5000/micromamba
+
             docker pull localhost:5000/ubuntu
             success=$?
             set -e
@@ -241,11 +248,25 @@ jobs:
             set -e
             test "$BUILT_VERSION" = "$THISVERSION"
       - run:
+          name: Build and tag stages
+          no_output_timeout: 40m
+          command: |
+            docker build -t localhost:5000/freesurfer --target freesurfer .
+            docker build -t localhost:5000/afni --target afni .
+            docker build -t localhost:5000/ants --target ants .
+            docker build -t localhost:5000/workbench --target workbench .
+            docker build -t localhost:5000/micromamba --target micromamba .
+      - run:
           name: Docker push to local registry
           no_output_timeout: 40m
           command: |
             docker tag nipreps/fmriprep:latest localhost:5000/fmriprep
             docker push localhost:5000/fmriprep
+            docker push localhost:5000/freesurfer
+            docker push localhost:5000/afni
+            docker push localhost:5000/ants
+            docker push localhost:5000/workbench
+            docker push localhost:5000/micromamba
       - run:
           name: Docker registry garbage collection
           command: |
@@ -257,7 +278,7 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v1-{{ .Branch }}-{{ .Revision }}
+         key: build-v2-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
@@ -390,7 +411,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -463,7 +484,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -653,7 +674,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -769,7 +790,7 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -875,7 +896,7 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -898,7 +919,7 @@ jobs:
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v1-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
