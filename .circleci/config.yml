@@ -182,7 +182,6 @@ jobs:
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build --rm \
-                --cache-from=nipreps/fmriprep \
                 -t nipreps/fmriprep:latest \
                 --target fmriprep \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
