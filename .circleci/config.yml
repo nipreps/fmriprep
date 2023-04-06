@@ -24,13 +24,6 @@ _docker_auth: &docker_auth
 _setup_docker_registry: &setup_docker_registry
   name: Set up Docker registry
   command: |
-    if [[ -f /tmp/images/registry.tar.gz ]]; then
-      echo "Loading saved registry image"
-      docker load < /tmp/images/registry.tar.gz
-    else
-      echo "Pulling registry image from DockerHub"
-      docker pull registry:2
-    fi
     docker run -d -p 5000:5000 --restart=always --name=registry \
         -v /tmp/docker:/var/lib/registry registry:2
 
@@ -152,16 +145,6 @@ jobs:
       - checkout:
           path: *src
       - run: *check_skip_job
-      - restore_cache:
-          keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-            - build-v2--{{ .Revision }}
-            - build-v2-{{ .Branch }}-
-            - build-v2-master-
-            - build-v2-
-          paths:
-            - /tmp/docker
-            - /tmp/images
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -175,42 +158,11 @@ jobs:
       - run:
           name: Pull Ubuntu/jammy image
           command: |
-            set +e
-            # Source layers if available
-            docker pull localhost:5000/downloader
-            docker pull localhost:5000/freesurfer
-            docker pull localhost:5000/afni
-            docker pull localhost:5000/ants
-            docker pull localhost:5000/workbench
-            docker pull localhost:5000/micromamba
-
-            docker pull localhost:5000/ubuntu
-            success=$?
-            set -e
-            if [[ "$success" = "0" ]]; then
-                echo "Pulling from local registry"
-                docker tag localhost:5000/ubuntu ubuntu:jammy
-            else
-                echo "Pulling from Docker Hub"
-                docker pull ubuntu:jammy
-                docker tag ubuntu:jammy localhost:5000/ubuntu
-                docker push localhost:5000/ubuntu
-            fi
+            docker pull ubuntu:jammy-20221130
       - run:
           name: Pull fMRIPrep Docker image
           command: |
-            set +e
-            docker pull localhost:5000/fmriprep
-            success=$?
-            set -e
-            if [[ "$success" = "0" ]]; then
-                echo "Pulled from local registry"
-                docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
-                docker tag localhost:5000/fmriprep nipreps/fmriprep
-            else
-                echo "Pulling from Docker Hub"
-                docker pull nipreps/fmriprep:latest
-            fi
+            docker pull nipreps/fmriprep:latest
       - run:
           name: Build Docker image
           no_output_timeout: 60m
@@ -231,12 +183,6 @@ jobs:
             e=1 && for i in {1..5}; do
               docker build --rm \
                 --cache-from=nipreps/fmriprep \
-                --cache-from=localhost:5000/downloader \
-                --cache-from=localhost:5000/freesurfer \
-                --cache-from=localhost:5000/afni \
-                --cache-from=localhost:5000/ants \
-                --cache-from=localhost:5000/workbench \
-                --cache-from=localhost:5000/micromamba \
                 -t nipreps/fmriprep:latest \
                 --target fmriprep \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
@@ -260,27 +206,11 @@ jobs:
             set -e
             test "$BUILT_VERSION" = "$THISVERSION"
       - run:
-          name: Build and tag stages
-          no_output_timeout: 40m
-          command: |
-            docker build -t localhost:5000/downloader --target downloader .
-            docker build -t localhost:5000/freesurfer --target freesurfer .
-            docker build -t localhost:5000/afni --target afni .
-            docker build -t localhost:5000/ants --target ants .
-            docker build -t localhost:5000/workbench --target workbench .
-            docker build -t localhost:5000/micromamba --target micromamba .
-      - run:
           name: Docker push to local registry
           no_output_timeout: 40m
           command: |
             docker tag nipreps/fmriprep:latest localhost:5000/fmriprep
             docker push localhost:5000/fmriprep
-            docker push localhost:5000/downloader
-            docker push localhost:5000/freesurfer
-            docker push localhost:5000/afni
-            docker push localhost:5000/ants
-            docker push localhost:5000/workbench
-            docker push localhost:5000/micromamba
       - run:
           name: Docker registry garbage collection
           command: |
@@ -291,11 +221,7 @@ jobs:
           root: /tmp
           paths:
             - src/fmriprep
-      - save_cache:
-         key: build-v2-{{ .Branch }}-{{ .Revision }}
-         paths:
-            - /tmp/docker
-            - /tmp/images
+            - docker
 
   get_data:
     <<: *machine_defaults
@@ -425,12 +351,6 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
-      - restore_cache:
-          keys:
             - data-v0-{{ .Branch }}-{{ .Revision }}
       - docker/install-docker-credential-helper
       - run: *docker_auth
@@ -496,12 +416,6 @@ jobs:
       - run: *check_skip_job
       - attach_workspace:
           at: /tmp
-      - restore_cache:
-          keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
       - restore_cache:
           keys:
             - data-v0-{{ .Branch }}-{{ .Revision }}
@@ -688,12 +602,6 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
-      - restore_cache:
-          keys:
             - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
@@ -804,12 +712,6 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
-      - restore_cache:
-          keys:
             - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
@@ -908,12 +810,6 @@ jobs:
               echo "Nothing to deploy for $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME."
               circleci step halt
             fi
-      - restore_cache:
-          keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -931,12 +827,6 @@ jobs:
       - checkout:
           path: *src
       - run: *check_skip_job
-      - restore_cache:
-          keys:
-            - build-v2-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - /tmp/docker
-            - /tmp/images
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
