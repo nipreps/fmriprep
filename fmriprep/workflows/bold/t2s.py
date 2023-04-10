@@ -86,6 +86,7 @@ def init_bold_t2s_wf(
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.morphology import BinaryDilation
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -105,6 +106,8 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
 
     LOGGER.log(25, 'Generating T2* map and optimally combined ME-EPI time series.')
 
+    dilate_mask = pe.Node(BinaryDilation(radius=2), name='dilate_mask')
+
     t2smap_node = pe.Node(
         T2SMap(echo_times=list(echo_times)),
         name='t2smap_node',
@@ -112,8 +115,9 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
     )
     # fmt:off
     workflow.connect([
-        (inputnode, t2smap_node, [('bold_file', 'in_files'),
-                                  ('bold_mask', 'mask_file')]),
+        (inputnode, dilate_mask, [('bold_mask', 'in_mask')]),
+        (inputnode, t2smap_node, [('bold_file', 'in_files')]),
+        (dilate_mask, t2smap_node, [('out_mask', 'mask_file')]),
         (t2smap_node, outputnode, [('optimal_comb', 'bold'),
                                    ('t2star_map', 't2star_map')]),
     ])
