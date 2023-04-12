@@ -22,6 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Ubuntu 22.04 LTS - Jammy
+ARG BASE_IMAGE=ubuntu:jammy-20221130
+
 #
 # fMRIPrep wheel
 #
@@ -37,8 +40,7 @@ RUN python -m build /src/fmriprep
 #
 
 # Utilities for downloading packages
-ARG BASE_OS=ubuntu:jammy-20221130
-FROM ${BASE_OS} as downloader
+FROM ${BASE_IMAGE} as downloader
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     binutils \
@@ -113,9 +115,7 @@ RUN /opt/conda/envs/fmriprep/bin/pip install --no-cache-dir -r /tmp/requirements
 #
 # Main stage
 #
-
-# Use Ubuntu 22.04 LTS
-FROM ${BASE_OS} as fmriprep
+FROM ${BASE_IMAGE} as fmriprep
 
 # Configure apt
 ENV DEBIAN_FRONTEND="noninteractive" \
