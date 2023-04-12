@@ -70,7 +70,6 @@ telemetry = [
 ]
 test = [
     "coverage",
-    "codecov",
     "pytest",
     "pytest-cov",
     "pytest-env",
