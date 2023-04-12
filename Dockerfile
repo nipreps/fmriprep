@@ -37,7 +37,8 @@ RUN python -m build /src/fmriprep
 #
 
 # Utilities for downloading packages
-FROM ubuntu:jammy-20221130 as downloader
+ARG BASE_OS=ubuntu:jammy-20221130
+FROM ${BASE_OS} as downloader
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     binutils \
@@ -114,7 +115,7 @@ RUN /opt/conda/envs/fmriprep/bin/pip install --no-cache-dir -r /tmp/requirements
 #
 
 # Use Ubuntu 22.04 LTS
-FROM ubuntu:jammy-20221130 as fmriprep
+FROM ${BASE_OS} as fmriprep
 
 # Configure apt
 ENV DEBIAN_FRONTEND="noninteractive" \
