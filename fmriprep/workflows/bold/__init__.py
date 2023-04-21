@@ -17,7 +17,7 @@ Pre-processing fMRI - BOLD signal workflows
 """
 
 from .base import init_func_preproc_wf
-from .confounds import init_bold_confs_wf
+from .confounds import init_bold_confs_wf, init_ica_aroma_wf
 from .hmc import init_bold_hmc_wf
 from .registration import init_bold_reg_wf, init_bold_t1_trans_wf
 from .resampling import (
@@ -39,4 +39,5 @@ __all__ = [
     'init_bold_t1_trans_wf',
     'init_bold_t2s_wf',
     'init_func_preproc_wf',
+    'init_ica_aroma_wf',
 ]

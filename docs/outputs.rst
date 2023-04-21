@@ -30,9 +30,10 @@ upcoming `BEP 011`_ and `BEP 012`_).
    .. important::
        In order to remain agnostic to any possible subsequent analysis,
        *fMRIPrep* does not perform any denoising (e.g., spatial smoothing) itself.
-       There are exceptions to this principle (described in its corresponding
-       section below):
+       There are two exceptions to this principle (described in their corresponding
+       sections below):
 
+       - ICA-AROMA's *non-aggressive* denoised outputs, and
        - CompCor regressors, which are calculated after temporal high-pass filtering.
 
 Layout
@@ -227,11 +228,19 @@ These :abbr:`TSV (tab-separated values)` tables look like the example below,
 where each row of the file corresponds to one time point found in the
 corresponding :abbr:`BOLD (blood-oxygen level dependent)` time series::
 
-  csf white_matter  global_signal std_dvars dvars framewise_displacement  t_comp_cor_00 t_comp_cor_01 t_comp_cor_02 t_comp_cor_03 t_comp_cor_04 t_comp_cor_05 a_comp_cor_00 a_comp_cor_01 a_comp_cor_02 a_comp_cor_03 a_comp_cor_04 a_comp_cor_05 non_steady_state_outlier00  trans_x trans_y trans_z rot_x rot_y rot_z
-  682.75275 0.0 491.64752000000004  n/a n/a n/a 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 -0.00017029 -0.0  0.0
-  669.14166 0.0 489.4421  1.168398  17.575331 0.07211929999999998 -0.4506846719 0.1191909139  -0.0945884724 0.1542023065  -0.2302324641 0.0838194238  -0.032426848599999995 0.4284323184  -0.5809158299 0.1382414008  -0.1203486637 0.3783661265  0.0 0.0 0.0207752 0.0463124 -0.000270924  -0.0  0.0
-  665.3969  0.0 488.03  1.085204  16.323903999999995  0.0348966 0.010819676200000001  0.0651895837  -0.09556632150000001  -0.033148835  -0.4768871111 0.20641088559999998 0.2818768463  0.4303863764  0.41323714850000004 -0.2115232212 -0.0037154909000000004  0.10636180070000001 0.0 0.0 0.0 0.0457372 0.0 -0.0  0.0
-  662.82715 0.0 487.37302 1.01591 15.281561 0.0333937 0.3328022893  -0.2220965269 -0.0912891436 0.2326688125  0.279138129 -0.111878887  0.16901660629999998 0.0550480212  0.1798747037  -0.25383302620000003  0.1646403629  0.3953613889  0.0 0.010164  -0.0103568  0.0424513 0.0 -0.0  0.00019174
+  csf white_matter  global_signal std_dvars dvars framewise_displacement  t_comp_cor_00 t_comp_cor_01 t_comp_cor_02 t_comp_cor_03 t_comp_cor_04 t_comp_cor_05 a_comp_cor_00 a_comp_cor_01 a_comp_cor_02 a_comp_cor_03 a_comp_cor_04 a_comp_cor_05 non_steady_state_outlier00  trans_x trans_y trans_z rot_x rot_y rot_z aroma_motion_02 aroma_motion_04
+  682.75275 0.0 491.64752000000004  n/a n/a n/a 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 -0.00017029 -0.0  0.0 0.0 0.0
+  669.14166 0.0 489.4421  1.168398  17.575331 0.07211929999999998 -0.4506846719 0.1191909139  -0.0945884724 0.1542023065  -0.2302324641 0.0838194238  -0.032426848599999995 0.4284323184  -0.5809158299 0.1382414008  -0.1203486637 0.3783661265  0.0 0.0 0.0207752 0.0463124 -0.000270924  -0.0  0.0 -2.402958171  -0.7574011893
+  665.3969  0.0 488.03  1.085204  16.323903999999995  0.0348966 0.010819676200000001  0.0651895837  -0.09556632150000001  -0.033148835  -0.4768871111 0.20641088559999998 0.2818768463  0.4303863764  0.41323714850000004 -0.2115232212 -0.0037154909000000004  0.10636180070000001 0.0 0.0 0.0 0.0457372 0.0 -0.0  0.0 -1.341359143  0.1636017242
+  662.82715 0.0 487.37302 1.01591 15.281561 0.0333937 0.3328022893  -0.2220965269 -0.0912891436 0.2326688125  0.279138129 -0.111878887  0.16901660629999998 0.0550480212  0.1798747037  -0.25383302620000003  0.1646403629  0.3953613889  0.0 0.010164  -0.0103568  0.0424513 0.0 -0.0  0.00019174  -0.1554834655 0.6451987913
+
+Finally, if ICA-AROMA is used, the MELODIC mixing matrix and the components classified as noise
+are saved::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_AROMAnoiseICs.csv
+      sub-<subject_label>_[specifiers]_desc-MELODIC_mixing.tsv
 
 **Multi-echo derivatives**.
 For multi-echo datasets, the output ``_bold`` series are "optimally combined" by
@@ -520,6 +529,31 @@ the brain's outer edge (*crown*) mask.
 The procedure essentially follows the initial proposal of the approach by Patriat et al.
 [Patriat2017]_ and is described in our ISMRM abstract [Provins2022]_.
 
+**AROMA confounds**.
+:abbr:`AROMA (Automatic Removal Of Motion Artifacts)` is an :abbr:`ICA (independent components analysis)`
+based procedure to identify confounding time series related to head-motion [Prium2015]_.
+ICA-AROMA can be enabled with the flag ``--use-aroma``.
+
+- ``aroma_motion_XX`` - the motion-related components identified by ICA-AROMA.
+
+.. danger::
+    If you are already using AROMA-cleaned data (``~desc-smoothAROMAnonaggr_bold.nii.gz``),
+    do not include ICA-AROMA confounds during your design specification or denoising procedure.
+
+    Additionally, as per [Hallquist2013]_ and [Lindquist2019]_, when using AROMA-cleaned data
+    most of the confound regressors should be recalculated (this feature is a work-in-progress,
+    follow up on `#1905 <https://github.com/nipreps/fmriprep/issues/1905>`__).
+    Surprisingly, `our simulations
+    <https://github.com/nipreps/fmriprep-notebooks/blob/9933a628dfb759dc73e61701c144d67898b92de0/05%20-%20Discussion%20AROMA%20confounds%20-%20issue-817%20%5BJ.%20Kent%5D.ipynb>`__
+    (with thanks to JD. Kent) suggest that using the confounds as currently calculated by
+    *fMRIPrep* --before denoising-- would be just fine.
+
+.. caution::
+    *Nonsteady-states* (or *dummy scans*) in the beginning of every run
+    are dropped **before** ICA-AROMA is performed.
+    Therefore, any subsequent analysis of ICA-AROMA outputs must drop the same
+    number of *nonsteady-states*.
+
 Confounds and "carpet"-plot on the visual reports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The visual reports provide several sections per task and run to aid designing
@@ -663,6 +697,11 @@ the following invocation::
 
   .. [Power2016] Power JD, A simple but useful way to assess fMRI scan qualities. NeuroImage. 2016.
      doi:`10.1016/j.neuroimage.2016.08.009 <http://doi.org/10.1016/j.neuroimage.2016.08.009>`_
+
+  .. [Prium2015] Pruim RHR, Mennes M, van Rooij D, Llera A, Buitelaar JK, Beckmann CF.
+     ICA-AROMA: A robust ICA-based strategy for removing motion artifacts from fMRI data.
+     Neuroimage. 2015 May 15;112:267–77.
+     doi:`10.1016/j.neuroimage.2015.02.064 <https://doi.org/10.1016/j.neuroimage.2015.02.064>`_.
 
   .. [Provins2022] Provins C et al., Quality control and nuisance regression of fMRI, looking out
      where signal should not be found. Proc. Intl. Soc. Mag. Reson. Med. 31, London (UK). 2022

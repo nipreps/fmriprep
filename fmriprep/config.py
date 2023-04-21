@@ -761,6 +761,10 @@ def init_spaces(checkpoint=True):
     # Ensure user-defined spatial references for outputs are correctly parsed.
     # Certain options require normalization to a space not explicitly defined by users.
     # These spaces will not be included in the final outputs.
+    if workflow.use_aroma:
+        # Make sure there's a normalization to FSL for AROMA to use.
+        spaces.add(Reference("MNI152NLin6Asym", {"res": "2"}))
+
     cifti_output = workflow.cifti_output
     if cifti_output:
         # CIFTI grayordinates to corresponding FSL-MNI resolutions.

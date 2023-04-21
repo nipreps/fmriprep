@@ -518,6 +518,7 @@ jobs:
             mkdir -p /tmp/${DATASET}/derivatives_partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_bids
+            sudo rm -rf /tmp/${DATASET}/work_partial/fmriprep_*_wf/single_subject_01_wf/func_preproc_task_mixedgamblestask_run_02_wf/ica_aroma_wf
             # Nipype sometimes fails to pick up when the base directory changes
             # This is a cheap workflow, so let's not fuss
             sudo rm -rf /tmp/${DATASET}/work /tmp/${DATASET}/work_bids/fmriprep_*_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf || true
@@ -574,6 +575,7 @@ jobs:
                 --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
+                --aroma-melodic-dimensionality 2 --use-aroma \
                 --nthreads 4 --cifti-output --project-goodvoxels -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives_partial

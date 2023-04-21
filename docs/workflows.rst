@@ -583,8 +583,56 @@ segmentation, the `discover_wf` sub-workflow calculates potential
 confounds per volume.
 
 Calculated confounds include the mean global signal, mean tissue class signal,
-tCompCor, aCompCor, Frame-wise Displacement, 6 motion parameters, DVARS, and
-spike regressors.
+tCompCor, aCompCor, Frame-wise Displacement, 6 motion parameters, DVARS, spike regressors,
+and, if the ``--use-aroma`` flag is enabled, the noise components identified by ICA-AROMA
+(those to be removed by the "aggressive" denoising strategy).
+Particular details about ICA-AROMA are given below.
+
+ICA-AROMA
+~~~~~~~~~
+:py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
+
+ICA-AROMA denoising is performed in ``MNI152NLin6Asym`` space, which is automatically
+added to the list of ``--output-spaces`` if it was not already requested by the user.
+The number of ICA-AROMA components depends on a dimensionality estimate made by
+FSL MELODIC.
+For datasets with a very short TR and a large number of timepoints, this may result
+in an unusually high number of components.
+By default, dimensionality is limited to a maximum of 200 components.
+To override this upper limit one may specify the number of components to be extracted
+with ``--aroma-melodic-dimensionality``.
+Further details on the implementation are given within the workflow generation
+function (:py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`).
+
+*Note*: *non*-aggressive AROMA denoising is a fundamentally different procedure
+from its "aggressive" counterpart and cannot be performed only by using a set of noise
+regressors (a separate GLM with both noise and signal regressors needs to be used).
+Therefore instead of regressors, *fMRIPrep* produces *non*-aggressive denoised 4D NIFTI
+files in the MNI space:
+
+``*space-MNI152NLin6Asym_desc-smoothAROMAnonaggr_bold.nii.gz``
+
+Additionally, the MELODIC mix and noise component indices will
+be generated, so non-aggressive denoising can be manually performed in the T1w space with ``fsl_regfilt``, *e.g.*::
+
+    fsl_regfilt -i sub-<subject_label>_task-<task_id>_space-T1w_desc-preproc_bold.nii.gz \
+        -f $(cat sub-<subject_label>_task-<task_id>_AROMAnoiseICs.csv) \
+        -d sub-<subject_label>_task-<task_id>_desc-MELODIC_mixing.tsv \
+        -o sub-<subject_label>_task-<task_id>_space-T1w_desc-AROMAnonaggr_bold.nii.gz
+
+*Note*: The non-steady state volumes are removed for the determination of components in melodic.
+Therefore ``*MELODIC_mixing.tsv`` may have zero padded rows to account for the volumes not used in
+melodic's estimation of components.
+
+A visualization of the AROMA component classification is also included in the HTML reports.
+
+.. figure:: _static/aroma.svg
+
+    Maps created with maximum intensity projection (glass brain) with a black
+    brain outline.
+    Right hand side of each map: time series (top in seconds),
+    frequency spectrum (bottom in Hertz).
+    Components classified as signal in green; noise in red.
 
 .. _bold_t2s:
 

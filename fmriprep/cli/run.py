@@ -43,17 +43,8 @@ def main():
     parse_args()
 
     # Deprecated flags
-    if any(
-        (
-            config.workflow.use_aroma,
-            config.workflow.aroma_err_on_warn,
-            config.workflow.aroma_melodic_dim,
-        )
-    ):
-        warnings.warn(
-            "ICA-AROMA was removed in fMRIPrep 23.1.0. The --use-aroma, --aroma-err-on-warn, "
-            "and --aroma-melodic-dim flags will error in fMRIPrep 24.0.0."
-        )
+    if config.workflow.use_aroma:
+        warnings.warn("ICA-AROMA support will be removed in fMRIPrep 23.1.0", FutureWarning)
 
     # Code Carbon
     if config.execution.track_carbon:

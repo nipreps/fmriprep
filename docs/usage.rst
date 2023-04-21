@@ -180,7 +180,7 @@ Because processing this emerging type of datasets (*densely sampled neuroimaging
 
 .. attention::
     When the intention is to combine the *anatomical fast-track* with some advanced options that involve
-    standard spaces (e.g., ``--cifti-output``), please make sure you include the
+    standard spaces (e.g., ``--use-aroma`` or ``--cifti-output``), please make sure you include the
     ``MNI152NLin6Asym`` space to the ``--output-spaces`` list in the first invocation of *fMRIPrep*
     (or *sMRIPrep*) from which the results are to be reused.
     Otherwise, a warning message indicating that *fMRIPrep*'s expectations were not met will be issued,

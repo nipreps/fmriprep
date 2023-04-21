@@ -196,6 +196,13 @@ sections:
       effects and can inform decisions about feature orthogonalization prior to
       confound regression.
     subtitle: Correlations among nuisance regressors
+  - bids: {datatype: figures, desc: aroma, suffix: bold}
+    caption: |
+      Maps created with maximum intensity projection (glass brain) with a
+      black brain outline. Right hand side of each map: time series (top in seconds),
+      frequency spectrum (bottom in Hertz). Components classified as signal are plotted
+      in green; noise components in red.
+    subtitle: ICA Components classified by AROMA
 - name: About
   reportlets:
   - bids: {datatype: figures, desc: about, suffix: T1w}

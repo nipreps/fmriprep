@@ -138,11 +138,11 @@ Modifiers are not allowed when providing nonstandard spaces.
 
 Preprocessing blocks depending on standard templates
 """"""""""""""""""""""""""""""""""""""""""""""""""""
-Some modules of the pipeline (e.g., the generation of HCP compatible
-*grayordinates* files, or the *fieldmap-less* distortion correction)
+Some modules of the pipeline (e.g., the ICA-AROMA denoising, the generation of
+HCP compatible *grayordinates* files, or the *fieldmap-less* distortion correction)
 operate in specific template spaces.
 When selecting those modules to be included (using any of the following flags:
-``--cifti-outputs``, ``--use-syn-sdc``) will modify the list of
+``--use-aroma``, ``--cifti-outputs``, ``--use-syn-sdc``) will modify the list of
 *internal* spaces to include the space identifiers they require, should the
 identifier not be found within the ``--output-spaces`` list already.
 In other words, running *fMRIPrep* with ``--output-spaces MNI152NLin6Asym:res-2

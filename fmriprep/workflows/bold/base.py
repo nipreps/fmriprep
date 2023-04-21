@@ -162,6 +162,12 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
         Estimated T2\\* map in template space
     confounds
         TSV of confounds
+    aroma_noise_ics
+        Noise components identified by ICA-AROMA
+    melodic_mix
+        FSL MELODIC mixing matrix
+    nonaggr_denoised_file
+        BOLD series, in native space, with non-agressive AROMA denoising applied
     confounds_metadata
         Confounds metadata dictionary
 
@@ -176,6 +182,7 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
     * :py:func:`~fmriprep.workflows.bold.registration.init_bold_t1_trans_wf`
     * :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`
     * :py:func:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`
+    * :py:func:`~fmriprep.workflows.bold.confounds.init_ica_aroma_wf`
     * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_std_trans_wf`
     * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_preproc_trans_wf`
     * :py:func:`~fmriprep.workflows.bold.resampling.init_bold_surf_wf`
@@ -373,6 +380,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "t2star_t1",
                 "t2star_std",
                 "confounds",
+                "aroma_noise_ics",
+                "melodic_mix",
+                "nonaggr_denoised_file",
                 "confounds_metadata",
             ]
         ),
@@ -423,6 +433,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         multiecho=multiecho,
         output_dir=fmriprep_dir,
         spaces=spaces,
+        use_aroma=config.workflow.use_aroma,
     )
     func_derivatives_wf.inputs.inputnode.all_source_files = bold_file
     func_derivatives_wf.inputs.inputnode.cifti_density = config.workflow.cifti_output
@@ -444,6 +455,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("bold_echos_native", "inputnode.bold_echos_native"),
             ("confounds", "inputnode.confounds"),
             ("surfaces", "inputnode.surf_files"),
+            ("aroma_noise_ics", "inputnode.aroma_noise_ics"),
+            ("melodic_mix", "inputnode.melodic_mix"),
+            ("nonaggr_denoised_file", "inputnode.nonaggr_denoised_file"),
             ("bold_cifti", "inputnode.bold_cifti"),
             ("cifti_metadata", "inputnode.cifti_metadata"),
             ("t2star_bold", "inputnode.t2star_bold"),
@@ -763,6 +777,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     if spaces.get_spaces(nonstandard=False, dim=(3,)):
         # Apply transforms in 1 shot
+        # Only use uncompressed output if AROMA is to be run
         bold_std_trans_wf = init_bold_std_trans_wf(
             freesurfer=freesurfer,
             mem_gb=mem_gb["resampled"],
@@ -844,6 +859,72 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ]),
         ])
         # fmt:on
+
+        if config.workflow.use_aroma:  # ICA-AROMA workflow
+            from .confounds import init_ica_aroma_wf
+
+            ica_aroma_wf = init_ica_aroma_wf(
+                mem_gb=mem_gb["resampled"],
+                metadata=metadata,
+                omp_nthreads=omp_nthreads,
+                err_on_aroma_warn=config.workflow.aroma_err_on_warn,
+                aroma_melodic_dim=config.workflow.aroma_melodic_dim,
+                name="ica_aroma_wf",
+            )
+
+            join = pe.Node(
+                niu.Function(output_names=["out_file"], function=_to_join),
+                name="aroma_confounds",
+            )
+
+            mrg_conf_metadata = pe.Node(
+                niu.Merge(2),
+                name="merge_confound_metadata",
+                run_without_submitting=True,
+            )
+            mrg_conf_metadata2 = pe.Node(
+                DictMerge(),
+                name="merge_confound_metadata2",
+                run_without_submitting=True,
+            )
+            # fmt:off
+            workflow.disconnect([
+                (bold_confounds_wf, outputnode, [
+                    ("outputnode.confounds_file", "confounds"),
+                ]),
+                (bold_confounds_wf, outputnode, [
+                    ("outputnode.confounds_metadata", "confounds_metadata"),
+                ]),
+            ])
+            workflow.connect([
+                (inputnode, ica_aroma_wf, [("bold_file", "inputnode.name_source")]),
+                (bold_hmc_wf, ica_aroma_wf, [
+                    ("outputnode.movpar_file", "inputnode.movpar_file"),
+                ]),
+                (initial_boldref_wf, ica_aroma_wf, [
+                    ("outputnode.skip_vols", "inputnode.skip_vols"),
+                ]),
+                (bold_confounds_wf, join, [("outputnode.confounds_file", "in_file")]),
+                (bold_confounds_wf, mrg_conf_metadata, [
+                    ("outputnode.confounds_metadata", "in1"),
+                ]),
+                (ica_aroma_wf, join, [("outputnode.aroma_confounds", "join_file")]),
+                (ica_aroma_wf, mrg_conf_metadata, [("outputnode.aroma_metadata", "in2")]),
+                (mrg_conf_metadata, mrg_conf_metadata2, [("out", "in_dicts")]),
+                (ica_aroma_wf, outputnode, [
+                    ("outputnode.aroma_noise_ics", "aroma_noise_ics"),
+                    ("outputnode.melodic_mix", "melodic_mix"),
+                    ("outputnode.nonaggr_denoised_file", "nonaggr_denoised_file"),
+                ]),
+                (join, outputnode, [("out_file", "confounds")]),
+                (mrg_conf_metadata2, outputnode, [("out_dict", "confounds_metadata")]),
+                (bold_std_trans_wf, ica_aroma_wf, [
+                    ("outputnode.bold_std", "inputnode.bold_std"),
+                    ("outputnode.bold_mask_std", "inputnode.bold_mask_std"),
+                    ("outputnode.spatial_reference", "inputnode.spatial_reference"),
+                ]),
+            ])
+            # fmt:on
 
     # SURFACES ##################################################################################
     # Freesurfer

@@ -202,7 +202,7 @@ In addition to the ``--output-spaces`` that you specify, *fMRIPrep* will
 internally require the ``MNI152NLin2009cAsym`` template.
 If the ``--skull-strip-template`` option is not set, then ``OASIS30ANTs``
 will be used.
-Finally, the ``--cifti-output`` argument requires ``MNI152NLin6Asym``.
+Finally, both the ``--cifti-output`` and ``--use-aroma`` arguments require ``MNI152NLin6Asym``.
 To do so, follow the next steps.
 
 1. By default, a mirror of *TemplateFlow* to store the resources will be

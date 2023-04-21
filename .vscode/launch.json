@@ -34,6 +34,7 @@
                 "/tmp/ds005/derivatives",
                 "participant",
                 "--sloppy", "--write-graph",
+                "--use-aroma",
                 "--skull-strip-template", "OASIS30ANTs:res-1",
                 "--output-space", "T1w", "template", "fsaverage5", "fsnative",
                 "--template-resampling-grid",  "native",

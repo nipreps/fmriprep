@@ -80,6 +80,7 @@ the ``fmriprep`` package:
 - AFNI_ (version 23.1.05)
 - `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.3.0)
 - FreeSurfer_ (version 7.3.2)
+- `ICA-AROMA <https://github.com/maartenmennes/ICA-AROMA/archive/v0.4.5.tar.gz>`_ (version 0.4.5)
 - `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.8.0)
 - `connectome-workbench <https://www.humanconnectome.org/software/connectome-workbench>`_ (version 1.5.0)
 
