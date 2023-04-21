@@ -206,6 +206,14 @@ ENV ANTSPATH="/opt/ants" \
 ENV PATH="/opt/workbench/bin_linux64:$PATH" \
     LD_LIBRARY_PATH="/opt/workbench/lib_linux64:$LD_LIBRARY_PATH"
 
+# Installing and setting up ICA_AROMA
+WORKDIR /opt/ICA-AROMA
+RUN curl -sSL "https://github.com/oesteban/ICA-AROMA/archive/v0.4.5.tar.gz" \
+  | tar -xzC /opt/ICA-AROMA --strip-components 1 && \
+  chmod +x /opt/ICA-AROMA/ICA_AROMA.py
+ENV PATH="/opt/ICA-AROMA:$PATH" \
+    AROMA_VERSION="0.4.5"
+
 # Create a shared $HOME directory
 RUN useradd -m -s /bin/bash -G users fmriprep
 WORKDIR /home/fmriprep
