@@ -854,8 +854,10 @@ jobs:
           name: Deploy to Docker Hub
           no_output_timeout: 40m
           command: |
-            docker tag nipreps/fmriprep nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
-            docker push nipreps/fmriprep:${CIRCLE_BRANCH#docker/}
+            # Format: docker/[<version-like>+]<tag> -> nipreps/fmriprep:<tag>
+            # <version-like>+<tag> guides setuptools_scm to get the right major/minor
+            docker tag nipreps/fmriprep nipreps/fmriprep:${CIRCLE_BRANCH##*[/+]}
+            docker push nipreps/fmriprep:${CIRCLE_BRANCH##*[/+]}
 
   deploy_docker:
     <<: *machine_defaults
