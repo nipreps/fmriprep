@@ -571,7 +571,7 @@ def init_goodvoxels_bold_mask_wf(mem_gb: float, name: str = "goodvoxels_bold_mas
         [
             (goodvoxels_mask, goodvoxels_ribbon_mask, [("out_file", "in_file")]),
             (ribbon_boldsrc_xfm, goodvoxels_ribbon_mask, [("output_image", "mask_file")]),
-            (goodvoxels_ribbon_mask, apply_goodvoxels_ribbon_mask, [("out_file", "mask_file")]),
+            (goodvoxels_mask, apply_goodvoxels_ribbon_mask, [("out_file", "mask_file")]),
             (inputnode, apply_goodvoxels_ribbon_mask, [("bold_file", "in_file")]),
             (apply_goodvoxels_ribbon_mask, outputnode, [("out_file", "masked_bold")]),
             (goodvoxels_ribbon_mask, outputnode, [("out_file", "goodvoxels_ribbon")]),
