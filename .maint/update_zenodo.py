@@ -120,4 +120,4 @@ if __name__ == '__main__':
         if isinstance(creator['affiliation'], list):
             creator['affiliation'] = creator['affiliation'][0]
 
-    zenodo_file.write_text('%s\n' % json.dumps(zenodo, indent=2))
+    zenodo_file.write_text('%s\n' % json.dumps(zenodo, indent=2, ensure_ascii=False))

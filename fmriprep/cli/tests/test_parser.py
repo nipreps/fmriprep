@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ from contextlib import nullcontext
 
 import pytest
 from packaging.version import Version
-from pkg_resources import resource_filename as pkgrf
 
 from ... import config
 from ...tests.test_config import _reset_config
@@ -94,7 +93,7 @@ def test_memory_arg(tmp_path, argval, gb):
     _fs_file = tmp_path / "license.txt"
     _fs_file.write_text("")
 
-    args = MIN_ARGS + ["--fs-license-file", str(_fs_file)] + ["--mem", argval]
+    args = [str(datapath)] + MIN_ARGS[1:] + ["--fs-license-file", str(_fs_file), "--mem", argval]
     opts = _build_parser().parse_args(args)
 
     assert opts.memory_gb == gb
@@ -142,16 +141,15 @@ def test_get_parser_blacklist(monkeypatch, capsys, flagged):
         assert (flagged[1] or "reason: unknown") in captured
 
 
-def test_parse_args(tmp_path):
+def test_parse_args(tmp_path, minimal_bids):
     """Basic smoke test showing that our parse_args() function
     implements the BIDS App protocol"""
-    bids_dir = pkgrf('fmriprep', 'data/tests/ds000005')
     out_dir = tmp_path / "out"
     work_dir = tmp_path / "work"
 
     parse_args(
         args=[
-            bids_dir,
+            str(minimal_bids),
             str(out_dir),
             "participant",  # BIDS App
             "-w",
@@ -159,7 +157,7 @@ def test_parse_args(tmp_path):
             "--skip-bids-validation",  # Empty files make BIDS sad
         ]
     )
-    assert config.execution.layout.root == bids_dir
+    assert config.execution.layout.root == str(minimal_bids)
     _reset_config()
 
 

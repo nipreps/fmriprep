@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ Generate T2* map from multi-echo BOLD images
 .. autofunction:: init_bold_t2s_wf
 
 """
+import typing as ty
+
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
@@ -39,7 +41,12 @@ LOGGER = config.loggers.workflow
 
 
 # pylint: disable=R0914
-def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
+def init_bold_t2s_wf(
+    echo_times: ty.Sequence[float],
+    mem_gb: float,
+    omp_nthreads: int,
+    name: str = 'bold_t2s_wf',
+):
     r"""
     Combine multiple echos of :abbr:`ME-EPI (multi-echo echo-planar imaging)`.
 
@@ -79,6 +86,7 @@ def init_bold_t2s_wf(echo_times, mem_gb, omp_nthreads, name='bold_t2s_wf'):
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.morphology import BinaryDilation
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -98,11 +106,18 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
 
     LOGGER.log(25, 'Generating T2* map and optimally combined ME-EPI time series.')
 
-    t2smap_node = pe.Node(T2SMap(echo_times=list(echo_times)), name='t2smap_node')
+    dilate_mask = pe.Node(BinaryDilation(radius=2), name='dilate_mask')
+
+    t2smap_node = pe.Node(
+        T2SMap(echo_times=list(echo_times)),
+        name='t2smap_node',
+        mem_gb=2.5 * mem_gb * len(echo_times),
+    )
     # fmt:off
     workflow.connect([
-        (inputnode, t2smap_node, [('bold_file', 'in_files'),
-                                  ('bold_mask', 'mask_file')]),
+        (inputnode, dilate_mask, [('bold_mask', 'in_mask')]),
+        (inputnode, t2smap_node, [('bold_file', 'in_files')]),
+        (dilate_mask, t2smap_node, [('out_mask', 'mask_file')]),
         (t2smap_node, outputnode, [('optimal_comb', 'bold'),
                                    ('t2star_map', 't2star_map')]),
     ])
@@ -111,11 +126,11 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
     return workflow
 
 
-def init_t2s_reporting_wf(name='t2s_reporting_wf'):
+def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     r"""
     Generate T2\*-map reports.
 
-    This workflow generates a histogram of esimated T2\* values (in seconds) in the
+    This workflow generates a histogram of estimated T2\* values (in seconds) in the
     cortical and subcortical gray matter mask.
 
     Parameters

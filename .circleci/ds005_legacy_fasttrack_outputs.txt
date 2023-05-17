@@ -1,3 +1,4 @@
+
 fmriprep
 fmriprep/.bidsignore
 fmriprep/dataset_description.json
@@ -39,4 +40,3 @@ fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsaverage5
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsnative_bold.func.gii
 fmriprep/sub-01/func/sub-01_task-mixedgamblestask_run-02_hemi-R_space-fsnative_bold.json
 fmriprep/sub-01.html
-/tmp/ds005/derivatives

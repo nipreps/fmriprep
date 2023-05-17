@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,10 +36,11 @@ def build_workflow(config_file, retval):
     """Create the Nipype Workflow that supports the whole execution graph."""
     from pathlib import Path
 
-    from niworkflows.reports import generate_reports
     from niworkflows.utils.bids import check_pipeline_version, collect_participants
     from niworkflows.utils.misc import check_valid_fs_license
     from pkg_resources import resource_filename as pkgrf
+
+    from fmriprep.reports.core import generate_reports
 
     from .. import config
     from ..utils.misc import check_deps
@@ -86,8 +87,8 @@ def build_workflow(config_file, retval):
     if config.execution.reports_only:
         build_log.log(25, "Running --reports-only on participants %s", ", ".join(subject_list))
         retval["return_code"] = generate_reports(
-            subject_list,
-            fmriprep_dir,
+            config.execution.participant_label,
+            config.execution.fmriprep_dir,
             config.execution.run_uuid,
             config=pkgrf("fmriprep", "data/reports-spec.yml"),
             packagename="fmriprep",

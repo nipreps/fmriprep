@@ -6,7 +6,7 @@ projects of the framework.
 
 License information
 -------------------
-Copyright (c) 2022, the *NiPreps* Developers.
+Copyright (c) 2023, the *NiPreps* Developers.
 
 As of the 21.0.x pre-release and release series, *fMRIPrep* is
 licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Copyright (c) 2015-2022, the *fMRIPrep* developers and the CRN.
+Copyright (c) 2015-2023, the *fMRIPrep* developers and the CRN.
 All rights reserved.
 
 *fMRIPrep* 20.2 series and earlier are
@@ -32,7 +32,7 @@ All trademarks referenced herein are property of their respective holders.
 
 The ``fmriprep-wrapper`` for Docker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Copyright (c) 2020-2022, the *NiPreps* Developers.
+Copyright (c) 2020-2023, the *NiPreps* Developers.
 Copyright (c) 2015-2020, the *fMRIPrep* developers and the CRN.
 All rights reserved.
 

@@ -1,22 +1,142 @@
 [build-system]
-# Keep synchronized with the minimum version to install in setup.py
-requires = ["setuptools >= 40.8.0", "wheel", "versioneer[toml]"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs", "nipreps-versions"]
+build-backend = "hatchling.build"
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "fmriprep/_version.py"
-versionfile_build = "fmriprep/_version.py"
-tag_prefix = ""
-parentdir_prefix = ""
+[project]
+name = "fmriprep"
+description = "A robust and easy-to-use pipeline for preprocessing of diverse fMRI data"
+readme = "long_description.rst"
+authors = [{name = "The NiPreps Developers", email = "nipreps@gmail.com"}]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+dependencies = [
+    'importlib_resources; python_version < "3.9"',
+    "looseversion",
+    "nibabel >= 4.0.1",
+    "nipype >= 1.8.5",
+    "nitime",
+    "nitransforms >= 21.0.0",
+    "niworkflows ~= 1.7.9",
+    "numpy",
+    "packaging",
+    "pandas",
+    "psutil >= 5.4",
+    "pybids >= 0.15.2",
+    "requests",
+    "sdcflows ~= 2.4.3",
+    "smriprep >= 0.11.1",
+    "tedana ~= 0.0.9",
+    "templateflow >= 23.0.0",
+    "toml",
+    "codecarbon",
+    "APScheduler",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/nipreps/fmriprep"
+Documentation = "https://fmriprep.org"
+Paper = "https://doi.org/10.1038/s41592-018-0235-4"
+"Docker Images" = "https://hub.docker.com/r/nipreps/fmriprep/tags/"
+NiPreps = "https://www.nipreps.org/"
+
+[project.optional-dependencies]
+doc = [
+    "pydot >= 1.2.3",
+    "sphinx >= 1.8",
+    "sphinx-argparse",
+    "sphinx_rtd_theme>=0.5.2",
+]
+dev = [
+    "black ~= 22.3.0",
+    "pre-commit",
+    "isort ~= 5.10.1",
+    "flake8-pyproject",
+]
+duecredit = ["duecredit"]
+resmon = []
+telemetry = [
+    "migas >= 0.3.0",
+    "sentry-sdk >= 1.3",
+]
+test = [
+    "coverage",
+    "pytest",
+    "pytest-cov",
+    "pytest-env",
+]
+maint = [
+    "fuzzywuzzy",
+    "python-Levenshtein",
+]
+# Aliases
+docs = ["fmriprep[doc]"]
+tests = ["fmriprep[test]"]
+all = ["fmriprep[doc,maint,telemetry,test]"]
+
+[project.scripts]
+fmriprep = "fmriprep.cli.run:main"
+
+#
+# Hatch configurations
+#
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.sdist]
+exclude = [".git_archival.txt"]  # No longer needed in sdist
+
+[tool.hatch.build.targets.wheel]
+packages = ["fmriprep"]
+exclude = [
+    "fmriprep/data/tests/work",  # Large test data directory
+]
+
+##  The following two sections configure setuptools_scm in the hatch way
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "nipreps-calver" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "fmriprep/_version.py"
+
+#
+# Developer tool configurations
+#
 
 [tool.black]
 line-length = 99
 target-version = ['py39']
 skip-string-normalization = true
-extend-exclude = '_version.py|versioneer.py'
 
 [tool.isort]
 profile = 'black'
-extend_skip = '_version.py'
+
+[tool.flake8]
+max-line-length = "99"
+doctests = "False"
+exclude = "*build/"
+ignore = ["W503", "E203"]
+per-file-ignores = [
+    "**/__init__.py : F401",
+    "docs/conf.py : E265",
+]
+
+[tool.pytest.ini_options]
+norecursedirs = [".git"]
+addopts = "-svx --doctest-modules"
+doctest_optionflags = "ALLOW_UNICODE NORMALIZE_WHITESPACE ELLIPSIS"
+env = "PYTHONHASHSEED=0"
+filterwarnings = ["ignore::DeprecationWarning"]
+junit_family = "xunit2"

@@ -17,7 +17,6 @@
 | MCFLIRT | https://doi.org/10.1006/nimg.2002.1132 | https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MCFLIRT |
 | SUSAN | https://doi.org/10.1023/A:1007963824710 | https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/SUSAN |
 | MELODIC | | https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/MELODIC |
-| ICA-AROMA | http://www.sciencedirect.com/science/article/pii/S1053811915001822 | https://github.com/rhr-pruim/ICA-AROMA/ |
 | PRELUDE & FUGUE | https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FUGUE/Guide | https://nipype.readthedocs.io/en/latest/interfaces/generated/workflows.dmri/fsl.utils.html#cleanup-edge-pipeline |
 | **AFNI** | | https://doi.org/10.1006/cbmr.1996.0014; https://doi.org/10.1016/j.neuroimage.2011.08.056
 | 3dvolreg | | https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dvolreg.html |

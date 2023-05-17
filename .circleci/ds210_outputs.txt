@@ -1,3 +1,4 @@
+
 fmriprep
 fmriprep/.bidsignore
 fmriprep/dataset_description.json
@@ -57,4 +58,3 @@ fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_desc-p
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_T2starmap.json
 fmriprep/sub-02/func/sub-02_task-cuedSGT_run-01_space-MNI152NLin2009cAsym_T2starmap.nii.gz
 fmriprep/sub-02.html
-/tmp/ds210/derivatives

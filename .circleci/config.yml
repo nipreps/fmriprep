@@ -4,14 +4,14 @@ _machine_defaults: &machine_defaults
     TZ: "/usr/share/zoneinfo/America/Los_Angeles"
     SCRATCH: "/scratch"
   machine:
-    image: ubuntu-2004:current
+    image: ubuntu-2204:current
     docker_layer_caching: true
   working_directory: /tmp/src/fmriprep
   resource_class: large
 
 _python_defaults: &python_defaults
   docker:
-    - image: circleci/python:3.9.6
+    - image: cimg/python:3.10.9
   working_directory: /tmp/src/fmriprep
 
 _docker_auth: &docker_auth
@@ -84,8 +84,30 @@ _setup_fmriprep_docker: &setup_fmriprep_docker
                   sed -e 's/.* 3\./3./' -e 's/ .*//')
     pyenv local $PY3
     mkdir -p /tmp/${DATASET}/derivatives
-    pip install --upgrade pip setuptools
+    pip install --upgrade pip
     pip install --upgrade /tmp/src/fmriprep/wrapper/
+
+_check_outputs: &check_outputs
+  name: Checking outputs of fMRIPrep run
+  command: |
+    set +e -x
+    mkdir -p /tmp/${DATASET}/test
+    find /tmp/${DATASET}/${SUBDIR:-derivatives} \( -path '*/figures' -o -path '*/log' -o -path '*/sourcedata' \) -prune -o -name "*" -print | cut -d/ -f 5- | sort > /tmp/${DATASET}/test/outputs.out
+
+    FASTTRACK_OUTPUTS="${DATASET}${VARIANT}_fasttrack_outputs.txt"
+    FULL_OUTPUTS="${DATASET}${VARIANT}_outputs.txt"
+    RET=1
+    if [ ! -f /tmp/.nofasttrack ]; then
+        echo "Checking fasttrack..."
+        diff /tmp/src/fmriprep/.circleci/${FASTTRACK_OUTPUTS} /tmp/${DATASET}/test/outputs.out
+        RET=$?
+    fi
+    if [ $RET -ne 0 ]; then
+        echo "Checking full..."
+        diff /tmp/src/fmriprep/.circleci/${FULL_OUTPUTS} /tmp/${DATASET}/test/outputs.out
+        RET=$?
+    fi
+    exit $RET
 
 
 version: 2.1
@@ -95,19 +117,48 @@ orbs:
   docker: circleci/docker@2.1.4
 
 jobs:
+  build_clean:
+    <<: *machine_defaults
+    environment:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - checkout:
+          path: *src
+      - docker/install-docker-credential-helper
+      - run: *docker_auth
+      - run:
+          name: Build Docker image
+          no_output_timeout: 60m
+          command: |
+            export PY3=$(pyenv versions | grep '3\.' |
+                         sed -e 's/.* 3\./3./' -e 's/ .*//')
+            pyenv local $PY3
+            pip install hatch
+            # Get version, update files
+            THISVERSION=$( hatch version )
+            # Build docker image
+            docker build --rm \
+              --cache-from=nipreps/fmriprep \
+              -t nipreps/fmriprep:latest \
+              --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
+              --build-arg VCS_REF=`git rev-parse --short HEAD` \
+              --build-arg VERSION="$THISVERSION" .
+
   build:
     <<: *machine_defaults
+    environment:
+      DOCKER_BUILDKIT: 1
     steps:
       - checkout:
           path: *src
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
-            - build-v5--{{ .Revision }}
-            - build-v5-{{ .Branch }}-
-            - build-v5-master-
-            - build-v5-
+            - build-v2-{{ .Branch }}-{{ .Revision }}
+            - build-v2--{{ .Revision }}
+            - build-v2-{{ .Branch }}-
+            - build-v2-master-
+            - build-v2-
           paths:
             - /tmp/docker
             - /tmp/images
@@ -122,19 +173,27 @@ jobs:
               docker save registry:2 | gzip > /tmp/images/registry.tar.gz
             fi
       - run:
-          name: Pull Ubuntu/focal image
+          name: Pull Ubuntu/jammy image
           command: |
             set +e
+            # Source layers if available
+            docker pull localhost:5000/downloader
+            docker pull localhost:5000/freesurfer
+            docker pull localhost:5000/afni
+            docker pull localhost:5000/ants
+            docker pull localhost:5000/workbench
+            docker pull localhost:5000/micromamba
+
             docker pull localhost:5000/ubuntu
             success=$?
             set -e
             if [[ "$success" = "0" ]]; then
                 echo "Pulling from local registry"
-                docker tag localhost:5000/ubuntu ubuntu:focal
+                docker tag localhost:5000/ubuntu ubuntu:jammy
             else
                 echo "Pulling from Docker Hub"
-                docker pull ubuntu:focal
-                docker tag ubuntu:focal localhost:5000/ubuntu
+                docker pull ubuntu:jammy
+                docker tag ubuntu:jammy localhost:5000/ubuntu
                 docker push localhost:5000/ubuntu
             fi
       - run:
@@ -159,31 +218,69 @@ jobs:
             export PY3=$(pyenv versions | grep '3\.' |
                          sed -e 's/.* 3\./3./' -e 's/ .*//')
             pyenv local $PY3
+            pip install hatch
             # Get version, update files.
-            THISVERSION=$( python3 get_version.py )
+            THISVERSION=$( hatch version )
             if [[ ${THISVERSION:0:1} == "0" ]] ; then
               echo "WARNING: latest git tag could not be found"
               echo "Please, make sure you fetch all tags from upstream with"
               echo "the command ``git fetch --tags --verbose`` and push"
               echo "them to your fork with ``git push origin --tags``"
             fi
-            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
             # Build docker image
             e=1 && for i in {1..5}; do
               docker build --rm \
                 --cache-from=nipreps/fmriprep \
+                --cache-from=localhost:5000/downloader \
+                --cache-from=localhost:5000/freesurfer \
+                --cache-from=localhost:5000/afni \
+                --cache-from=localhost:5000/ants \
+                --cache-from=localhost:5000/workbench \
+                --cache-from=localhost:5000/micromamba \
                 -t nipreps/fmriprep:latest \
+                --target fmriprep \
                 --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
                 --build-arg VCS_REF=`git rev-parse --short HEAD` \
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" . \
               && e=0 && break || sleep 15
             done && [ "$e" -eq "0" ]
       - run:
+          name: Check Docker image
+          command: |
+            export PY3=$(pyenv versions | grep '3\.' |
+                         sed -e 's/.* 3\./3./' -e 's/ .*//')
+            pyenv local $PY3
+            # Get version, update files.
+            THISVERSION=$( hatch version )
+            BUILT_VERSION=$( docker run --rm nipreps/fmriprep:latest --version )
+            BUILT_VERSION=${BUILT_VERSION%$'\r'}
+            BUILT_VERSION=${BUILT_VERSION#*"fMRIPrep v"}
+            echo "VERSION: \"$THISVERSION\""
+            echo "BUILT: \"$BUILT_VERSION\""
+            set -e
+            test "$BUILT_VERSION" = "$THISVERSION"
+      - run:
+          name: Build and tag stages
+          no_output_timeout: 40m
+          command: |
+            docker build -t localhost:5000/downloader --target downloader .
+            docker build -t localhost:5000/freesurfer --target freesurfer .
+            docker build -t localhost:5000/afni --target afni .
+            docker build -t localhost:5000/ants --target ants .
+            docker build -t localhost:5000/workbench --target workbench .
+            docker build -t localhost:5000/micromamba --target micromamba .
+      - run:
           name: Docker push to local registry
           no_output_timeout: 40m
           command: |
             docker tag nipreps/fmriprep:latest localhost:5000/fmriprep
             docker push localhost:5000/fmriprep
+            docker push localhost:5000/downloader
+            docker push localhost:5000/freesurfer
+            docker push localhost:5000/afni
+            docker push localhost:5000/ants
+            docker push localhost:5000/workbench
+            docker push localhost:5000/micromamba
       - run:
           name: Docker registry garbage collection
           command: |
@@ -195,7 +292,7 @@ jobs:
           paths:
             - src/fmriprep
       - save_cache:
-         key: build-v5-{{ .Branch }}-{{ .Revision }}
+         key: build-v2-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/docker
             - /tmp/images
@@ -205,11 +302,11 @@ jobs:
     steps:
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
-            - data-v9--{{ .Revision }}
-            - data-v9-{{ .Branch }}-
-            - data-v9-master-
-            - data-v9-
+            - data-v0-{{ .Branch }}-{{ .Revision }}
+            - data-v0--{{ .Revision }}
+            - data-v0-{{ .Branch }}-
+            - data-v0-master-
+            - data-v0-
       - run:
           name: Get test data from ds000005
           command: |
@@ -247,18 +344,18 @@ jobs:
             if [[ ! -d /tmp/ds005/freesurfer ]]; then
               mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_derivatives_freesurfer.tar.gz "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/58fe59eb594d900250960180"
-              tar xvzf ds005_derivatives_freesurfer.tar.gz -C /tmp/ds005
+                -O ds005_derivatives_freesurfer.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bab2c92a98a1c0606e6a0"
+              unzip -d /tmp/ds005 ds005_derivatives_freesurfer.zip
             else
               echo "FreeSurfer derivatives of ds000005 were cached"
             fi
       - run:
           name: Get sMRIPrep derivatives for ds000005
           command: |
-            if [[ ! -d /tmp/ds005/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds005/smriprep ]]; then
               mkdir -p /tmp/ds005
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e860c528140b402134249d1"
+                -O ds005_sub-01_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637cf6505ea438007b0497d3"
               unzip -d /tmp/ds005 ds005_sub-01_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000005 were cached"
@@ -266,10 +363,10 @@ jobs:
       - run:
           name: Get sMRIPrep derivatives for ds000054
           command: |
-            if [[ ! -d /tmp/ds054/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds054/smriprep ]]; then
               mkdir -p /tmp/ds054
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds054_sub-100185_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e86be591ab243025be0c6f1"
+                -O ds054_sub-100185_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bae8a0ab44b10ed6c43b6"
               unzip -d /tmp/ds054 ds054_sub-100185_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000054 were cached"
@@ -277,22 +374,22 @@ jobs:
       - run:
           name: Get sMRIPrep derivatives for ds000210
           command: |
-            if [[ ! -d /tmp/ds210/smriprep-0.6 ]]; then
+            if [[ ! -d /tmp/ds210/smriprep ]]; then
               mkdir -p /tmp/ds210
               wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -t 0 -q \
-                -O ds210_sub-02_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/5e86e9bb1ab2430268e03873"
+                -O ds210_sub-02_smriprep.zip "https://files.osf.io/v1/resources/fvuh8/providers/osfstorage/637bae7e4e8c3c20843b4b53"
               unzip -d /tmp/ds210 ds210_sub-02_smriprep.zip
             else
               echo "sMRIPrep derivatives of ds000210 were cached"
             fi
       - save_cache:
-         key: data-v9-{{ .Branch }}-{{ .Revision }}
+         key: data-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/data
             - /tmp/ds005/freesurfer
-            - /tmp/ds005/smriprep-0.6
-            - /tmp/ds054/smriprep-0.6
-            - /tmp/ds210/smriprep-0.6
+            - /tmp/ds005/smriprep
+            - /tmp/ds054/smriprep
+            - /tmp/ds210/smriprep
       - run:
           name: Store FreeSurfer license file
           command: |
@@ -328,13 +425,13 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -349,28 +446,36 @@ jobs:
               --pyargs fmriprep -svx --doctest-modules
 
       - run:
-          name: Test fmriprep-wrapper (Python 2)
+          name: Build fmriprep-docker wheel
           command: |
-            export PY2=$(pyenv versions | grep '2\.' |
-                         sed -e 's/.* 2\./2./' -e 's/ .*//')
-            pyenv local $PY2
-            echo -n "Python version: "
-            python --version
-            pip install --upgrade "pip<21" "setuptools<45"
-            pip install --upgrade wrapper/
-            which fmriprep-docker
-            fmriprep-docker -i nipreps/fmriprep:latest --help
-            fmriprep-docker -i nipreps/fmriprep:latest --version
+            export PY3=$(pyenv versions | grep '3\.' |
+                         sed -e 's/.* 3\./3./' -e 's/ .*//')
+            pyenv local $PY3
+            pip install --upgrade pip build
+            python -m build wrapper/
       - run:
-          name: Test fmriprep-wrapper (Python 3)
+          name: Install and test fmriprep-docker (Python 3)
           command: |
             export PY3=$(pyenv versions | grep '3\.' |
                          sed -e 's/.* 3\./3./' -e 's/ .*//')
             pyenv local $PY3
             echo -n "Python version: "
             python --version
-            pip install --upgrade pip setuptools
             pip install --upgrade wrapper/
+            pip install wrapper/dist/*.whl
+            which fmriprep-docker
+            fmriprep-docker -i nipreps/fmriprep:latest --help
+            fmriprep-docker -i nipreps/fmriprep:latest --version
+      - run:
+          name: Install and test fmriprep-docker (Python 2)
+          command: |
+            export PY2=$(pyenv versions | grep '2\.' |
+                         sed -e 's/.* 2\./2./' -e 's/ .*//')
+            pyenv local $PY2
+            echo -n "Python version: "
+            python --version
+            pip install --upgrade "pip<21"
+            pip install wrapper/dist/*.whl
             which fmriprep-docker
             fmriprep-docker -i nipreps/fmriprep:latest --help
             fmriprep-docker -i nipreps/fmriprep:latest --version
@@ -384,6 +489,7 @@ jobs:
       - FS_LICENSE: /tmp/fslicense/license.txt
       - DATASET: ds005
       - CHECK_DS005: true
+      - MIGAS_OPTOUT: 1
     steps:
       - checkout:
           path: *src
@@ -392,20 +498,20 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
-            - ds005-anat-v18--{{ .Revision }}
-            - ds005-anat-v18-{{ .Branch }}-
-            - ds005-anat-v18-master-
-            - ds005-anat-v18-
+            - ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
+            - ds005-anat-v0--{{ .Revision }}
+            - ds005-anat-v0-{{ .Branch }}-
+            - ds005-anat-v0-master-
+            - ds005-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -432,11 +538,11 @@ jobs:
       - run:
           name: Clean-up after anatomical run
           command: |
-            rm -rf /tmp/${DATASET}/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds005-anat-v18-{{ .Branch }}-{{ .Revision }}
+         key: ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds005/work
       - run:
@@ -448,7 +554,7 @@ jobs:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -480,21 +586,13 @@ jobs:
             mkdir -p /tmp/${DATASET}/derivatives_partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_bids
-            sudo rm -rf /tmp/${DATASET}/work_partial/fmriprep_wf/single_subject_01_wf/func_preproc_task_mixedgamblestask_run_02_wf/ica_aroma_wf
             # Nipype sometimes fails to pick up when the base directory changes
             # This is a cheap workflow, so let's not fuss
-            sudo rm -rf /tmp/${DATASET}/work /tmp/${DATASET}/work_bids/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf || true
+            sudo rm -rf /tmp/${DATASET}/work /tmp/${DATASET}/work_bids/fmriprep_*_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf || true
       - run:
-          name: Checking outputs of full fMRIPrep run
-          command: |
-            mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_legacy_fasttrack_outputs.txt"
-            if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_legacy_outputs.txt"
-            fi
-            find /tmp/${DATASET}/derivatives \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives/++ | sort > /tmp/${DATASET}/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
-            exit $?
+          <<: *check_outputs
+          environment:
+            VARIANT: '_legacy'
       - run:
           name: Prepare BIDS Derivatives dataset
           command: |
@@ -504,7 +602,7 @@ jobs:
           name: Re-run with BIDS layout
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -521,22 +619,16 @@ jobs:
           path: /tmp/ds005/bids
           destination: bids-run
       - run:
-          name: Checking outputs of partial fMRIPrep run
-          command: |
-            mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_bids_fasttrack_outputs.txt"
-            if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_bids_outputs.txt"
-            fi
-            find /tmp/${DATASET}/bids \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/++ | grep -v sourcedata | sort > /tmp/${DATASET}/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
-            exit $?
+          <<: *check_outputs
+          environment:
+            VARIANT: '_bids'
+            SUBDIR: 'bids'
       - run:
           name: Re-run fMRIPrep on single run of task data
           no_output_timeout: 2h
           command: |
             rm /tmp/data/${DATASET}/sub-01/func/*_run-01_*
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -550,23 +642,15 @@ jobs:
                 --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
-                --aroma-melodic-dimensionality 2 --use-aroma \
-                --nthreads 4 --cifti-output -vv
+                --nthreads 4 --cifti-output --project-goodvoxels -vv
       - store_artifacts:
           path: /tmp/ds005/derivatives_partial
           destination: partial-run
       - run:
-          name: Checking outputs of partial fMRIPrep run
-          command: |
-            mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_legacy_partial_fasttrack_outputs.txt"
-            if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_legacy_partial_outputs.txt"
-            fi
-            sudo rm -rf /tmp/${DATASET}/derivatives_partial/freesurfer
-            find /tmp/${DATASET}/derivatives_partial \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives_partial/++ | sort > /tmp/${DATASET}/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
-            exit $?
+          <<: *check_outputs
+          environment:
+            VARIANT: '_legacy_partial'
+            SUBDIR: 'derivatives_partial'
       - run:
           name: Clean working directory
           when: on_success
@@ -593,6 +677,7 @@ jobs:
       - FS_LICENSE: /tmp/fslicense/license.txt
       - DATASET: ds054
       - CHECK_DS054: true
+      - MIGAS_OPTOUT: 1
     steps:
       - checkout:
           path: *src
@@ -601,20 +686,20 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
-            - ds054-anat-v14--{{ .Revision }}
-            - ds054-anat-v14-{{ .Branch }}-
-            - ds054-anat-v14-master-
-            - ds054-anat-v14-
+            - ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
+            - ds054-anat-v0--{{ .Revision }}
+            - ds054-anat-v0-{{ .Branch }}-
+            - ds054-anat-v0-master-
+            - ds054-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -638,11 +723,11 @@ jobs:
       - run:
           name: Clean-up after anatomical run
           command: |
-            rm -rf /tmp/${DATASET}/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds054-anat-v14-{{ .Branch }}-{{ .Revision }}
+         key: ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds054/work
 
@@ -650,7 +735,7 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -663,17 +748,7 @@ jobs:
                 --fs-no-reconall --sloppy \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
-      - run:
-          name: Checking outputs of fMRIPrep
-          command: |
-            mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_fasttrack_outputs.txt"
-            if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_outputs.txt"
-            fi
-            find /tmp/${DATASET}/derivatives \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives/++ | sort > /tmp/${DATASET}/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
-            exit $?
+      - run: *check_outputs
       - run:
           name: Generate report with one artificial error
           command: |
@@ -727,20 +802,20 @@ jobs:
           at: /tmp
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
       - restore_cache:
           keys:
-            - data-v9-{{ .Branch }}-{{ .Revision }}
+            - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
-            - ds210-anat-v12--{{ .Revision }}
-            - ds210-anat-v12-{{ .Branch }}-
-            - ds210-anat-v12-master-
-            - ds210-anat-v12-
+            - ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v1--{{ .Revision }}
+            - ds210-anat-v1-{{ .Branch }}-
+            - ds210-anat-v1-master-
+            - ds210-anat-v1-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -759,16 +834,16 @@ jobs:
                     --output-layout legacy \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
-                    --mem-mb 14336 --nthreads 4 --anat-only -vv
+                    --mem-mb 14336 --nthreads 4 --anat-only -vv --notrack
             fi
       - run:
           name: Clean-up after anatomical run
           command: |
-            rm -rf /tmp/${DATASET}/work/fmriprep_wf/fsdir*
+            rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v12-{{ .Branch }}-{{ .Revision }}
+         key: ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds210/work
 
@@ -782,7 +857,7 @@ jobs:
           name: Run full fMRIPrep on ds000210
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep-0.6"
+            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -803,17 +878,7 @@ jobs:
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \
                 --mem-mb 14336 --nthreads 4 -vv
-      - run:
-          name: Checking outputs of fMRIPrep
-          command: |
-            mkdir -p /tmp/${DATASET}/test
-            CHECK_OUTPUTS_FILE="${DATASET}_fasttrack_outputs.txt"
-            if [ -f /tmp/.nofasttrack ]; then
-                CHECK_OUTPUTS_FILE="${DATASET}_outputs.txt"
-            fi
-            find /tmp/${DATASET}/derivatives \( -path */figures -o -path */log \) -prune -o -name "*" -print | sed s+/tmp/${DATASET}/derivatives/++ | sort > /tmp/${DATASET}/test/outputs.out
-            diff /tmp/src/fmriprep/.circleci/${CHECK_OUTPUTS_FILE} /tmp/${DATASET}/test/outputs.out
-            exit $?
+      - run: *check_outputs
       - run:
           name: Clean working directory
           when: on_success
@@ -843,7 +908,7 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -866,7 +931,7 @@ jobs:
       - run: *check_skip_job
       - restore_cache:
           keys:
-            - build-v5-{{ .Branch }}-{{ .Revision }}
+            - build-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /tmp/docker
             - /tmp/images
@@ -895,22 +960,26 @@ jobs:
       - checkout
       - run:
           name: Update build tools
-          command: python -m pip install --user pip build twine
+          command: pip install --upgrade build twine hatch
       - run:
           name: Build fMRIPrep
           command: python -m build
+      - run:
+          name: Twine check fmriprep
+          command: twine check dist/*
+      - run:
+          name: Pre-run hatch version
+          command: hatch version
       - store_artifacts:
           path: /tmp/src/fmriprep/dist
       - run:
           name: Check sdist distribution
           command: |
-            THISVERSION=$( python get_version.py )
-            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=$( hatch version )
             THISVERSION=${CIRCLE_TAG:-$THISVERSION}
-            python -m twine check dist/fmriprep*.tar.gz
             virtualenv --python=python sdist
             source sdist/bin/activate
-            python -m pip install --upgrade "pip>=19.1" numpy
+            python -m pip install --upgrade pip
             python -m pip install dist/fmriprep*.tar.gz
             which fmriprep | grep sdist\\/bin
             INSTALLED_VERSION=$(fmriprep --version)
@@ -922,10 +991,8 @@ jobs:
       - run:
           name: Check wheel distribution
           command: |
-            THISVERSION=$( python get_version.py )
-            THISVERSION=${THISVERSION%.dirty*}
+            THISVERSION=$( hatch version )
             THISVERSION=${CIRCLE_TAG:-$THISVERSION}
-            python -m twine check dist/fmriprep*.whl
             virtualenv --python=python wheel
             source wheel/bin/activate
             python -m pip install dist/fmriprep*.whl
@@ -938,11 +1005,10 @@ jobs:
             test "$INSTALLED_VERSION" = "$THISVERSION"
       - run:
           name: Build fmriprep-docker
-          command: |
-            THISVERSION=$( python get_version.py )
-            THISVERSION=${THISVERSION%.dirty*}
-            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
-            python -m build wrapper/
+          command: python -m build wrapper
+      - run:
+          name: Twine check wrapper
+          command: twine check wrapper/dist/*
       - store_artifacts:
           path: /tmp/src/fmriprep/wrapper/dist
 
@@ -952,21 +1018,16 @@ jobs:
       - checkout
       - run:
           name: Update build tools
-          command: python -m pip install --user build twine
+          command: pip install --upgrade build twine
       - run:
           name: Build fMRIPrep
           command: python -m build
       - run:
           name: Build fmriprep-docker
-          command: |
-            THISVERSION=$( python get_version.py )
-            THISVERSION=${THISVERSION%.dirty*}
-            sed -i -E "s/(__version__ = )'[A-Za-z0-9.-]+'/\1'${CIRCLE_TAG:-$THISVERSION}'/" wrapper/fmriprep_docker.py
-            python -m build wrapper/
+          command: python -m build wrapper/
       - run:
           name: Upload packages to PyPI
-          command: |
-            python -m twine upload dist/fmriprep* wrapper/dist/fmriprep*
+          command: python -m twine upload dist/fmriprep* wrapper/dist/fmriprep*
 
   deployable:
     docker:
@@ -976,9 +1037,25 @@ jobs:
 
 workflows:
   version: 2
+  build_from_scratch:
+    triggers:
+      - schedule:
+          cron: "0 13 * * 1"
+          filters:
+            branches:
+              only:
+                - master
+                - maint/20.2.x
+    jobs:
+      - build_clean:
+          context:
+            - nipreps-common
+
   build_test_deploy:
     jobs:
       - build:
+          context:
+            - nipreps-common
           filters:
             branches:
               ignore:
@@ -997,6 +1074,8 @@ workflows:
               only: /.*/
 
       - test_deploy_pypi:
+          context:
+            - nipreps-common
           filters:
             branches:
               only:
@@ -1006,6 +1085,8 @@ workflows:
               only: /.*/
 
       - test_pytest:
+          context:
+            - nipreps-common
           requires:
             - build
           filters:
@@ -1020,6 +1101,8 @@ workflows:
               only: /.*/
 
       - ds005:
+          context:
+            - nipreps-common
           requires:
             - get_data
             - build
@@ -1035,6 +1118,8 @@ workflows:
               only: /.*/
 
       - ds054:
+          context:
+            - nipreps-common
           requires:
             - get_data
             - build
@@ -1050,6 +1135,8 @@ workflows:
               only: /.*/
 
       - ds210:
+          context:
+            - nipreps-common
           requires:
             - get_data
             - build
@@ -1066,6 +1153,8 @@ workflows:
               only: /.*/
 
       - deploy_docker_patches:
+          context:
+            - nipreps-common
           requires:
             - build
           filters:
@@ -1086,6 +1175,8 @@ workflows:
               only: /.*/
 
       - deploy_docker:
+          context:
+            - nipreps-common
           requires:
             - deployable
           filters:
@@ -1095,6 +1186,8 @@ workflows:
               only: /.*/
 
       - deploy_pypi:
+          context:
+            - nipreps-common
           requires:
             - deployable
           filters:

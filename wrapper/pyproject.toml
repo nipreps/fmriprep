@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs", "nipreps-versions"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fmriprep-docker"
+description = "A wrapper for generating Docker commands using regular fMRIPrep syntax"
+readme = "README.rst"
+authors = [{name = "The NiPreps Developers", email = "nipreps@gmail.com"}]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+license = {file = "LICENSE"}
+requires-python = ">=2.7"
+dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/nipreps/fmriprep"
+Documentation = "https://fmriprep.org"
+Paper = "https://doi.org/10.1038/s41592-018-0235-4"
+"Docker Images" = "https://hub.docker.com/r/nipreps/fmriprep/tags/"
+NiPreps = "https://www.nipreps.org/"
+
+[project.scripts]
+fmriprep-docker = "fmriprep_docker.__main__:main"
+
+#
+# Build tool configurations
+#
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fmriprep_docker"]
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "nipreps-calver", root = ".." }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/fmriprep_docker/_version.py"
+
+[tool.distutils.bdist_wheel]
+universal = true
+
+#
+# Developer tool configurations
+#
+
+[tool.black]
+line-length = 99
+target-version = ['py39']
+skip-string-normalization = true
+
+[tool.isort]
+profile = 'black'

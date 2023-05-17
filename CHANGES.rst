@@ -1,12 +1,134 @@
+23.0.2 (April 24, 2023)
+=======================
+
+This release fixes issues with `_phase1+2`, `_phasediff` and `_fieldmap`
+fieldmap files that are found with an orientation other than RAS.
+
+
+23.0.1 (March 24, 2023)
+=======================
+Bug fix release in the 23.0.x series.
+
+This release fixes issues with detecting partial fieldmaps, emitting a warning instead
+of an error. A small change in sMRIPrep fixes the name of a workflow, which may cause a
+duplication in a reused work directory from 23.0.0, but should not break any workflows
+or produce a change in derivatives.
+
+
+23.0.0 (March 13, 2023)
+=======================
+New feature release in the 23.0.x series.
+
+This release adds improvements for workflows targeting the fsLR grayordinate space.
+Namely, morphometric (curvature, sulcal depth and cortical thickness) measures are
+output as ``.dscalar.nii`` files and high-variance voxels can be excluded from the
+resampling step using ``--project-goodvoxels``.
+
+Additionally, T2w images are now resampled to the T1w-defined subject space if FreeSurfer
+reconstruction is used. If multiple T2w images are provided, they are merged into a single
+image first.
+
+PEPolar fieldmaps with R/L phase-encoding directions or in non-standard orientations
+are now better supported. We continue to work toward better support for more SDC
+configurations.
+
+23.0.0 supports FreeSurfer 7.3.2, which is now bundled in the Docker image.
+
+ICA-AROMA support will be removed in 23.1.0.
+
+With thanks to Thomas Madison, Greg Conan, Celine Provins, Robert Smith and Yaroslav
+Halchenko for contributions.
+Thanks also to Steve Giavasis and colleagues at the Child Mind Institute
+for feedback on SDC processing.
+
+* FIX: Pass reference image to unwarp_wf, use reference fieldwarp for single shot (#2945)
+* FIX: Pass fmap filters to sdcflows (#2932)
+* ENH: Resample morphometrics to fsLR dscalar CIFTI-2 files if ``--cifti-output`` is used (#2959)
+* ENH: Add option to exclude projecting high variance voxels to surface (update of #2855) (#2956)
+* ENH: Separate deep from shallow WM+CSF in the carpetplot (#2744)
+* ENH: Merge T2w images and coregister to T1w template (#2941)
+* RF: Use DataFrame.rename instead of ad hoc process (#2937)
+* DOC: Update the description of the carpetplot in the sample report (#2950)
+* DOC: Altered CLI option grouping (#2944)
+* DOC: Update lesion ROI documentation, warn in docs and app about upcoming changes (#2943)
+* DOC: Update docs following read-through (#2930)
+* DOC: Update carpetplot in "Outputs of fMRIPrep" (#2923)
+* MNT: Codespell config, action + some typo fixups (#2958)
+* MNT: Warn that AROMA support will be removed in a future version (#2940)
+* MNT: Update Ubuntu, FreeSurfer, AFNI and Convert3D (#2931)
+* MNT: Switch to hatch build backend and update package metadata (#2914 + #2939)
+* MNT: Rotate CircleCI secrets and setup up org-level context (#2928)
+* CI: Minor updates to CircleCI config to improve resilience (#2957)
+* CI: Weekly docker build from scratch (#2938)
+
+
+22.1.1 (January 04, 2023)
+=========================
+Bug fix release in the 22.1.x series.
+
+This release fixes the reported version in the distributed Docker image,
+and depends on SDCFlows 2.2.2, which fixes a bug affecting SDC estimation
+in some oblique datasets.
+
+  * FIX: Ensure version installed in Docker file is clean (#2922)
+
+
+22.1.0 (December 12, 2022)
+==========================
+New feature release in the 22.1.x series.
+
+This is an incremental improvement on the 22.0.x series, including features and fixes that
+are backwards incompatible with the 22.0.x work tree.
+
+Several significant issues with susceptibility distortion correction (SDC) have been fixed
+in `SDCFlows 2.2.0`_, in addition to the changes listed below.
+If you have been seeing issues with SDC in 21.0.x or 22.0.x, please test out this version
+and submit issues.
+
+Additionally, this version includes improvements to structural preprocessing, generating
+morphometric ``.shape.gii`` files from FreeSurfer derivatives.
+
+Finally, this release introduces a method for estimating the carbon footprint of using
+fMRIPrep. Add ``--track-carbon`` to your command to try this out. Note that it does not work
+in Docker containers, but should work for Singularity containers.
+
+With thanks to Nikhil Bhagwat for contributions.
+
+
+  * FIX: Conform --reports-only to match post-run report generation (#2900)
+  * FIX: Remove cortex masking during vol2surf sampling (#2879)
+  * FIX: Do not attempt to calculate TA if SliceTiming is degenerate (#2901)
+  * FIX: Pass CrownCompCor components to GatherConfounds (#2897)
+  * FIX: Output brain mask and boldref in BOLD space if individual echos requested (#2852)
+  * FIX: Check for empty ACompCor results before trying to rename (#2851)
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+  * ENH: Provide free memory estimate to unwarp_wf for better resources allocation (#2910)
+  * ENH: Add migas telemetry in addition to sentry (#2817)
+  * ENH: Tag memory based on data shape, annotate T2SMap (#2898)
+  * ENH: Add of carbon tracker to estimate workflow emissions (#2834)
+  * ENH: Output BOLD HMC transforms and reference volume (#2860)
+  * RF: CIFTI generation (#2884)
+  * DOC: Correct description of --longitudinal behavior (#2905)
+  * MNT: Update fast track outputs, use latest smriprep (#2894)
+  * MNT: Deprecate ``--topup-max-vols`` (#2881)
+  * MNT: Add a ``--debug pdb`` to allow easier line-by-line debugging (#2871)
+  * MNT: Generate more verbose reports (here, showing fieldmaps) if running in debug mode (#2872)
+  * DOCKER: Build wheel and install in two-stage build (#2859)
+  * CI: Various updates (#2899)
+  * CI: Test on Python 3.10, bump actions versions (#2895)
+  * CI: Fix non-fasttrack outputs for maint/21.0.x (#2866)
+
+.. _`SDCFlows 2.2.0`: https://github.com/nipreps/sdcflows/releases/2.2.0
+
 22.0.2 (September 27, 2022)
 ===========================
 A patch release in the 22.0.x series.
 
 This release increases the minimum Nipype version to include better error messages on failures.
 Additionally, this includes a fix to allow SyN distortion correction in combination with the
-`--ignore fieldmaps` option.
+``--ignore fieldmaps`` option.
 
-  * MAINT: Add `pre-commit`, dev installation for consistent styling (#2857)
+  * MAINT: Add ``pre-commit``, dev installation for consistent styling (#2857)
   * CI: Upgrade docker orb (#2858)
 
 22.0.1 (September 13, 2022)
@@ -448,7 +570,7 @@ This release also includes some maintenance changes handling old versions of sof
 Bug-fix release in the 20.1.x series.
 
 * FIX: Dependency conflict between *NiWorkflows* and *TemplateFlow* (#2269)
-* FIX: More targetted *TemplateFlow* queries to work with all later releases (#2268)
+* FIX: More targeted *TemplateFlow* queries to work with all later releases (#2268)
 * MAINT: Update dependency pinnings including ``niworkflows~=1.2.9`` and three minimal bug-fixes.
 
 20.1.2 (September 04, 2020)
@@ -1440,7 +1562,7 @@ With thanks to @mgxd and @naveau for contributions.
 ---------------------------
 * FIX: Pin niworkflows-0.2.4 to fix (#868).
 * FIX: Roll back run/task groupings after BIDS query (#918).
-  Groupings for the multi-echo extension will be reenabled soon.
+  Groupings for the multi-echo extension will be re-enabled soon.
 
 1.0.2 (2nd of January 2018)
 ---------------------------

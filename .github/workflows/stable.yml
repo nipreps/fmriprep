@@ -14,6 +14,13 @@ defaults:
   run:
     shell: bash
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   stable:
     # Check each OS, all supported Python, minimum versions and latest releases
@@ -21,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest']
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.8, 3.9, '3.10']
         install: ['pip']
         check: ['tests']
         pip-flags: ['']
@@ -32,14 +39,14 @@ jobs:
       OS_TYPE: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
           fetch-depth: 0
       - name: Install dependencies
         run: .maint/ci/install_dependencies.sh
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
@@ -56,7 +63,7 @@ jobs:
         run: .maint/ci/install_extras.sh
       - name: Run tests
         run: .maint/ci/check.sh
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
         with:
           file: coverage.xml
         if: ${{ always() }}

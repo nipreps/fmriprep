@@ -79,11 +79,13 @@ def fetch_fsaverage():
     tpl-fsaverage/tpl-fsaverage_hemi-R_den-164k_desc-std_sphere.surf.gii
     tpl-fsaverage/tpl-fsaverage_hemi-L_den-164k_desc-vaavg_midthickness.shape.gii
     tpl-fsaverage/tpl-fsaverage_hemi-R_den-164k_desc-vaavg_midthickness.shape.gii
+    tpl-fsaverage/tpl-fsaverage_hemi-L_den-164k_midthickness.surf.gii
+    tpl-fsaverage/tpl-fsaverage_hemi-R_den-164k_midthickness.surf.gii
     """
     template = "fsaverage"
 
     tf.get(template, density="164k", desc="std", suffix="sphere")
-    tf.get(template, density="164k", desc="vaavg", suffix="midthickness")
+    tf.get(template, density="164k", suffix="midthickness")
 
 
 def fetch_fsLR():

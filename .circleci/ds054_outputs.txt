@@ -1,3 +1,4 @@
+
 fmriprep
 fmriprep/.bidsignore
 fmriprep/dataset_description.json
@@ -47,6 +48,7 @@ fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_desc-preproc_bold.ni
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_from-scanner_to-boldref_mode-image_xfm.txt
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_from-scanner_to-T1w_mode-image_xfm.txt
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_from-T1w_to-scanner_mode-image_xfm.txt
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_boldref.json
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_boldref.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.json
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.nii.gz
@@ -71,6 +73,7 @@ fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_desc-preproc_bold.ni
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_from-scanner_to-boldref_mode-image_xfm.txt
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_from-scanner_to-T1w_mode-image_xfm.txt
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_from-T1w_to-scanner_mode-image_xfm.txt
+fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_boldref.json
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_boldref.nii.gz
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.json
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.nii.gz
@@ -82,4 +85,3 @@ fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-brain
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-preproc_bold.json
 fmriprep/sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-preproc_bold.nii.gz
 fmriprep/sub-100185.html
-/tmp/ds054/derivatives

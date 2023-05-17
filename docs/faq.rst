@@ -202,31 +202,32 @@ In addition to the ``--output-spaces`` that you specify, *fMRIPrep* will
 internally require the ``MNI152NLin2009cAsym`` template.
 If the ``--skull-strip-template`` option is not set, then ``OASIS30ANTs``
 will be used.
-Finally, both the ``--cifti-output`` and ``--use-aroma`` arguments require ``MNI152NLin6Asym``.
+Finally, the ``--cifti-output`` argument requires ``MNI152NLin6Asym``.
 To do so, follow the next steps.
 
-  1. By default, a mirror of *TemplateFlow* to store the resources will be
-     created in ``$HOME/.cache/templateflow``.
-     You can modify such a configuration with the ``TEMPLATEFLOW_HOME``
-     environment variable, e.g.::
+1. By default, a mirror of *TemplateFlow* to store the resources will be
+   created in ``$HOME/.cache/templateflow``.
+   You can modify such a configuration with the ``TEMPLATEFLOW_HOME``
+   environment variable, e.g.::
 
-       $ export TEMPLATEFLOW_HOME=$HOME/.templateflow
+     $ export TEMPLATEFLOW_HOME=$HOME/.templateflow
 
-  2. Install the client within your favorite Python 3 environment (this can
-     be done in your login-node, or in a host with Internet access,
-     without need for Docker/Singularity)::
+2. Install the client within your favorite Python 3 environment (this can
+   be done in your login-node, or in a host with Internet access,
+   without need for Docker/Singularity)::
 
-       $ python -m pip install -U templateflow
+     $ python -m pip install -U templateflow
 
-  3. Use the ``get()`` utility of the client to pull down all the templates you'll
-     want to use. For example::
+3. Use the ``get()`` utility of the client to pull down all the templates you'll
+   want to use. For example::
 
-       $ python -c "from templateflow.api import get; get(['MNI152NLin2009cAsym', 'MNI152NLin6Asym', 'OASIS30ANTs', 'MNIPediatricAsym', 'MNIInfant'])"
+     $ python -c "from templateflow.api import get; get(['MNI152NLin2009cAsym', 'MNI152NLin6Asym', 'OASIS30ANTs', 'MNIPediatricAsym', 'MNIInfant'])"
 
 After getting the resources you'll need, you will just need to make sure your
 runtime environment is able to access the filesystem, at the location of your
 *TemplateFlow home* directory.
-If you are a Singularity user, please check out :ref:`singularity_tf`.
+If you are an Apptainer (formerly Singularity) user, please check out `TemplateFlow and Singularity
+<https://www.nipreps.org/apps/singularity/#templateflow-and-singularity>`__.
 
 How do I select only certain files to be input to *fMRIPrep*?
 -------------------------------------------------------------
@@ -287,17 +288,17 @@ across sessions.
 When substantial changes are expected, special considerations must be taken.
 Some examples follow:
 
-  * Surgery: use only pre-operation sessions for the anatomical data. This will typically be done
-    by omitting post-operation sessions from the inputs to *fMRIPrep*.
-  * Developing and elderly populations: there is currently no standard way of processing these.
-    However, `as suggested by U. Tooley at NeuroStars.org
-    <https://neurostars.org/t/fmriprep-how-to-reuse-longitudinal-and-pre-run-freesurfer/4585/15>`__,
-    it is theoretically possible to leverage the *anatomical fast-track* along with the
-    ``--bids-filters`` option to process sessions fully independently, or grouped by some study-design
-    criteria.
-    Please check the `link
-    <https://neurostars.org/t/fmriprep-how-to-reuse-longitudinal-and-pre-run-freesurfer/4585/15>`__
-    for further information on this approach.
+* Surgery: use only pre-operation sessions for the anatomical data. This will typically be done
+  by omitting post-operation sessions from the inputs to *fMRIPrep*.
+* Developing and elderly populations: there is currently no standard way of processing these.
+  However, `as suggested by U. Tooley at NeuroStars.org
+  <https://neurostars.org/t/fmriprep-how-to-reuse-longitudinal-and-pre-run-freesurfer/4585/15>`__,
+  it is theoretically possible to leverage the *anatomical fast-track* along with the
+  ``--bids-filters`` option to process sessions fully independently, or grouped by some study-design
+  criteria.
+  Please check the `link
+  <https://neurostars.org/t/fmriprep-how-to-reuse-longitudinal-and-pre-run-freesurfer/4585/15>`__
+  for further information on this approach.
 
 
 How to decrease *fMRIPrep* runtime when working with large datasets?

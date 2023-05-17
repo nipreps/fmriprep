@@ -3,15 +3,17 @@ from pathlib import Path
 
 import pytest
 import templateflow.api as tf
+from looseversion import LooseVersion
 from nipype.interfaces import fsl
-from packaging.version import LegacyVersion
 
 fslversion = fsl.Info.version()
 TEMPLATE = tf.get("MNI152NLin2009cAsym", resolution=2, desc=None, suffix="T1w")
 
 
 @pytest.mark.skipif(fslversion is None, reason="fsl required")
-@pytest.mark.skipif(LegacyVersion(fslversion) < LegacyVersion("6.0.0"), reason="FSL6 test")
+@pytest.mark.skipif(
+    fslversion and LooseVersion(fslversion) < LooseVersion("6.0.0"), reason="FSL6 test"
+)
 @pytest.mark.parametrize(
     "path_parent,filename",
     [

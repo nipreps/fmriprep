@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #
 """Utilities and mocks for testing and documentation building."""
 import os
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
@@ -45,15 +46,20 @@ def mock_config():
         if sectionname != 'environment':
             section = getattr(config, sectionname)
             section.load(configs, init=False)
+    config.nipype.omp_nthreads = 1
     config.nipype.init()
     config.loggers.init()
     config.init_spaces()
 
     config.execution.work_dir = Path(mkdtemp())
     config.execution.bids_dir = Path(pkgrf('fmriprep', 'data/tests/ds000005')).absolute()
+    config.execution.fmriprep_dir = Path(mkdtemp())
     config.execution.init()
 
     yield
+
+    shutil.rmtree(config.execution.work_dir)
+    shutil.rmtree(config.execution.fmriprep_dir)
 
     if not _old_fs:
         del os.environ["FREESURFER_HOME"]

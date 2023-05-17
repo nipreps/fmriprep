@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ Settings are passed across processes via filesystem, and a copy of the settings 
 each run and subject is left under
 ``<fmriprep_dir>/sub-<participant_id>/log/<run_unique_id>/fmriprep.toml``.
 Settings are stored using :abbr:`ToML (Tom's Markup Language)`.
-The module has a :py:func:`~fmriprep.config.to_filename` function to allow writting out
+The module has a :py:func:`~fmriprep.config.to_filename` function to allow writing out
 the settings to hard disk in *ToML* format, which looks like:
 
 .. literalinclude:: ../fmriprep/data/tests/config.toml
@@ -178,7 +178,7 @@ _templateflow_home = Path(
 try:
     from psutil import virtual_memory
 
-    _free_mem_at_start = round(virtual_memory().free / 1024**3, 1)
+    _free_mem_at_start = round(virtual_memory().available / 1024**3, 1)
 except Exception:
     _free_mem_at_start = None
 
@@ -399,7 +399,11 @@ class execution(_Config):
     md_only_boilerplate = False
     """Do not convert boilerplate from MarkDown to LaTex and HTML."""
     notrack = False
-    """Do not monitor *fMRIPrep* using Sentry.io."""
+    """Do not collect telemetry information for *fMRIPrep*."""
+    track_carbon = False
+    """Tracks power draws using CodeCarbon package."""
+    country_code = "CAN"
+    """Country ISO code used by carbon trackers."""
     output_dir = None
     """Folder where derivatives will be stored."""
     me_output_echos = False
@@ -535,6 +539,8 @@ class workflow(_Config):
     """Run FreeSurfer ``recon-all`` with the ``-logitudinal`` flag."""
     medial_surface_nan = None
     """Fill medial surface with :abbr:`NaNs (not-a-number)` when sampling."""
+    project_goodvoxels = False
+    """Exclude voxels with locally high coefficient of variation from sampling."""
     regressors_all_comps = None
     """Return all CompCor components."""
     regressors_dvars_th = None
@@ -558,8 +564,6 @@ class workflow(_Config):
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""
-    topup_max_vols = 5
-    """Maximum number of volumes to use with TOPUP, per-series (EPI or BOLD)."""
     use_aroma = None
     """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None
@@ -642,7 +646,7 @@ def _set_ants_seed():
 
 
 def _set_numpy_seed():
-    """NumPy's random seed is independant from Python's `random` module"""
+    """NumPy's random seed is independent from Python's `random` module"""
     import numpy as np
 
     val = random.randint(1, 65536)
@@ -757,10 +761,6 @@ def init_spaces(checkpoint=True):
     # Ensure user-defined spatial references for outputs are correctly parsed.
     # Certain options require normalization to a space not explicitly defined by users.
     # These spaces will not be included in the final outputs.
-    if workflow.use_aroma:
-        # Make sure there's a normalization to FSL for AROMA to use.
-        spaces.add(Reference("MNI152NLin6Asym", {"res": "2"}))
-
     cifti_output = workflow.cifti_output
     if cifti_output:
         # CIFTI grayordinates to corresponding FSL-MNI resolutions.

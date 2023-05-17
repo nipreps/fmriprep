@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ Registration workflows
 """
 import os
 import os.path as op
+import typing as ty
 
 import pkg_resources as pkgr
 from nipype.interfaces import c3, fsl
@@ -44,18 +45,21 @@ from ...interfaces import DerivativesDataSink
 DEFAULT_MEMORY_MIN_GB = config.DEFAULT_MEMORY_MIN_GB
 LOGGER = config.loggers.workflow
 
+AffineDOF = ty.Literal[6, 9, 12]
+RegistrationInit = ty.Literal['register', 'header']
+
 
 def init_bold_reg_wf(
-    freesurfer,
-    use_bbr,
-    bold2t1w_dof,
-    bold2t1w_init,
-    mem_gb,
-    omp_nthreads,
-    name='bold_reg_wf',
-    sloppy=False,
-    use_compression=True,
-    write_report=True,
+    freesurfer: bool,
+    use_bbr: bool,
+    bold2t1w_dof: AffineDOF,
+    bold2t1w_init: RegistrationInit,
+    mem_gb: float,
+    omp_nthreads: int,
+    name: str = 'bold_reg_wf',
+    sloppy: bool = False,
+    use_compression: bool = True,
+    write_report: bool = True,
 ):
     """
     Build a workflow to run same-subject, BOLD-to-T1w image-registration.
@@ -215,7 +219,11 @@ def init_bold_reg_wf(
 
 
 def init_bold_t1_trans_wf(
-    freesurfer, mem_gb, omp_nthreads, use_compression=True, name='bold_t1_trans_wf'
+    freesurfer: bool,
+    mem_gb: float,
+    omp_nthreads: int,
+    use_compression: bool = True,
+    name: str = 'bold_t1_trans_wf',
 ):
     """
     Co-register the reference BOLD image to T1w-space.
@@ -419,7 +427,13 @@ def init_bold_t1_trans_wf(
     return workflow
 
 
-def init_bbreg_wf(use_bbr, bold2t1w_dof, bold2t1w_init, omp_nthreads, name='bbreg_wf'):
+def init_bbreg_wf(
+    use_bbr: bool,
+    bold2t1w_dof: AffineDOF,
+    bold2t1w_init: RegistrationInit,
+    omp_nthreads: int,
+    name: str = 'bbreg_wf',
+):
     """
     Build a workflow to run FreeSurfer's ``bbregister``.
 
@@ -646,7 +660,12 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
 
 def init_fsl_bbr_wf(
-    use_bbr, bold2t1w_dof, bold2t1w_init, omp_nthreads, sloppy=False, name='fsl_bbr_wf'
+    use_bbr: bool,
+    bold2t1w_dof: AffineDOF,
+    bold2t1w_init: RegistrationInit,
+    omp_nthreads: int,
+    sloppy: bool = False,
+    name: str = 'fsl_bbr_wf',
 ):
     """
     Build a workflow to run FSL's ``flirt``.
@@ -671,7 +690,7 @@ def init_fsl_bbr_wf(
             :simple_form: yes
 
             from fmriprep.workflows.bold.registration import init_fsl_bbr_wf
-            wf = init_fsl_bbr_wf(use_bbr=True, bold2t1w_dof=9, bold2t1w_init='register')
+            wf = init_fsl_bbr_wf(use_bbr=True, bold2t1w_dof=9, bold2t1w_init='register', omp_nthreads=1)
 
 
     Parameters

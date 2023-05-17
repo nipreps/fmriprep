@@ -4,20 +4,14 @@
   "contributors": [
     {
       "affiliation": "Department of Radiology, Lausanne University Hospital and University of Lausanne",
-      "name": "Provins, C\u00e9line",
+      "name": "Provins, Céline",
       "orcid": "0000-0002-1668-9629",
       "type": "Researcher"
     },
     {
-      "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toru\u0144",
+      "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń",
       "name": "Finc, Karolina",
       "orcid": "0000-0002-0157-030X",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "University of Texas at Austin",
-      "name": "de la Vega, Alejandro",
-      "orcid": "0000-0001-9062-3778",
       "type": "Researcher"
     },
     {
@@ -27,21 +21,21 @@
       "type": "Researcher"
     },
     {
+      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
+      "name": "Tooley, Ursula A.",
+      "orcid": "0000-0001-6377-3885",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Department of Psychology, New York University",
       "name": "Benson, Noah C.",
       "orcid": "0000-0002-2365-8265",
       "type": "Researcher"
     },
     {
-      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
-      "name": "Waller, Lea",
-      "orcid": "0000-0002-3239-6957",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
-      "name": "Tooley, Ursula A.",
-      "orcid": "0000-0001-6377-3885",
+      "affiliation": "University of Texas at Austin",
+      "name": "de la Vega, Alejandro",
+      "orcid": "0000-0001-9062-3778",
       "type": "Researcher"
     },
     {
@@ -54,6 +48,12 @@
       "affiliation": "Montreal Neurological Institute, McGill University",
       "name": "Urchs, Sebastian",
       "orcid": "0000-0001-5504-8579",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
+      "name": "Waller, Lea",
+      "orcid": "0000-0002-3239-6957",
       "type": "Researcher"
     },
     {
@@ -81,12 +81,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Radiology, Weill Cornell Medicine",
-      "name": "Jamison, Keith W.",
-      "orcid": "0000-0001-7139-6661",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "McLean Hospital Brain Imaging Center, MA, USA",
       "name": "Frederick, Blaise B.",
       "orcid": "0000-0001-5832-5279",
@@ -99,9 +93,9 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "CENIR, INSERM U1127, CNRS UMR 7225, UPMC Univ Paris 06 UMR S 1127, Institut du Cerveau et de la Moelle \u00e9pini\u00e8re, ICM, F-75013, Paris, France",
-      "name": "Valabregue, Romain",
-      "orcid": "0000-0002-1814-9570",
+      "affiliation": "Department of Radiology, Weill Cornell Medicine",
+      "name": "Jamison, Keith W.",
+      "orcid": "0000-0001-7139-6661",
       "type": "Researcher"
     },
     {
@@ -147,9 +141,15 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "SIMEXP Lab, CRIUGM, University of Montr\u00e9al, Montr\u00e9al, Canada",
+      "affiliation": "SIMEXP Lab, CRIUGM, University of Montréal, Montréal, Canada",
       "name": "Bellec, Pierre",
       "orcid": "0000-0002-9111-0699",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "Bhagwat, Nikhil",
+      "orcid": "0000-0001-6073-7141",
       "type": "Researcher"
     },
     {
@@ -202,7 +202,7 @@
     },
     {
       "affiliation": "Cyceron, UMS 3408 (CNRS - UCBN), France",
-      "name": "Naveau, Mika\u00ebl",
+      "name": "Naveau, Mikaël",
       "orcid": "0000-0001-6948-9068",
       "type": "Researcher"
     },
@@ -226,7 +226,7 @@
     },
     {
       "affiliation": "Max Planck UCL Centre for Computational Psychiatry and Ageing Research, University College London",
-      "name": "Stoji\u0107, Hrvoje",
+      "name": "Stojić, Hrvoje",
       "orcid": "0000-0002-9699-9052",
       "type": "Researcher"
     },
@@ -234,6 +234,12 @@
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Thompson, William H.",
       "orcid": "0000-0002-0533-6035",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "CENIR, INSERM U1127, CNRS UMR 7225, UPMC Univ Paris 06 UMR S 1127, Institut du Cerveau et de la Moelle épinière, ICM, F-75013, Paris, France",
+      "name": "Valabregue, Romain",
+      "orcid": "0000-0002-1814-9570",
       "type": "Researcher"
     },
     {
@@ -279,7 +285,7 @@
     },
     {
       "affiliation": "Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland",
-      "name": "Provins, C\u00e9line",
+      "name": "Provins, Céline",
       "orcid": "0000-0002-1668-9629"
     },
     {
@@ -303,7 +309,7 @@
       "orcid": "0000-0001-6347-7939"
     },
     {
-      "affiliation": "SIMEXP Lab, CRIUGM, University of Montr\u00e9al, Montr\u00e9al, Canada",
+      "affiliation": "SIMEXP Lab, CRIUGM, University of Montréal, Montréal, Canada",
       "name": "Pinsard, Basile",
       "orcid": "0000-0002-4391-3075"
     },

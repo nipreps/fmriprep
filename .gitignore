@@ -79,3 +79,5 @@ secrets.py
 local_settings.py
 
 *.swp
+
+_version.py

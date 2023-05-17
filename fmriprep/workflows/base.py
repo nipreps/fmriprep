@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ fMRIPrep base processing workflows
 
 import os
 import sys
+import warnings
 from copy import deepcopy
 
 from nipype.interfaces import utility as niu
@@ -110,7 +111,7 @@ def init_fmriprep_wf():
     return fmriprep_wf
 
 
-def init_single_subject_wf(subject_id):
+def init_single_subject_wf(subject_id: str):
     """
     Organize the preprocessing pipeline for a single subject.
 
@@ -200,6 +201,14 @@ reconall <{config.workflow.run_reconall}>)."""
         raise Exception(
             "No T1w images found for participant {}. "
             "All workflows require T1w images.".format(subject_id)
+        )
+
+    if subject_data['roi']:
+        warnings.warn(
+            f"Lesion mask {subject_data['roi']} found. "
+            "Future versions of fMRIPrep will use alternative conventions. "
+            "Please refer to the documentation before upgrading.",
+            FutureWarning,
         )
 
     workflow = Workflow(name=name)
@@ -308,6 +317,8 @@ It is released under the [CC0]\
         skull_strip_template=Reference.from_string(config.workflow.skull_strip_template)[0],
         spaces=spaces,
         t1w=subject_data['t1w'],
+        t2w=subject_data['t2w'],
+        cifti_output=config.workflow.cifti_output,
     )
     # fmt:off
     workflow.connect([
@@ -364,11 +375,15 @@ It is released under the [CC0]\
 
         # SDC Step 1: Run basic heuristics to identify available data for fieldmap estimation
         # For now, no fmapless
+        filters = None
+        if config.execution.bids_filters is not None:
+            filters = config.execution.bids_filters.get("fmap")
         fmap_estimators = find_estimators(
             layout=config.execution.layout,
             subject=subject_id,
             fmapless=bool(config.workflow.use_syn_sdc),
             force_fmapless=config.workflow.force_syn,
+            bids_filters=filters,
         )
 
         if config.workflow.use_syn_sdc and not fmap_estimators:
@@ -396,7 +411,7 @@ It is released under the [CC0]\
                 f"{[e.method for e in fmap_estimators]}."
             )
 
-    # Append the functional section to the existing anatomical exerpt
+    # Append the functional section to the existing anatomical excerpt
     # That way we do not need to stream down the number of bold datasets
     func_pre_desc = """
 Functional data preprocessing
@@ -430,6 +445,7 @@ tasks and sessions), the following preprocessing was performed.
                 # Undefined if --fs-no-reconall, but this is safe
                 ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
                 ('outputnode.subject_id', 'inputnode.subject_id'),
+                ('outputnode.anat_ribbon', 'inputnode.anat_ribbon'),
                 ('outputnode.t1w2fsnative_xfm', 'inputnode.t1w2fsnative_xfm'),
                 ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm')]),
         ])

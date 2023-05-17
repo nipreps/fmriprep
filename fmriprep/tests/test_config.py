@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2022 The NiPreps Developers <nipreps@gmail.com>
+# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -70,28 +70,28 @@ def test_config_spaces():
     config.init_spaces()
 
     spaces = config.workflow.spaces
-    assert "MNI152NLin6Asym:res-2" not in [str(s) for s in spaces.get_standard(full_spec=True)]
+    assert "MNI152NLin6Asym:res-1" not in [str(s) for s in spaces.get_standard(full_spec=True)]
 
-    assert "MNI152NLin6Asym_res-2" not in [
+    assert "MNI152NLin6Asym_res-1" not in [
         format_reference((s.fullname, s.spec))
         for s in spaces.references
         if s.standard and s.dim == 3
     ]
 
-    config.workflow.use_aroma = True
+    config.workflow.cifti_output = True
     config.init_spaces()
     spaces = config.workflow.spaces
 
-    assert "MNI152NLin6Asym:res-2" in [str(s) for s in spaces.get_standard(full_spec=True)]
+    assert "MNI152NLin6Asym:res-1" in [str(s) for s in spaces.get_standard(full_spec=True)]
 
-    assert "MNI152NLin6Asym_res-2" in [
+    assert "MNI152NLin6Asym_res-1" in [
         format_reference((s.fullname, s.spec))
         for s in spaces.references
         if s.standard and s.dim == 3
     ]
 
     config.execution.output_spaces = None
-    config.workflow.use_aroma = False
+    config.workflow.cifti_output = False
     config.init_spaces()
     spaces = config.workflow.spaces
 
