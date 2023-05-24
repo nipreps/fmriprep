@@ -743,11 +743,11 @@ jobs:
             - data-v0-{{ .Branch }}-{{ .Revision }}
       - restore_cache:
           keys:
-            - ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
-            - ds210-anat-v1--{{ .Revision }}
-            - ds210-anat-v1-{{ .Branch }}-
-            - ds210-anat-v1-master-
-            - ds210-anat-v1-
+            - ds210-anat-v2-{{ .Branch }}-{{ .Revision }}
+            - ds210-anat-v2--{{ .Revision }}
+            - ds210-anat-v2-{{ .Branch }}-
+            - ds210-anat-v2-master-
+            - ds210-anat-v2-
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
@@ -775,7 +775,7 @@ jobs:
             rm -rf /tmp/${DATASET}/work/reportlets
             rm -rf /tmp/${DATASET}/derivatives/fmriprep
       - save_cache:
-         key: ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
+         key: ds210-anat-v2-{{ .Branch }}-{{ .Revision }}
          paths:
             - /tmp/ds210/work
 
