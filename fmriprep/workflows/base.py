@@ -305,7 +305,8 @@ It is released under the [CC0]\
     # Preprocessing of T1w (includes registration to MNI)
     anat_preproc_wf = init_anat_preproc_wf(
         bids_root=str(config.execution.bids_dir),
-        debug=config.execution.sloppy,
+        sloppy=config.execution.sloppy,
+        debug=config.execution.debug,
         existing_derivatives=anat_derivatives,
         freesurfer=config.workflow.run_reconall,
         hires=config.workflow.hires,
