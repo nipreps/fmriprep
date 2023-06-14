@@ -85,6 +85,36 @@ git-(line-)summary not found, please install git-extras. """ * (cmd[0] is None))
     return [' '.join(line.strip().split()[1:-1]) for line in lines if '%' in line]
 
 
+def loads_table_from_markdown(s):
+    """Read the first table from a Markdown text."""
+    table = []
+    header = None
+    for line in s.splitlines():
+        if line.startswith("|"):
+            if not header:
+                # read header and strip bold
+                header = [item.strip("* ") for item in line.split('|')[1:-1]]
+            else:
+                values = [item.strip() for item in line.split('|')[1:-1]]
+                if any(any(c != "-" for c in item) for item in values):
+                    table.append(dict(zip(header, values)))
+        elif header:
+            # we have already seen a table, we're past the end of that table
+            break
+    return table
+
+
+def loads_contributors(s):
+    """Reformat contributors read from the Markdown table."""
+    return [
+        {
+            "affiliation": contributor["Affiliation"],
+            "name": "{}, {}".format(contributor["Lastname"], contributor["Name"]),
+            "orcid": contributor["ORCID"],
+        } for contributor in loads_table_from_markdown(s)
+    ]
+
+
 if __name__ == '__main__':
     data = get_git_lines()
 
@@ -96,7 +126,7 @@ if __name__ == '__main__':
         creators, data,
         exclude=json.loads(Path('.maint/former.json').read_text()),
         last=CREATORS_LAST)
-    contributors = json.loads(Path('.maint/contributors.json').read_text())
+    contributors = loads_contributors(Path('.maint/CONTRIBUTORS.md').read_text())
     zen_contributors, miss_contributors = sort_contributors(
         contributors, data,
         exclude=json.loads(Path('.maint/former.json').read_text()),
