@@ -102,7 +102,7 @@ sub-01_run-01_echo-3_bold.nii.gz -e 13.0 27.0 43.0 --fittype curvefit'
     def _format_arg(self, name, trait_spec, value):
         if name == 'echo_times':
             value = [te * 1000 for te in value]
-        return super(T2SMap, self)._format_arg(name, trait_spec, value)
+        return super()._format_arg(name, trait_spec, value)
 
     def _list_outputs(self):
         outputs = self._outputs().get()

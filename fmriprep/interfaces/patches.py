@@ -44,7 +44,7 @@ class RobustACompCor(nac.ACompCor):
         failures = 0
         while True:
             try:
-                runtime = super(RobustACompCor, self)._run_interface(runtime)
+                runtime = super()._run_interface(runtime)
                 break
             except LinAlgError:
                 failures += 1
@@ -67,7 +67,7 @@ class RobustTCompCor(nac.TCompCor):
         failures = 0
         while True:
             try:
-                runtime = super(RobustTCompCor, self)._run_interface(runtime)
+                runtime = super()._run_interface(runtime)
                 break
             except LinAlgError:
                 failures += 1

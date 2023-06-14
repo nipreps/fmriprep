@@ -296,7 +296,7 @@ class MetricResample(WBCommand, OpenMPCommandMixin):
             roi_out = self._gen_filename(self.inputs.in_file, suffix="_roi")
             iflogger.info("Setting roi output file as", roi_out)
             spec.argstr += " " + roi_out
-        return super(MetricResample, self)._format_arg(opt, spec, val)
+        return super()._format_arg(opt, spec, val)
 
     def _list_outputs(self):
         outputs = super()._list_outputs()
