@@ -149,8 +149,8 @@ def validate_input_dir(exec_env, bids_dir, participant_label):
     }
     # Limit validation only to data from requested participants
     if participant_label:
-        all_subs = set([s.name[4:] for s in bids_dir.glob('sub-*')])
-        selected_subs = set([s[4:] if s.startswith('sub-') else s for s in participant_label])
+        all_subs = {s.name[4:] for s in bids_dir.glob('sub-*')}
+        selected_subs = {s[4:] if s.startswith('sub-') else s for s in participant_label}
         bad_labels = selected_subs.difference(all_subs)
         if bad_labels:
             error_msg = (
