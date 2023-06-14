@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - master
-      - maint/*
   pull_request:
     branches:
       - master
-      - maint/*
 
 defaults:
   run:
