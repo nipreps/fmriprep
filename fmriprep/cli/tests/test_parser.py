@@ -113,7 +113,7 @@ def test_get_parser_update(monkeypatch, capsys, current, latest):
     _build_parser()
     captured = capsys.readouterr().err
 
-    msg = """\
+    msg = f"""\
 You are using fMRIPrep-{}, and a newer version of fMRIPrep is available: {}.
 Please check out our documentation about how and when to upgrade:
 https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""".format(
