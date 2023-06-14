@@ -27,15 +27,10 @@ Calculate BOLD confounds
 .. autofunction:: init_bold_confs_wf
 
 """
-from os import getenv
-
 from nipype.algorithms import confounds as nac
-from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from templateflow.api import get as get_template
-
-from fmriprep import config
 
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink

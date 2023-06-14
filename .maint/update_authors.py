@@ -121,7 +121,7 @@ def get_git_lines(fname="line-contributors.txt"):
     if not lines and git_line_summary_path:
         print("Running git-line-summary on repo")
         lines = sp.check_output([git_line_summary_path]).decode().splitlines()
-        lines = [l for l in lines if "Not Committed Yet" not in l]
+        lines = [line for line in lines if "Not Committed Yet" not in line]
         contrib_file.write_text("\n".join(lines))
 
     if not lines:

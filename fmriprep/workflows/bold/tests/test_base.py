@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import bids
-import pytest
 from niworkflows.utils.testing import generate_bids_skeleton
 from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
@@ -64,7 +63,7 @@ def test_get_estimator_b0field_and_intendedfor(tmp_path):
 
     generate_bids_skeleton(bids_dir, spec)
     layout = bids.BIDSLayout(bids_dir)
-    estimators = find_estimators(layout=layout, subject='01')
+    _ = find_estimators(layout=layout, subject='01')
 
     bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
 
@@ -91,7 +90,7 @@ def test_get_estimator_overlapping_specs(tmp_path):
 
     generate_bids_skeleton(bids_dir, spec)
     layout = bids.BIDSLayout(bids_dir)
-    estimators = find_estimators(layout=layout, subject='01')
+    _ = find_estimators(layout=layout, subject='01')
 
     bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
 
@@ -115,7 +114,7 @@ def test_get_estimator_multiple_b0fields(tmp_path):
 
     generate_bids_skeleton(bids_dir, spec)
     layout = bids.BIDSLayout(bids_dir)
-    estimators = find_estimators(layout=layout, subject='01')
+    _ = find_estimators(layout=layout, subject='01')
 
     bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
 

@@ -7,7 +7,6 @@ import os
 import nibabel as nb
 import numpy as np
 from nipype.interfaces.base import File, SimpleInterface, TraitedSpec, isdefined, traits
-from nipype.utils.filemanip import fname_presuffix
 
 
 class CreateROIInputSpec(TraitedSpec):

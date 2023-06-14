@@ -192,7 +192,7 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
     from niworkflows.interfaces.reportlets.registration import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
-    from niworkflows.interfaces.utility import DictMerge, KeySelect
+    from niworkflows.interfaces.utility import KeySelect
 
     img = nb.load(bold_file[0] if isinstance(bold_file, (list, tuple)) else bold_file)
     nvols = 1 if img.ndim < 4 else img.shape[3]
