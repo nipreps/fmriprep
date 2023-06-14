@@ -85,7 +85,7 @@ master_doc = "index"
 # General information about the project.
 project = "fmriprep"
 author = "The fMRIPrep developers"
-copyright = "2016-%s, %s" % (datetime.now().year, author)
+copyright = f"2016-{datetime.now().year}, {author}"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

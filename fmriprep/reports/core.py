@@ -40,7 +40,7 @@ class Report(_Report):
         # In this version, pass reportlets_dir and out_dir with fmriprep in the path.
 
         if self.subject_id is not None:
-            self.root = self.root / "sub-{}".format(self.subject_id)
+            self.root = self.root / f"sub-{self.subject_id}"
 
         if "template_path" in settings:
             self.template_path = config.parent / settings["template_path"]

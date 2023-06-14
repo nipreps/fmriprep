@@ -165,10 +165,7 @@ def main():
             from ..utils.telemetry import process_crashfile
 
             crashfolders = [
-                config.execution.fmriprep_dir
-                / "sub-{}".format(s)
-                / "log"
-                / config.execution.run_uuid
+                config.execution.fmriprep_dir / f"sub-{s}" / "log" / config.execution.run_uuid
                 for s in config.execution.participant_label
             ]
             for crashfolder in crashfolders:

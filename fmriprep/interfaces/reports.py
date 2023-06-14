@@ -159,7 +159,7 @@ class SubjectSummary(SummaryInterface):
 
         t2w_seg = ''
         if self.inputs.t2w:
-            t2w_seg = '(+ {:d} T2-weighted)'.format(len(self.inputs.t2w))
+            t2w_seg = f'(+ {len(self.inputs.t2w):d} T2-weighted)'
 
         # Add list of tasks with number of runs
         bold_series = self.inputs.bold if isdefined(self.inputs.bold) else []

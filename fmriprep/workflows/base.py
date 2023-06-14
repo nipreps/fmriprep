@@ -200,8 +200,8 @@ reconall <{config.workflow.run_reconall}>)."""
 
     if not anat_derivatives and not subject_data['t1w']:
         raise Exception(
-            "No T1w images found for participant {}. "
-            "All workflows require T1w images.".format(subject_id)
+            f"No T1w images found for participant {subject_id}. "
+            f"All workflows require T1w images."
         )
 
     if subject_data['roi']:

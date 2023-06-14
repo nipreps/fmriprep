@@ -118,7 +118,7 @@ def process_crashfile(crashfile):
                     scope.set_extra('%s_%02d' % (k, i), chunk)
 
         fingerprint = ''
-        issue_title = '{}: {}'.format(node_name, gist)
+        issue_title = f'{node_name}: {gist}'
         for new_fingerprint, error_snippets in KNOWN_ERRORS.items():
             for error_snippet in error_snippets:
                 if error_snippet in traceback:
