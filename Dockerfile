@@ -77,13 +77,6 @@ RUN mkdir -p /opt/afni-latest \
         -name "3dAutomask" -or \
         -name "3dvolreg" \) -delete
 
-# ANTs 2.4.4
-FROM downloader as ants
-RUN mkdir -p /opt && \
-    curl -sSLO "https://github.com/ANTsX/ANTs/releases/download/v2.4.4/ants-2.4.4-ubuntu-22.04-X64-gcc.zip" && \
-    unzip ants-2.4.4-ubuntu-22.04-X64-gcc.zip -d /opt && \
-    rm ants-2.4.4-ubuntu-22.04-X64-gcc.zip
-
 # Connectome Workbench 1.5.0
 FROM downloader as workbench
 RUN mkdir /opt/workbench && \
@@ -172,7 +165,6 @@ RUN apt-get update -qq \
 # Install files from stages
 COPY --from=freesurfer /opt/freesurfer /opt/freesurfer
 COPY --from=afni /opt/afni-latest /opt/afni-latest
-COPY --from=ants /opt/ants-2.4.4 /opt/ants
 COPY --from=workbench /opt/workbench /opt/workbench
 
 # Simulate SetUpFreeSurfer.sh
@@ -196,11 +188,6 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
 ENV PATH="/opt/afni-latest:$PATH" \
     AFNI_IMSAVE_WARNINGS="NO" \
     AFNI_PLUGINPATH="/opt/afni-latest"
-
-# ANTs config
-ENV ANTSPATH="/opt/ants" \
-    PATH="/opt/ants/bin:$PATH" \
-    LD_LIBRARY_PATH="/opt/ants/lib:$LD_LIBRARY_PATH"
 
 # Workbench config
 ENV PATH="/opt/workbench/bin_linux64:$PATH" \
