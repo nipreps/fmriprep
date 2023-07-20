@@ -41,6 +41,8 @@ RUN python -m build /src/fmriprep
 
 # Utilities for downloading packages
 FROM ${BASE_IMAGE} as downloader
+# Bump the date to current to refresh curl/certificates/etc
+RUN echo "2023.07.20"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     binutils \
@@ -59,7 +61,7 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/frees
 # AFNI
 FROM downloader as afni
 # Bump the date to current to update AFNI
-RUN echo "2023.04.04"
+RUN echo "2023.07.20"
 RUN mkdir -p /opt/afni-latest \
     && curl -fsSL --retry 5 https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz \
     | tar -xz -C /opt/afni-latest --strip-components 1 \
