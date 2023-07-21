@@ -102,7 +102,7 @@ parameters) are estimated before any spatiotemporal filtering using
 
     # Head motion correction (hmc)
     mcflirt = pe.Node(
-        fsl.MCFLIRT(save_mats=True, save_plots=True, save_rms=True),
+        fsl.MCFLIRT(save_mats=True, save_plots=True, save_rms=True, cost='mutualinfo'),
         name='mcflirt',
         mem_gb=mem_gb * 3,
     )
