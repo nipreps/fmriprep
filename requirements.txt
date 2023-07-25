@@ -18,7 +18,7 @@ bids-validator==1.11.0
     # via pybids
 bokeh==2.2.3
     # via tedana
-certifi==2023.5.7
+certifi==2023.7.22
     # via
     #   requests
     #   sentry-sdk
