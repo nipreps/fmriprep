@@ -41,6 +41,8 @@ RUN python -m build /src/fmriprep
 
 # Utilities for downloading packages
 FROM ${BASE_IMAGE} as downloader
+# Bump the date to current to refresh curl/certificates/etc
+RUN echo "2023.07.20"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     binutils \
@@ -59,7 +61,7 @@ RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/frees
 # AFNI
 FROM downloader as afni
 # Bump the date to current to update AFNI
-RUN echo "2023.04.04"
+RUN echo "2023.07.20"
 RUN mkdir -p /opt/afni-latest \
     && curl -fsSL --retry 5 https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz \
     | tar -xz -C /opt/afni-latest --strip-components 1 \
@@ -77,13 +79,6 @@ RUN mkdir -p /opt/afni-latest \
         -name "3dAutomask" -or \
         -name "3dvolreg" \) -delete
 
-# ANTs 2.4.4
-FROM downloader as ants
-RUN mkdir -p /opt && \
-    curl -sSLO "https://github.com/ANTsX/ANTs/releases/download/v2.4.4/ants-2.4.4-ubuntu-22.04-X64-gcc.zip" && \
-    unzip ants-2.4.4-ubuntu-22.04-X64-gcc.zip -d /opt && \
-    rm ants-2.4.4-ubuntu-22.04-X64-gcc.zip
-
 # Connectome Workbench 1.5.0
 FROM downloader as workbench
 RUN mkdir /opt/workbench && \
@@ -92,6 +87,12 @@ RUN mkdir /opt/workbench && \
     rm workbench-linux64-v1.5.0.zip && \
     rm -rf /opt/workbench/libs_linux64_software_opengl /opt/workbench/plugins_linux64 && \
     strip --remove-section=.note.ABI-tag /opt/workbench/libs_linux64/libQt5Core.so.5
+
+# Convert3d 1.4.0
+FROM downloader as c3d
+RUN mkdir /opt/convert3d && \
+    curl -fsSL --retry 5 https://sourceforge.net/projects/c3d/files/c3d/Experimental/c3d-1.4.0-Linux-gcc64.tar.gz/download \
+    | tar -xz -C /opt/convert3d --strip-components 1
 
 # Micromamba
 FROM downloader as micromamba
@@ -172,8 +173,8 @@ RUN apt-get update -qq \
 # Install files from stages
 COPY --from=freesurfer /opt/freesurfer /opt/freesurfer
 COPY --from=afni /opt/afni-latest /opt/afni-latest
-COPY --from=ants /opt/ants-2.4.4 /opt/ants
 COPY --from=workbench /opt/workbench /opt/workbench
+COPY --from=c3d /opt/convert3d/bin/c3d_affine_tool /usr/bin/c3d_affine_tool
 
 # Simulate SetUpFreeSurfer.sh
 ENV OS="Linux" \
@@ -196,11 +197,6 @@ ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
 ENV PATH="/opt/afni-latest:$PATH" \
     AFNI_IMSAVE_WARNINGS="NO" \
     AFNI_PLUGINPATH="/opt/afni-latest"
-
-# ANTs config
-ENV ANTSPATH="/opt/ants" \
-    PATH="/opt/ants/bin:$PATH" \
-    LD_LIBRARY_PATH="/opt/ants/lib:$LD_LIBRARY_PATH"
 
 # Workbench config
 ENV PATH="/opt/workbench/bin_linux64:$PATH" \
