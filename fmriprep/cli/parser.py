@@ -282,9 +282,7 @@ def _build_parser(**kwargs):
     g_conf.add_argument(
         "--gradunwarp-file",
         metavar="PATH",
-        type=Path,
-        help="Path to vendor file for gradunwarp gradient distortion "
-        "correction.",
+        help="Path to vendor file for gradunwarp gradient distortion  correction.",
     )
     g_conf.add_argument(
         "--output-spaces",

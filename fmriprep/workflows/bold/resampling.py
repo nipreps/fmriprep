@@ -1184,7 +1184,7 @@ the transforms to correct for head-motion"""
     )
 
     merge_xforms = pe.Node(
-        niu.Merge(2),
+        niu.Merge(3),
         name="merge_xforms",
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,

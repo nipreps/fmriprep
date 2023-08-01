@@ -325,6 +325,7 @@ def init_bold_t1_trans_wf(
                 't1w_aparc',
                 'bold_split',
                 'fieldwarp',
+                'gradient_warp',
                 'hmc_xforms',
                 'itk_bold_to_t1',
             ]
@@ -400,7 +401,7 @@ def init_bold_t1_trans_wf(
 
     # Merge transforms placing the head motion correction last
     merge_xforms = pe.Node(
-        niu.Merge(3),
+        niu.Merge(4),
         name='merge_xforms',
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
@@ -409,6 +410,7 @@ def init_bold_t1_trans_wf(
     workflow.connect([
         (inputnode, merge, [('name_source', 'header_source')]),
         (inputnode, merge_xforms, [
+            ('fieldwarp', 'in4'),  # May be 'identity' if no gradunwarp applied
             ('hmc_xforms', 'in3'),  # May be 'identity' if HMC already applied
             ('fieldwarp', 'in2'),   # May be 'identity' if SDC already applied
             ('itk_bold_to_t1', 'in1')]),

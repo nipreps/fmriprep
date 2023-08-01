@@ -484,10 +484,13 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     # Gradient unwarping
     if config.workflow.gradunwarp_file:
         gradunwarp_wf = init_gradunwarp_wf()
-        gradunwarp_wf.inputs.inputnode.grad_file = gradunwarp_file
-        workflow.connect(
-            [(initial_boldref_wf, gradunwarp_wf, [('raw_ref_image', 'in_file')])]
-        )
+        gradunwarp_wf.inputs.inputnode.grad_file = config.workflow.gradunwarp_file
+        # input corrected file, raw not necessary, only uses acquisition matrix size
+        # unless mask/ref are used for sdcflows
+        workflow.connect([
+            (initial_boldref_wf, gradunwarp_wf, [
+                ('outputnode.raw_ref_image', 'inputnode.input_file')]),
+        ])
 
     # HMC on the BOLD
     bold_hmc_wf = init_bold_hmc_wf(
@@ -649,6 +652,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("mask", "inputnode.ref_bold_mask"),
             ("boldref", "inputnode.ref_bold_brain"),
         ]),
+        (gradunwarp_wf, bold_t1_trans_wf, [('outputnode.warp_file', 'inputnode.gradient_warp')]),
         (bold_t1_trans_wf, outputnode, [
             ("outputnode.bold_t1", "bold_t1"),
             ("outputnode.bold_t1_ref", "bold_t1_ref"),
@@ -813,6 +817,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ("outputnode.bold_std", "bold_std"),
                 ("outputnode.bold_std_ref", "bold_std_ref"),
                 ("outputnode.bold_mask_std", "bold_mask_std"),
+            ]),
+            (gradunwarp_wf, bold_std_trans_wf, [
+                ('outputnode.warp_file', 'inputnode.gradient_warp')
             ]),
         ])
         # fmt:on
@@ -1033,6 +1040,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (bold_hmc_wf, bold_bold_trans_wf, [
                 ("outputnode.xforms", "inputnode.hmc_xforms"),
             ]),
+            (gradunwarp_wf, bold_bold_trans_wf, [('outputnode.warp_file', 'inputnode.gradient_warp')]),
         ])
 
         workflow.connect([
