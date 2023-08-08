@@ -628,18 +628,9 @@ the following invocation::
      A multi-modal parcellation of human cerebral cortex. Nature. 2016.
      doi:`10.1038/nature18933 <https://doi.org/10.1038/nature18933>`_
 
-  .. [Hallquist2013] Hallquist MN, Hwang K, Luna B. The Nuisance of Nuisance Regression.
-     NeuroImage. 2013. doi:`10.1016/j.neuroimage.2013.05.116
-     <https://doi.org/10.1016/j.neuroimage.2013.05.116>`_
-
   .. [Jenkinson2002] Jenkinson M, Bannister P, Brady M, Smith S. Improved optimization for the
      robust and accurate linear registration and motion correction of brain images. Neuroimage.
      2002. doi:`10.1016/s1053-8119(02)91132-8 <https://doi.org/10.1016/s1053-8119(02)91132-8>`__.
-
-  .. [Lindquist2019] Lindquist, MA, Geuter, S, and Wager, TD, Caffo, BS,
-     Modular preprocessing pipelines can reintroduce artifacts into fMRI data.
-     Human Brain Mapping. 2019. doi: `10.1002/hbm.24528
-     <https://doi.org/10.1002/hbm.24528>`_
 
   .. [Muschelli2014] Muschelli J, Nebel MB, Caffo BS, Barber AD, Pekar JJ, Mostofsky SH,
      Reduction of motion-related artifacts in resting state fMRI using aCompCor. NeuroImage. 2014.
