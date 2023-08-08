@@ -52,7 +52,7 @@ NiPreps = "https://www.nipreps.org/"
 [project.optional-dependencies]
 doc = [
     "pydot >= 1.2.3",
-    "sphinx >= 1.8",
+    "sphinx >= 5",
     "sphinx-argparse",
     "sphinx_rtd_theme>=0.5.2",
 ]
