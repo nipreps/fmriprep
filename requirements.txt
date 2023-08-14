@@ -316,7 +316,7 @@ tifffile==2023.4.12
     # via scikit-image
 toml==0.10.2
     # via fmriprep (pyproject.toml)
-tornado==6.3.2
+tornado==6.3.3
     # via bokeh
 tqdm==4.65.0
     # via templateflow
