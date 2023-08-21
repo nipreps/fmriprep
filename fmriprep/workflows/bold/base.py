@@ -1064,6 +1064,14 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
     )
     unwarp_wf.inputs.inputnode.metadata = metadata
 
+    unwarp_ref_wf = init_unwarp_wf(
+        free_mem=config.environment.free_mem,
+        debug="fieldmaps" in config.execution.debug,
+        omp_nthreads=config.nipype.omp_nthreads,
+        name="unwarp_ref_wf",
+    )
+    unwarp_ref_wf.inputs.inputnode.metadata = metadata
+
     output_select = pe.Node(
         KeySelect(fields=["fmap", "fmap_ref", "fmap_coeff", "fmap_mask", "sdc_method"]),
         name="output_select",
@@ -1114,10 +1122,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (initial_boldref_wf, coeff2epi_wf, [
             ("outputnode.ref_image", "inputnode.target_ref"),
             ("outputnode.bold_mask", "inputnode.target_mask")]),
-        (initial_boldref_wf, unwarp_wf, [
-            ("outputnode.ref_image", "inputnode.distorted_ref"),
-        ]),
         (coeff2epi_wf, unwarp_wf, [
+            ("outputnode.fmap_coeff", "inputnode.fmap_coeff")]),
+        (coeff2epi_wf, unwarp_ref_wf, [
             ("outputnode.fmap_coeff", "inputnode.fmap_coeff")]),
         (bold_hmc_wf, unwarp_wf, [
             ("outputnode.xforms", "inputnode.hmc_xforms")]),
@@ -1125,6 +1132,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("outputnode.ref_image", "before")]),
         (bold_split, unwarp_wf, [
             ("out_files", "inputnode.distorted")]),
+        (initial_boldref_wf, unwarp_ref_wf, [
+            ("outputnode.ref_image", "inputnode.distorted"),
+        ]),
         (final_boldref_wf, sdc_report, [
             ("outputnode.ref_image", "after"),
             ("outputnode.bold_mask", "wm_seg")]),
@@ -1187,7 +1197,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ]),
             (inputnode, ds_report_sdc_coreg, [("bold_file", "source_file")]),
             (sdc_coreg_report, ds_report_sdc_coreg, [("out_report", "in_file")]),
-            (unwarp_wf, fmap_report, [(("outputnode.fieldmap", pop_file), "fieldmap")]),
+            (unwarp_ref_wf, fmap_report, [(("outputnode.fieldmap", pop_file), "fieldmap")]),
             (coeff2epi_wf, fmap_report, [
                 ("coregister.inverse_warped_image", "reference"),
             ]),
@@ -1208,13 +1218,13 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (unwarp_wf, final_boldref_wf, [
                 ("outputnode.corrected", "inputnode.bold_file"),
             ]),
-            (unwarp_wf, bold_t1_trans_wf, [
+            (unwarp_ref_wf, bold_t1_trans_wf, [
                 # TEMPORARY: For the moment we can't use frame-wise fieldmaps
-                (("outputnode.fieldwarp_ref", pop_file), "inputnode.fieldwarp"),
+                (("outputnode.fieldwarp", pop_file), "inputnode.fieldwarp"),
             ]),
-            (unwarp_wf, bold_std_trans_wf, [
+            (unwarp_ref_wf, bold_std_trans_wf, [
                 # TEMPORARY: For the moment we can't use frame-wise fieldmaps
-                (("outputnode.fieldwarp_ref", pop_file), "inputnode.fieldwarp"),
+                (("outputnode.fieldwarp", pop_file), "inputnode.fieldwarp"),
             ]),
         ])
         # fmt:on
@@ -1227,7 +1237,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 "fieldmap",
                 "fieldwarp",
                 "corrected",
-                "corrected_ref",
                 "corrected_mask",
             ]
         ),
@@ -1236,7 +1245,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             "fieldmap",
             "fieldwarp",
             "corrected",
-            "corrected_ref",
             "corrected_mask",
         ],
         name="join_sdc_echos",
@@ -1254,7 +1262,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ("outputnode.fieldmap", "fieldmap"),
             ("outputnode.fieldwarp", "fieldwarp"),
             ("outputnode.corrected", "corrected"),
-            ("outputnode.corrected_ref", "corrected_ref"),
             ("outputnode.corrected_mask", "corrected_mask"),
         ]),
         # remaining workflow connections
