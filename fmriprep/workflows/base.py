@@ -319,6 +319,8 @@ It is released under the [CC0]\
         spaces=spaces,
         t1w=subject_data['t1w'],
         t2w=subject_data['t2w'],
+        flair=subject_data['flair'],
+        gradunwarp_file=config.workflow.gradunwarp_file,
         cifti_output=config.workflow.cifti_output,
     )
     # fmt:off

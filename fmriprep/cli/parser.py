@@ -280,6 +280,11 @@ def _build_parser(**kwargs):
         "parts of the workflow (a space delimited list)",
     )
     g_conf.add_argument(
+        "--gradunwarp-file",
+        metavar="PATH",
+        help="Path to vendor file for gradunwarp gradient distortion  correction.",
+    )
+    g_conf.add_argument(
         "--output-spaces",
         nargs="*",
         action=OutputReferencesAction,
