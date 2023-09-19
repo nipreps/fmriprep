@@ -842,7 +842,6 @@ freesurfer/mni/etc
 freesurfer/mni/include
 freesurfer/mni/mni.srcbuild.June2015.tgz
 freesurfer/mni/share/man
-freesurfer/mni/share/mni_autoreg
 freesurfer/mni/share/N3
 freesurfer/models
 freesurfer/python/lib/python3.8/test
