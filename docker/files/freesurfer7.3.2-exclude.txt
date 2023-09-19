@@ -810,8 +810,6 @@ freesurfer/mni/bin/mincview
 freesurfer/mni/bin/mincwindow
 freesurfer/mni/bin/mnc2nii
 freesurfer/mni/bin/mritoself
-freesurfer/mni/bin/mritotal
-freesurfer/mni/bin/mritotal~
 freesurfer/mni/bin/ncdump
 freesurfer/mni/bin/ncgen
 freesurfer/mni/bin/nii2mnc
