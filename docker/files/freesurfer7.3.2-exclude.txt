@@ -838,7 +838,6 @@ freesurfer/mni/bin/xfminvert
 freesurfer/mni/bin/xfmtool
 freesurfer/mni/bin/zscore_vol
 freesurfer/mni/data
-freesurfer/mni/etc
 freesurfer/mni/include
 freesurfer/mni/mni.srcbuild.June2015.tgz
 freesurfer/mni/share/man
