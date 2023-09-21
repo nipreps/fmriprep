@@ -52,7 +52,7 @@ codecarbon==2.3.1
     #   fmriprep (pyproject.toml)
 contourpy==1.1.0
     # via matplotlib
-cryptography==41.0.3
+cryptography==41.0.4
     # via secretstorage
 cycler==0.11.0
     # via matplotlib
