@@ -393,6 +393,7 @@ def init_func_fit_reports_wf(
         SimpleBeforeAfter(
             before_label="T1w",
             after_label="EPI",
+            dismiss_affine=True,
         ),
         name="epi_t1_report",
         mem_gb=0.1,

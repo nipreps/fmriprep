@@ -405,6 +405,9 @@ def init_bold_fit_wf(
                 (fmap_select, unwarp_wf, [
                     ("fmap_coeff", "inputnode.fmap_coeff"),
                 ]),
+                (fmapreg_buffer, unwarp_wf, [
+                    ("boldref2fmap_xfm", "inputnode.data2fmap_xfm"),
+                ]),
                 (enhance_boldref_wf, unwarp_wf, [
                     ('outputnode.bias_corrected_file', 'inputnode.distorted'),
                 ]),
