@@ -18,7 +18,7 @@ The input dataset is required to be in valid :abbr:`BIDS (Brain Imaging Data
 Structure)` format, and it must include at least one T1w structural image and
 (unless disabled with a flag) a BOLD series.
 We highly recommend that you validate your dataset with the free, online
-`BIDS Validator <http://bids-standard.github.io/bids-validator/>`_.
+`BIDS Validator <https://bids-standard.github.io/bids-validator/>`_.
 
 The exact command to run *fMRIPRep* depends on the Installation_ method.
 The common parts of the command follow the `BIDS-Apps
@@ -188,27 +188,24 @@ Because processing this emerging type of datasets (*densely sampled neuroimaging
 
 Troubleshooting
 ---------------
-Logs and crashfiles are outputted into the
+Logs and crashfiles are output into the
 ``<output dir>/fmriprep/sub-<participant_label>/log`` directory.
-Information on how to customize and understand these files can be found on the
-`nipype debugging <http://nipype.readthedocs.io/en/latest/users/debug.html>`_
-page.
 
 **Support and communication**.
-The documentation of this project is found here: http://fmriprep.readthedocs.org/en/latest/.
+The documentation of this project is found here: https://fmriprep.readthedocs.org/en/latest/.
 
 All bugs, concerns and enhancement requests for this software can be submitted here:
 https://github.com/nipreps/fmriprep/issues.
 
 If you have a problem or would like to ask a question about how to use *fMRIPRep*,
-please submit a question to `NeuroStars.org <http://neurostars.org/tags/fmriprep>`_ with an ``fmriprep`` tag.
+please submit a question to `NeuroStars.org <https://neurostars.org/tag/fmriprep>`_ with an ``fmriprep`` tag.
 NeuroStars.org is a platform similar to StackOverflow but dedicated to neuroinformatics.
 
 Previous questions about *fMRIPRep* are available here:
-http://neurostars.org/tags/fmriprep/
+https://neurostars.org/tag/fmriprep/
 
 To participate in the *fMRIPRep* development-related discussions please use the
-following mailing list: http://mail.python.org/mailman/listinfo/neuroimaging
+following mailing list: https://mail.python.org/mailman/listinfo/neuroimaging
 Please add *[fmriprep]* to the subject line when posting on the mailing list.
 
 

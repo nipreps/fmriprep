@@ -267,7 +267,7 @@ ARG VERSION
 LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="fMRIPrep" \
       org.label-schema.description="fMRIPrep - robust fMRI preprocessing tool" \
-      org.label-schema.url="http://fmriprep.org" \
+      org.label-schema.url="https://fmriprep.org" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.vcs-url="https://github.com/nipreps/fmriprep" \
       org.label-schema.version=$VERSION \

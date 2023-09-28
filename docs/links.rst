@@ -1,5 +1,5 @@
-.. _Nipype: http://nipype.readthedocs.io/en/latest/
-.. _BIDS: http://bids.neuroimaging.io
+.. _Nipype: https://nipype.readthedocs.io/en/latest/
+.. _BIDS: https://bids.neuroimaging.io/
 .. _`BIDS Derivatives`: https://bids-specification.readthedocs.io/en/stable/05-derivatives/01-introduction.html
 .. _`BEP 011`: https://bids-specification.readthedocs.io/en/bep011/05-derivatives/04-structural-derivatives.html
 .. _`BEP 012`: https://bids-specification.readthedocs.io/en/bep012/05-derivatives/05-functional-derivatives.html

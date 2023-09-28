@@ -94,6 +94,6 @@ Sherlock enables `the following data transfer options
 <https://www.sherlock.stanford.edu/docs/user-guide/storage/data-transfer/>`_.
 
 Alternatively, more comprehensive solutions such as `Datalad
-<http://www.datalad.org/>`_ will handle data transfers with the appropriate
+<https://www.datalad.org/>`_ will handle data transfers with the appropriate
 settings and commands.
 Datalad also performs version control over your data.
