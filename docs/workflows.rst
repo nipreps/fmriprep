@@ -274,7 +274,7 @@ See also *sMRIPrep*'s
 Refinement of the brain mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Typically, the original brain mask calculated with ``antsBrainExtraction.sh``
-will contain some innaccuracies including small amounts of MR signal from
+will contain some inaccuracies including small amounts of MR signal from
 outside the brain.
 Based on the tissue segmentation of FreeSurfer (located in ``mri/aseg.mgz``)
 and only when the :ref:`Surface Processing <workflows_surface>` step has been
