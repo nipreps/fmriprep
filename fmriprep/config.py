@@ -587,12 +587,6 @@ class workflow(_Config):
     me_t2s_fit_method = "curvefit"
     """The method by which to estimate T2*/S0 for multi-echo data"""
 
-    @classmethod
-    def init(cls):
-        # Avoid additional runtime if not required
-        if not cls.cifti_output:
-            cls.run_msmsulc = False
-
 
 class loggers:
     """Keep loggers easily accessible (see :py:func:`init`)."""

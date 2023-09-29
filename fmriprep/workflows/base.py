@@ -209,6 +209,7 @@ def init_single_subject_fit_wf(subject_id: str):
         freesurfer=config.workflow.run_reconall,
         hires=config.workflow.hires,
         longitudinal=config.workflow.longitudinal,
+        msm_sulc=config.workflow.run_msmsulc,
         t1w=subject_data['t1w'],
         t2w=subject_data['t2w'],
         skull_strip_mode=config.workflow.skull_strip_t1w,
