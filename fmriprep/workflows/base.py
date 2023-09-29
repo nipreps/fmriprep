@@ -146,7 +146,6 @@ def init_single_subject_fit_wf(subject_id: str):
                     derivatives_dir=deriv_dir,
                     subject_id=subject_id,
                     std_spaces=std_spaces,
-                    freesurfer=config.workflow.run_reconall,
                 )
             )
 
@@ -550,7 +549,6 @@ def init_single_subject_wf(subject_id: str):
                     derivatives_dir=deriv_dir,
                     subject_id=subject_id,
                     std_spaces=std_spaces,
-                    freesurfer=config.workflow.run_reconall,
                 )
             )
 
