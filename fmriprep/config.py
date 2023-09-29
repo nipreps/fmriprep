@@ -533,6 +533,8 @@ class workflow(_Config):
     """Run *fieldmap-less* susceptibility-derived distortions estimation."""
     hires = None
     """Run FreeSurfer ``recon-all`` with the ``-hires`` flag."""
+    fs_reuse_base = None
+    """Adjust pipeline to reuse base template of existing longitudinal freesurfer"""
     ignore = None
     """Ignore particular steps for *fMRIPrep*."""
     longitudinal = False

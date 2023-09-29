@@ -575,6 +575,12 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         dest="run_reconall",
         help="Disable FreeSurfer surface preprocessing.",
     )
+    g_fs.add_argument(
+        "--fs-reuse-base",
+        action="store_true",
+        dest="fs_reuse_base",
+        help="Reuse freesurfer base template (from longitudinal preprocessing)",
+    )
 
     g_carbon = parser.add_argument_group("Options for carbon usage tracking")
     g_carbon.add_argument(

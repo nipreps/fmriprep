@@ -310,6 +310,7 @@ It is released under the [CC0]\
         existing_derivatives=anat_derivatives,
         freesurfer=config.workflow.run_reconall,
         hires=config.workflow.hires,
+        fs_reuse_base=config.workflow.fs_reuse_base,
         longitudinal=config.workflow.longitudinal,
         omp_nthreads=config.nipype.omp_nthreads,
         msm_sulc=config.workflow.run_msmsulc,
