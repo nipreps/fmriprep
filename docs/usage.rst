@@ -190,6 +190,9 @@ Troubleshooting
 ---------------
 Logs and crashfiles are output into the
 ``<output dir>/fmriprep/sub-<participant_label>/log`` directory.
+Information on how to customize and understand these files can be found on the
+`Debugging Nipype Workflows <http://nipype.readthedocs.io/en/latest/users/debug.html>`_
+page.
 
 **Support and communication**.
 The documentation of this project is found here: https://fmriprep.readthedocs.org/en/latest/.
