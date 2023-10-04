@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Miscellaneous utilities."""
+import typing as ty
 
 
 def check_deps(workflow):
@@ -45,3 +46,21 @@ def fips_enabled():
 
     fips = Path("/proc/sys/crypto/fips_enabled")
     return fips.exists() and fips.read_text()[0] != "0"
+
+
+def estimate_bold_mem_usage(bold_fname: str) -> ty.Tuple[int, dict]:
+    import nibabel as nb
+    import numpy as np
+
+    img = nb.load(bold_fname)
+    nvox = int(np.prod(img.shape, dtype='u8'))
+    # Assume tools will coerce to 8-byte floats to be safe
+    bold_size_gb = 8 * nvox / (1024**3)
+    bold_tlen = img.shape[-1]
+    mem_gb = {
+        "filesize": bold_size_gb,
+        "resampled": bold_size_gb * 4,
+        "largemem": bold_size_gb * (max(bold_tlen / 100, 1.0) + 4),
+    }
+
+    return bold_tlen, mem_gb

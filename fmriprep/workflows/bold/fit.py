@@ -101,6 +101,8 @@ def init_bold_fit_wf(
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.utility import KeySelect
 
+    from fmriprep.utils.misc import estimate_bold_mem_usage
+
     layout = config.execution.layout
 
     # Collect bold and sbref files, sorted by EchoTime
@@ -124,7 +126,7 @@ def init_bold_fit_wf(
     orientation = "".join(nb.aff2axcodes(nb.load(bold_file).affine))
 
     if os.path.isfile(bold_file):
-        bold_tlen, mem_gb = _create_mem_gb(bold_file)
+        bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
     # Boolean used to update workflow self-descriptions
     multiecho = len(bold_files) > 1
@@ -486,21 +488,6 @@ def init_bold_fit_wf(
         outputnode.inputs.boldref2anat_xfm = boldref2anat_xform
 
     return workflow
-
-
-def _create_mem_gb(bold_fname):
-    img = nb.load(bold_fname)
-    nvox = int(np.prod(img.shape, dtype='u8'))
-    # Assume tools will coerce to 8-byte floats to be safe
-    bold_size_gb = 8 * nvox / (1024**3)
-    bold_tlen = img.shape[-1]
-    mem_gb = {
-        "filesize": bold_size_gb,
-        "resampled": bold_size_gb * 4,
-        "largemem": bold_size_gb * (max(bold_tlen / 100, 1.0) + 4),
-    }
-
-    return bold_tlen, mem_gb
 
 
 def _get_wf_name(bold_fname):
