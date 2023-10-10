@@ -149,6 +149,41 @@ class ReconstructFieldmap(SimpleInterface):
         return runtime
 
 
+class DistortionParametersInputSpec(TraitedSpec):
+    in_file = File(exists=True, desc="EPI image corresponding to the metadata")
+    metadata = traits.Dict(mandatory=True, desc="metadata corresponding to the inputs")
+
+
+class DistortionParametersOutputSpec(TraitedSpec):
+    readout_time = traits.Float
+    pe_direction = traits.Enum("i", "i-", "j", "j-", "k", "k-")
+
+
+class DistortionParameters(SimpleInterface):
+    """Retrieve PhaseEncodingDirection and TotalReadoutTime from available metadata.
+
+    One or both parameters may be missing; downstream interfaces should be prepared
+    to handle this.
+    """
+
+    input_spec = DistortionParametersInputSpec
+    output_spec = DistortionParametersOutputSpec
+
+    def _run_interface(self, runtime):
+        from ..utils.epimanip import get_trt
+
+        try:
+            self._results["readout_time"] = get_trt(
+                self.inputs.metadata,
+                self.inputs.in_file or None,
+            )
+            self._results["pe_direction"] = self.inputs.metadata["PhaseEncodingDirection"]
+        except (KeyError, ValueError):
+            pass
+
+        return runtime
+
+
 def resample_vol(
     data: np.ndarray,
     coordinates: np.ndarray,
