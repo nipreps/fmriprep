@@ -34,8 +34,15 @@ class ResampleSeriesInputSpec(TraitedSpec):
         bool, default=[False], desc="Whether to invert each file in transforms"
     )
     fieldmap = File(desc="Fieldmap file resampled into reference space")
-    pe_info = InputMultiObject(
-        traits.Tuple(int, float), desc="Phase-encoding axis and signed readout time"
+    ro_time = traits.Float(desc="EPI readout time (s).")
+    pe_dir = traits.Enum(
+        "i",
+        "i-",
+        "j",
+        "j-",
+        "k",
+        "k-",
+        desc="the phase-encoding direction corresponding to in_data",
     )
     num_threads = traits.Int(1, usedefault=True, desc="Number of threads to use for resampling")
 
@@ -62,9 +69,20 @@ class ResampleSeries(SimpleInterface):
         nvols = source.shape[3] if source.ndim > 3 else 1
 
         transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
-        pe_info = self.inputs.pe_info
-        if len(pe_info) == 1:
-            pe_info = pe_info * nvols
+
+        pe_dir = self.inputs.pe_dir
+        ro_time = self.inputs.ro_time
+        pe_info = None
+
+        if pe_dir and ro_time:
+            pe_axis = "ijk".index(pe_dir)
+            pe_flip = pe_dir.endswith("-")
+
+            # Nitransforms displacements are positive
+            source, axcodes = ensure_positive_cosines(source)
+            axis_flip = axcodes[pe_axis] in "LPI"
+
+            pe_info = [(pe_axis, -ro_time if (axis_flip ^ pe_flip) else ro_time)] * nvols
 
         resampled = resample_bold(
             source=source,
