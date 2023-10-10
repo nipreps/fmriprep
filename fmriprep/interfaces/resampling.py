@@ -567,7 +567,12 @@ def reconstruct_fieldmap(
 
     direct = False
     if all(isinstance(xfm, nt.Affine) for xfm in transforms):
+        # Transforms maps RAS coordinates in the target to RAS coordinates in
+        # the fieldmap space. Composed with target.affine, we have a target voxel
+        # to fieldmap RAS affine. Hence, this is projected into fieldmap space.
         projected_affine = transforms.asaffine().matrix @ target.affine
+        # If the coordinates have the same rotation from voxels, we can construct
+        # bspline weights efficiently.
         direct = aligned(projected_affine, coefficients[-1].affine)
 
     if direct:
