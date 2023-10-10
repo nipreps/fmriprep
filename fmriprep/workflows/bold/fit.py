@@ -33,12 +33,12 @@ import typing as ty
 
 import bids
 import nibabel as nb
-import numpy as np
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.func.util import init_enhance_and_skullstrip_bold_wf
 from niworkflows.interfaces.header import ValidateImage
 from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+from niworkflows.interfaces.utility import KeySelect
 from niworkflows.utils.connections import listify
 from sdcflows.workflows.apply.correction import init_unwarp_wf
 from sdcflows.workflows.apply.registration import init_coeff2epi_wf
@@ -46,6 +46,12 @@ from sdcflows.workflows.apply.registration import init_coeff2epi_wf
 from ... import config
 from ...interfaces.reports import FunctionalSummary
 from ...utils.bids import extract_entities
+from ..interfaces.resampling import (
+    DistortionParameters,
+    ReconstructFieldmap,
+    ResampleSeries,
+)
+from ..utils.misc import estimate_bold_mem_usage
 
 # BOLD workflows
 from .hmc import init_bold_hmc_wf
@@ -57,6 +63,8 @@ from .outputs import (
 )
 from .reference import init_raw_boldref_wf
 from .registration import init_bold_reg_wf
+from .stc import init_bold_stc_wf
+from .t2s import init_bold_t2s_wf
 
 
 def get_sbrefs(
@@ -97,6 +105,7 @@ def init_bold_fit_wf(
     precomputed: dict,
     fieldmap_id: ty.Optional[str] = None,
     omp_nthreads: int = 1,
+    name: str = "bold_fit_wf",
 ) -> pe.Workflow:
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.utility import KeySelect
@@ -125,8 +134,7 @@ def init_bold_fit_wf(
     metadata = layout.get_metadata(bold_file)
     orientation = "".join(nb.aff2axcodes(nb.load(bold_file).affine))
 
-    if os.path.isfile(bold_file):
-        bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
+    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
     # Boolean used to update workflow self-descriptions
     multiecho = len(bold_files) > 1
@@ -142,7 +150,7 @@ def init_bold_fit_wf(
     boldref2fmap_xform = transforms.get("boldref2fmap")
     boldref2anat_xform = transforms.get("boldref2anat")
 
-    workflow = Workflow(name=_get_wf_name(bold_file))
+    workflow = Workflow(name=name)
 
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -171,6 +179,7 @@ def init_bold_fit_wf(
     outputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
+                "dummy_scans",
                 "hmc_boldref",
                 "coreg_boldref",
                 "bold_mask",
@@ -494,35 +503,204 @@ def init_bold_fit_wf(
     return workflow
 
 
-def _get_wf_name(bold_fname):
+def init_bold_native_wf(
+    *,
+    bold_series: ty.Union[str, ty.List[str]],
+    fieldmap_id: ty.Optional[str] = None,
+    name: str = "bold_native_wf",
+) -> pe.Workflow:
+    """First derivatives for fMRIPrep
+
+    This workflow performs slice-timing correction, and resamples to boldref space
+    with head motion and susceptibility distortion correction. It also handles
+    multi-echo processing and selects the transforms needed to perform further
+    resampling.
     """
-    Derive the workflow name for supplied BOLD file.
 
-    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz")
-    'func_preproc_task_nback_wf'
-    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz")
-    'func_preproc_task_nback_run_01_echo_1_wf'
+    layout = config.execution.layout
 
-    """
-    from nipype.utils.filemanip import split_filename
+    # Shortest echo first
+    all_metadata, bold_files, echo_times = zip(
+        *sorted(
+            (md := layout.get_metadata(bold_file), bold_file, md.get("EchoTime"))
+            for bold_file in listify(bold_series)
+        )
+    )
+    multiecho = len(bold_files) > 1
 
-    fname = split_filename(bold_fname)[1]
-    fname_nosub = "_".join(fname.split("_")[1:])
-    name = "func_preproc_" + fname_nosub.replace(".", "_").replace(" ", "").replace(
-        "-", "_"
-    ).replace("_bold", "_wf")
+    bold_file = bold_files[0]
+    metadata = all_metadata[0]
 
-    return name
+    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
+    if multiecho:
+        shapes = [nb.load(echo).shape for echo in bold_files]
+        if len(set(shapes)) != 1:
+            diagnostic = "\n".join(
+                f"{os.path.basename(echo)}: {shape}" for echo, shape in zip(bold_files, shapes)
+            )
+            raise RuntimeError(f"Multi-echo images found with mismatching shapes\n{diagnostic}")
 
-def _to_join(in_file, join_file):
-    """Join two tsv files if the join_file is not ``None``."""
-    from niworkflows.interfaces.utility import JoinTSVColumns
+    run_stc = bool(metadata.get("SliceTiming")) and "slicetiming" not in config.workflow.ignore
 
-    if join_file is None:
-        return in_file
-    res = JoinTSVColumns(in_file=in_file, join_file=join_file).run()
-    return res.outputs.out_file
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                # BOLD fit
+                "boldref",
+                "motion_xfm",
+                "fmapreg_xfm",
+                "dummy_scans",
+                # Fieldmap fit
+                "fmap_ref",
+                "fmap_coeff",
+                "fmap_id",
+            ],
+        ),
+        name='inputnode',
+    )
+
+    outputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                "bold_minimal",  # Single echo: STC; Multi-echo: optimal combination
+                "bold_native",   # STC + HMC + SDC; Multi-echo: optimal combination
+                "motion_xfm",    # motion_xfms to apply to bold_minimal (none for ME)
+                "fieldmap_id",   # fieldmap to apply to bold_minimal (none for ME)
+                # Multiecho outputs
+                "bold_echos",    # Individual corrected echos
+                "t2star_map",    # T2* map
+            ],  # fmt:skip
+        ),
+        name="outputnode",
+    )
+
+    boldbuffer = pe.Node(
+        niu.IdentityInterface(fields=["bold_file", "ro_time", "pe_dir"]), name="boldbuffer"
+    )
+
+    # Track echo index - this allows us to treat multi- and single-echo workflows
+    # almost identically
+    echo_index = pe.Node(niu.IdentityInterface(fields=["echoidx"]), name="echo_index")
+    if multiecho:
+        echo_index.iterables = [("echoidx", range(len(bold_files)))]
+    else:
+        echo_index.inputs.echoidx = 0
+
+    # BOLD source: track original BOLD file(s)
+    bold_source = pe.Node(niu.Select(inlist=bold_files), name="bold_source")
+    validate_bold = pe.Node(ValidateImage(), name="validate_bold")
+    workflow.connect([
+        (echo_index, bold_source, [("echoidx", "index")]),
+        (bold_source, validate_bold, [("out", "in_file")]),
+    ])  # fmt:skip
+
+    # Slice-timing correction
+    if run_stc:
+        bold_stc_wf = init_bold_stc_wf(name="bold_stc_wf", metadata=metadata)
+        workflow.connect([
+            (inputnode, bold_stc_wf, [("dummy_scans", "inputnode.skip_vols")]),
+            (validate_bold, bold_stc_wf, [("out_file", "inputnode.bold_file")]),
+            (bold_stc_wf, boldbuffer, [("outputnode.stc_file", "bold_file")]),
+        ])  # fmt:skip
+    else:
+        workflow.connect([(validate_bold, boldbuffer, [("out_file", "bold_file")])])
+
+    # Prepare fieldmap metadata
+    if fieldmap_id:
+        fmap_select = pe.Node(
+            KeySelect(
+                fields=["fmap", "fmap_ref", "fmap_coeff", "fmap_mask", "sdc_method"],
+                key=fieldmap_id,
+            ),
+            name="fmap_select",
+            run_without_submitting=True,
+        )
+
+        distortion_params = pe.Node(
+            DistortionParameters(metadata=metadata, in_file=bold_file),
+            name="distortion_params",
+            run_without_submitting=True,
+        )
+        workflow.connect([
+            (distortion_params, boldbuffer, [
+                ("readout_time", "ro_time"),
+                ("pe_direction", "pe_dir"),
+            ]),
+        ])  # fmt:skip
+
+    # Resample to boldref
+    boldref_bold = pe.Node(
+        ResampleSeries(), name="boldref_bold", n_procs=config.nipype.omp_nthreads
+    )
+
+    workflow.connect([
+        (inputnode, boldref_bold, [
+            ("boldref", "ref_file"),
+            ("motion_xfm", "transforms"),
+        ]),
+        (boldbuffer, boldref_bold, [
+            ("bold_file", "in_file"),
+            ("ro_time", "ro_time"),
+            ("pe_dir", "pe_dir"),
+        ]),
+    ])  # fmt:skip
+
+    if fieldmap_id:
+        boldref_fmap = pe.Node(ReconstructFieldmap(inverse=[True]), name="boldref_fmap")
+        workflow.connect([
+            (inputnode, boldref_fmap, [
+                ("boldref", "target_ref_file"),
+                ("fmapreg_xfm", "transforms"),
+            ]),
+            (fmap_select, boldref_fmap, [
+                ("fmap_coeff", "in_coeffs"),
+                ("fmap_ref", "fmap_ref_file"),
+            ]),
+            (boldref_fmap, boldref_bold, [("out_file", "fieldmap")]),
+        ])  # fmt:skip
+
+    if multiecho:
+        join_echos = pe.JoinNode(
+            niu.IdentityInterface(fields=["bold_files"]),
+            joinsource="echo_index",
+            joinfield=["bold_files"],
+            name="join_echos",
+        )
+
+        # create optimal combination, adaptive T2* map
+        bold_t2s_wf = init_bold_t2s_wf(
+            echo_times=echo_times,
+            mem_gb=mem_gb["filesize"],
+            omp_nthreads=config.nipype.omp_nthreads,
+            name="bold_t2smap_wf",
+        )
+
+        # Do NOT set motion_xfm or fieldmap_id on outputnode
+        # This prevents downstream resamplers from double-dipping
+        workflow.connect([
+            (boldref_bold, join_echos, [("out_file", "bold_files")]),
+            (join_echos, bold_t2s_wf, [("bold_files", "inputnode.bold_file")]),
+            (join_echos, outputnode, [("bold_files", "bold_echos")]),
+            (bold_t2s_wf, outputnode, [
+                ("outputnode.bold", "bold_minimal"),
+                ("outputnode.bold", "bold_native"),
+                ("outputnode.t2star", "t2star_map"),
+            ]),
+        ])  # fmt:skip
+    else:
+        workflow.connect([
+            (inputnode, outputnode, [("motion_xfm", "motion_xfm")]),
+            (boldbuffer, outputnode, [("bold_file", "bold_minimal")]),
+            (boldref_bold, outputnode, [("out_file", "bold_native")]),
+        ])  # fmt:skip
+
+        if fieldmap_id:
+            outputnode.inputs.fieldmap_id = fieldmap_id
+
+    return workflow
 
 
 def _select_ref(sbref_files, boldref_files):

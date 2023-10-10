@@ -121,7 +121,7 @@ def init_single_subject_fit_wf(subject_id: str):
     from niworkflows.utils.spaces import Reference
     from smriprep.workflows.anatomical import init_anat_fit_wf
 
-    from fmriprep.workflows.bold.fit import init_bold_fit_wf
+    from fmriprep.workflows.bold.fit import init_bold_fit_wf, init_bold_native_wf
 
     spaces = config.workflow.spaces
 
@@ -350,8 +350,14 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 ])
                 # fmt:on
 
+    bold_wfs = {}
     for bold_file in subject_data['bold']:
-        fieldmap_id = estimator_map.get(listify(bold_file)[0])
+        wf_key = sorted(listify(bold_file))[0]
+
+        # A container to act as a namespace
+        this_wf = bold_wfs[wf_key] = pe.Workflow(name=_get_wf_name(wf_key, "bold"))
+
+        fieldmap_id = estimator_map.get(wf_key)
 
         functional_cache = {}
         if config.execution.derivatives:
@@ -367,16 +373,17 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                         fieldmap_id=fieldmap_id,
                     )
                 )
-        func_fit_wf = init_bold_fit_wf(
+        bold_fit_wf = init_bold_fit_wf(
             bold_series=bold_file,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
             omp_nthreads=config.nipype.omp_nthreads,
         )
+        this_wf.add_nodes([bold_fit_wf])
 
         # fmt:off
         workflow.connect([
-            (anat_fit_wf, func_fit_wf, [
+            (anat_fit_wf, bold_fit_wf, [
                 ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
                 ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
                 ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
@@ -390,7 +397,7 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
         if fieldmap_id:
             # fmt:off
             workflow.connect([
-                (fmap_wf, func_fit_wf, [
+                (fmap_wf, bold_fit_wf, [
                     ("outputnode.fmap", "inputnode.fmap"),
                     ("outputnode.fmap_ref", "inputnode.fmap_ref"),
                     ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
@@ -403,6 +410,32 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
 
     if config.workflow.level == "minimal":
         return clean_datasinks(workflow)
+
+    for bold_file in subject_data['bold']:
+        wf_key = listify(bold_file)[0]
+        this_wf = bold_wfs[wf_key]
+
+        fieldmap_id = estimator_map.get(wf_key)
+
+        bold_native_wf = init_bold_native_wf(bold_file, fieldmap_id)
+
+        workflow.connect([
+            (this_wf, bold_native_wf, [
+                ("bold_fit_wf.outputnode.coreg_boldref", "inputnode.boldref"),
+                ("bold_fit_wf.outputnode.motion_xfm", "inputnode.motion_xfm"),
+                ("bold_fit_wf.outputnode.fmapreg_xfm", "inputnode.fmapreg_xfm"),
+                ("bold_fit_wf.outputnode.dummy_scans", "inputnode.dummy_scans"),
+            ]),
+        ])  # fmt:skip
+
+        if fieldmap_id:
+            workflow.connect([
+                (fmap_wf, bold_native_wf, [
+                    ("outputnode.fmap_ref", "inputnode.fmap_ref"),
+                    ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
+                    ("outputnode.fmap_id", "inputnode.fmap_id"),
+                ]),
+            ])  # fmt:skip
 
     if config.workflow.level == "resampling":
         return clean_datasinks(workflow)
@@ -975,3 +1008,23 @@ def clean_datasinks(workflow: pe.Workflow) -> pe.Workflow:
         if node.split('.')[-1].startswith('ds_'):
             workflow.get_node(node).interface.out_path_base = ""
     return workflow
+
+
+def _get_wf_name(bold_fname, prefix):
+    """
+    Derive the workflow name for supplied BOLD file.
+
+    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz", "bold")
+    'bold_task_nback_wf'
+    >>> _get_wf_name(
+    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz",
+    ...     "preproc",
+    ... )
+    'preproc_task_nback_run_01_echo_1_wf'
+
+    """
+    from nipype.utils.filemanip import split_filename
+
+    fname = split_filename(bold_fname)[1]
+    fname_nosub = "_".join(fname.split("_")[1:-1])
+    return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
