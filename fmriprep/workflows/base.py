@@ -459,19 +459,19 @@ tasks and sessions), the following preprocessing was performed.
     )
 
     bold_wfs = {}
-    for bold_file in subject_data['bold']:
-        wf_key = sorted(listify(bold_file))[0]
+    for bold_series in subject_data['bold']:
+        bold_file = sorted(listify(bold_series))[0]
 
         # A container to act as a namespace
-        this_wf = bold_wfs[wf_key] = Workflow(name=_get_wf_name(wf_key, "bold"))
+        this_wf = bold_wfs[bold_file] = Workflow(name=_get_wf_name(bold_file, "bold"))
 
-        fieldmap_id = estimator_map.get(wf_key)
+        fieldmap_id = estimator_map.get(bold_file)
 
         functional_cache = {}
         if config.execution.derivatives:
             from fmriprep.utils.bids import collect_derivatives, extract_entities
 
-            entities = extract_entities(bold_file)
+            entities = extract_entities(bold_series)
 
             for deriv_dir in config.execution.derivatives:
                 functional_cache.update(
@@ -482,7 +482,7 @@ tasks and sessions), the following preprocessing was performed.
                     )
                 )
         bold_fit_wf = init_bold_fit_wf(
-            bold_series=bold_file,
+            bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
             omp_nthreads=config.nipype.omp_nthreads,
@@ -521,13 +521,13 @@ tasks and sessions), the following preprocessing was performed.
     if config.workflow.level == "minimal":
         return clean_datasinks(workflow)
 
-    for bold_file in subject_data['bold']:
-        wf_key = listify(bold_file)[0]
-        this_wf = bold_wfs[wf_key]
+    for bold_series in subject_data['bold']:
+        bold_file = listify(bold_series)[0]
+        this_wf = bold_wfs[bold_file]
 
-        fieldmap_id = estimator_map.get(wf_key)
+        fieldmap_id = estimator_map.get(bold_file)
 
-        bold_native_wf = init_bold_native_wf(bold_file, fieldmap_id)
+        bold_native_wf = init_bold_native_wf(bold_series, fieldmap_id)
 
         workflow.connect([
             (this_wf, bold_native_wf, [
