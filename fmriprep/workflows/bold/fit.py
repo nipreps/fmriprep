@@ -406,7 +406,11 @@ def init_bold_fit_wf(
                     ("fmap_coeff", "inputnode.fmap_coeff"),
                 ]),
                 (fmapreg_buffer, unwarp_wf, [
-                    ("boldref2fmap_xfm", "inputnode.data2fmap_xfm"),
+                    # This looks backwards, but unwarp_wf describes transforms in
+                    # terms of points while we (and init_coeff2epi_wf) describe them
+                    # in terms of images. Mapping fieldmap coordinates into boldref
+                    # coordinates maps the boldref image onto the fieldmap image.
+                    ("boldref2fmap_xfm", "inputnode.fmap2data_xfm"),
                 ]),
                 (enhance_boldref_wf, unwarp_wf, [
                     ('outputnode.bias_corrected_file', 'inputnode.distorted'),
