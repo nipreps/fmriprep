@@ -43,7 +43,6 @@ from packaging.version import Version
 from .. import config
 from ..interfaces import DerivativesDataSink
 from ..interfaces.reports import AboutSummary, SubjectSummary
-from .bold.base import get_estimator
 
 
 def init_fmriprep_wf():
@@ -575,7 +574,7 @@ def map_fieldmap_estimation(
     bold_files = (listify(bold_file)[0] for bold_file in bold_data)
 
     all_estimators = {
-        bold_file: [fmap_id for fmap_id in get_estimator(layout, bold_file) if fmap_id in all_ids]
+        bold_file: [fmap_id for fmap_id in _get_estimator(layout, bold_file) if fmap_id in all_ids]
         for bold_file in bold_files
     }
 
@@ -629,3 +628,21 @@ def _get_wf_name(bold_fname, prefix):
     fname = split_filename(bold_fname)[1]
     fname_nosub = "_".join(fname.split("_")[1:-1])
     return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
+
+
+def _get_estimator(layout, fname):
+    field_source = layout.get_metadata(fname).get("B0FieldSource")
+    if isinstance(field_source, str):
+        field_source = (field_source,)
+
+    if field_source is None:
+        import re
+        from pathlib import Path
+
+        from sdcflows.fieldmaps import get_identifier
+
+        # Fallback to IntendedFor
+        intended_rel = re.sub(r"^sub-[a-zA-Z0-9]*/", "", str(Path(fname).relative_to(layout.root)))
+        field_source = get_identifier(intended_rel)
+
+    return field_source
