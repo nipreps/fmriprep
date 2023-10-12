@@ -113,6 +113,37 @@ def init_fmriprep_wf():
 
 
 def init_single_subject_wf(subject_id: str):
+    """
+    Organize the preprocessing pipeline for a single subject.
+
+    It collects and reports information about the subject, and prepares
+    sub-workflows to perform anatomical and functional preprocessing.
+    Anatomical preprocessing is performed in a single workflow, regardless of
+    the number of sessions.
+    Functional preprocessing is performed using a separate workflow for each
+    individual BOLD series.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
+
+            from fmriprep.workflows.tests import mock_config
+            from fmriprep.workflows.base import init_single_subject_wf
+            with mock_config():
+                wf = init_single_subject_wf('01')
+
+    Parameters
+    ----------
+    subject_id : :obj:`str`
+        Subject label for this single-subject workflow.
+
+    Inputs
+    ------
+    subjects_dir : :obj:`str`
+        FreeSurfer's ``$SUBJECTS_DIR``.
+
+    """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.bids import BIDSDataGrabber, BIDSInfo
     from niworkflows.interfaces.nilearn import NILEARN_VERSION
