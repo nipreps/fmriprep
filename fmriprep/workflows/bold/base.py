@@ -137,6 +137,13 @@ def init_bold_wf(
     if config.workflow.level == "minimal":
         return workflow
 
+    # Now that we're resampling and combining, multiecho matters
+    multiecho = len(bold_series) > 2
+
+    nonstd_spaces = set(spaces.get_nonstandard())
+    template_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
+    freesurfer_spaces = spaces.get_fs_spaces()
+
     #
     # Resampling outputs workflow:
     #   - Resample to native
@@ -185,6 +192,42 @@ def init_bold_wf(
                 ('outputnode.bold_echos', 'inputnode.bold_echos'),
                 ('outputnode.t2star_map', 'inputnode.t2star'),
             ]),
+        ])  # fmt:skip
+
+    if multiecho:
+        t2s_reporting_wf = init_t2s_reporting_wf()
+
+        ds_report_t2scomp = pe.Node(
+            DerivativesDataSink(
+                desc="t2scomp",
+                datatype="figures",
+                dismiss_entities=("echo",),
+            ),
+            name="ds_report_t2scomp",
+            run_without_submitting=True,
+        )
+
+        ds_report_t2star_hist = pe.Node(
+            DerivativesDataSink(
+                desc="t2starhist",
+                datatype="figures",
+                dismiss_entities=("echo",),
+            ),
+            name="ds_report_t2star_hist",
+            run_without_submitting=True,
+        )
+
+        workflow.connect([
+            (inputnode, t2s_reporting_wf, [('t1w_dseg', 'inputnode.label_file')]),
+            (bold_fit_wf, t2s_reporting_wf, [
+                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('outputnode.coreg_boldref', 'inputnode.boldref'),
+            ]),
+            (bold_native_wf, t2s_reporting_wf, [
+                ('outputnode.t2star_map', 'inputnode.t2star_file'),
+            ]),
+            (t2s_reporting_wf, ds_report_t2scomp, [('outputnode.t2s_comp_report', 'in_file')]),
+            (t2s_reporting_wf, ds_report_t2star_hist, [("outputnode.t2star_hist", "in_file")]),
         ])  # fmt:skip
 
     if config.workflow.level == "resampling":

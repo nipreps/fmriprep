@@ -120,15 +120,13 @@ The optimally combined time series was carried forward as the *preprocessed BOLD
         name='t2smap_node',
         mem_gb=2.5 * mem_gb * len(echo_times),
     )
-    # fmt:off
     workflow.connect([
         (inputnode, dilate_mask, [('bold_mask', 'in_mask')]),
         (inputnode, t2smap_node, [('bold_file', 'in_files')]),
         (dilate_mask, t2smap_node, [('out_mask', 'mask_file')]),
         (t2smap_node, outputnode, [('optimal_comb', 'bold'),
                                    ('t2star_map', 't2star_map')]),
-    ])
-    # fmt:on
+    ])  # fmt:skip
 
     return workflow
 
@@ -157,9 +155,10 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         reference BOLD file
     label_file
         an integer label file identifying gray matter with value ``1``
-    label_bold_xform
-        Affine matrix that maps the label file into alignment with the native
-        BOLD space; can be ``"identity"`` if label file is already aligned
+    boldref2anat_xfm
+        Affine matrix that maps images in the native bold space into the
+        anatomical space of ``label_file``; can be ``"identity"`` if label
+        file is already aligned
 
     Outputs
     -------
@@ -177,7 +176,7 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['t2star_file', 'boldref', 'label_file', 'label_bold_xform']),
+        niu.IdentityInterface(fields=['t2star_file', 'boldref', 'label_file', 'boldref2anat_xfm']),
         name='inputnode',
     )
 
@@ -185,7 +184,10 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         niu.IdentityInterface(fields=['t2star_hist', 't2s_comp_report']), name='outputnode'
     )
 
-    label_tfm = pe.Node(ApplyTransforms(interpolation="MultiLabel"), name="label_tfm")
+    label_tfm = pe.Node(
+        ApplyTransforms(interpolation="MultiLabel", invert_transform_flags=[True]),
+        name="label_tfm",
+    )
 
     gm_mask = pe.Node(Label2Mask(label_val=1), name="gm_mask")
 
@@ -204,11 +206,10 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         name="t2s_comparison",
         mem_gb=0.1,
     )
-    # fmt:off
     workflow.connect([
         (inputnode, label_tfm, [('label_file', 'input_image'),
                                 ('t2star_file', 'reference_image'),
-                                ('label_bold_xform', 'transforms')]),
+                                ('boldref2anat_xfm', 'transforms')]),
         (inputnode, clip_t2star, [('t2star_file', 'in_file')]),
         (clip_t2star, t2s_hist, [('out_file', 'in_file')]),
         (label_tfm, gm_mask, [('output_image', 'in_file')]),
@@ -218,6 +219,5 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         (gm_mask, t2s_comparison, [('out_file', 'wm_seg')]),
         (t2s_hist, outputnode, [('out_report', 't2star_hist')]),
         (t2s_comparison, outputnode, [('out_report', 't2s_comp_report')]),
-    ])
-    # fmt:on
+    ])  # fmt:skip
     return workflow
