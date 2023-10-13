@@ -495,15 +495,18 @@ tasks and sessions), the following preprocessing was performed.
                 ('outputnode.subject_id', 'inputnode.subject_id'),
                 ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ]),
-            (fmap_wf, bold_wf, [
-                ("outputnode.fmap", "inputnode.fmap"),
-                ("outputnode.fmap_ref", "inputnode.fmap_ref"),
-                ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
-                ("outputnode.fmap_mask", "inputnode.fmap_mask"),
-                ("outputnode.fmap_id", "inputnode.fmap_id"),
-                ("outputnode.method", "inputnode.sdc_method"),
-            ]),
         ])  # fmt:skip
+        if fieldmap_id:
+            workflow.connect([
+                (fmap_wf, bold_wf, [
+                    ("outputnode.fmap", "inputnode.fmap"),
+                    ("outputnode.fmap_ref", "inputnode.fmap_ref"),
+                    ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
+                    ("outputnode.fmap_mask", "inputnode.fmap_mask"),
+                    ("outputnode.fmap_id", "inputnode.fmap_id"),
+                    ("outputnode.method", "inputnode.sdc_method"),
+                ]),
+            ])  # fmt:skip
 
     return clean_datasinks(workflow)
 
