@@ -522,12 +522,14 @@ tasks and sessions), the following preprocessing was performed.
         return clean_datasinks(workflow)
 
     for bold_series in subject_data['bold']:
-        bold_file = listify(bold_series)[0]
+        bold_series = listify(bold_series)
+        bold_file = bold_series[0]
         this_wf = bold_wfs[bold_file]
 
         fieldmap_id = estimator_map.get(bold_file)
 
         bold_native_wf = init_bold_native_wf(bold_series, fieldmap_id)
+        this_wf.add_nodes([bold_native_wf])
 
         workflow.connect([
             (this_wf, bold_native_wf, [
@@ -544,6 +546,31 @@ tasks and sessions), the following preprocessing was performed.
                     ("outputnode.fmap_ref", "inputnode.fmap_ref"),
                     ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
                     ("outputnode.fmap_id", "inputnode.fmap_id"),
+                ]),
+            ])  # fmt:skip
+
+        boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
+        echos_out = multiecho and config.execution.me_output_echos
+
+        if boldref_out or echos_out:
+            ds_bold_native_wf = init_ds_bold_native_wf(
+                bids_root=str(config.execution.bids_dir),
+                output_dir=str(config.execution.output_dir),
+                bold_output=boldref_out,
+                echo_output=echos_out,
+                all_metadata=[config.execution.layout.get_metadata(file) for file in bold_series],
+            )
+            this_wf.add_nodes([ds_bold_native_wf])
+
+            ds_bold_native_wf.inputs.inputnode.source_files = bold_series
+            workflow.connect([
+                (this_wf, ds_bold_native_wf, [
+                    ('bold_fit_wf.outputnode.bold_mask', 'inputnode.bold_mask'),
+                ]),
+                (bold_native_wf, ds_bold_native_wf, [
+                    ('bold_native', 'inputnode.bold'),
+                    ('bold_echos', 'inputnode.bold_echos'),
+                    ('t2star_map', 'inputnode.t2star'),
                 ]),
             ])  # fmt:skip
 

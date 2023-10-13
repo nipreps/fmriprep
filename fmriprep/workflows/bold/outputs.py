@@ -556,6 +556,125 @@ def init_ds_hmc_wf(
     return workflow
 
 
+def init_ds_bold_native_wf(
+    *,
+    bids_root: str,
+    output_dir: str,
+    multiecho: bool,
+    bold_output: bool,
+    echo_output: bool,
+    all_metadata: ty.List[dict],
+    name="ds_bold_native_wf",
+) -> pe.Workflow:
+    metadata = all_metadata[0]
+    timing_parameters = prepare_timing_parameters(metadata)
+
+    nonstd_spaces = set(spaces.get_nonstandard())
+    bold_output = nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref'))
+
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                'source_files',
+                'bold',
+                'bold_mask',
+                'bold_echos',
+                't2star',
+            ]
+        ),
+        name='inputnode',
+    )
+
+    if bold_output:
+        ds_bold_native = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='preproc',
+                compress=True,
+                SkullStripped=masked,
+                TaskName=metadata.get('TaskName'),
+                dismiss_entities=("echo",),
+                **timing_parameters,
+            ),
+            name='ds_bold_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        workflow.connect([
+            (inputnode, ds_bold_native, [
+                ('source_files', 'source_file'),
+                ('bold_native', 'in_file'),
+            ]),
+        ])  # fmt:skip
+
+    if bold_output or echo_output:
+        ds_bold_mask_native = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='brain',
+                suffix='mask',
+                compress=True,
+                dismiss_entities=("echo",),
+            ),
+            name='ds_bold_mask_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        workflow.connect([
+            (inputnode, ds_bold_mask_native, [
+                ('source_files', 'source_file'),
+                ('bold_mask_native', 'in_file'),
+            ]),
+            (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
+        ])  # fmt:skip
+
+    if bold_output and multiecho:
+        ds_t2star = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                space='boldref',
+                suffix='T2starmap',
+                compress=True,
+                dismiss_entities=("echo",),
+                **t2star_meta,
+            ),
+            name='ds_t2star_bold',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        workflow.connect([
+            (inputnode, ds_t2star_bold, [
+                ('source_files', 'source_file'),
+                ('t2star', 'in_file'),
+            ]),
+            (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
+        ])  # fmt:skip
+
+    if echo_output:
+        ds_bold_echos = pe.MapNode(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='preproc',
+                compress=True,
+                SkullStripped=False,
+                TaskName=metadata.get('TaskName'),
+                **timing_parameters,
+            ),
+            iterfield=['source_file', 'in_file', 'meta_dict'],
+            name='ds_bold_echos_native',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        ds_bold_echos.inputs.meta_dict = [{"EchoTime": md["EchoTime"]} for md in all_metadata]
+        workflow.connect([
+            (inputnode, ds_bold_echos_native, [
+                ('source_files', 'source_file'),
+                ('bold_echos_native', 'in_file'),
+            ]),
+        ])  # fmt:skip
+
+
 def init_func_derivatives_wf(
     bids_root: str,
     cifti_output: bool,
@@ -749,98 +868,6 @@ def init_func_derivatives_wf(
                                          ('bold_native_ref', 'in_file')])
     ])
     # fmt:on
-
-    bold_output = nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref'))
-    if bold_output:
-        ds_bold_native = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='preproc',
-                compress=True,
-                SkullStripped=masked,
-                TaskName=metadata.get('TaskName'),
-                **timing_parameters,
-            ),
-            name='ds_bold_native',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        # fmt: off
-        workflow.connect([
-            (inputnode, ds_bold_native, [('source_file', 'source_file'),
-                                         ('bold_native', 'in_file')]),
-        ])
-        # fmt:on
-
-    # Save masks and boldref if we're going to save either orig BOLD series or echos
-    if bold_output or multiecho and config.execution.me_output_echos:
-        ds_bold_mask_native = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='brain',
-                suffix='mask',
-                compress=True,
-                dismiss_entities=("echo",),
-            ),
-            name='ds_bold_mask_native',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        # fmt:off
-        workflow.connect([
-            (inputnode, ds_bold_mask_native, [('source_file', 'source_file'),
-                                              ('bold_mask_native', 'in_file')]),
-            (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
-        ])
-        # fmt:on
-
-        if multiecho:
-            ds_t2star_bold = pe.Node(
-                DerivativesDataSink(
-                    base_directory=output_dir,
-                    space='boldref',
-                    suffix='T2starmap',
-                    compress=True,
-                    dismiss_entities=("echo",),
-                    **t2star_meta,
-                ),
-                name='ds_t2star_bold',
-                run_without_submitting=True,
-                mem_gb=DEFAULT_MEMORY_MIN_GB,
-            )
-            # fmt:off
-            workflow.connect([
-                (inputnode, ds_t2star_bold, [('source_file', 'source_file'),
-                                             ('t2star_bold', 'in_file')]),
-                (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
-            ])
-            # fmt:on
-
-    if multiecho and config.execution.me_output_echos:
-        ds_bold_echos_native = pe.MapNode(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='preproc',
-                compress=True,
-                SkullStripped=False,
-                TaskName=metadata.get('TaskName'),
-                **timing_parameters,
-            ),
-            iterfield=['source_file', 'in_file', 'meta_dict'],
-            name='ds_bold_echos_native',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        ds_bold_echos_native.inputs.meta_dict = [
-            {"EchoTime": md["EchoTime"]} for md in all_metadata
-        ]
-        # fmt:off
-        workflow.connect([
-            (inputnode, ds_bold_echos_native, [
-                ('all_source_files', 'source_file'),
-                ('bold_echos_native', 'in_file')]),
-        ])
-        # fmt:on
 
     # Resample to T1w space
     if nonstd_spaces.intersection(('T1w', 'anat')):
