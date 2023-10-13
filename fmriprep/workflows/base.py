@@ -478,24 +478,16 @@ tasks and sessions), the following preprocessing was performed.
                     )
                 )
 
-        # A container to act as a namespace
-        this_wf = Workflow(name=_get_wf_name(bold_file, "bold"))
-
-        #
-        # Minimal workflow
-        #
-
-        bold_fit_wf = init_bold_fit_wf(
+        bold_wf = init_bold_wf(
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
             omp_nthreads=config.nipype.omp_nthreads,
         )
-        bold_fit_wf.__desc__ = func_pre_desc + (bold_fit_wf.__desc__ or "")
+        bold_wf.__desc__ = func_pre_desc + (bold_wf.__desc__ or "")
 
-        # fmt:off
-        this_wf.connect([
-            (anat_fit_wf, bold_fit_wf, [
+        workflow.connect([
+            (anat_fit_wf, bold_wf, [
                 ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
                 ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
                 ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
@@ -503,78 +495,15 @@ tasks and sessions), the following preprocessing was performed.
                 ('outputnode.subject_id', 'inputnode.subject_id'),
                 ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ]),
-        ])
-        # fmt: on
-
-        if fieldmap_id:
-            # fmt:off
-            workflow.connect([
-                (fmap_wf, bold_fit_wf, [
-                    ("outputnode.fmap", "inputnode.fmap"),
-                    ("outputnode.fmap_ref", "inputnode.fmap_ref"),
-                    ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
-                    ("outputnode.fmap_mask", "inputnode.fmap_mask"),
-                    ("outputnode.fmap_id", "inputnode.fmap_id"),
-                    ("outputnode.method", "inputnode.sdc_method"),
-                ]),
-            ])
-            # fmt:on
-
-        if config.workflow.level == "minimal":
-            continue
-
-        #
-        # Resampling outputs workflow:
-        #   - Resample to native
-        #   - Save native outputs/echos only if requested
-        #
-
-        bold_native_wf = init_bold_native_wf(bold_series, fieldmap_id)
-
-        this_wf.connect([
-            (bold_fit_wf, bold_native_wf, [
-                ("outputnode.coreg_boldref", "inputnode.boldref"),
-                ("outputnode.motion_xfm", "inputnode.motion_xfm"),
-                ("outputnode.fmapreg_xfm", "inputnode.fmapreg_xfm"),
-                ("outputnode.dummy_scans", "inputnode.dummy_scans"),
+            (fmap_wf, bold_wf, [
+                ("outputnode.fmap", "inputnode.fmap"),
+                ("outputnode.fmap_ref", "inputnode.fmap_ref"),
+                ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
+                ("outputnode.fmap_mask", "inputnode.fmap_mask"),
+                ("outputnode.fmap_id", "inputnode.fmap_id"),
+                ("outputnode.method", "inputnode.sdc_method"),
             ]),
         ])  # fmt:skip
-
-        if fieldmap_id:
-            this_wf.connect([
-                (fmap_wf, bold_native_wf, [
-                    ("outputnode.fmap_ref", "inputnode.fmap_ref"),
-                    ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
-                    ("outputnode.fmap_id", "inputnode.fmap_id"),
-                ]),
-            ])  # fmt:skip
-
-        boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
-        echos_out = multiecho and config.execution.me_output_echos
-
-        if boldref_out or echos_out:
-            ds_bold_native_wf = init_ds_bold_native_wf(
-                bids_root=str(config.execution.bids_dir),
-                output_dir=str(config.execution.output_dir),
-                bold_output=boldref_out,
-                echo_output=echos_out,
-                all_metadata=[config.execution.layout.get_metadata(file) for file in bold_series],
-            )
-            ds_bold_native_wf.inputs.inputnode.source_files = bold_series
-
-            this_wf.connect([
-                (bold_fit_wf, ds_bold_native_wf, [
-                    ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ]),
-                (bold_native_wf, ds_bold_native_wf, [
-                    ('outputnode.bold_native', 'inputnode.bold'),
-                    ('outputnode.bold_echos', 'inputnode.bold_echos'),
-                    ('outputnode.t2star_map', 'inputnode.t2star'),
-                ]),
-            ])  # fmt:skip
-
-        if config.workflow.level == "resampling":
-            continue
 
     return clean_datasinks(workflow)
 
@@ -665,26 +594,6 @@ def clean_datasinks(workflow: pe.Workflow) -> pe.Workflow:
         if node.split('.')[-1].startswith('ds_'):
             workflow.get_node(node).interface.out_path_base = ""
     return workflow
-
-
-def _get_wf_name(bold_fname, prefix):
-    """
-    Derive the workflow name for supplied BOLD file.
-
-    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz", "bold")
-    'bold_task_nback_wf'
-    >>> _get_wf_name(
-    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz",
-    ...     "preproc",
-    ... )
-    'preproc_task_nback_run_01_echo_1_wf'
-
-    """
-    from nipype.utils.filemanip import split_filename
-
-    fname = split_filename(bold_fname)[1]
-    fname_nosub = "_".join(fname.split("_")[1:-1])
-    return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
 
 
 def _get_estimator(layout, fname):

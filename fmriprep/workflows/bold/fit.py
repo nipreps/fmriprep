@@ -101,7 +101,7 @@ def get_sbrefs(
 
 def init_bold_fit_wf(
     *,
-    bold_series: ty.Union[str, ty.List[str]],
+    bold_series: ty.List[str],
     precomputed: dict,
     fieldmap_id: ty.Optional[str] = None,
     omp_nthreads: int = 1,
@@ -115,10 +115,7 @@ def init_bold_fit_wf(
     layout = config.execution.layout
 
     # Collect bold and sbref files, sorted by EchoTime
-    bold_files = sorted(
-        listify(bold_series),
-        key=lambda fname: layout.get_metadata(fname).get("EchoTime"),
-    )
+    bold_files = sorted(bold_series, key=lambda fname: layout.get_metadata(fname).get("EchoTime"))
     sbref_files = get_sbrefs(
         bold_files,
         entity_overrides=config.execution.get().get('bids_filters', {}).get('sbref', {}),
@@ -540,6 +537,10 @@ def init_bold_native_wf(
                 f"{os.path.basename(echo)}: {shape}" for echo, shape in zip(bold_files, shapes)
             )
             raise RuntimeError(f"Multi-echo images found with mismatching shapes\n{diagnostic}")
+        if len(shapes) == 2:
+            raise RuntimeError(
+                "Multi-echo processing requires at least three different echos (found two)."
+            )
 
     run_stc = bool(metadata.get("SliceTiming")) and "slicetiming" not in config.workflow.ignore
 
