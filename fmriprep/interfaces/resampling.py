@@ -170,7 +170,7 @@ class DistortionParameters(SimpleInterface):
     output_spec = DistortionParametersOutputSpec
 
     def _run_interface(self, runtime):
-        from ..utils.epimanip import get_trt
+        from sdcflows.utils.epimanip import get_trt
 
         try:
             self._results["readout_time"] = get_trt(

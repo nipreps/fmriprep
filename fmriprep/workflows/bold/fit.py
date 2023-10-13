@@ -108,7 +108,6 @@ def init_bold_fit_wf(
     name: str = "bold_fit_wf",
 ) -> pe.Workflow:
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.utility import KeySelect
 
     from fmriprep.utils.misc import estimate_bold_mem_usage
 
@@ -182,6 +181,7 @@ def init_bold_fit_wf(
                 "bold_mask",
                 "motion_xfm",
                 "boldref2anat_xfm",
+                "boldref2fmap_xfm",
             ],
         ),
         name="outputnode",
@@ -196,7 +196,7 @@ def init_bold_fit_wf(
     fmapref_buffer = pe.Node(niu.Function(function=_select_ref), name="fmapref_buffer")
     hmc_buffer = pe.Node(niu.IdentityInterface(fields=["hmc_xforms"]), name="hmc_buffer")
     fmapreg_buffer = pe.Node(
-        niu.IdentityInterface(fields=["boldref2fmap_xform"]), name="fmapreg_buffer"
+        niu.IdentityInterface(fields=["boldref2fmap_xfm"]), name="fmapreg_buffer"
     )
     regref_buffer = pe.Node(
         niu.IdentityInterface(fields=["boldref", "boldmask"]), name="regref_buffer"
@@ -231,6 +231,7 @@ def init_bold_fit_wf(
         (hmcref_buffer, outputnode, [("boldref", "hmc_boldref")]),
         (regref_buffer, outputnode, [("boldref", "coreg_boldref"),
                                      ("boldmask", "bold_mask")]),
+        (fmapreg_buffer, outputnode, [("boldref2fmap_xfm", "boldref2fmap_xfm")]),
         (hmc_buffer, outputnode, [("hmc_xforms", "motion_xfm")]),
         (inputnode, func_fit_reports_wf, [
             ("bold_file", "inputnode.source_file"),
@@ -349,7 +350,7 @@ def init_bold_fit_wf(
         if fieldmap_id:
             fmap_select = pe.Node(
                 KeySelect(
-                    fields=["fmap", "fmap_ref", "fmap_coeff", "fmap_mask", "sdc_method"],
+                    fields=["fmap_ref", "fmap_coeff", "fmap_mask", "sdc_method"],
                     key=fieldmap_id,
                 ),
                 name="fmap_select",
@@ -403,7 +404,6 @@ def init_bold_fit_wf(
             # fmt:off
             workflow.connect([
                 (inputnode, fmap_select, [
-                    ("fmap", "fmap"),
                     ("fmap_ref", "fmap_ref"),
                     ("fmap_coeff", "fmap_coeff"),
                     ("fmap_mask", "fmap_mask"),
@@ -612,10 +612,7 @@ def init_bold_native_wf(
     # Prepare fieldmap metadata
     if fieldmap_id:
         fmap_select = pe.Node(
-            KeySelect(
-                fields=["fmap", "fmap_ref", "fmap_coeff", "fmap_mask", "sdc_method"],
-                key=fieldmap_id,
-            ),
+            KeySelect(fields=["fmap_ref", "fmap_coeff"], key=fieldmap_id),
             name="fmap_select",
             run_without_submitting=True,
         )
@@ -626,6 +623,11 @@ def init_bold_native_wf(
             run_without_submitting=True,
         )
         workflow.connect([
+            (inputnode, fmap_select, [
+                ("fmap_ref", "fmap_ref"),
+                ("fmap_coeff", "fmap_coeff"),
+                ("fmap_id", "keys"),
+            ]),
             (distortion_params, boldbuffer, [
                 ("readout_time", "ro_time"),
                 ("pe_direction", "pe_dir"),

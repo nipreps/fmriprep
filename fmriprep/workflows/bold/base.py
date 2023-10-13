@@ -154,13 +154,13 @@ def init_bold_wf(
     #   - Save native outputs/echos only if requested
     #
 
-    bold_native_wf = init_bold_native_wf(bold_series, fieldmap_id)
+    bold_native_wf = init_bold_native_wf(bold_series=bold_series, fieldmap_id=fieldmap_id)
 
     workflow.connect([
         (bold_fit_wf, bold_native_wf, [
             ("outputnode.coreg_boldref", "inputnode.boldref"),
             ("outputnode.motion_xfm", "inputnode.motion_xfm"),
-            ("outputnode.fmapreg_xfm", "inputnode.fmapreg_xfm"),
+            ("outputnode.boldref2fmap_xfm", "inputnode.fmapreg_xfm"),
             ("outputnode.dummy_scans", "inputnode.dummy_scans"),
         ]),
     ])  # fmt:skip
