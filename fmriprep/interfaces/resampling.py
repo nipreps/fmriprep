@@ -59,7 +59,7 @@ class ResampleSeries(SimpleInterface):
     input_spec = ResampleSeriesInputSpec
     output_spec = ResampleSeriesOutputSpec
 
-    def _run(self, runtime):
+    def _run_interface(self, runtime):
         out_path = fname_presuffix(self.inputs.in_file, suffix='resampled', newpath=runtime.cwd)
 
         source = nb.load(self.inputs.in_file)
@@ -128,7 +128,7 @@ class ReconstructFieldmap(SimpleInterface):
     input_spec = ReconstructFieldmapInputSpec
     output_spec = ReconstructFieldmapOutputSpec
 
-    def _run(self, runtime):
+    def _run_interface(self, runtime):
         out_path = fname_presuffix(self.inputs.in_coeffs[-1], suffix='rec', newpath=runtime.cwd)
 
         coefficients = [nb.load(coeff_file) for coeff_file in self.inputs.in_coeffs]
