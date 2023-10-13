@@ -458,13 +458,9 @@ tasks and sessions), the following preprocessing was performed.
         num_bold=len(subject_data['bold'])
     )
 
-    bold_wfs = {}
     for bold_series in subject_data['bold']:
-        bold_file = sorted(listify(bold_series))[0]
-
-        # A container to act as a namespace
-        this_wf = bold_wfs[bold_file] = Workflow(name=_get_wf_name(bold_file, "bold"))
-
+        bold_series = sorted(listify(bold_series))
+        bold_file = bold_series[0]
         fieldmap_id = estimator_map.get(bold_file)
 
         functional_cache = {}
@@ -481,18 +477,24 @@ tasks and sessions), the following preprocessing was performed.
                         fieldmap_id=fieldmap_id,
                     )
                 )
+
+        # A container to act as a namespace
+        this_wf = Workflow(name=_get_wf_name(bold_file, "bold"))
+
+        #
+        # Minimal workflow
+        #
+
         bold_fit_wf = init_bold_fit_wf(
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
             omp_nthreads=config.nipype.omp_nthreads,
         )
-        this_wf.add_nodes([bold_fit_wf])
-
         bold_fit_wf.__desc__ = func_pre_desc + (bold_fit_wf.__desc__ or "")
 
         # fmt:off
-        workflow.connect([
+        this_wf.connect([
             (anat_fit_wf, bold_fit_wf, [
                 ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
                 ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
@@ -518,30 +520,28 @@ tasks and sessions), the following preprocessing was performed.
             ])
             # fmt:on
 
-    if config.workflow.level == "minimal":
-        return clean_datasinks(workflow)
+        if config.workflow.level == "minimal":
+            continue
 
-    for bold_series in subject_data['bold']:
-        bold_series = sorted(listify(bold_series))
-        bold_file = bold_series[0]
-        this_wf = bold_wfs[bold_file]
-
-        fieldmap_id = estimator_map.get(bold_file)
+        #
+        # Resampling outputs workflow:
+        #   - Resample to native
+        #   - Save native outputs/echos only if requested
+        #
 
         bold_native_wf = init_bold_native_wf(bold_series, fieldmap_id)
-        this_wf.add_nodes([bold_native_wf])
 
-        workflow.connect([
-            (this_wf, bold_native_wf, [
-                ("bold_fit_wf.outputnode.coreg_boldref", "inputnode.boldref"),
-                ("bold_fit_wf.outputnode.motion_xfm", "inputnode.motion_xfm"),
-                ("bold_fit_wf.outputnode.fmapreg_xfm", "inputnode.fmapreg_xfm"),
-                ("bold_fit_wf.outputnode.dummy_scans", "inputnode.dummy_scans"),
+        this_wf.connect([
+            (bold_fit_wf, bold_native_wf, [
+                ("outputnode.coreg_boldref", "inputnode.boldref"),
+                ("outputnode.motion_xfm", "inputnode.motion_xfm"),
+                ("outputnode.fmapreg_xfm", "inputnode.fmapreg_xfm"),
+                ("outputnode.dummy_scans", "inputnode.dummy_scans"),
             ]),
         ])  # fmt:skip
 
         if fieldmap_id:
-            workflow.connect([
+            this_wf.connect([
                 (fmap_wf, bold_native_wf, [
                     ("outputnode.fmap_ref", "inputnode.fmap_ref"),
                     ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
@@ -560,22 +560,21 @@ tasks and sessions), the following preprocessing was performed.
                 echo_output=echos_out,
                 all_metadata=[config.execution.layout.get_metadata(file) for file in bold_series],
             )
-            this_wf.add_nodes([ds_bold_native_wf])
-
             ds_bold_native_wf.inputs.inputnode.source_files = bold_series
-            workflow.connect([
-                (this_wf, ds_bold_native_wf, [
-                    ('bold_fit_wf.outputnode.bold_mask', 'inputnode.bold_mask'),
+
+            this_wf.connect([
+                (bold_fit_wf, ds_bold_native_wf, [
+                    ('outputnode.bold_mask', 'inputnode.bold_mask'),
                 ]),
                 (bold_native_wf, ds_bold_native_wf, [
-                    ('bold_native', 'inputnode.bold'),
-                    ('bold_echos', 'inputnode.bold_echos'),
-                    ('t2star_map', 'inputnode.t2star'),
+                    ('outputnode.bold_native', 'inputnode.bold'),
+                    ('outputnode.bold_echos', 'inputnode.bold_echos'),
+                    ('outputnode.t2star_map', 'inputnode.t2star'),
                 ]),
             ])  # fmt:skip
 
-    if config.workflow.level == "resampling":
-        return clean_datasinks(workflow)
+        if config.workflow.level == "resampling":
+            continue
 
     return clean_datasinks(workflow)
 
