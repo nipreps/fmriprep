@@ -78,7 +78,7 @@ class ResampleSeries(SimpleInterface):
         pe_info = None
 
         if pe_dir and ro_time:
-            pe_axis = "ijk".index(pe_dir)
+            pe_axis = "ijk".index(pe_dir[0])
             pe_flip = pe_dir.endswith("-")
 
             # Nitransforms displacements are positive
@@ -486,8 +486,16 @@ def resample_bold(
     resampled_bold
         The BOLD series resampled into the target space
     """
-    # HMC goes last
-    assert isinstance(transforms[-1], nt.linear.LinearTransformsMapping)
+    if not isinstance(transforms, nt.TransformChain):
+        transforms = nt.TransformChain([transforms])
+    if isinstance(transforms[-1], nt.linear.LinearTransformsMapping):
+        transform_list, hmc = transforms[:-1], transforms[-1]
+    else:
+        if any(isinstance(xfm, nt.linear.LinearTransformsMapping) for xfm in transforms):
+            classes = [xfm.__class__.__name__ for xfm in transforms]
+            raise ValueError(f"HMC transforms must come last. Found sequence: {classes}")
+        transform_list: list = transforms.transforms
+        hmc = None
 
     # Retrieve the RAS coordinates of the target space
     coordinates = nt.base.SpatialReference.factory(target).ndcoords.astype('f4').T
@@ -496,7 +504,10 @@ def resample_bold(
     vox2ras = source.affine
     ras2vox = np.linalg.inv(vox2ras)
     # Transform RAS2RAS head motion transforms to VOX2VOX
-    hmc_xfms = [ras2vox @ xfm.matrix @ vox2ras for xfm in transforms[-1]]
+    if hmc is not None:
+        hmc_xfms = [ras2vox @ xfm.matrix @ vox2ras for xfm in transforms[-1]]
+    else:
+        hmc_xfms = None
 
     # Remove the head-motion transforms and add a mapping from boldref
     # world space to voxels. This new transform maps from world coordinates
