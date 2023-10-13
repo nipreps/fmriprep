@@ -30,6 +30,8 @@ from tempfile import mkdtemp
 from pkg_resources import resource_filename as pkgrf
 from toml import loads
 
+from ..base import get_estimator
+
 
 @contextmanager
 def mock_config():

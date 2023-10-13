@@ -560,7 +560,7 @@ def map_fieldmap_estimation(
     bold_files = (sorted(listify(bold_file))[0] for bold_file in bold_data)
 
     all_estimators = {
-        bold_file: [fmap_id for fmap_id in _get_estimator(layout, bold_file) if fmap_id in all_ids]
+        bold_file: [fmap_id for fmap_id in get_estimator(layout, bold_file) if fmap_id in all_ids]
         for bold_file in bold_files
     }
 
@@ -596,7 +596,7 @@ def clean_datasinks(workflow: pe.Workflow) -> pe.Workflow:
     return workflow
 
 
-def _get_estimator(layout, fname):
+def get_estimator(layout, fname):
     field_source = layout.get_metadata(fname).get("B0FieldSource")
     if isinstance(field_source, str):
         field_source = (field_source,)
