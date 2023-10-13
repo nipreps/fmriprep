@@ -31,7 +31,10 @@ class ResampleSeriesInputSpec(TraitedSpec):
         File, mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
     )
     inverse = InputMultiObject(
-        bool, default=[False], desc="Whether to invert each file in transforms"
+        traits.Bool,
+        value=[False],
+        usedefault=True,
+        desc="Whether to invert each file in transforms",
     )
     fieldmap = File(desc="Fieldmap file resampled into reference space")
     ro_time = traits.Float(desc="EPI readout time (s).")
@@ -108,7 +111,10 @@ class ReconstructFieldmapInputSpec(TraitedSpec):
         File, mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
     )
     inverse = InputMultiObject(
-        bool, default=[False], desc="Whether to invert each file in transforms"
+        traits.Bool,
+        value=[False],
+        usedefault=True,
+        desc="Whether to invert each file in transforms",
     )
 
 
