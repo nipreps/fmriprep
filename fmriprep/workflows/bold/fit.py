@@ -45,13 +45,13 @@ from sdcflows.workflows.apply.registration import init_coeff2epi_wf
 
 from ... import config
 from ...interfaces.reports import FunctionalSummary
-from ...utils.bids import extract_entities
-from ..interfaces.resampling import (
+from ...interfaces.resampling import (
     DistortionParameters,
     ReconstructFieldmap,
     ResampleSeries,
 )
-from ..utils.misc import estimate_bold_mem_usage
+from ...utils.bids import extract_entities
+from ...utils.misc import estimate_bold_mem_usage
 
 # BOLD workflows
 from .hmc import init_bold_hmc_wf

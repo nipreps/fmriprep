@@ -12,12 +12,12 @@ from niworkflows.utils.connections import listify
 
 from fmriprep import config
 
-from ..interfaces.resampling import (
+from ...interfaces.resampling import (
     DistortionParameters,
     ReconstructFieldmap,
     ResampleSeries,
 )
-from ..utils.misc import estimate_bold_mem_usage
+from ...utils.misc import estimate_bold_mem_usage
 from .stc import init_bold_stc_wf
 from .t2s import init_bold_t2s_wf, init_t2s_reporting_wf
 
