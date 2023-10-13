@@ -152,7 +152,7 @@ def init_single_subject_wf(subject_id: str):
     from niworkflows.utils.spaces import Reference
     from smriprep.workflows.anatomical import init_anat_fit_wf
 
-    from fmriprep.workflows.bold.fit import init_bold_fit_wf, init_bold_native_wf
+    from fmriprep.workflows.bold.base import init_bold_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
     workflow.__desc__ = """
