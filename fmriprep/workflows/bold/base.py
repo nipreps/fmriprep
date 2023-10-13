@@ -183,6 +183,7 @@ def init_bold_wf(
             output_dir=str(config.execution.output_dir),
             bold_output=boldref_out,
             echo_output=echos_out,
+            multiecho=multiecho,
             all_metadata=[config.execution.layout.get_metadata(file) for file in bold_series],
         )
         ds_bold_native_wf.inputs.inputnode.source_files = bold_series
