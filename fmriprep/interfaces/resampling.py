@@ -528,6 +528,20 @@ def aligned(aff1: np.ndarray, aff2: np.ndarray) -> bool:
     )
 
 
+def as_affine(xfm: nt.base.TransformBase) -> nt.Affine | None:
+    # Identity transform
+    if type(xfm) is nt.base.TransformBase:
+        return nt.Affine()
+
+    if isinstance(xfm, nt.Affine):
+        return xfm
+
+    if isinstance(xfm, nt.TransformChain) and all(isinstance(x, nt.Affine) for x in xfm):
+        return xfm.asaffine()
+
+    return None
+
+
 def reconstruct_fieldmap(
     coefficients: list[nb.Nifti1Image],
     fmap_reference: nb.Nifti1Image,
@@ -566,11 +580,12 @@ def reconstruct_fieldmap(
     """
 
     direct = False
-    if all(isinstance(xfm, nt.Affine) for xfm in transforms):
+    affine_xfm = as_affine(transforms)
+    if affine_xfm is not None:
         # Transforms maps RAS coordinates in the target to RAS coordinates in
         # the fieldmap space. Composed with target.affine, we have a target voxel
         # to fieldmap RAS affine. Hence, this is projected into fieldmap space.
-        projected_affine = transforms.asaffine().matrix @ target.affine
+        projected_affine = affine_xfm.matrix @ target.affine
         # If the coordinates have the same rotation from voxels, we can construct
         # bspline weights efficiently.
         direct = aligned(projected_affine, coefficients[-1].affine)
