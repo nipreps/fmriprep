@@ -663,7 +663,7 @@ The BOLD time-series were resampled onto the left/right-symmetric template
     # Line 85 thru ...
     volume_to_surface = pe.Node(
         VolumeToSurfaceMapping(
-            method="ribbon-constrained", 
+            method="ribbon-constrained",
             output_weights_text="output_weights.txt",
         ),
         name="volume_to_surface",

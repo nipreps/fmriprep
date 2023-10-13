@@ -569,9 +569,6 @@ def init_ds_bold_native_wf(
     metadata = all_metadata[0]
     timing_parameters = prepare_timing_parameters(metadata)
 
-    nonstd_spaces = set(spaces.get_nonstandard())
-    bold_output = nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref'))
-
     workflow = pe.Workflow(name=name)
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -586,13 +583,17 @@ def init_ds_bold_native_wf(
         name='inputnode',
     )
 
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
+    raw_sources.inputs.bids_root = bids_root
+    workflow.connect(inputnode, 'source_files', raw_sources, 'in_files')
+
     if bold_output:
         ds_bold_native = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
                 desc='preproc',
                 compress=True,
-                SkullStripped=masked,
+                SkullStripped=multiecho,
                 TaskName=metadata.get('TaskName'),
                 dismiss_entities=("echo",),
                 **timing_parameters,
@@ -630,6 +631,11 @@ def init_ds_bold_native_wf(
         ])  # fmt:skip
 
     if bold_output and multiecho:
+        t2star_meta = {
+            'Units': 's',
+            'EstimationReference': 'doi:10.1002/mrm.20900',
+            'EstimationAlgorithm': 'monoexponential decay model',
+        }
         ds_t2star = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
@@ -644,11 +650,11 @@ def init_ds_bold_native_wf(
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
         workflow.connect([
-            (inputnode, ds_t2star_bold, [
+            (inputnode, ds_t2star, [
                 ('source_files', 'source_file'),
                 ('t2star', 'in_file'),
             ]),
-            (raw_sources, ds_t2star_bold, [('out', 'RawSources')]),
+            (raw_sources, ds_t2star, [('out', 'RawSources')]),
         ])  # fmt:skip
 
     if echo_output:
@@ -662,13 +668,13 @@ def init_ds_bold_native_wf(
                 **timing_parameters,
             ),
             iterfield=['source_file', 'in_file', 'meta_dict'],
-            name='ds_bold_echos_native',
+            name='ds_bold_echos',
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
         ds_bold_echos.inputs.meta_dict = [{"EchoTime": md["EchoTime"]} for md in all_metadata]
         workflow.connect([
-            (inputnode, ds_bold_echos_native, [
+            (inputnode, ds_bold_echos, [
                 ('source_files', 'source_file'),
                 ('bold_echos_native', 'in_file'),
             ]),

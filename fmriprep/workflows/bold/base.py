@@ -45,8 +45,9 @@ from ...utils.meepi import combine_meepi_source
 
 # BOLD workflows
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
+from .fit import init_bold_fit_wf, init_bold_native_wf
 from .hmc import init_bold_hmc_wf
-from .outputs import init_func_derivatives_wf
+from .outputs import init_ds_bold_native_wf, init_func_derivatives_wf
 from .registration import init_bold_reg_wf, init_bold_t1_trans_wf
 from .resampling import (
     init_bold_preproc_trans_wf,
@@ -65,6 +66,8 @@ def init_bold_wf(
     omp_nthreads: int = 1,
     name: str = "bold_wf",
 ) -> pe.Workflow:
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+
     bold_file = bold_series[0]
 
     functional_cache = {}
@@ -116,7 +119,6 @@ def init_bold_wf(
         fieldmap_id=fieldmap_id,
         omp_nthreads=omp_nthreads,
     )
-    bold_fit_wf.__desc__ = func_pre_desc + (bold_fit_wf.__desc__ or "")
 
     workflow.connect([
         (inputnode, bold_fit_wf, [
@@ -141,6 +143,7 @@ def init_bold_wf(
     # Now that we're resampling and combining, multiecho matters
     multiecho = len(bold_series) > 2
 
+    spaces = config.workflow.spaces
     nonstd_spaces = set(spaces.get_nonstandard())
     template_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
     freesurfer_spaces = spaces.get_fs_spaces()
@@ -164,10 +167,10 @@ def init_bold_wf(
 
     if fieldmap_id:
         workflow.connect([
-            (fmap_wf, bold_native_wf, [
-                ("outputnode.fmap_ref", "inputnode.fmap_ref"),
-                ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
-                ("outputnode.fmap_id", "inputnode.fmap_id"),
+            (inputnode, bold_native_wf, [
+                ("fmap_ref", "inputnode.fmap_ref"),
+                ("fmap_coeff", "inputnode.fmap_coeff"),
+                ("fmap_id", "inputnode.fmap_id"),
             ]),
         ])  # fmt:skip
 
