@@ -525,7 +525,7 @@ def init_bold_native_wf(
                 (md := layout.get_metadata(bold_file), bold_file, md.get("EchoTime"))
                 for bold_file in listify(bold_series)
             ),
-            key=lambda _, _, echo_time: echo_time,
+            key=lambda _, __, echo_time: echo_time,
         )
     )
     multiecho = len(bold_files) > 1
