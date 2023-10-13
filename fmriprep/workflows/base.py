@@ -522,7 +522,7 @@ tasks and sessions), the following preprocessing was performed.
         return clean_datasinks(workflow)
 
     for bold_series in subject_data['bold']:
-        bold_series = listify(bold_series)
+        bold_series = sorted(listify(bold_series))
         bold_file = bold_series[0]
         this_wf = bold_wfs[bold_file]
 
@@ -629,7 +629,7 @@ def map_fieldmap_estimation(
     # Pare down estimators to those that are actually used
     # If fmap_estimators == [], all loops/comprehensions terminate immediately
     all_ids = {fmap.bids_id for fmap in fmap_estimators}
-    bold_files = (listify(bold_file)[0] for bold_file in bold_data)
+    bold_files = (sorted(listify(bold_file))[0] for bold_file in bold_data)
 
     all_estimators = {
         bold_file: [fmap_id for fmap_id in _get_estimator(layout, bold_file) if fmap_id in all_ids]
