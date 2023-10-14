@@ -440,7 +440,7 @@ def init_func_preproc_wf(bold_file, has_fieldmap=False):
     if os.path.isfile(ref_file):
         bold_tlen, mem_gb = _create_mem_gb(ref_file)
 
-    wf_name = _get_wf_name(ref_file)
+    wf_name = _get_wf_name(ref_file, "func_preproc")
     config.loggers.workflow.debug(
         "Creating bold processing workflow for <%s> (%.2f GB / %d TRs). "
         "Memory resampled/largemem=%.2f/%.2f GB.",
@@ -605,7 +605,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
     summary = pe.Node(
         FunctionalSummary(
-            slice_timing=run_stc,
+            # slice_timing=run_stc,
             registration=("FSL", "FreeSurfer")[freesurfer],
             registration_dof=config.workflow.bold2t1w_dof,
             registration_init=config.workflow.bold2t1w_init,
@@ -789,109 +789,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         multiecho=multiecho,
     )
     final_boldref_wf.__desc__ = None  # Unset description to avoid second appearance
-
-    # MAIN WORKFLOW STRUCTURE #######################################################
-    # fmt:off
-    workflow.connect([
-        # Prepare masked T1w image
-        (inputnode, t1w_brain, [("t1w_preproc", "in_file"),
-                                ("t1w_mask", "in_mask")]),
-        # Select validated bold files per-echo
-        (initial_boldref_wf, select_bold, [("outputnode.all_bold_files", "inlist")]),
-        # BOLD buffer has slice-time corrected if it was run, original otherwise
-        (boldbuffer, bold_split, [("bold_file", "in_file")]),
-        # HMC
-        (initial_boldref_wf, bold_hmc_wf, [
-            ("outputnode.raw_ref_image", "inputnode.raw_ref_image"),
-            ("outputnode.bold_file", "inputnode.bold_file"),
-        ]),
-        (bold_hmc_wf, outputnode, [
-            ("outputnode.xforms", "hmc_xforms"),
-        ]),
-        # EPI-T1w registration workflow
-        (inputnode, bold_reg_wf, [
-            ("t1w_dseg", "inputnode.t1w_dseg"),
-            # Undefined if --fs-no-reconall, but this is safe
-            ("subjects_dir", "inputnode.subjects_dir"),
-            ("subject_id", "inputnode.subject_id"),
-            ("fsnative2t1w_xfm", "inputnode.fsnative2t1w_xfm"),
-        ]),
-        (bold_final, bold_reg_wf, [
-            ("boldref", "inputnode.ref_bold_brain")]),
-        (t1w_brain, bold_reg_wf, [("out_file", "inputnode.t1w_brain")]),
-        (inputnode, bold_t1_trans_wf, [
-            ("bold_file", "inputnode.name_source"),
-            ("t1w_mask", "inputnode.t1w_mask"),
-            ("t1w_aseg", "inputnode.t1w_aseg"),
-            ("t1w_aparc", "inputnode.t1w_aparc"),
-        ]),
-        (t1w_brain, bold_t1_trans_wf, [("out_file", "inputnode.t1w_brain")]),
-        (bold_reg_wf, outputnode, [
-            ("outputnode.itk_bold_to_t1", "bold2anat_xfm"),
-            ("outputnode.itk_t1_to_bold", "anat2bold_xfm"),
-        ]),
-        (bold_reg_wf, bold_t1_trans_wf, [
-            ("outputnode.itk_bold_to_t1", "inputnode.itk_bold_to_t1"),
-        ]),
-        (bold_final, bold_t1_trans_wf, [
-            ("mask", "inputnode.ref_bold_mask"),
-            ("boldref", "inputnode.ref_bold_brain"),
-        ]),
-        (bold_t1_trans_wf, outputnode, [
-            ("outputnode.bold_t1", "bold_t1"),
-            ("outputnode.bold_t1_ref", "bold_t1_ref"),
-            ("outputnode.bold_aseg_t1", "bold_aseg_t1"),
-            ("outputnode.bold_aparc_t1", "bold_aparc_t1"),
-        ]),
-        # Connect bold_confounds_wf
-        (inputnode, bold_confounds_wf, [
-            ("t1w_tpms", "inputnode.t1w_tpms"),
-            ("t1w_mask", "inputnode.t1w_mask"),
-        ]),
-        (bold_hmc_wf, bold_confounds_wf, [
-            ("outputnode.movpar_file", "inputnode.movpar_file"),
-            ("outputnode.rmsd_file", "inputnode.rmsd_file"),
-        ]),
-        (bold_reg_wf, bold_confounds_wf, [
-            ("outputnode.itk_t1_to_bold", "inputnode.t1_bold_xform")
-        ]),
-        (initial_boldref_wf, bold_confounds_wf, [
-            ("outputnode.skip_vols", "inputnode.skip_vols"),
-        ]),
-        (initial_boldref_wf, final_boldref_wf, [
-            ("outputnode.skip_vols", "inputnode.dummy_scans"),
-        ]),
-        (final_boldref_wf, bold_final, [
-            ("outputnode.ref_image", "boldref"),
-            ("outputnode.bold_mask", "mask"),
-        ]),
-        (bold_final, bold_confounds_wf, [
-            ("bold", "inputnode.bold"),
-            ("mask", "inputnode.bold_mask"),
-        ]),
-        (bold_confounds_wf, outputnode, [
-            ("outputnode.confounds_file", "confounds"),
-            ("outputnode.confounds_metadata", "confounds_metadata"),
-            ("outputnode.acompcor_masks", "acompcor_masks"),
-            ("outputnode.tcompcor_mask", "tcompcor_mask"),
-        ]),
-        # Native-space BOLD files (if calculated)
-        (bold_final, outputnode, [
-            ("bold", "bold_native"),
-            ("boldref", "bold_native_ref"),
-            ("mask", "bold_mask_native"),
-            ("bold_echos", "bold_echos_native"),
-            ("t2star", "t2star_bold"),
-        ]),
-        # Summary
-        (initial_boldref_wf, summary, [("outputnode.algo_dummy_scans", "algo_dummy_scans")]),
-        (bold_reg_wf, summary, [("outputnode.fallback", "fallback")]),
-        (outputnode, summary, [("confounds", "confounds_file")]),
-        # Select echo indices for original/validated BOLD files
-        (echo_index, bold_source, [("echoidx", "index")]),
-        (echo_index, select_bold, [("echoidx", "index")]),
-    ])
-    # fmt:on
 
     # for standard EPI data, pass along correct file
     if not multiecho:
