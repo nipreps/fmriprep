@@ -36,7 +36,7 @@ from ..base import get_estimator
 @contextmanager
 def mock_config():
     """Create a mock config for documentation and testing purposes."""
-    from .. import config
+    from ... import config
 
     _old_fs = os.getenv('FREESURFER_HOME')
     if not _old_fs:
