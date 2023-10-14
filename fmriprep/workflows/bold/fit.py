@@ -695,7 +695,7 @@ def init_bold_native_wf(
             (bold_t2s_wf, outputnode, [
                 ("outputnode.bold", "bold_minimal"),
                 ("outputnode.bold", "bold_native"),
-                ("outputnode.t2star", "t2star_map"),
+                ("outputnode.t2star_map", "t2star_map"),
             ]),
         ])  # fmt:skip
     else:

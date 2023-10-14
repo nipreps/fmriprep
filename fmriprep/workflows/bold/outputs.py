@@ -680,6 +680,8 @@ def init_ds_bold_native_wf(
             ]),
         ])  # fmt:skip
 
+    return workflow
+
 
 def init_func_derivatives_wf(
     bids_root: str,
