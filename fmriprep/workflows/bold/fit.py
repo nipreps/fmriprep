@@ -692,6 +692,7 @@ def init_bold_native_wf(
         # Do NOT set motion_xfm or fieldmap_id on outputnode
         # This prevents downstream resamplers from double-dipping
         workflow.connect([
+            (inputnode, bold_t2s_wf, [("bold_mask", "inputnode.bold_mask")]),
             (boldref_bold, join_echos, [("out_file", "bold_files")]),
             (join_echos, bold_t2s_wf, [("bold_files", "inputnode.bold_file")]),
             (join_echos, outputnode, [("bold_files", "bold_echos")]),

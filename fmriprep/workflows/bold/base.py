@@ -159,6 +159,7 @@ def init_bold_wf(
     workflow.connect([
         (bold_fit_wf, bold_native_wf, [
             ("outputnode.coreg_boldref", "inputnode.boldref"),
+            ("outputnode.bold_mask", "inputnode.bold_mask"),
             ("outputnode.motion_xfm", "inputnode.motion_xfm"),
             ("outputnode.boldref2fmap_xfm", "inputnode.fmapreg_xfm"),
             ("outputnode.dummy_scans", "inputnode.dummy_scans"),
