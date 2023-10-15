@@ -229,8 +229,10 @@ def init_bold_fit_wf(
     # fmt:off
     workflow.connect([
         (hmcref_buffer, outputnode, [("boldref", "hmc_boldref")]),
-        (regref_buffer, outputnode, [("boldref", "coreg_boldref"),
-                                     ("boldmask", "bold_mask")]),
+        (regref_buffer, outputnode, [
+            ("boldref", "coreg_boldref"),
+            ("boldmask", "bold_mask"),
+        ]),
         (fmapreg_buffer, outputnode, [("boldref2fmap_xfm", "boldref2fmap_xfm")]),
         (hmc_buffer, outputnode, [("hmc_xforms", "motion_xfm")]),
         (inputnode, func_fit_reports_wf, [
@@ -556,6 +558,7 @@ def init_bold_native_wf(
             fields=[
                 # BOLD fit
                 "boldref",
+                "bold_mask",
                 "motion_xfm",
                 "fmapreg_xfm",
                 "dummy_scans",

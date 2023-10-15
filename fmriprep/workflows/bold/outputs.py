@@ -588,7 +588,7 @@ def init_ds_bold_native_wf(
     workflow.connect(inputnode, 'source_files', raw_sources, 'in_files')
 
     if bold_output:
-        ds_bold_native = pe.Node(
+        ds_bold = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
                 desc='preproc',
@@ -598,19 +598,19 @@ def init_ds_bold_native_wf(
                 dismiss_entities=("echo",),
                 **timing_parameters,
             ),
-            name='ds_bold_native',
+            name='ds_bold',
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
         workflow.connect([
-            (inputnode, ds_bold_native, [
+            (inputnode, ds_bold, [
                 ('source_files', 'source_file'),
-                ('bold_native', 'in_file'),
+                ('bold', 'in_file'),
             ]),
         ])  # fmt:skip
 
     if bold_output or echo_output:
-        ds_bold_mask_native = pe.Node(
+        ds_bold_mask = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
                 desc='brain',
@@ -618,16 +618,16 @@ def init_ds_bold_native_wf(
                 compress=True,
                 dismiss_entities=("echo",),
             ),
-            name='ds_bold_mask_native',
+            name='ds_bold_mask',
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
         workflow.connect([
-            (inputnode, ds_bold_mask_native, [
+            (inputnode, ds_bold_mask, [
                 ('source_files', 'source_file'),
-                ('bold_mask_native', 'in_file'),
+                ('bold_mask', 'in_file'),
             ]),
-            (raw_sources, ds_bold_mask_native, [('out', 'RawSources')]),
+            (raw_sources, ds_bold_mask, [('out', 'RawSources')]),
         ])  # fmt:skip
 
     if bold_output and multiecho:
@@ -676,7 +676,7 @@ def init_ds_bold_native_wf(
         workflow.connect([
             (inputnode, ds_bold_echos, [
                 ('source_files', 'source_file'),
-                ('bold_echos_native', 'in_file'),
+                ('bold_echos', 'in_file'),
             ]),
         ])  # fmt:skip
 
