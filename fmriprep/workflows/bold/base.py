@@ -69,6 +69,7 @@ def init_bold_wf(
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
     bold_file = bold_series[0]
+    fmriprep_dir = config.execution.fmriprep_dir
 
     functional_cache = {}
     if config.execution.derivatives:
@@ -181,7 +182,7 @@ def init_bold_wf(
     if boldref_out or echos_out:
         ds_bold_native_wf = init_ds_bold_native_wf(
             bids_root=str(config.execution.bids_dir),
-            output_dir=str(config.execution.output_dir),
+            output_dir=fmriprep_dir,
             bold_output=boldref_out,
             echo_output=echos_out,
             multiecho=multiecho,
@@ -238,6 +239,12 @@ def init_bold_wf(
 
     if config.workflow.level == "resampling":
         return workflow
+
+    # Fill-in datasinks of reportlets seen so far
+    for node in workflow.list_node_names():
+        if node.split(".")[-1].startswith("ds_report"):
+            workflow.get_node(node).inputs.base_directory = fmriprep_dir
+            workflow.get_node(node).inputs.source_file = bold_file
 
     return workflow
 
@@ -1091,12 +1098,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (initial_boldref_wf, ds_report_validation, [("outputnode.validation_report", "in_file")]),
     ])
     # fmt:on
-
-    # Fill-in datasinks of reportlets seen so far
-    for node in workflow.list_node_names():
-        if node.split(".")[-1].startswith("ds_report"):
-            workflow.get_node(node).inputs.base_directory = fmriprep_dir
-            workflow.get_node(node).inputs.source_file = ref_file
 
     if not has_fieldmap:
         # Finalize workflow without SDC connections
