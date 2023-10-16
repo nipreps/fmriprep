@@ -591,16 +591,92 @@ def init_bold_fit_wf(
 
 def init_bold_native_wf(
     *,
-    bold_series: ty.Union[str, ty.List[str]],
+    bold_series: ty.List[str],
     fieldmap_id: ty.Optional[str] = None,
     name: str = "bold_native_wf",
 ) -> pe.Workflow:
-    """First derivatives for fMRIPrep
+    r"""
+    Minimal resampling workflow.
 
     This workflow performs slice-timing correction, and resamples to boldref space
     with head motion and susceptibility distortion correction. It also handles
     multi-echo processing and selects the transforms needed to perform further
     resampling.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
+
+            from fmriprep.workflows.tests import mock_config
+            from fmriprep import config
+            from fmriprep.workflows.bold.fit import init_bold_native_wf
+            with mock_config():
+                bold_file = config.execution.bids_dir / "sub-01" / "func" \
+                    / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
+                wf = init_bold_native_wf(bold_series=[str(bold_file)])
+
+    Parameters
+    ----------
+    bold_series
+        List of paths to NIfTI files.
+    fieldmap_id
+        ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
+        no correction will be applied.
+
+    Inputs
+    ------
+    boldref
+        BOLD reference file
+    bold_mask
+        Mask of BOLD reference file
+    motion_xfm
+        Affine transforms from each BOLD volume to ``hmc_boldref``, written
+        as concatenated ITK affine transforms.
+    fmapreg_xfm
+        Affine transform mapping from BOLD reference space to the fieldmap
+        space, if applicable.
+    fmap_id
+        Unique identifiers to select fieldmap files
+    fmap_ref
+        List of fieldmap reference files (collated with fmap_id)
+    fmap_coeff
+        List of lists of spline coefficient files (collated with fmap_id)
+
+    Outputs
+    -------
+    bold_minimal
+        BOLD series ready for further resampling. For single-echo data, only
+        slice-timing correction (STC) may have been applied. For multi-echo
+        data, this is identical to bold_native.
+    bold_native
+        BOLD series resampled into BOLD reference space. Slice-timing,
+        head motion and susceptibility distortion correction (STC, HMC, SDC)
+        will all be applied to each file. For multi-echo data, the echos
+        are combined to form an `optimal combination`_.
+    motion_xfm
+        Motion correction transforms for further correcting bold_minimal.
+        For multi-echo data, motion correction has already been applied, so
+        this will be undefined.
+    fieldmap_id
+        Fieldmap ID for further correcting bold_minimal. For multi-echo data,
+        susceptibility distortion correction has already been applied, so
+        this will be undefined.
+    bold_echos
+        The individual, corrected echos, suitable for use in Tedana.
+        (Multi-echo only.)
+    t2star_map
+        The T2\* map estimated by Tedana when calculating the optimal combination.
+        (Multi-echo only.)
+
+    See Also
+    --------
+
+    * :py:func:`~fmriprep.workflows.bold.stc.init_bold_stc_wf`
+    * :py:func:`~fmriprep.workflows.bold.t2s.init_bold_t2s_wf`
+
+    .. _optimal combination: https://tedana.readthedocs.io/en/stable/approach.html#optimal-combination
+
     """
 
     layout = config.execution.layout
