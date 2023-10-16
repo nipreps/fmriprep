@@ -342,6 +342,7 @@ def init_bold_fit_wf(
         config.loggers.workflow.info("Stage 1: Adding HMC boldref workflow")
         hmc_boldref_wf = init_raw_boldref_wf(
             name="hmc_boldref_wf",
+            bold_file=bold_file,
             multiecho=multiecho,
         )
         hmc_boldref_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
@@ -356,7 +357,6 @@ def init_bold_fit_wf(
 
         # fmt:off
         workflow.connect([
-            (inputnode, hmc_boldref_wf, [('bold_file', 'inputnode.bold_file')]),
             (hmc_boldref_wf, hmcref_buffer, [
                 ("outputnode.bold_file", "bold_file"),
                 ("outputnode.boldref", "boldref"),
