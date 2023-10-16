@@ -24,8 +24,9 @@
 Orchestrating the BOLD-preprocessing workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: init_func_preproc_wf
-.. autofunction:: init_func_derivatives_wf
+.. autofunction:: init_bold_wf
+.. autofunction:: init_bold_fit_wf
+.. autofunction:: init_bold_native_wf
 
 """
 import os
