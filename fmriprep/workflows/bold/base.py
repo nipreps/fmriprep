@@ -61,15 +61,83 @@ from .t2s import init_bold_t2s_wf, init_t2s_reporting_wf
 def init_bold_wf(
     *,
     bold_series: ty.List[str],
-    precomputed: dict,
+    precomputed: dict = {},
     fieldmap_id: ty.Optional[str] = None,
-    omp_nthreads: int = 1,
     name: str = "bold_wf",
 ) -> pe.Workflow:
+    """
+    This workflow controls the functional preprocessing stages of *fMRIPrep*.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
+
+            from fmriprep.workflows.tests import mock_config
+            from fmriprep import config
+            from fmriprep.workflows.bold.base import init_bold_wf
+            with mock_config():
+                bold_file = config.execution.bids_dir / "sub-01" / "func" \
+                    / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
+                wf = init_bold_wf(
+                    bold_series=[str(bold_file)],
+                )
+
+    Parameters
+    ----------
+    bold_series
+        List of paths to NIfTI files.
+    precomputed
+        Dictionary containing precomputed derivatives to reuse, if possible.
+    fieldmap_id
+        ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
+        no correction will be applied.
+
+    Inputs
+    ------
+    t1w_preproc
+        Bias-corrected structural template image
+    t1w_mask
+        Mask of the skull-stripped template image
+    t1w_dseg
+        Segmentation of preprocessed structural image, including
+        gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
+    anat2std_xfm
+        List of transform files, collated with templates
+    subjects_dir
+        FreeSurfer SUBJECTS_DIR
+    subject_id
+        FreeSurfer subject ID
+    fsnative2t1w_xfm
+        LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    fmap_id
+        Unique identifiers to select fieldmap files
+    fmap
+        List of estimated fieldmaps (collated with fmap_id)
+    fmap_ref
+        List of fieldmap reference files (collated with fmap_id)
+    fmap_coeff
+        List of lists of spline coefficient files (collated with fmap_id)
+    fmap_mask
+        List of fieldmap masks (collated with fmap_id)
+    sdc_method
+        List of fieldmap correction method names (collated with fmap_id)
+
+    See Also
+    --------
+
+    * :func:`~fmriprep.workflows.bold.fit.init_bold_fit_wf`
+    * :func:`~fmriprep.workflows.bold.fit.init_bold_native_wf`
+    * :func:`~fmriprep.workflows.bold.outputs.init_ds_bold_native_wf`
+    * :func:`~fmriprep.workflows.bold.t2s.init_t2s_reporting_wf`
+
+    """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
     bold_file = bold_series[0]
+
     fmriprep_dir = config.execution.fmriprep_dir
+    omp_nthreads = config.nipype.omp_nthreads
 
     functional_cache = {}
     if config.execution.derivatives:

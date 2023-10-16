@@ -482,7 +482,6 @@ tasks and sessions), the following preprocessing was performed.
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
-            omp_nthreads=config.nipype.omp_nthreads,
         )
         bold_wf.__desc__ = func_pre_desc + (bold_wf.__desc__ or "")
 

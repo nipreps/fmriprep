@@ -102,11 +102,104 @@ def get_sbrefs(
 def init_bold_fit_wf(
     *,
     bold_series: ty.List[str],
-    precomputed: dict,
+    precomputed: dict = {},
     fieldmap_id: ty.Optional[str] = None,
     omp_nthreads: int = 1,
     name: str = "bold_fit_wf",
 ) -> pe.Workflow:
+    """
+    This workflow controls the minimal estimation steps for functional preprocessing.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
+
+            from fmriprep.workflows.tests import mock_config
+            from fmriprep import config
+            from fmriprep.workflows.bold.fit import init_bold_fit
+            with mock_config():
+                bold_file = config.execution.bids_dir / "sub-01" / "func" \
+                    / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
+                wf = init_bold_fit([str(bold_file)])
+
+    Parameters
+    ----------
+    bold_series
+        List of paths to NIfTI files.
+    precomputed
+        Dictionary containing precomputed derivatives to reuse, if possible.
+    fieldmap_id
+        ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
+        no correction will be applied.
+
+    Inputs
+    ------
+    bold_file
+        BOLD series NIfTI file
+    t1w_preproc
+        Bias-corrected structural template image
+    t1w_mask
+        Mask of the skull-stripped template image
+    t1w_dseg
+        Segmentation of preprocessed structural image, including
+        gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
+    anat2std_xfm
+        List of transform files, collated with templates
+    subjects_dir
+        FreeSurfer SUBJECTS_DIR
+    subject_id
+        FreeSurfer subject ID
+    fsnative2t1w_xfm
+        LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    fmap_id
+        Unique identifiers to select fieldmap files
+    fmap
+        List of estimated fieldmaps (collated with fmap_id)
+    fmap_ref
+        List of fieldmap reference files (collated with fmap_id)
+    fmap_coeff
+        List of lists of spline coefficient files (collated with fmap_id)
+    fmap_mask
+        List of fieldmap masks (collated with fmap_id)
+    sdc_method
+        List of fieldmap correction method names (collated with fmap_id)
+
+    Outputs
+    -------
+    hmc_boldref
+        BOLD reference image used for head motion correction.
+        Minimally processed to ensure consistent contrast with BOLD series.
+    coreg_boldref
+        BOLD reference image used for coregistration. Contrast-enhanced
+        and fieldmap-corrected for greater anatomical fidelity, and aligned
+        with ``hmc_boldref``.
+    bold_mask
+        Mask of ``coreg_boldref``.
+    motion_xfm
+        Affine transforms from each BOLD volume to ``hmc_boldref``, written
+        as concatenated ITK affine transforms.
+    boldref2anat_xfm
+        Affine transform mapping from BOLD reference space to the anatomical
+        space.
+    boldref2fmap_xfm
+        Affine transform mapping from BOLD reference space to the fieldmap
+        space, if applicable.
+
+    See Also
+    --------
+
+    * :py:func:`~fmriprep.workflows.bold.reference.init_raw_boldref_wf`
+    * :py:func:`~fmriprep.workflows.bold.hmc.init_bold_hmc_wf`
+    * :py:func:`~niworkflows.func.utils.init_enhance_and_skullstrip_bold_wf`
+    * :py:func:`~sdcflows.workflows.apply.registration.init_coeff2epi_wf`
+    * :py:func:`~sdcflows.workflows.apply.correction.init_unwarp_wf`
+    * :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`
+    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_boldref_wf`
+    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_hmc_wf`
+    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_registration_wf`
+
+    """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
     from fmriprep.utils.misc import estimate_bold_mem_usage
