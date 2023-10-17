@@ -439,7 +439,7 @@ tzdata==2023.3
     # via pandas
 tzlocal==5.0.1
     # via apscheduler
-urllib3==2.0.4
+urllib3==2.0.7
     # via
     #   requests
     #   sentry-sdk
