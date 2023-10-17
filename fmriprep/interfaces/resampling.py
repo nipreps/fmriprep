@@ -25,10 +25,10 @@ from ..utils.transforms import load_transforms
 
 
 class ResampleSeriesInputSpec(TraitedSpec):
-    in_file = File(mandatory=True, desc="3D or 4D image file to resample")
-    ref_file = File(mandatory=True, desc="File to resample in_file to")
+    in_file = File(exists=True, mandatory=True, desc="3D or 4D image file to resample")
+    ref_file = File(exists=True, mandatory=True, desc="File to resample in_file to")
     transforms = InputMultiObject(
-        File, mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
+        File(exists=True), mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
     )
     inverse = InputMultiObject(
         traits.Bool,
@@ -36,7 +36,7 @@ class ResampleSeriesInputSpec(TraitedSpec):
         usedefault=True,
         desc="Whether to invert each file in transforms",
     )
-    fieldmap = File(desc="Fieldmap file resampled into reference space")
+    fieldmap = File(exists=True, desc="Fieldmap file resampled into reference space")
     ro_time = traits.Float(desc="EPI readout time (s).")
     pe_dir = traits.Enum(
         "i",
@@ -103,12 +103,12 @@ class ResampleSeries(SimpleInterface):
 
 class ReconstructFieldmapInputSpec(TraitedSpec):
     in_coeffs = InputMultiObject(
-        File, mandatory=True, desc="SDCflows-style spline coefficient files"
+        File(exists=True), mandatory=True, desc="SDCflows-style spline coefficient files"
     )
-    target_ref_file = File(mandatory=True, desc="Image to reconstruct the field in alignment with")
-    fmap_ref_file = File(mandatory=True, desc="Reference file aligned with coefficients")
+    target_ref_file = File(exists=True, mandatory=True, desc="Image to reconstruct the field in alignment with")
+    fmap_ref_file = File(exists=True, mandatory=True, desc="Reference file aligned with coefficients")
     transforms = InputMultiObject(
-        File, mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
+        File(exists=True), mandatory=True, desc="Transform files, from in_file to ref_file (image mode)"
     )
     inverse = InputMultiObject(
         traits.Bool,
