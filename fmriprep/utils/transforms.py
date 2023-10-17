@@ -14,7 +14,7 @@ def load_transforms(xfm_paths: list[Path], inverse: list[bool]) -> nt.base.Trans
     An empty list will return an identity transform
     """
     if len(inverse) == 1:
-        inverse = inverse * len(xfm_paths)
+        inverse *= len(xfm_paths)
     elif len(inverse) != len(xfm_paths):
         raise ValueError("Mismatched number of transforms and inverses")
 

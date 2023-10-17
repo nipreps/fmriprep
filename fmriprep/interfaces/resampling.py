@@ -97,7 +97,7 @@ class ResampleSeries(SimpleInterface):
         )
         resampled.to_filename(out_path)
 
-        self._results = {'out_file': out_path}
+        self._results['out_file'] = out_path
         return runtime
 
 
@@ -151,7 +151,7 @@ class ReconstructFieldmap(SimpleInterface):
         )
         fieldmap.to_filename(out_path)
 
-        self._results = {'out_file': out_path}
+        self._results['out_file'] = out_path
         return runtime
 
 

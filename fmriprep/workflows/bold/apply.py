@@ -35,7 +35,7 @@ def init_bold_apply_wf(
 
     workflow = pe.Workflow(name=name)
 
-    if getattr(spaces, "_cached") is not None and spaces.cached.references:
+    if spaces.is_cached() and spaces.cached.references:
         template_iterator_wf = init_template_iterator_wf(spaces=spaces)
         # TODO: Refactor bold_std_trans_wf
         # bold_std_trans_wf = init_bold_std_trans_wf(
