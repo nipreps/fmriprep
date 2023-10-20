@@ -190,9 +190,9 @@ def merge_help(wrapper_help, target_help):
     # Make sure we're not clobbering options we don't mean to
     overlap = set(w_flags).intersection(t_flags)
     expected_overlap = {
-        'anat-derivatives',
         'bids-database-dir',
         'bids-filter-file',
+        'd',
         'fs-license-file',
         'fs-subjects-dir',
         'output-spaces',
@@ -339,9 +339,12 @@ def get_parser():
         type=os.path.abspath,
     )
     g_wrap.add_argument(
-        '--anat-derivatives',
+        '-d',
+        '--derivatives',
+        nargs='+',
         metavar='PATH',
-        type=os.path.abspath,
+        action=ToDict,
+        help='Search PATH(s) for pre-computed derivatives.',
     )
     g_wrap.add_argument(
         '--use-plugin',
@@ -522,9 +525,12 @@ def main():
         command.extend(['-v', '{}:/tmp/config.toml'.format(opts.config_file)])
         unknown_args.extend(['--config-file', '/tmp/config.toml'])
 
-    if opts.anat_derivatives:
-        command.extend(['-v', '{}:/opt/smriprep/subjects'.format(opts.anat_derivatives)])
-        unknown_args.extend(['--anat-derivatives', '/opt/smriprep/subjects'])
+    # Patch derivatives for searching
+    if opts.derivatives:
+        unknown_args.append('--derivatives')
+        for deriv, deriv_path in opts.derivatives.items():
+            command.extend(['-v', '{}:/deriv/{}:ro'.format(deriv_path, deriv)])
+            unknown_args.append('/deriv/{}'.format(deriv))
 
     if opts.work_dir:
         command.extend(['-v', ':'.join((opts.work_dir, '/scratch'))])

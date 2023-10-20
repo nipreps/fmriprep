@@ -223,7 +223,10 @@ class _Config:
             if k in ignore or v is None:
                 continue
             if k in cls._paths:
-                setattr(cls, k, Path(v).absolute())
+                if isinstance(v, (list, tuple)):
+                    setattr(cls, k, [Path(val).absolute() for val in v])
+                else:
+                    setattr(cls, k, Path(v).absolute())
             elif hasattr(cls, k):
                 setattr(cls, k, v)
 
@@ -245,9 +248,12 @@ class _Config:
             if callable(getattr(cls, k)):
                 continue
             if k in cls._paths:
-                v = str(v)
+                if isinstance(v, (list, tuple)):
+                    v = [str(val) for val in v]
+                else:
+                    v = str(v)
             if isinstance(v, SpatialReferences):
-                v = " ".join([str(s) for s in v.references]) or None
+                v = " ".join(str(s) for s in v.references) or None
             if isinstance(v, Reference):
                 v = str(v) or None
             out[k] = v
@@ -291,7 +297,7 @@ class environment(_Config):
 class nipype(_Config):
     """Nipype settings."""
 
-    crashfile_format = "txt"
+    crashfile_format = "pklz"
     """The file format for crashfiles, either text or pickle."""
     get_linked_libs = False
     """Run NiPype's tool to enlist linked libraries for every interface."""
@@ -308,6 +314,8 @@ class nipype(_Config):
         "raise_insufficient": False,
     }
     """Settings for NiPype's execution plugin."""
+    remove_unnecessary_outputs = False
+    """Clean up unused outputs after running"""
     resource_monitor = False
     """Enable resource monitor."""
     stop_on_first_crash = True
@@ -351,6 +359,7 @@ class nipype(_Config):
                     "crashdump_dir": str(execution.log_dir),
                     "crashfile_format": cls.crashfile_format,
                     "get_linked_libs": cls.get_linked_libs,
+                    "remove_unnecessary_outputs": cls.remove_unnecessary_outputs,
                     "stop_on_first_crash": cls.stop_on_first_crash,
                     "check_version": False,  # disable future telemetry
                 }
@@ -364,10 +373,10 @@ class nipype(_Config):
 class execution(_Config):
     """Configure run-level settings."""
 
-    anat_derivatives = None
-    """A path where anatomical derivatives are found to fast-track *sMRIPrep*."""
     bids_dir = None
     """An existing path to the dataset, which must be BIDS-compliant."""
+    derivatives = []
+    """Path(s) to search for pre-computed derivatives"""
     bids_database_dir = None
     """Path to the directory containing SQLite database indices for the input BIDS dataset."""
     bids_description_hash = None
@@ -431,8 +440,8 @@ class execution(_Config):
     _layout = None
 
     _paths = (
-        "anat_derivatives",
         "bids_dir",
+        "derivatives",
         "bids_database_dir",
         "fmriprep_dir",
         "fs_license_file",
@@ -537,6 +546,8 @@ class workflow(_Config):
     """Adjust pipeline to reuse base template of existing longitudinal freesurfer"""
     ignore = None
     """Ignore particular steps for *fMRIPrep*."""
+    level = None
+    """Level of preprocessing to complete. One of ['minimal', 'resampling', 'full']."""
     longitudinal = False
     """Run FreeSurfer ``recon-all`` with the ``-logitudinal`` flag."""
     run_msmsulc = True
@@ -577,12 +588,6 @@ class workflow(_Config):
     in the absence of any alternatives."""
     me_t2s_fit_method = "curvefit"
     """The method by which to estimate T2*/S0 for multi-echo data"""
-
-    @classmethod
-    def init(cls):
-        # Avoid additional runtime if not required
-        if not cls.cifti_output:
-            cls.run_msmsulc = False
 
 
 class loggers:

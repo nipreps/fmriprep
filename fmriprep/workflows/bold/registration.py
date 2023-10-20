@@ -149,7 +149,8 @@ def init_bold_reg_wf(
         niu.IdentityInterface(
             fields=[
                 'ref_bold_brain',
-                't1w_brain',
+                't1w_preproc',
+                't1w_mask',
                 't1w_dseg',
                 'subjects_dir',
                 'subject_id',
@@ -186,8 +187,10 @@ def init_bold_reg_wf(
             ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
+            ('t1w_preproc', 'inputnode.t1w_preproc'),
+            ('t1w_mask', 'inputnode.t1w_mask'),
             ('t1w_dseg', 'inputnode.t1w_dseg'),
-            ('t1w_brain', 'inputnode.t1w_brain')]),
+        ]),
         (bbr_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
                               ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
                               ('outputnode.fallback', 'fallback')]),
@@ -485,7 +488,9 @@ def init_bbreg_wf(
         FreeSurfer SUBJECTS_DIR
     subject_id
         FreeSurfer subject ID (must have folder in SUBJECTS_DIR)
-    t1w_brain
+    t1w_preproc
+        Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
+    t1w_mask
         Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
     t1w_dseg
         Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`)
@@ -526,13 +531,14 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         niu.IdentityInterface(
             [
                 'in_file',
-                'fsnative2t1w_xfm',
+                'fsnative2t1w_xfm',  # BBRegister
                 'subjects_dir',
-                'subject_id',  # BBRegister
+                'subject_id',
+                't1w_preproc',  # FLIRT BBR
+                't1w_mask',
                 't1w_dseg',
-                't1w_brain',
             ]
-        ),  # FLIRT BBR
+        ),
         name='inputnode',
     )
     outputnode = pe.Node(
@@ -710,10 +716,12 @@ def init_fsl_bbr_wf(
     ------
     in_file
         Reference BOLD image to be registered
-    t1w_brain
-        Skull-stripped T1-weighted structural image
+    t1w_preproc
+        T1-weighted structural image
+    t1w_mask
+        Brain mask of structural image
     t1w_dseg
-        FAST segmentation of ``t1w_brain``
+        FAST segmentation of masked ``t1w_preproc``
     fsnative2t1w_xfm
         Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
     subjects_dir
@@ -736,6 +744,7 @@ def init_fsl_bbr_wf(
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.freesurfer import PatchedLTAConvert as LTAConvert
     from niworkflows.interfaces.freesurfer import PatchedMRICoregRPT as MRICoregRPT
+    from niworkflows.interfaces.nibabel import ApplyMask
     from niworkflows.interfaces.reportlets.registration import FLIRTRPT
     from niworkflows.utils.images import dseg_label as _dseg_label
 
@@ -757,13 +766,14 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         niu.IdentityInterface(
             [
                 'in_file',
-                'fsnative2t1w_xfm',
+                'fsnative2t1w_xfm',  # BBRegister
                 'subjects_dir',
-                'subject_id',  # BBRegister
+                'subject_id',
+                't1w_preproc',  # FLIRT BBR
+                't1w_mask',
                 't1w_dseg',
-                't1w_brain',
             ]
-        ),  # FLIRT BBR
+        ),
         name='inputnode',
     )
     outputnode = pe.Node(
@@ -779,6 +789,9 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
     if bold2t1w_init == "header":
         raise NotImplementedError("Header-based registration initialization not supported for FSL")
+
+    # Mask T1w_preproc with T1w_mask to make T1w_brain
+    mask_t1w_brain = pe.Node(ApplyMask(), name='mask_t1w_brain')
 
     mri_coreg = pe.Node(
         MRICoregRPT(
@@ -809,12 +822,14 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     )
     # fmt:off
     workflow.connect([
-        (inputnode, mri_coreg, [('in_file', 'source_file'),
-                                ('t1w_brain', 'reference_file')]),
-        (inputnode, fsl2itk_fwd, [('t1w_brain', 'reference_file'),
-                                  ('in_file', 'source_file')]),
-        (inputnode, fsl2itk_inv, [('in_file', 'reference_file'),
-                                  ('t1w_brain', 'source_file')]),
+        (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
+                                     ('t1w_mask', 'in_mask')]),
+        (inputnode, mri_coreg, [('in_file', 'source_file')]),
+        (inputnode, fsl2itk_fwd, [('in_file', 'source_file')]),
+        (inputnode, fsl2itk_inv, [('in_file', 'reference_file')]),
+        (mask_t1w_brain, mri_coreg, [('out_file', 'reference_file')]),
+        (mask_t1w_brain, fsl2itk_fwd, [('out_file', 'reference_file')]),
+        (mask_t1w_brain, fsl2itk_inv, [('out_file', 'source_file')]),
         (mri_coreg, lta_to_fsl, [('out_lta_file', 'in_lta')]),
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
@@ -863,7 +878,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         )
         # fmt:off
         workflow.connect([
-            (inputnode, downsample, [("t1w_brain", "in_file")]),
+            (mask_t1w_brain, downsample, [("out_file", "in_file")]),
             (wm_mask, downsample, [("out", "in_mask")]),
             (downsample, flt_bbr, [('out_file', 'reference'),
                                    ('out_mask', 'wm_seg')]),
@@ -872,7 +887,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     else:
         # fmt:off
         workflow.connect([
-            (inputnode, flt_bbr, [('t1w_brain', 'reference')]),
+            (mask_t1w_brain, flt_bbr, [('out_file', 'reference')]),
             (wm_mask, flt_bbr, [('out', 'wm_seg')]),
         ])
         # fmt:on
@@ -904,8 +919,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (flt_bbr, transforms, [('out_matrix_file', 'in1')]),
         (lta_to_fsl, transforms, [('out_fsl', 'in2')]),
         # Convert FSL transforms to LTA (RAS2RAS) transforms and compare
-        (inputnode, fsl_to_lta, [('in_file', 'source_file'),
-                                 ('t1w_brain', 'target_file')]),
+        (inputnode, fsl_to_lta, [('in_file', 'source_file')]),
+        (mask_t1w_brain, fsl_to_lta, [('out_file', 'target_file')]),
         (transforms, fsl_to_lta, [('out', 'in_fsl')]),
         (fsl_to_lta, compare_transforms, [('out_lta', 'lta_list')]),
         (compare_transforms, outputnode, [('out', 'fallback')]),

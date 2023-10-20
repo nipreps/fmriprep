@@ -31,7 +31,6 @@ def main():
     """Entry point."""
     import gc
     import sys
-    import warnings
     from multiprocessing import Manager, Process
     from os import EX_SOFTWARE
     from pathlib import Path

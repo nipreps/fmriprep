@@ -189,12 +189,13 @@ def _build_parser(**kwargs):
         % (currentv.base_version if is_release else "latest"),
     )
     g_bids.add_argument(
-        "--anat-derivatives",
+        "-d",
+        "--derivatives",
         action="store",
         metavar="PATH",
-        type=PathExists,
-        help="Reuse the anatomical derivatives from another fMRIPrep run or calculated "
-        "with an alternative processing tool (NOT RECOMMENDED).",
+        type=Path,
+        nargs="*",
+        help="Search PATH(s) for pre-computed derivatives.",
     )
     g_bids.add_argument(
         "--bids-database-dir",
@@ -253,6 +254,15 @@ def _build_parser(**kwargs):
 
     g_subset = parser.add_argument_group("Options for performing only a subset of the workflow")
     g_subset.add_argument("--anat-only", action="store_true", help="Run anatomical workflows only")
+    g_subset.add_argument(
+        "--level",
+        action="store",
+        default="full",
+        # choices=["minimal", "resampling", "full"],
+        help="Processing level; may be 'minimal' (nothing that can be recomputed), "
+        "'resampling' (recomputable targets that aid in resampling) "
+        "or 'full' (all target outputs).",
+    )
     g_subset.add_argument(
         "--boilerplate-only",
         "--boilerplate_only",

@@ -16,7 +16,7 @@ task-based and resting-state functional MRI (fMRI).
   :target: https://circleci.com/gh/nipreps/fmriprep/tree/master
 
 .. image:: https://readthedocs.org/projects/fmriprep/badge/?version=latest
-  :target: http://fmriprep.readthedocs.io/en/latest/?badge=latest
+  :target: https://fmriprep.org/en/latest/?badge=latest
   :alt: Documentation Status
 
 .. image:: https://img.shields.io/pypi/v/fmriprep.svg

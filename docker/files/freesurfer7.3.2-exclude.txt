@@ -387,6 +387,7 @@ freesurfer/bin/mri_gdfglm
 freesurfer/bin/mri_glmfit
 freesurfer/bin/mri_glmfit-sim
 freesurfer/bin/mri_gradient_info
+freesurfer/bin/mri_gradunwarp
 freesurfer/bin/mri_gtmpvc
 freesurfer/bin/mri_gtmseg
 freesurfer/bin/mri_hausdorff_dist

@@ -552,7 +552,7 @@ repeatability problems of the CompCor implementation.
     <https://www.nipreps.org/devs/releases/#long-term-support-series>`__.
     This LTS version will be kindly steered and maintained by
     the group of Dr. Basile Pinsard and Prof. Pierre Bellec at
-    `CRIUGM <http://www.criugm.qc.ca/>`__, (Université de Montréal).
+    `CRIUGM <https://criugm.qc.ca/>`__, (Université de Montréal).
     The LTS is planned for a window of 4 years of support (i.e., until
     September 2024).
 

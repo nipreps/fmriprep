@@ -95,8 +95,8 @@ def init_bold_surf_wf(
         FreeSurfer SUBJECTS_DIR
     subject_id
         FreeSurfer subject ID
-    t1w2fsnative_xfm
-        LTA-style affine matrix translating from T1w to FreeSurfer-conformed subject space
+    fsnative2t1w_xfm
+        ITK-style affine matrix translating from FreeSurfer-conformed subject space to T1w
 
     Outputs
     -------
@@ -106,6 +106,7 @@ def init_bold_surf_wf(
     """
     from nipype.interfaces.io import FreeSurferSource
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.nitransforms import ConcatenateXFMs
     from niworkflows.interfaces.surf import GiftiSetAnatomicalStructure
 
     workflow = Workflow(name=name)
@@ -119,12 +120,7 @@ The BOLD time-series were resampled onto the following surfaces
 
     inputnode = pe.Node(
         niu.IdentityInterface(
-            fields=[
-                "source_file",
-                "subject_id",
-                "subjects_dir",
-                "t1w2fsnative_xfm",
-            ]
+            fields=["source_file", "subject_id", "subjects_dir", "fsnative2t1w_xfm"]
         ),
         name="inputnode",
     )
@@ -151,7 +147,9 @@ The BOLD time-series were resampled onto the following surfaces
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
-    itk2lta = pe.Node(niu.Function(function=_itk2lta), name="itk2lta", run_without_submitting=True)
+    itk2lta = pe.Node(
+        ConcatenateXFMs(out_fmt="fs", inverse=True), name="itk2lta", run_without_submitting=True
+    )
     sampler = pe.MapNode(
         fs.SampleToSurface(
             interp_method="trilinear",
@@ -193,10 +191,10 @@ The BOLD time-series were resampled onto the following surfaces
         ]),
         (inputnode, targets, [("subject_id", "subject_id")]),
         (inputnode, itk2lta, [
-            ("source_file", "src_file"),
-            ("t1w2fsnative_xfm", "in_file"),
+            ("source_file", "reference"),
+            ("fsnative2t1w_xfm", "in_xfms"),
         ]),
-        (get_fsnative, itk2lta, [("T1", "dst_file")]),
+        (get_fsnative, itk2lta, [("T1", "moving")]),
         (inputnode, sampler, [
             ("subjects_dir", "subjects_dir"),
             ("subject_id", "subject_id"),
@@ -205,7 +203,7 @@ The BOLD time-series were resampled onto the following surfaces
         (inputnode, rename_src, [("source_file", "in_file")]),
         (itersource, rename_src, [("target", "subject")]),
         (rename_src, sampler, [("out_file", "source_file")]),
-        (itk2lta, sampler, [("out", "reg_file")]),
+        (itk2lta, sampler, [("out_inv", "reg_file")]),
         (targets, sampler, [("out", "target_subject")]),
         (update_metadata, joinnode, [("out_file", "surfaces")]),
         (itersource, joinnode, [("target", "target")]),
@@ -603,13 +601,15 @@ The BOLD time-series were resampled onto the left/right-symmetric template
     )
 
     joinnode = pe.JoinNode(
-        niu.IdentityInterface(fields=['bold_fsLR']),
+        niu.IdentityInterface(fields=['bold_fsLR', 'weights_text']),
         name='joinnode',
         joinsource='itersource',
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_fsLR', 'goodvoxels_mask']),
+        niu.IdentityInterface(
+            fields=['bold_fsLR', 'goodvoxels_mask', 'weights_text'],
+        ),
         name='outputnode',
     )
 
@@ -662,7 +662,10 @@ The BOLD time-series were resampled onto the left/right-symmetric template
     # RibbonVolumeToSurfaceMapping.sh
     # Line 85 thru ...
     volume_to_surface = pe.Node(
-        VolumeToSurfaceMapping(method="ribbon-constrained"),
+        VolumeToSurfaceMapping(
+            method="ribbon-constrained",
+            output_weights_text="output_weights.txt",
+        ),
         name="volume_to_surface",
         mem_gb=mem_gb * 3,
         n_procs=omp_nthreads,
@@ -729,6 +732,8 @@ The BOLD time-series were resampled onto the left/right-symmetric template
         # Output
         (mask_fsLR, joinnode, [('out_file', 'bold_fsLR')]),
         (joinnode, outputnode, [('bold_fsLR', 'bold_fsLR')]),
+        (volume_to_surface, joinnode, [('weights_text_file', 'weights_text')]),
+        (joinnode, outputnode, [('weights_text', 'weights_text')]),
     ])
     # fmt: on
 
@@ -1369,18 +1374,6 @@ def _aslist(in_value):
 
 def _is_native(in_value):
     return in_value.get("resolution") == "native" or in_value.get("res") == "native"
-
-
-def _itk2lta(in_file, src_file, dst_file):
-    from pathlib import Path
-
-    import nitransforms as nt
-
-    out_file = Path("out.lta").absolute()
-    nt.linear.load(
-        in_file, fmt="fs" if in_file.endswith(".lta") else "itk", reference=src_file
-    ).to_filename(out_file, moving=dst_file, fmt="fs")
-    return str(out_file)
 
 
 def _select_surfaces(

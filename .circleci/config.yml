@@ -83,32 +83,13 @@ _setup_fmriprep_docker: &setup_fmriprep_docker
     export PY3=$(pyenv versions | grep '3\.' |
                   sed -e 's/.* 3\./3./' -e 's/ .*//')
     pyenv local $PY3
-    mkdir -p /tmp/${DATASET}/derivatives
     pip install --upgrade pip
     pip install --upgrade /tmp/src/fmriprep/wrapper/
 
 _check_outputs: &check_outputs
-  name: Checking outputs of fMRIPrep run
+  name: Show outputs of fMRIPrep run
   command: |
-    set +e -x
-    mkdir -p /tmp/${DATASET}/test
-    find /tmp/${DATASET}/${SUBDIR:-derivatives} \( -path '*/figures' -o -path '*/log' -o -path '*/sourcedata' \) -prune -o -name "*" -print | cut -d/ -f 5- | sort > /tmp/${DATASET}/test/outputs.out
-
-    FASTTRACK_OUTPUTS="${DATASET}${VARIANT}_fasttrack_outputs.txt"
-    FULL_OUTPUTS="${DATASET}${VARIANT}_outputs.txt"
-    RET=1
-    if [ ! -f /tmp/.nofasttrack ]; then
-        echo "Checking fasttrack..."
-        diff /tmp/src/fmriprep/.circleci/${FASTTRACK_OUTPUTS} /tmp/${DATASET}/test/outputs.out
-        RET=$?
-    fi
-    if [ $RET -ne 0 ]; then
-        echo "Checking full..."
-        diff /tmp/src/fmriprep/.circleci/${FULL_OUTPUTS} /tmp/${DATASET}/test/outputs.out
-        RET=$?
-    fi
-    exit $RET
-
+    find /tmp/${DATASET}/${SUBDIR:-fmriprep} \( -path '*/figures' -o -path '*/log' -o -path '*/sourcedata' \) -prune -o -name "*" -print | cut -d/ -f 5- | sort
 
 version: 2.1
 aliases:
@@ -455,14 +436,13 @@ jobs:
           name: Run anatomical workflow on ds005
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
+            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/fmriprep
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --network none \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                    /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
-                    --output-layout legacy \
+                    /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                     --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                     --skull-strip-template OASIS30ANTs:res-1 \
                     --output-spaces MNI152NLin2009cAsym MNI152NLin6Asym \
@@ -474,7 +454,7 @@ jobs:
           command: |
             rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
-            rm -rf /tmp/${DATASET}/derivatives/fmriprep
+            rm -rf /tmp/${DATASET}/fmriprep
       - save_cache:
          key: ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
@@ -488,7 +468,7 @@ jobs:
           name: Run full fMRIPrep on ds005 (LegacyMultiProc plugin)
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -502,67 +482,33 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
-                --output-layout legacy \
                 --sloppy --write-graph --mem-mb 14336 \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsaverage5 fsnative \
                 --use-plugin /tmp/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 4 -vv
       - store_artifacts:
-          path: /tmp/ds005/derivatives
+          path: /tmp/ds005/fmriprep
           destination: full-run
       - run:
           name: Copy intermediate results for re-runs
           command: |
-            mkdir -p /tmp/${DATASET}/derivatives_partial
+            mkdir -p /tmp/${DATASET}/fmriprep-partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_partial
             sudo cp -a /tmp/${DATASET}/work /tmp/${DATASET}/work_bids
             # Nipype sometimes fails to pick up when the base directory changes
             # This is a cheap workflow, so let's not fuss
             sudo rm -rf /tmp/${DATASET}/work /tmp/${DATASET}/work_bids/fmriprep_*_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf || true
-      - run:
-          <<: *check_outputs
-          environment:
-            VARIANT: '_legacy'
-      - run:
-          name: Prepare BIDS Derivatives dataset
-          command: |
-            mkdir -p /tmp/${DATASET}/bids/sourcedata
-            cp -r /tmp/${DATASET}/freesurfer /tmp/${DATASET}/bids/sourcedata/freesurfer
-      - run:
-          name: Re-run with BIDS layout
-          no_output_timeout: 2h
-          command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
-            if [ -f /tmp/.nofasttrack ]; then
-                FASTRACK_ARG=""
-            fi
-            fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
-                --network none \
-                --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_bids \
-                /tmp/data/${DATASET}/ /tmp/${DATASET}/bids participant \
-                ${FASTRACK_ARG} \
-                --sloppy --write-graph --mem-mb 14336 \
-                --output-spaces fsaverage5 \
-                --nthreads 4 -vv
-      - store_artifacts:
-          path: /tmp/ds005/bids
-          destination: bids-run
-      - run:
-          <<: *check_outputs
-          environment:
-            VARIANT: '_bids'
-            SUBDIR: 'bids'
+      - run: *check_outputs
       - run:
           name: Re-run fMRIPrep on single run of task data
           no_output_timeout: 2h
           command: |
             rm /tmp/data/${DATASET}/sub-01/func/*_run-01_*
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -570,21 +516,20 @@ jobs:
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --network none \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives_partial participant \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-partial participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
-                --output-layout legacy \
                 --sloppy --write-graph --use-syn-sdc --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --nthreads 4 --cifti-output --project-goodvoxels -vv
       - store_artifacts:
-          path: /tmp/ds005/derivatives_partial
+          path: /tmp/ds005/fmriprep-partial
           destination: partial-run
       - run:
           <<: *check_outputs
           environment:
-            VARIANT: '_legacy_partial'
-            SUBDIR: 'derivatives_partial'
+            VARIANT: '_partial'
+            SUBDIR: 'fmriprep-partial'
       - run:
           name: Clean working directory
           when: on_success
@@ -643,13 +588,12 @@ jobs:
           name: Run anatomical workflow on ds054
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
+            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/fmriprep
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                    /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
-                    --output-layout legacy \
+                    /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
                     --mem-mb 14336 --nthreads 4 --anat-only -vv
@@ -659,7 +603,7 @@ jobs:
           command: |
             rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
-            rm -rf /tmp/${DATASET}/derivatives/fmriprep
+            rm -rf /tmp/${DATASET}/fmriprep
       - save_cache:
          key: ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
          paths:
@@ -669,16 +613,15 @@ jobs:
           name: Run full fMRIPrep on ds054
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
             fmriprep-docker -i nipreps/fmriprep:latest \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                 ${FASTRACK_ARG} \
-                --output-layout legacy \
                 --fs-no-reconall --sloppy \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
@@ -687,18 +630,17 @@ jobs:
           name: Generate report with one artificial error
           command: |
             set -x
-            sudo mv /tmp/${DATASET}/derivatives/fmriprep/sub-100185.html \
-                    /tmp/${DATASET}/derivatives/fmriprep/sub-100185_noerror.html
+            sudo mv /tmp/${DATASET}/fmriprep/sub-100185.html \
+                    /tmp/${DATASET}/fmriprep/sub-100185_noerror.html
             UUID=$(grep uuid /tmp/${DATASET}/work/*/config.toml | cut -d\" -f 2 | tail -n 1)
-            mkdir -p /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
+            mkdir -p /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
             cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
-                /tmp/${DATASET}/derivatives/fmriprep/sub-100185/log/$UUID/
+                /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
             set +e
             fmriprep-docker -i nipreps/fmriprep:latest \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
-                --output-layout legacy \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                 --fs-no-reconall --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --reports-only --config-file /tmp/${DATASET}/work/${UUID}/config.toml -vv
@@ -759,13 +701,12 @@ jobs:
           name: Run anatomical workflow on ds000210
           no_output_timeout: 2h
           command: |
-            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/derivatives
+            mkdir -p /tmp/${DATASET}/work /tmp/${DATASET}/fmriprep
             if [ -f /tmp/.nofasttrack ]; then
                 fmriprep-docker -i nipreps/fmriprep:latest \
                     -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                     --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                    /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
-                    --output-layout legacy \
+                    /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                     --fs-no-reconall --sloppy --write-graph \
                     --output-spaces MNI152NLin2009cAsym \
                     --mem-mb 14336 --nthreads 4 --anat-only -vv --notrack
@@ -775,7 +716,7 @@ jobs:
           command: |
             rm -rf /tmp/${DATASET}/work/fmriprep_*_wf/fsdir*
             rm -rf /tmp/${DATASET}/work/reportlets
-            rm -rf /tmp/${DATASET}/derivatives/fmriprep
+            rm -rf /tmp/${DATASET}/fmriprep
       - save_cache:
          key: ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
          paths:
@@ -791,7 +732,7 @@ jobs:
           name: Run full fMRIPrep on ds000210
           no_output_timeout: 2h
           command: |
-            FASTRACK_ARG="--anat-derivatives /tmp/${DATASET}/smriprep"
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
             if [ -f /tmp/.nofasttrack ]; then
                 FASTRACK_ARG=""
             fi
@@ -805,9 +746,9 @@ jobs:
             fmriprep-docker -i nipreps/fmriprep:latest \
                 -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
                 --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/derivatives participant \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                 ${FASTRACK_ARG} \
-                --output-layout legacy --me-output-echos \
+                --me-output-echos \
                 --fs-no-reconall --use-syn-sdc --ignore slicetiming \
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \

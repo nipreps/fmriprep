@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest']
-        python-version: [3.9, '3.10', '3.11']
+        python-version: ['3.10', '3.11']
         install: ['pip']
         check: ['tests']
         pip-flags: ['PRE_PIP_FLAGS']
@@ -38,7 +38,7 @@ jobs:
       OS_TYPE: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0

@@ -80,6 +80,8 @@ single reference template (see `Longitudinal processing`_).
         skull_strip_fixed_seed=False,
         t1w=['sub-01/anat/sub-01_T1w.nii.gz'],
         t2w=[],
+        msm_sulc=True,
+        precomputed={},
     )
 
 .. important::
@@ -266,7 +268,8 @@ packages, including FreeSurfer and the `Connectome Workbench`_.
 
     from smriprep.workflows.surfaces import init_surface_recon_wf
     wf = init_surface_recon_wf(omp_nthreads=1,
-                               hires=True)
+                               hires=True,
+                               precomputed={})
 
 See also *sMRIPrep*'s
 :py:func:`~smriprep.workflows.surfaces.init_surface_recon_wf`

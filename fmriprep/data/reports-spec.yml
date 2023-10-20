@@ -11,9 +11,8 @@ sections:
       extension: [.html]
       suffix: T1w
   - bids: {datatype: figures, suffix: dseg}
-    caption: This panel shows the template T1-weighted image (if several T1w images
-      were found), with contours delineating the detected brain mask and brain tissue
-      segmentations.
+    caption: This panel shows the final, preprocessed T1-weighted image,
+      with contours delineating the detected brain mask and brain tissue segmentations.
     subtitle: Brain mask and brain tissue segmentation of the T1w
   - bids: {datatype: figures, space: .*, suffix: T1w, regex_search: True}
     caption: Spatial normalization of the T1w image to the <code>{space}</code> template.
@@ -78,7 +77,7 @@ sections:
   - bids: {datatype: figures, desc: validation, suffix: bold}
   - bids: {datatype: figures, desc: fmapCoreg, suffix: bold}
     caption: The estimated fieldmap was aligned to the corresponding EPI reference
-      with a rigid-registration process of the anatomical reference of the fieldmap,
+      with a rigid-registration process of the fieldmap reference image,
       using <code>antsRegistration</code>.
       Overlaid on top of the co-registration results, the final BOLD mask is represented
       with a red contour for reference.

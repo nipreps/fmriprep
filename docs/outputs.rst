@@ -607,7 +607,7 @@ the following invocation::
 
   .. [Behzadi2007] Behzadi Y, Restom K, Liau J, Liu TT, A component-based noise correction method
      (CompCor) for BOLD and perfusion-based fMRI. NeuroImage. 2007.
-     doi:`10.1016/j.neuroimage.2007.04.042 <http://doi.org/10.1016/j.neuroimage.2007.04.042>`_
+     doi:`10.1016/j.neuroimage.2007.04.042 <https://doi.org/10.1016/j.neuroimage.2007.04.042>`_
 
   .. [Ciric2017] Ciric R, Wolf DH, Power JD, Roalf DR, Baum GL, Ruparel K, Shinohara RT, Elliott MA,
      Eickhoff SB, Davatzikos C., Gur RC, Gur RE, Bassett DS, Satterthwaite TD.
@@ -617,7 +617,7 @@ the following invocation::
 
   .. [Greve2013] Greve DN, Brown GG, Mueller BA, Glover G, Liu TT,
      A Survey of the Sources of Noise in fMRI. Psychometrika. 2013.
-     doi:`10.1007/s11336-013-9344-2 <http://dx.doi.org/10.1007/s11336-013-9344-2>`_
+     doi:`10.1007/s11336-013-9344-2 <https://doi.org/10.1007/s11336-013-9344-2>`_
 
   .. [Friston1996] Friston KJ1, Williams S, Howard R, Frackowiak RS, Turner R,
      Movement‐Related effects in fMRI time‐series. Magnetic Resonance in Medicine. 1996.
@@ -634,7 +634,7 @@ the following invocation::
 
   .. [Muschelli2014] Muschelli J, Nebel MB, Caffo BS, Barber AD, Pekar JJ, Mostofsky SH,
      Reduction of motion-related artifacts in resting state fMRI using aCompCor. NeuroImage. 2014.
-     doi:`10.1016/j.neuroimage.2014.03.028 <http://doi.org/10.1016/j.neuroimage.2014.03.028>`_
+     doi:`10.1016/j.neuroimage.2014.03.028 <https://doi.org/10.1016/j.neuroimage.2014.03.028>`_
 
   .. [Parkes2018] Parkes L, Fulcher B, Yücel M, Fornito A, An evaluation of the efficacy, reliability,
      and sensitivity of motion correction strategies for resting-state functional MRI. NeuroImage. 2018.
@@ -653,7 +653,7 @@ the following invocation::
      doi:`10.1016/j.neuroimage.2011.10.018 <https://doi.org/10.1016/j.neuroimage.2011.10.018>`_
 
   .. [Power2016] Power JD, A simple but useful way to assess fMRI scan qualities. NeuroImage. 2016.
-     doi:`10.1016/j.neuroimage.2016.08.009 <http://doi.org/10.1016/j.neuroimage.2016.08.009>`_
+     doi:`10.1016/j.neuroimage.2016.08.009 <https://doi.org/10.1016/j.neuroimage.2016.08.009>`_
 
   .. [Provins2022] Provins C et al., Quality control and nuisance regression of fMRI, looking out
      where signal should not be found. Proc. Intl. Soc. Mag. Reson. Med. 31, London (UK). 2022
