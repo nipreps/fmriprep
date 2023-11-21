@@ -116,7 +116,7 @@ def prepare_timing_parameters(metadata: dict):
     slice_timing = timing_parameters.pop("SliceTiming", [])
 
     run_stc = len(slice_timing) > 1 and 'slicetiming' not in config.workflow.ignore
-    timing_parameters["SliceTimingCorrected"] = bool(run_stc)
+    timing_parameters["SliceTimingCorrected"] = run_stc
 
     if len(slice_timing) > 1:
         st = sorted(slice_timing)
