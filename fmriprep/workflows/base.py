@@ -168,20 +168,18 @@ def init_single_subject_wf(subject_id: str):
     from fmriprep.workflows.bold.base import init_bold_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
-    workflow.__desc__ = """
+    workflow.__desc__ = f"""
 Results included in this manuscript come from preprocessing
-performed using *fMRIPrep* {fmriprep_ver}
+performed using *fMRIPrep* {config.environment.version}
 (@fmriprep1; @fmriprep2; RRID:SCR_016216),
-which is based on *Nipype* {nipype_ver}
+which is based on *Nipype* {config.environment.nipype_version}
 (@nipype1; @nipype2; RRID:SCR_002502).
 
-""".format(
-        fmriprep_ver=config.environment.version, nipype_ver=config.environment.nipype_version
-    )
-    workflow.__postdesc__ = """
+"""
+    workflow.__postdesc__ = f"""
 
 Many internal operations of *fMRIPrep* use
-*Nilearn* {nilearn_ver} [@nilearn, RRID:SCR_001362],
+*Nilearn* {NILEARN_VERSION} [@nilearn, RRID:SCR_001362],
 mostly within the functional processing workflow.
 For more details of the pipeline, see [the section corresponding
 to workflows in *fMRIPrep*'s documentation]\
@@ -199,9 +197,7 @@ It is released under the [CC0]\
 
 ### References
 
-""".format(
-        nilearn_ver=NILEARN_VERSION
-    )
+"""
 
     subject_data = collect_data(
         config.execution.layout,
@@ -219,12 +215,10 @@ It is released under the [CC0]\
     anat_only = config.workflow.anat_only
     # Make sure we always go through these two checks
     if not anat_only and not subject_data['bold']:
-        task_id = config.execution.task_id
+        task_id = config.execution.task_id or '<all>'
         raise RuntimeError(
-            "No BOLD images found for participant {} and task {}. "
-            "All workflows require BOLD images.".format(
-                subject_id, task_id if task_id else '<all>'
-            )
+            f"No BOLD images found for participant {subject_id} and "
+            f"task {task_id}. All workflows require BOLD images."
         )
 
     bold_runs = [
@@ -613,14 +607,12 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
 
     # Append the functional section to the existing anatomical excerpt
     # That way we do not need to stream down the number of bold datasets
-    func_pre_desc = """
+    func_pre_desc = f"""
 Functional data preprocessing
 
-: For each of the {num_bold} BOLD runs found per subject (across all
-tasks and sessions), the following preprocessing was performed.
-""".format(
-        num_bold=len(bold_runs)
-    )
+: For each of the {len(bold_runs)} BOLD runs found per subject (across 
+all tasks and sessions), the following preprocessing was performed.
+"""
 
     for bold_series in bold_runs:
         bold_file = bold_series[0]

@@ -110,7 +110,7 @@ class Loader:
     .. automethod:: cached
     """
 
-    def __init__(self, anchor: Union[str, ModuleType]):
+    def __init__(self, anchor: str | ModuleType):
         self._anchor = anchor
         self.files = files(anchor)
         self.exit_stack = ExitStack()
