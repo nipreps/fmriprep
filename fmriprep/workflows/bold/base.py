@@ -540,7 +540,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
         bold_grayords_wf = init_bold_grayords_wf(
             grayord_density=config.workflow.cifti_output,
-            mem_gb=mem_gb["resampled"],
+            mem_gb=1,
             repetition_time=all_metadata[0]["RepetitionTime"],
         )
 

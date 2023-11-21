@@ -661,12 +661,14 @@ The BOLD time-series were resampled onto the left/right-symmetric template
     metric_dilate = pe.Node(
         MetricDilate(distance=10, nearest=True),
         name="metric_dilate",
+        mem_gb=1,
         n_procs=omp_nthreads,
     )
     mask_native = pe.Node(MetricMask(), name="mask_native")
     resample_to_fsLR = pe.Node(
         MetricResample(method='ADAP_BARY_AREA', area_surfs=True),
         name="resample_to_fsLR",
+        mem_gb=1,
         n_procs=omp_nthreads,
     )
     # ... line 89
@@ -812,6 +814,7 @@ data transformed to {mni_density} mm resolution MNI152NLin6Asym space.
             grayordinates=grayord_density,
         ),
         name="gen_cifti",
+        mem_gb=mem_gb,
     )
 
     workflow.connect([
