@@ -766,8 +766,6 @@ freesurfer/lib/tktools
 freesurfer/lib/vtk
 freesurfer/matlab
 freesurfer/mni-1.4
-freesurfer/mni/bin/autocrop
-freesurfer/mni/bin/check_scale
 freesurfer/mni/bin/correct_field
 freesurfer/mni/bin/crispify
 freesurfer/mni/bin/dcm2mnc
@@ -783,7 +781,6 @@ freesurfer/mni/bin/make_phantom
 freesurfer/mni/bin/make_template
 freesurfer/mni/bin/mincaverage
 freesurfer/mni/bin/mincbbox
-freesurfer/mni/bin/mincblur
 freesurfer/mni/bin/minccalc
 freesurfer/mni/bin/mincchamfer
 freesurfer/mni/bin/mincconcat
@@ -801,7 +798,6 @@ freesurfer/mni/bin/mincmakevector
 freesurfer/mni/bin/mincmath
 freesurfer/mni/bin/minc_modify_header
 freesurfer/mni/bin/mincpik
-freesurfer/mni/bin/mincresample
 freesurfer/mni/bin/mincreshape
 freesurfer/mni/bin/mincstats
 freesurfer/mni/bin/minctoecat
@@ -827,7 +823,6 @@ freesurfer/mni/bin/sharpen_volume
 freesurfer/mni/bin/spline_smooth
 freesurfer/mni/bin/transformtags
 freesurfer/mni/bin/upet2mnc
-freesurfer/mni/bin/volume_cog
 freesurfer/mni/bin/volume_hist
 freesurfer/mni/bin/volume_stats
 freesurfer/mni/bin/voxeltoworld
