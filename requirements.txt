@@ -404,7 +404,7 @@ six==1.16.0
     #   isodate
     #   osfclient
     #   python-dateutil
-smriprep==0.13.0
+smriprep==0.13.1
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
