@@ -582,8 +582,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     )
 
     FSLDIR = os.getenv('FSLDIR')
-    if FSLDIR:
-        flt_bbr.inputs.schedule = op.join(FSLDIR, 'etc/flirtsch/bbr.sch')
+    if FSLDIR and os.path.exists(schedule := op.join(FSLDIR, 'etc/flirtsch/bbr.sch')):
+        flt_bbr.inputs.schedule = schedule
     else:
         # Should mostly be hit while building docs
         LOGGER.warning("FSLDIR unset - using packaged BBR schedule")
