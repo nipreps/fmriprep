@@ -33,7 +33,7 @@ from ... import data
 
 
 @contextmanager
-def mock_config():
+def mock_config(bids_dir=None):
     """Create a mock config for documentation and testing purposes."""
     from ... import config
 
@@ -51,8 +51,10 @@ def mock_config():
     config.loggers.init()
     config.init_spaces()
 
+    bids_dir = bids_dir or data.load('tests/ds000005').absolute()
+
     config.execution.work_dir = Path(mkdtemp())
-    config.execution.bids_dir = data.load('tests/ds000005').absolute()
+    config.execution.bids_dir = bids_dir
     config.execution.fmriprep_dir = Path(mkdtemp())
     config.execution.init()
 
