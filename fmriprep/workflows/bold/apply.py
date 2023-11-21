@@ -15,6 +15,7 @@ from ...interfaces.resampling import (
 def init_bold_volumetric_resample_wf(
     *,
     metadata: dict,
+    mem_gb: dict[str, float],
     fieldmap_id: str | None = None,
     omp_nthreads: int = 1,
     name: str = 'bold_volumetric_resample_wf',
@@ -119,9 +120,14 @@ def init_bold_volumetric_resample_wf(
 
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref', mem_gb=0.3)
 
-    boldref2target = pe.Node(niu.Merge(2), name='boldref2target')
-    bold2target = pe.Node(niu.Merge(2), name='bold2target')
-    resample = pe.Node(ResampleSeries(), name="resample", n_procs=omp_nthreads)
+    boldref2target = pe.Node(niu.Merge(2), name='boldref2target', run_without_submitting=True)
+    bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
+    resample = pe.Node(
+        ResampleSeries(),
+        name="resample",
+        n_procs=omp_nthreads,
+        mem_gb=mem_gb['resampled'],
+    )
 
     workflow.connect([
         (inputnode, gen_ref, [
@@ -156,10 +162,14 @@ def init_bold_volumetric_resample_wf(
         name="distortion_params",
         run_without_submitting=True,
     )
-    fmap2target = pe.Node(niu.Merge(2), name='fmap2target')
-    inverses = pe.Node(niu.Function(function=_gen_inverses), name='inverses')
+    fmap2target = pe.Node(niu.Merge(2), name='fmap2target', run_without_submitting=True)
+    inverses = pe.Node(
+        niu.Function(function=_gen_inverses),
+        name='inverses',
+        run_without_submitting=True,
+    )
 
-    fmap_recon = pe.Node(ReconstructFieldmap(), name="fmap_recon")
+    fmap_recon = pe.Node(ReconstructFieldmap(), name="fmap_recon", mem_gb=1)
 
     workflow.connect([
         (inputnode, fmap_select, [

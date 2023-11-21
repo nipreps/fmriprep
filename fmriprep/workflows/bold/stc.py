@@ -124,7 +124,7 @@ BOLD runs were slice-time corrected to {tzero:0.3g}s ({frac:g} of slice acquisit
             slice_encoding_direction=metadata.get('SliceEncodingDirection', 'k'),
             tzero=tzero,
         ),
-        mem_gb=mem_gb.get('filesize', 1) * 2,
+        mem_gb=mem_gb['filesize'] * 2,
         name='slice_timing_correction',
     )
 
