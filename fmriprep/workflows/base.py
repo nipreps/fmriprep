@@ -215,12 +215,10 @@ It is released under the [CC0]\
     anat_only = config.workflow.anat_only
     # Make sure we always go through these two checks
     if not anat_only and not subject_data['bold']:
-        task_id = config.execution.task_id
+        task_id = config.execution.task_id or '<all>'
         raise RuntimeError(
-            'No BOLD images found for participant {} and task {}. '
-            'All workflows require BOLD images.'.format(
-                subject_id, task_id if task_id else '<all>'
-            )
+            f'No BOLD images found for participant {subject_id} and '
+            f'task {task_id}. All workflows require BOLD images.'
         )
 
     bold_runs = [
