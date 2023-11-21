@@ -192,21 +192,6 @@ def init_bold_wf(
         mem_gb["largemem"],
     )
 
-    functional_cache = {}
-    if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_derivatives, extract_entities
-
-        entities = extract_entities(bold_series)
-
-        for deriv_dir in config.execution.derivatives:
-            functional_cache.update(
-                collect_derivatives(
-                    derivatives_dir=deriv_dir,
-                    entities=entities,
-                    fieldmap_id=fieldmap_id,
-                )
-            )
-
     workflow = Workflow(name=_get_wf_name(bold_file, "bold"))
     workflow.__postdesc__ = """\
 All resamplings can be performed with *a single interpolation
@@ -266,7 +251,7 @@ configured with cubic B-spline interpolation.
 
     bold_fit_wf = init_bold_fit_wf(
         bold_series=bold_series,
-        precomputed=functional_cache,
+        precomputed=precomputed,
         fieldmap_id=fieldmap_id,
         omp_nthreads=omp_nthreads,
     )
