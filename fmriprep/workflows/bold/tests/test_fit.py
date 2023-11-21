@@ -25,7 +25,7 @@ def _quiet_logger():
 
 @pytest.fixture(scope="module")
 def bids_root(tmp_path_factory):
-    base = tmp_path_factory.mktemp("base")
+    base = tmp_path_factory.mktemp("boldfit")
     bids_dir = base / "bids"
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
     yield bids_dir
@@ -148,7 +148,7 @@ def test_bold_native_precomputes(
 
     if task == 'rest':
         bold_series = [
-            str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_bold.nii.gz'),
+            str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
         ]
     elif task == 'nback':
         bold_series = [
