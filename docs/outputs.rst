@@ -375,6 +375,8 @@ to perform more advanced denoising or alternative combination strategies.
    slice as reference).
    Alternatively, you could manually adjust the volume onsets (e.g. as mentioned in
    the example above from [0, 2, 4] to [1, 3, 5]) or the event onsets accordingly.
+   In contrast to volume onsets, event onsets need to be shifted *backward* by half a TR,
+   for example, from [5, 10, 15] to [4, 9, 14].
 
    Further information on this issue is found at
    `this blog post (with thanks to Russell Poldrack and Jeanette Mumford)
