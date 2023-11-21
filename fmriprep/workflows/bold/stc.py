@@ -53,7 +53,12 @@ class TShift(afni.TShift):
         return runtime
 
 
-def init_bold_stc_wf(metadata: dict, name='bold_stc_wf'):
+def init_bold_stc_wf(
+    *,
+    mem_gb: dict,
+    metadata: dict,
+    name='bold_stc_wf',
+):
     """
     Create a workflow for :abbr:`STC (slice-timing correction)`.
 
@@ -119,6 +124,7 @@ BOLD runs were slice-time corrected to {tzero:0.3g}s ({frac:g} of slice acquisit
             slice_encoding_direction=metadata.get('SliceEncodingDirection', 'k'),
             tzero=tzero,
         ),
+        mem_gb=mem_gb.get('filesize', 1) * 2,
         name='slice_timing_correction',
     )
 
