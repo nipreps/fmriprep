@@ -287,7 +287,9 @@ def init_bold_fit_wf(
         name="hmcref_buffer",
     )
     fmapref_buffer = pe.Node(niu.Function(function=_select_ref), name="fmapref_buffer")
-    hmc_buffer = pe.Node(niu.IdentityInterface(fields=["hmc_xforms"]), name="hmc_buffer")
+    hmc_buffer = pe.Node(
+        niu.IdentityInterface(fields=["hmc_xforms", "movpar_file", "rmsd_file"]), name="hmc_buffer"
+    )
     fmapreg_buffer = pe.Node(
         niu.IdentityInterface(fields=["boldref2fmap_xfm"]), name="fmapreg_buffer"
     )
