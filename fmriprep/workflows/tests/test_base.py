@@ -9,15 +9,42 @@ from ..base import get_estimator
 
 BASE_LAYOUT = {
     "01": {
-        "anat": [{"suffix": "T1w"}],
+        "anat": [
+            {"run": 1, "suffix": "T1w"},
+            {"run": 2, "suffix": "T1w"},
+            {"suffix": "T2w"},
+        ],
         "func": [
-            {
-                "task": "rest",
-                "run": i,
-                "suffix": "bold",
-                "metadata": {"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.6},
-            }
-            for i in range(1, 3)
+            *(
+                {
+                    "task": "rest",
+                    "run": i,
+                    "suffix": "bold",
+                    "metadata": {
+                        "RepetitionTime": 2.0,
+                        "PhaseEncodingDirection": "j",
+                        "TotalReadoutTime": 0.6,
+                        "EchoTime": 0.03,
+                        "SliceTiming": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
+                    },
+                }
+                for i in range(1, 3)
+            ),
+            *(
+                {
+                    "task": "nback",
+                    "echo": i,
+                    "suffix": "bold",
+                    "metadata": {
+                        "RepetitionTime": 2.0,
+                        "PhaseEncodingDirection": "j",
+                        "TotalReadoutTime": 0.6,
+                        "EchoTime": 0.015 * i,
+                        "SliceTiming": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
+                    },
+                }
+                for i in range(1, 4)
+            ),
         ],
         "fmap": [
             {"suffix": "phasediff", "metadata": {"EchoTime1": 0.005, "EchoTime2": 0.007}},
@@ -43,7 +70,9 @@ def test_get_estimator_none(tmp_path):
     # No IntendedFors/B0Fields
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
     layout = bids.BIDSLayout(bids_dir)
-    bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
+    bold_files = sorted(
+        layout.get(suffix='bold', task='rest', extension='.nii.gz', return_type='file')
+    )
 
     assert get_estimator(layout, bold_files[0]) == ()
     assert get_estimator(layout, bold_files[1]) == ()
@@ -65,7 +94,9 @@ def test_get_estimator_b0field_and_intendedfor(tmp_path):
     layout = bids.BIDSLayout(bids_dir)
     _ = find_estimators(layout=layout, subject='01')
 
-    bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
+    bold_files = sorted(
+        layout.get(suffix='bold', task='rest', extension='.nii.gz', return_type='file')
+    )
 
     assert get_estimator(layout, bold_files[0]) == ('epi',)
     assert get_estimator(layout, bold_files[1]) == ('auto_00000',)
@@ -92,7 +123,9 @@ def test_get_estimator_overlapping_specs(tmp_path):
     layout = bids.BIDSLayout(bids_dir)
     _ = find_estimators(layout=layout, subject='01')
 
-    bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
+    bold_files = sorted(
+        layout.get(suffix='bold', task='rest', extension='.nii.gz', return_type='file')
+    )
 
     # B0Fields take precedence
     assert get_estimator(layout, bold_files[0]) == ('epi',)
@@ -116,7 +149,9 @@ def test_get_estimator_multiple_b0fields(tmp_path):
     layout = bids.BIDSLayout(bids_dir)
     _ = find_estimators(layout=layout, subject='01')
 
-    bold_files = sorted(layout.get(suffix='bold', extension='.nii.gz', return_type='file'))
+    bold_files = sorted(
+        layout.get(suffix='bold', task='rest', extension='.nii.gz', return_type='file')
+    )
 
     # Always get an iterable; don't care if it's a list or tuple
     assert get_estimator(layout, bold_files[0]) == ['epi', 'phasediff']
