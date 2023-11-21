@@ -56,6 +56,8 @@ def mock_config(bids_dir=None):
     config.execution.work_dir = Path(mkdtemp())
     config.execution.bids_dir = bids_dir
     config.execution.fmriprep_dir = Path(mkdtemp())
+    config.execution.bids_database_dir = None
+    config.execution._layout = None
     config.execution.init()
 
     yield
