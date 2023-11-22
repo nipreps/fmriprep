@@ -16,7 +16,7 @@ if [ "${CHECK_TYPE}" == "doc" ]; then
     make html && make doctest
 elif [ "${CHECK_TYPE}" == "tests" ]; then
     pytest --doctest-modules --cov fmriprep --cov-report xml \
-        --junitxml=test-results.xml -v fmriprep
+        --junitxml=test-results.xml -v -n auto fmriprep
 else
     false
 fi
