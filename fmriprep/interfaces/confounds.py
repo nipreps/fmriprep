@@ -47,8 +47,8 @@ from nipype.interfaces.base import (
     traits,
 )
 from nipype.utils.filemanip import fname_presuffix
-from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
 from nireports.reportlets.modality.func import fMRIPlot
+from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
 
 LOGGER = logging.getLogger('nipype.interface')
 

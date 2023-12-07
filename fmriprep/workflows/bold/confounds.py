@@ -146,6 +146,7 @@ def init_bold_confs_wf(
         Mask of brain edge voxels
 
     """
+    from nireports.interfaces.nuisance import CompCorVariancePlot, ConfoundsCorrelationPlot
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.confounds import ExpandModel, SpikeRegressors
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
@@ -154,10 +155,6 @@ def init_bold_confs_wf(
     from niworkflows.interfaces.nibabel import ApplyMask, Binarize
     from niworkflows.interfaces.patches import RobustACompCor as ACompCor
     from niworkflows.interfaces.patches import RobustTCompCor as TCompCor
-    from nireports.interfaces.nuisance import (
-        CompCorVariancePlot,
-        ConfoundsCorrelationPlot,
-    )
     from niworkflows.interfaces.reportlets.masks import ROIsPlot
     from niworkflows.interfaces.utility import TSV2JSON, AddTSVHeader, DictMerge
 
