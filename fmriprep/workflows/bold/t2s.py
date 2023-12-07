@@ -169,7 +169,7 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     """
     from nipype.pipeline import engine as pe
     from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
-    from niworkflows.interfaces.reportlets.registration import (
+    from nireports.interfaces.reporting.base import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
 

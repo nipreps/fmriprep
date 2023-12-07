@@ -154,7 +154,7 @@ def init_bold_confs_wf(
     from niworkflows.interfaces.nibabel import ApplyMask, Binarize
     from niworkflows.interfaces.patches import RobustACompCor as ACompCor
     from niworkflows.interfaces.patches import RobustTCompCor as TCompCor
-    from niworkflows.interfaces.plotting import (
+    from nireports.interfaces.nuisance import (
         CompCorVariancePlot,
         ConfoundsCorrelationPlot,
     )
