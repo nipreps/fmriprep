@@ -39,7 +39,7 @@ from nipype.interfaces.base import (
     isdefined,
     traits,
 )
-from niworkflows.interfaces.reportlets import base as nrb
+from nireports.interfaces.reporting import base as nrb
 from smriprep.interfaces.freesurfer import ReconAll
 
 LOGGER = logging.getLogger('nipype.interface')

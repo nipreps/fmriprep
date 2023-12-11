@@ -31,7 +31,6 @@ from niworkflows.func.util import init_enhance_and_skullstrip_bold_wf
 from niworkflows.interfaces.header import ValidateImage
 from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 from niworkflows.interfaces.utility import KeySelect
-from niworkflows.utils.connections import listify
 from sdcflows.workflows.apply.correction import init_unwarp_wf
 from sdcflows.workflows.apply.registration import init_coeff2epi_wf
 
