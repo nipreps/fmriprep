@@ -185,7 +185,7 @@ def init_func_fit_reports_wf(
         Template space and specifications
 
     """
-    from nireports.interfaces.reporting.base import (
+    from niworkflows.interfaces.reportlets.registration import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
     from sdcflows.interfaces.reportlets import FieldmapReportlet

@@ -168,10 +168,10 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         a before/after figure comparing the reference BOLD image and T2\* map
     """
     from nipype.pipeline import engine as pe
-    from nireports.interfaces.reporting.base import (
+    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    from niworkflows.interfaces.reportlets.registration import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
-    from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
     workflow = pe.Workflow(name=name)
 
