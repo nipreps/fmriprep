@@ -22,7 +22,7 @@ dependencies = [
     "looseversion",
     "nibabel >= 4.0.1",
     "nipype >= 1.8.5",
-    "nireports >= 23.1.0",
+    "nireports @ git+https://github.com/nipreps/nireports.git@main",
     "nitime",
     "nitransforms >= 21.0.0",
     "niworkflows @ git+https://github.com/nipreps/niworkflows.git@master",
