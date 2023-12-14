@@ -37,16 +37,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
-      - name: Install black/isort
-        run: python -m pip install black isort[colors]
+      - name: Install ruff
+        run: python -m pip install ruff
       - name: Check fMRIPrep
         run: |
-          python -m black --diff --color --check fmriprep
-          python -m isort --diff --color --check fmriprep
+          python -m ruff check --diff --check fmriprep
+          python -m ruff format --diff --check fmriprep
       - name: Check wrapper
         run: |
-          python -m black --diff --color --check wrapper
-          python -m isort --diff --color --check wrapper
+          python -m ruff check --diff --check wrapper
+          python -m ruff format --diff --check wrapper
   
   codespell:
     name: Check for spelling errors

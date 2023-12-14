@@ -63,10 +63,9 @@ universal = true
 # Developer tool configurations
 #
 
-[tool.black]
+[tool.ruff]
 line-length = 99
 target-version = ['py39']
-skip-string-normalization = true
 
-[tool.isort]
-profile = 'black'
+[tool.ruff.format]
+quote-style = "preserve"

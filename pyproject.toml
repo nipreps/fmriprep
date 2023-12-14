@@ -57,9 +57,8 @@ doc = [
     "sphinx_rtd_theme>=0.5.2",
 ]
 dev = [
-    "black ~= 22.3.0",
     "pre-commit",
-    "isort ~= 5.10.1",
+    "ruff >= 0.1.8",
     "flake8-pyproject",
 ]
 duecredit = ["duecredit"]
@@ -121,23 +120,20 @@ version-file = "fmriprep/_version.py"
 # Developer tool configurations
 #
 
-[tool.black]
+[tool.ruff]
 line-length = 99
-target-version = ['py39']
-skip-string-normalization = true
 
-[tool.isort]
-profile = 'black'
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+ignore = ["E203"]
+exclude = ["*build/"]
 
-[tool.flake8]
-max-line-length = "99"
-doctests = "False"
-exclude = "*build/"
-ignore = ["W503", "E203"]
-per-file-ignores = [
-    "**/__init__.py : F401",
-    "docs/conf.py : E265",
-]
+[tool.ruff.format]
+quote-style = "preserve"
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py"  = ["E402"]
+""docs/conf.py"  = ["E265"]
 
 [tool.pytest.ini_options]
 norecursedirs = [".git"]
