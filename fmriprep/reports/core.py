@@ -28,7 +28,7 @@ MAX_SES_AGR = 4
 """Maximum number of sessions aggregated in one subject's visual report. If exceeded, visual reports are separated per session."""
 
 
-def generate_reports(subject_list, output_dir, run_uuid, config=None, work_dir=None):
+def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, work_dir=None):
     """Generate reports for a list of subjects."""
     from .. import config, data
 
@@ -43,22 +43,22 @@ def generate_reports(subject_list, output_dir, run_uuid, config=None, work_dir=N
 
         session_list = config.execution.layout.get_sessions(subject=subject_label)
 
-        if config is not None:
+        if bootstrap_file is not None:
             # If a config file is precised, we do not override it
             html_report = "report.html"
         elif len(session_list) < MAX_SES_AGR:
             # If there is only a few session for this subject, we aggregate them in a single visual report.
-            config = data.load("reports-spec.yml")
+            bootstrap_file = data.load("reports-spec.yml")
             html_report = "report.html"
         else:
             # Beyond a threshold, we separate the anatomical report from the functional.
-            config = data.load("reports-spec-anat.yml")
+            bootstrap_file = data.load("reports-spec-anat.yml")
             html_report = ''.join([f"sub-{subject_label}", "_anat.html"])
 
         robj = Report(
             output_dir,
             run_uuid,
-            bootstrap_file=config,
+            bootstrap_file=bootstrap_file,
             out_filename=html_report,
             reportlets_dir=reportlets_dir,
             plugins=None,
