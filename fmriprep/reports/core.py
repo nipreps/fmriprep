@@ -95,11 +95,11 @@ def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, wo
                     **entities,
                 )
 
-            # Add up the nbr of subject for which report generation failed
-            try:
-                robj.generate_report()
-            except:
-                errno += 1
+                # Add up the nbr of report generation failure
+                try:
+                    robj.generate_report()
+                except:
+                    errno += 1
 
     if errno:
         import logging
