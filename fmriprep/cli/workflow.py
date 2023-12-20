@@ -92,6 +92,9 @@ def build_workflow(config_file, retval):
             if config.execution.bids_filters
             else None
         )
+        if not isinstance(session_list, list):
+            session_list = [session_list]
+
         retval["return_code"] = generate_reports(
             config.execution.participant_label,
             config.execution.fmriprep_dir,

@@ -217,6 +217,8 @@ def main():
             if config.execution.bids_filters
             else None
         )
+        if not isinstance(session_list, list):
+            session_list = [session_list]
 
         failed_reports = generate_reports(
             config.execution.participant_label,
