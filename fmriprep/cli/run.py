@@ -212,10 +212,17 @@ def main():
         from fmriprep.reports.core import generate_reports
 
         # Generate reports phase
+        session_list = (
+            config.execution.bids_filters["bold"]["session"]
+            if config.execution.bids_filters
+            else None
+        )
+
         failed_reports = generate_reports(
             config.execution.participant_label,
             config.execution.fmriprep_dir,
             config.execution.run_uuid,
+            session_list=session_list,
         )
         write_derivative_description(config.execution.bids_dir, config.execution.fmriprep_dir)
         write_bidsignore(config.execution.fmriprep_dir)

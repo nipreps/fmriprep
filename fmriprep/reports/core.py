@@ -28,7 +28,9 @@ MAX_SES_AGR = 4
 """Maximum number of sessions aggregated in one subject's visual report. If exceeded, visual reports are separated per session."""
 
 
-def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, work_dir=None):
+def generate_reports(
+    subject_list, output_dir, run_uuid, session_list=None, bootstrap_file=None, work_dir=None
+):
     """Generate reports for a list of subjects."""
     from .. import config, data
 
@@ -41,12 +43,14 @@ def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, wo
         entities = {}
         entities["subject"] = subject_label
 
-        session_list = config.execution.layout.get_sessions(subject=subject_label)
+        # The number of sessions is intentionally not based on session_list but on the total number of sessions, because
+        # I want the final derivatives folder to be the same whether sessions were ran one at a time or all-together.
+        n_ses = len(config.execution.layout.get_sessions(subject=subject_label))
 
         if bootstrap_file is not None:
             # If a config file is precised, we do not override it
             html_report = "report.html"
-        elif len(session_list) < MAX_SES_AGR:
+        elif n_ses < MAX_SES_AGR:
             # If there is only a few session for this subject, we aggregate them in a single visual report.
             bootstrap_file = data.load("reports-spec.yml")
             html_report = "report.html"
@@ -74,10 +78,13 @@ def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, wo
         except:
             errno += 1
 
-        if len(session_list) >= MAX_SES_AGR:
+        if n_ses >= MAX_SES_AGR:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
+            if session_list is None:
+                session_list = config.execution.layout.get_sessions(subject=subject_label)
+
             for session_label in session_list:
-                config = data.load("reports-spec-func.yml")
+                bootstrap_file = data.load("reports-spec-func.yml")
                 html_report = ''.join(
                     [f"sub-{subject_label}", f"_ses-{session_label}", "_func.html"]
                 )
@@ -86,7 +93,7 @@ def generate_reports(subject_list, output_dir, run_uuid, bootstrap_file=None, wo
                 robj = Report(
                     output_dir,
                     run_uuid,
-                    bootstrap_file=config,
+                    bootstrap_file=bootstrap_file,
                     out_filename=html_report,
                     reportlets_dir=reportlets_dir,
                     plugins=None,

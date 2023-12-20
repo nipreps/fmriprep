@@ -86,10 +86,17 @@ def build_workflow(config_file, retval):
     # Called with reports only
     if config.execution.reports_only:
         build_log.log(25, "Running --reports-only on participants %s", ", ".join(subject_list))
+
+        session_list = (
+            config.execution.bids_filters["bold"]["session"]
+            if config.execution.bids_filters
+            else None
+        )
         retval["return_code"] = generate_reports(
             config.execution.participant_label,
             config.execution.fmriprep_dir,
             config.execution.run_uuid,
+            session_list=session_list,
         )
         return retval
 
