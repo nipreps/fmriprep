@@ -83,6 +83,9 @@ def generate_reports(
             if session_list is None:
                 session_list = config.execution.layout.get_sessions(subject=subject_label)
 
+            # Drop ses- prefixes
+            session_list = [ses[4:] if ses.startswith("ses-") else ses for ses in session_list]
+
             for session_label in session_list:
                 bootstrap_file = data.load("reports-spec-func.yml")
                 html_report = ''.join(
