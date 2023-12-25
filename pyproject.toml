@@ -139,8 +139,12 @@ per-file-ignores = [
 ]
 
 [tool.pytest.ini_options]
+minversion = "6"
+testpaths = ["fmriprep/tests"]
+log_cli_level = "INFO"
+xfail_strict = true
 norecursedirs = [".git"]
-addopts = "-svx --doctest-modules"
+addopts = ["-svx", "-ra", "--strict-config", "--strict-markers", "--doctest-modules"]
 doctest_optionflags = "ALLOW_UNICODE NORMALIZE_WHITESPACE ELLIPSIS"
 env = "PYTHONHASHSEED=0"
 filterwarnings = ["ignore::DeprecationWarning"]
@@ -173,7 +177,7 @@ extend-select = [
   "PT",
   "Q",
 ]
-extend-ignore = [
+ignore = [
   "S311",  # We are not using random for cryptographic purposes
   "ISC001",
   "S603",
