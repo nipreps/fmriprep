@@ -32,7 +32,7 @@ dependencies = [
     "psutil >= 5.4",
     "pybids >= 0.15.2",
     "requests",
-    "sdcflows >= 2.6.0",
+    "sdcflows @ git+https://github.com/nipreps/sdcflows.git@rel/2.8.0",
     "smriprep >= 0.13.2",
     "tedana >= 23.0.2",
     "templateflow >= 23.0.0",
