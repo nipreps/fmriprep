@@ -38,7 +38,7 @@ def generate_reports(
     if work_dir is not None:
         reportlets_dir = Path(work_dir) / "reportlets"
 
-    report_errors = []
+    error_list = ""
     for subject_label in subject_list:
         entities = {}
         entities["subject"] = subject_label
@@ -77,6 +77,7 @@ def generate_reports(
             robj.generate_report()
         except:
             errno += 1
+            error_list = error_list + f"{subject_label}, "
 
         if n_ses >= MAX_SES_AGR:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
@@ -115,12 +116,8 @@ def generate_reports(
         import logging
 
         logger = logging.getLogger("cli")
-        error_list = ", ".join(
-            f"{subid} ({err})" for subid, err in zip(subject_list, report_errors) if err
-        )
-        logger.error(
-            "Preprocessing did not finish successfully. Errors occurred while processing "
-            "data from participants: %s. Check the HTML reports for details.",
+        logger.debug(
+            "Report generation was not successful for the following participants : %s.",
             error_list,
         )
     return errno
