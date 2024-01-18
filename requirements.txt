@@ -54,11 +54,11 @@ contourpy==1.2.0
     # via
     #   bokeh
     #   matplotlib
-cryptography==41.0.5
+cryptography==41.0.7
     # via secretstorage
 cycler==0.12.1
     # via matplotlib
-datalad==0.19.3
+datalad==0.19.4
     # via
     #   datalad-next
     #   datalad-osf
@@ -87,7 +87,7 @@ greenlet==3.0.1
     # via sqlalchemy
 h5py==3.10.0
     # via nitransforms
-humanize==4.8.0
+humanize==4.9.0
     # via
     #   datalad
     #   datalad-next
@@ -95,12 +95,12 @@ idna==3.4
     # via requests
 imageio==2.33.0
     # via scikit-image
-importlib-metadata==6.8.0
+importlib-metadata==7.0.0
     # via keyring
 importlib-resources==6.1.1
     # via
+    #   nireports
     #   niworkflows
-    #   sdcflows
     #   templateflow
 indexed-gzip==1.8.7
     # via smriprep
@@ -163,8 +163,8 @@ matplotlib==3.8.2
     #   tedana
 migas==0.4.0
     # via
-    #   file:///home/chris/projects/nipreps/fmriprep-ng
     #   fmriprep
+    #   sdcflows
 more-itertools==10.1.0
     # via jaraco-classes
 msgpack==1.0.7
@@ -202,7 +202,7 @@ nipype==1.8.6
     #   niworkflows
     #   sdcflows
     #   smriprep
-nireports==23.1.0
+nireports==23.2.0
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -216,7 +216,7 @@ nitransforms==23.0.1
     #   fmriprep (pyproject.toml)
     #   niworkflows
     #   sdcflows
-niworkflows==1.9.0
+niworkflows==1.10.0
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -289,7 +289,7 @@ pillow==10.1.0
     #   imageio
     #   matplotlib
     #   scikit-image
-platformdirs==4.0.0
+platformdirs==4.1.0
     # via datalad
 prometheus-client==0.19.0
     # via codecarbon
@@ -302,7 +302,7 @@ psutil==5.9.6
     #   fmriprep (pyproject.toml)
 py-cpuinfo==9.0.0
     # via codecarbon
-pybids==0.16.3
+pybids==0.16.4
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -329,7 +329,7 @@ python-dateutil==2.8.2
     #   nipype
     #   pandas
     #   prov
-python-gitlab==4.1.1
+python-gitlab==4.2.0
     # via datalad
 pytz==2023.3.post1
     # via
@@ -382,7 +382,7 @@ scipy==1.11.4
     #   scikit-learn
     #   sdcflows
     #   tedana
-sdcflows==2.6.0
+sdcflows==2.8.0
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -392,10 +392,8 @@ seaborn==0.13.0
     #   niworkflows
 secretstorage==3.3.3
     # via keyring
-sentry-sdk==1.36.0
-    # via
-    #   file:///home/chris/projects/nipreps/fmriprep-ng
-    #   fmriprep
+sentry-sdk==1.39.0
+    # via fmriprep
 simplejson==3.19.2
     # via nipype
 six==1.16.0
@@ -404,7 +402,7 @@ six==1.16.0
     #   isodate
     #   osfclient
     #   python-dateutil
-smriprep==0.13.1
+smriprep==0.13.2
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -435,7 +433,7 @@ tifffile==2023.9.26
 toml==0.10.2
     # via
     #   fmriprep
-    #   fmriprep (pyproject.toml)
+    #   sdcflows
 tornado==6.3.3
     # via bokeh
 tqdm==4.66.1

@@ -38,7 +38,7 @@ def generate_reports(
     if work_dir is not None:
         reportlets_dir = Path(work_dir) / "reportlets"
 
-    error_list = ""
+    errors = []
     for subject_label in subject_list:
         entities = {}
         entities["subject"] = subject_label
@@ -72,12 +72,18 @@ def generate_reports(
         )
 
         # Count nbr of subject for which report generation failed
-        errno = 0
         try:
             robj.generate_report()
         except:
-            errno += 1
-            error_list = error_list + f"{subject_label}, "
+            import sys
+            import traceback
+
+            # Store the list of subjects for which report generation failed
+            errors.append(subject_label)
+            traceback.print_exception(
+                *sys.exc_info(),
+                file=str(Path(output_dir) / "logs" / f"report-{run_uuid}-{subject_label}.err"),
+            )
 
         if n_ses >= MAX_SES_AGR:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
@@ -106,18 +112,18 @@ def generate_reports(
                     **entities,
                 )
 
-                # Add up the nbr of report generation failure
                 try:
                     robj.generate_report()
                 except:
-                    errno += 1
+                    # Store the list of subjects for which report generation failed
+                    errors.append(subject_label)
+                    traceback.print_exception(
+                        *sys.exc_info(),
+                        file=str(
+                            Path(output_dir)
+                            / "logs"
+                            / f"report-{run_uuid}-{subject_label}-func.err"
+                        ),
+                    )
 
-    if errno:
-        import logging
-
-        logger = logging.getLogger("cli")
-        logger.debug(
-            "Report generation was not successful for the following participants : %s.",
-            error_list,
-        )
-    return errno
+    return errors

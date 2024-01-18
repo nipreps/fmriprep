@@ -1,4 +1,4 @@
-23.2.0 (To be determined)
+23.2.0 (January 10, 2024)
 =========================
 New feature release in the 23.2.x series.
 
@@ -33,17 +33,27 @@ This release resolves a number of issues with fieldmaps inducing distortions
 during correction. Phase difference and direct fieldmaps are now masked correctly,
 preventing the overestimation of distortions outside the brain. Additionally,
 we now implement Jacobian weighting during unwarping, which corrects for compression
-and expansion effects on signal intensity.
+and expansion effects on signal intensity. To disable Jacobian weighting, use
+``--ignore fmap-jacobian``.
 
 Finally, a new resampling method has been added, to better account for
 susceptibility distortion and motion in a single shot resampling to a volumetric
 target space. We anticipate extending this to surface targets in the future.
 
+* FIX: Restore --ignore sbref functionality (#3180)
+* FIX: Retrieve atlas ROIs at requested density (#3179)
+* FIX: Keep minctracc executable in FreeSurfer installation (#3175)
+* FIX: Exclude echo entity from optimally combined derivatives (#3166)
+* FIX: Disable boldref-space outputs unless requested (#3159)
+* FIX: Tag memory estimates in resamplers (#3150)
 * FIX: Final revisions for next branch (#3134)
 * FIX: Minor fixes to work with MSMSulc-enabled smriprep-next (#3098)
 * FIX: Connect EPI-to-fieldmap transform (#3099)
 * FIX: Use Py2-compatible version file template for fmriprep-docker (#3101)
 * FIX: Update connections to unwarp_wf, convert ITK transforms to text (#3077)
+* ENH: Allow --ignore fmap-jacobian to disable Jacobian determinant modulation during fieldmap correction (#3186)
+* ENH: Exclude non-steady-state volumes from confound correlation plot (#3171)
+* ENH: Pass FLAIR images to anatomical workflow builder to include in boilerplate (#3146)
 * ENH: Restore carpetplot and other final adjustments (#3131)
 * ENH: Restore CIFTI-2 generation (#3129)
 * ENH: Restore resampling to surface GIFTIs (#3126)
@@ -53,13 +63,25 @@ target space. We anticipate extending this to surface targets in the future.
 * ENH: Add MSMSulc (#3085)
 * ENH: Add reporting workflow for BOLD fit (#3082)
 * ENH: Generate anatomical derivatives useful for resampling (#3081)
+* RF: Load reportlets interfaces from nireports rather than niworkflows (#3176, #3184)
+* RF: Separate goodvoxels mask creation from fsLR resampling (#3170)
 * RF: Write out anatomical template derivatives (#3136)
 * RF: Update primary bold workflow to incorporate single shot resampling (#3114)
 * RF: Update derivative cache spec, calculate per-BOLD, reuse boldref2fmap (#3078)
 * RF: Split fMRIPrep into fit and derivatives workflows (#2913)
+* RPT: Rename CSF/WM confounds in fMRIPlot (#3172)
+* TST: Add smoke tests for full workflow and most branching flags (#3155)
+* TST: Add smoke-tests for bold_fit_wf (#3152)
 * DOC: Fix documentation and description for init_bold_grayords_wf (#3051)
+* DOC: Minor updates in outputs.rst (#3148)
+* STY: Apply a couple refurb suggestions (#3151)
 * STY: Fix flake8 warnings (#3044)
 * STY: Apply pyupgrade suggestions (#3043)
+* MNT: Restore mritotal subcommands to Dockerfile (#3149)
+* MNT: Update smriprep to 0.13.1 (#3153)
+* MNT: optimise size of PNG files (#3145)
+* MNT: update vendored docs script ``github_link.py`` (#3144)
+* MNT: Update tedana pin, test on Python 3.12 (#3141)
 * MNT: Bump environment (#3132)
 * MNT: Bump version requirements (#3107)
 * MNT: http:// → https:// (#3097)
@@ -71,6 +93,7 @@ target space. We anticipate extending this to surface targets in the future.
 * MNT: update update_zenodo.py script (#3042)
 * MNT: Fix welcome message formatting and instructions (#3039)
 * MNT: Python 3.11 should be supported (#3038)
+* CI: Bump actions/setup-python from 4 to 5 (#3181)
 * CI: Stop testing legacy layout (#3079)
 * CI: Improve tag detection for docker builds (#3066)
 * CI: Clean up pre-release builds (#3040)

@@ -9,9 +9,21 @@
       "type": "Researcher"
     },
     {
+      "affiliation": "Department of Pediatrics, University of Minnesota, MN, USA",
+      "name": "Madison, Thomas",
+      "orcid": "0000-0003-3030-6580",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Florey Institute of Neuroscience and Mental Health",
       "name": "Smith, Robert E.",
       "orcid": "0000-0003-3636-4642",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Neurospin, CEA",
+      "name": "Papadopoulos, Dimitri",
+      "orcid": "0000-0002-1242-8990",
       "type": "Researcher"
     },
     {
@@ -27,18 +39,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Neurospin, CEA",
-      "name": "Papadopoulos, Dimitri",
-      "orcid": "0000-0002-1242-8990",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Dartmouth College: Hanover, NH, United States",
-      "name": "Halchenko, Yaroslav O.",
-      "orcid": "0000-0003-3456-2493",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Department of Neuroscience, University of Pennsylvania, PA, USA",
       "name": "Tooley, Ursula A.",
       "orcid": "0000-0001-6377-3885",
@@ -51,9 +51,9 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "University of Texas at Austin",
-      "name": "de la Vega, Alejandro",
-      "orcid": "0000-0001-9062-3778",
+      "affiliation": "Dartmouth College: Hanover, NH, United States",
+      "name": "Halchenko, Yaroslav O.",
+      "orcid": "0000-0003-3456-2493",
       "type": "Researcher"
     },
     {
@@ -63,9 +63,9 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Montreal Neurological Institute, McGill University",
-      "name": "Urchs, Sebastian",
-      "orcid": "0000-0001-5504-8579",
+      "affiliation": "University of Texas at Austin",
+      "name": "de la Vega, Alejandro",
+      "orcid": "0000-0001-9062-3778",
       "type": "Researcher"
     },
     {
@@ -75,15 +75,27 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
-      "name": "Waller, Lea",
-      "orcid": "0000-0002-3239-6957",
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "Urchs, Sebastian",
+      "orcid": "0000-0001-5504-8579",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Machine Learning Team, National Institute of Mental Health, USA",
+      "name": "Nielson, Dylan M.",
+      "orcid": "0000-0003-4613-6643",
       "type": "Researcher"
     },
     {
       "affiliation": "Child Mind Institute",
       "name": "Heinsfeld, Anibal S.",
       "orcid": "0000-0002-2050-0614",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Charite Universitatsmedizin Berlin, Germany",
+      "name": "Waller, Lea",
+      "orcid": "0000-0002-3239-6957",
       "type": "Researcher"
     },
     {
@@ -96,12 +108,6 @@
       "affiliation": "Department of Psychology, University of California, Berkeley",
       "name": "Lurie, Daniel J.",
       "orcid": "0000-0001-8012-6399",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Department of Psychology, Columbia University",
-      "name": "Jacoby, Nir",
-      "orcid": "0000-0001-7936-9991",
       "type": "Researcher"
     },
     {
@@ -192,6 +198,18 @@
       "affiliation": "Max Planck Institute for Empirical Aesthetics",
       "name": "Isik, Ayse Ilkay",
       "orcid": "0000-0002-1652-9297",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Columbia University",
+      "name": "Jacoby, Nir",
+      "orcid": "0000-0001-7936-9991",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, University of Washington",
+      "name": "Kruper, John",
+      "orcid": "0000-0003-0081-391X",
       "type": "Researcher"
     },
     {
@@ -301,9 +319,9 @@
       "orcid": "0000-0002-1668-9629"
     },
     {
-      "affiliation": "Montreal Neurological Institute, McGill University",
-      "name": "DuPre, Elizabeth",
-      "orcid": "0000-0003-1358-196X"
+      "affiliation": "Department of Psychology, Florida International University",
+      "name": "Salo, Taylor",
+      "orcid": "0000-0001-9813-3167"
     },
     {
       "affiliation": "Neuroscience Program, University of Iowa",
@@ -311,9 +329,9 @@
       "orcid": "0000-0002-4892-2659"
     },
     {
-      "affiliation": "Department of Psychology, Florida International University",
-      "name": "Salo, Taylor",
-      "orcid": "0000-0001-9813-3167"
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "DuPre, Elizabeth",
+      "orcid": "0000-0003-1358-196X"
     },
     {
       "affiliation": "Department of Psychology, Stanford University",
@@ -329,11 +347,6 @@
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Blair, Ross W.",
       "orcid": "0000-0003-3007-1056"
-    },
-    {
-      "affiliation": "Machine Learning Team, National Institute of Mental Health",
-      "name": "Nielson, Dylan M.",
-      "orcid": "0000-0003-4613-6643"
     },
     {
       "affiliation": "Department of Psychology, Stanford University",

@@ -380,6 +380,7 @@ configured with cubic B-spline interpolation.
         fieldmap_id=fieldmap_id if not multiecho else None,
         omp_nthreads=omp_nthreads,
         mem_gb=mem_gb,
+        jacobian='fmap-jacobian' not in config.workflow.ignore,
         name='bold_anat_wf',
     )
     bold_anat_wf.inputs.inputnode.resolution = "native"
@@ -437,6 +438,7 @@ configured with cubic B-spline interpolation.
             fieldmap_id=fieldmap_id if not multiecho else None,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
+            jacobian='fmap-jacobian' not in config.workflow.ignore,
             name='bold_std_wf',
         )
         ds_bold_std_wf = init_ds_volumes_wf(
@@ -521,6 +523,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             fieldmap_id=fieldmap_id if not multiecho else None,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
+            jacobian='fmap-jacobian' not in config.workflow.ignore,
             name='bold_MNI6_wf',
         )
 

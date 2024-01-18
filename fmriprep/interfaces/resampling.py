@@ -49,6 +49,7 @@ class ResampleSeriesInputSpec(TraitedSpec):
         "k-",
         desc="the phase-encoding direction corresponding to in_data",
     )
+    jacobian = traits.Bool(mandatory=True, desc="Whether to apply Jacobian correction")
     num_threads = traits.Int(1, usedefault=True, desc="Number of threads to use for resampling")
     output_data_type = traits.Str("float32", usedefault=True, desc="Data type of output image")
     order = traits.Int(3, usedefault=True, desc="Order of interpolation (0=nearest, 3=cubic)")
@@ -105,6 +106,7 @@ class ResampleSeries(SimpleInterface):
             transforms=transforms,
             fieldmap=fieldmap,
             pe_info=pe_info,
+            jacobian=self.inputs.jacobian,
             nthreads=self.inputs.num_threads,
             output_dtype=self.inputs.output_data_type,
             order=self.inputs.order,
@@ -217,6 +219,7 @@ def resample_vol(
     data: np.ndarray,
     coordinates: np.ndarray,
     pe_info: tuple[int, float],
+    jacobian: bool,
     hmc_xfm: np.ndarray | None,
     fmap_hz: np.ndarray,
     output: np.dtype | np.ndarray | None = None,
@@ -282,8 +285,6 @@ def resample_vol(
     vsm = fmap_hz * pe_info[1]
     coordinates[pe_info[0], ...] += vsm
 
-    jacobian = 1 + np.gradient(vsm, axis=pe_info[0])
-
     result = ndi.map_coordinates(
         data,
         coordinates,
@@ -293,7 +294,10 @@ def resample_vol(
         cval=cval,
         prefilter=prefilter,
     )
-    result *= jacobian
+
+    if jacobian:
+        result *= 1 + np.gradient(vsm, axis=pe_info[0])
+
     return result
 
 
@@ -301,6 +305,7 @@ async def resample_series_async(
     data: np.ndarray,
     coordinates: np.ndarray,
     pe_info: list[tuple[int, float]],
+    jacobian: bool,
     hmc_xfms: list[np.ndarray] | None,
     fmap_hz: np.ndarray,
     output_dtype: np.dtype | None = None,
@@ -361,6 +366,7 @@ async def resample_series_async(
             data,
             coordinates,
             pe_info[0],
+            jacobian,
             hmc_xfms[0] if hmc_xfms else None,
             fmap_hz,
             output_dtype,
@@ -384,6 +390,7 @@ async def resample_series_async(
                     data=volume,
                     coordinates=coordinates,
                     pe_info=pe_info[volid],
+                    jacobian=jacobian,
                     hmc_xfm=hmc_xfms[volid] if hmc_xfms else None,
                     fmap_hz=fmap_hz,
                     output=out_array[..., volid],
@@ -407,6 +414,7 @@ def resample_series(
     data: np.ndarray,
     coordinates: np.ndarray,
     pe_info: list[tuple[int, float]],
+    jacobian: bool,
     hmc_xfms: list[np.ndarray] | None,
     fmap_hz: np.ndarray,
     output_dtype: np.dtype | None = None,
@@ -467,6 +475,7 @@ def resample_series(
             data=data,
             coordinates=coordinates,
             pe_info=pe_info,
+            jacobian=jacobian,
             hmc_xfms=hmc_xfms,
             fmap_hz=fmap_hz,
             output_dtype=output_dtype,
@@ -485,6 +494,7 @@ def resample_image(
     transforms: nt.TransformChain,
     fieldmap: nb.Nifti1Image | None,
     pe_info: list[tuple[int, float]] | None,
+    jacobian: bool = True,
     nthreads: int = 1,
     output_dtype: np.dtype | str | None = 'f4',
     order: int = 3,
@@ -566,6 +576,7 @@ def resample_image(
         data=source.get_fdata(dtype='f4'),
         coordinates=mapped_coordinates.T.reshape((3, *target.shape[:3])),
         pe_info=pe_info,
+        jacobian=jacobian,
         hmc_xfms=hmc_xfms,
         fmap_hz=fieldmap.get_fdata(dtype='f4'),
         output_dtype=output_dtype,

@@ -838,7 +838,7 @@ def init_bold_native_wf(
 
     # Resample to boldref
     boldref_bold = pe.Node(
-        ResampleSeries(),
+        ResampleSeries(jacobian="fmap-jacobian" not in config.workflow.ignore),
         name="boldref_bold",
         n_procs=omp_nthreads,
         mem_gb=mem_gb["resampled"],

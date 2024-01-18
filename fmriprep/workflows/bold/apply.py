@@ -16,6 +16,7 @@ def init_bold_volumetric_resample_wf(
     *,
     metadata: dict,
     mem_gb: dict[str, float],
+    jacobian: bool,
     fieldmap_id: str | None = None,
     omp_nthreads: int = 1,
     name: str = 'bold_volumetric_resample_wf',
@@ -123,7 +124,7 @@ def init_bold_volumetric_resample_wf(
     boldref2target = pe.Node(niu.Merge(2), name='boldref2target', run_without_submitting=True)
     bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
     resample = pe.Node(
-        ResampleSeries(),
+        ResampleSeries(jacobian=jacobian),
         name="resample",
         n_procs=omp_nthreads,
         mem_gb=mem_gb['resampled'],
