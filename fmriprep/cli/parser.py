@@ -402,6 +402,14 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         "correction. Useful for further Tedana processing post-fMRIPrep.",
     )
     g_outputs.add_argument(
+        "--max-ses-agr",
+        action="store",
+        type=PositiveInt,
+        default=4,
+        help="Maximum number of sessions aggregated in one subject's visual report."
+        "If exceeded, visual reports are separated per session.",
+    )
+    g_outputs.add_argument(
         "--medial-surface-nan",
         required=False,
         action="store_true",

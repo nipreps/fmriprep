@@ -417,6 +417,8 @@ class execution(_Config):
     """Folder where derivatives will be stored."""
     me_output_echos = False
     """Output individual echo time series with slice, motion and susceptibility correction"""
+    max_ses_agr = None
+    """Maximum number of sessions aggregated in one subject's visual report."""
     output_layout = None
     """Layout of derivatives within output_dir."""
     output_spaces = None

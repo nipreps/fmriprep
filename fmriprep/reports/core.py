@@ -24,9 +24,6 @@ from pathlib import Path
 
 from nireports.assembler.report import Report
 
-MAX_SES_AGR = 4
-"""Maximum number of sessions aggregated in one subject's visual report. If exceeded, visual reports are separated per session."""
-
 
 def generate_reports(
     subject_list, output_dir, run_uuid, session_list=None, bootstrap_file=None, work_dir=None
@@ -50,7 +47,7 @@ def generate_reports(
         if bootstrap_file is not None:
             # If a config file is precised, we do not override it
             html_report = "report.html"
-        elif n_ses < MAX_SES_AGR:
+        elif n_ses < config.execution.max_ses_agr:
             # If there is only a few session for this subject, we aggregate them in a single visual report.
             bootstrap_file = data.load("reports-spec.yml")
             html_report = "report.html"
@@ -85,7 +82,7 @@ def generate_reports(
                 file=str(Path(output_dir) / "logs" / f"report-{run_uuid}-{subject_label}.err"),
             )
 
-        if n_ses >= MAX_SES_AGR:
+        if n_ses >= config.execution.max_ses_agr:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
             if session_list is None:
                 session_list = config.execution.layout.get_sessions(subject=subject_label)
