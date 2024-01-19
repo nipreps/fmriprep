@@ -552,6 +552,21 @@ jobs:
             VARIANT: '_partial'
             SUBDIR: 'fmriprep-partial'
       - run:
+          name: Re-run fMRIPrep on single run of task data, without T1w in BIDS
+          no_output_timeout: 2h
+          command: |
+            rm -Rf /tmp/data/${DATASET}/sub-01/anat
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
+            fmriprep-docker -i nipreps/fmriprep:latest \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
+                --network none \
+                --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-partial-noT1w participant \
+                --fs-subjects-dir /tmp/${DATASET}/freesurfer \
+                ${FASTRACK_ARG} \
+                --sloppy --write-graph --mem-mb 14336 \
+                --level minimal --nthreads 4 -vv
+      - run:
           name: Clean working directory
           when: on_success
           command: |
