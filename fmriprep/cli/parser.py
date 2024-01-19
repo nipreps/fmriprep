@@ -833,7 +833,12 @@ applied."""
             "Making sure the input data is BIDS compliant (warnings can be ignored in most "
             "cases)."
         )
-        validate_input_dir(config.environment.exec_env, opts.bids_dir, opts.participant_label)
+        validate_input_dir(
+            config.environment.exec_env,
+            opts.bids_dir,
+            opts.participant_label,
+            need_T1w=not config.execution.derivatives,
+        )
 
     # Setup directories
     config.execution.log_dir = config.execution.fmriprep_dir / "logs"

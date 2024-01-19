@@ -269,6 +269,7 @@ It is released under the [CC0]\
             subject_data=subject_data,
             anat_only=config.workflow.anat_only,
             subject_id=subject_id,
+            anat_derivatives=anatomical_cache if anatomical_cache else None,
         ),
         name='bidssrc',
     )
@@ -338,9 +339,24 @@ It is released under the [CC0]\
         skull_strip_fixed_seed=config.workflow.skull_strip_fixed_seed,
     )
 
+    # allow to run with anat-fast-track on fMRI-only dataset
+    if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
+        workflow.connect([
+            (bidssrc, bids_info, [(('bold', fix_multi_T1w_source_name), 'in_file')]),
+            (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
+            (anat_fit_wf, ds_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
+            (anat_fit_wf, ds_report_about, [('outputnode.t1w_preproc', 'source_file')]),
+        ])  # fmt:skip
+    else:
+        workflow.connect([
+            (bidssrc, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
+            (bidssrc, summary, [('t1w', 't1w')]),
+            (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        ])  # fmt:skip
+
     workflow.connect([
         (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
-        (bidssrc, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
         (bidssrc, anat_fit_wf, [
             ('t1w', 'inputnode.t1w'),
             ('t2w', 'inputnode.t2w'),
@@ -350,10 +366,8 @@ It is released under the [CC0]\
         (bids_info, anat_fit_wf, [(('subject', _prefix), 'inputnode.subject_id')]),
         # Reporting connections
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-        (bidssrc, summary, [('t1w', 't1w'), ('t2w', 't2w'), ('bold', 'bold')]),
+        (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
         (bids_info, summary, [('subject', 'subject_id')]),
-        (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
