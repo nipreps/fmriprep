@@ -35,6 +35,9 @@ def generate_reports(
     if work_dir is not None:
         reportlets_dir = Path(work_dir) / "reportlets"
 
+    if isinstance(subject_list, str):
+        subject_list = [subject_list]
+
     errors = []
     for subject_label in subject_list:
         entities = {}
@@ -54,7 +57,7 @@ def generate_reports(
         else:
             # Beyond a threshold, we separate the anatomical report from the functional.
             bootstrap_file = data.load("reports-spec-anat.yml")
-            html_report = ''.join([f"sub-{subject_label}", "_anat.html"])
+            html_report = ''.join([f"sub-{subject_label.lstrip('sub-')}", "_anat.html"])
 
         robj = Report(
             output_dir,
@@ -93,7 +96,7 @@ def generate_reports(
             for session_label in session_list:
                 bootstrap_file = data.load("reports-spec-func.yml")
                 html_report = ''.join(
-                    [f"sub-{subject_label}", f"_ses-{session_label}", "_func.html"]
+                    [f"sub-{subject_label.lstrip('sub-')}", f"_ses-{session_label}", "_func.html"]
                 )
                 entities["session"] = session_label
 
