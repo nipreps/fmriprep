@@ -111,11 +111,14 @@ def generate_reports(
         if report_error is not None:
             errors.append(report_error)
 
+        if n_ses > config.execution.aggr_ses_reports:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
             if session_list is None:
                 all_filters = config.execution.bids_filters or {}
                 filters = all_filters.get('bold', {})
-                session_list = config.execution.layout.get_sessions(subject=subject_label, **filters)
+                session_list = config.execution.layout.get_sessions(
+                    subject=subject_label, **filters
+                )
 
             # Drop ses- prefixes
             session_list = [ses[4:] if ses.startswith("ses-") else ses for ses in session_list]

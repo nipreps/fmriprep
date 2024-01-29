@@ -14,7 +14,7 @@ def data_dir():
 
 
 @pytest.mark.parametrize(
-    "max_ses_agr, expected_files, crash_txt",
+    "aggr_ses_reports, expected_files, crash_txt",
     [
         (
             3,
@@ -42,7 +42,7 @@ def data_dir():
         (4, ["sub-001.html"], True),
     ],
 )
-def test_ReportSeparation(monkeypatch, data_dir, max_ses_agr, expected_files, crash_txt):
+def test_ReportSeparation(monkeypatch, data_dir, aggr_ses_reports, expected_files, crash_txt):
     fake_uuid = "fake_uuid"
 
     # Test report generation with and without crash file
@@ -53,7 +53,7 @@ def test_ReportSeparation(monkeypatch, data_dir, max_ses_agr, expected_files, cr
         os.makedirs(dst_path, exist_ok=True)
         shutil.copy2(data_dir / f"crash_files/{crash_file}", dst_path / crash_file)
 
-    monkeypatch.setattr(config.execution, 'max_ses_agr', max_ses_agr)
+    monkeypatch.setattr(config.execution, 'aggr_ses_reports', aggr_ses_reports)
 
     def mock_session_list(*args, **kwargs):
         return ['001', '003', '004', '005']
@@ -102,7 +102,7 @@ def test_ReportSeparation(monkeypatch, data_dir, max_ses_agr, expected_files, cr
     ],
 )
 def test_PrefixStripping(monkeypatch, data_dir, subject_label, session_list):
-    monkeypatch.setattr(config.execution, 'max_ses_agr', 4)
+    monkeypatch.setattr(config.execution, 'aggr_ses_reports', 3)
 
     def mock_session_list(subject):
         return session_list

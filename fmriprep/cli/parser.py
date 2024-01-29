@@ -402,7 +402,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         "correction. Useful for further Tedana processing post-fMRIPrep.",
     )
     g_outputs.add_argument(
-        "--max-ses-agr",
+        "--aggregate-session-reports",
         action="store",
         type=PositiveInt,
         default=4,

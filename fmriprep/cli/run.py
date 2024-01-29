@@ -217,7 +217,7 @@ def main():
             if config.execution.bids_filters
             else None
         )
-        
+
         failed_reports = generate_reports(
             config.execution.participant_label,
             config.execution.fmriprep_dir,
