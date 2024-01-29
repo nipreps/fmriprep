@@ -25,12 +25,49 @@ from pathlib import Path
 from nireports.assembler.report import Report
 
 
+def run_reports(
+    output_dir,
+    subject_label,
+    run_uuid,
+    bootstrap_file=None,
+    out_filename="report.html",
+    reportlets_dir=None,
+    entities=None,
+    errorname="report.err",
+):
+    """
+    Run the reports.
+    """
+    robj = Report(
+        output_dir,
+        run_uuid,
+        bootstrap_file=bootstrap_file,
+        out_filename=out_filename,
+        reportlets_dir=reportlets_dir,
+        plugins=None,
+        plugin_meta=None,
+        metadata=None,
+        **entities,
+    )
+
+    # Count nbr of subject for which report generation failed
+    try:
+        robj.generate_report()
+    except:
+        import sys
+        import traceback
+
+        # Store the list of subjects for which report generation failed
+        traceback.print_exception(*sys.exc_info(), file=str(Path(output_dir) / "logs" / errorname))
+        return subject_label
+
+    return None
+
+
 def generate_reports(
     subject_list, output_dir, run_uuid, session_list=None, bootstrap_file=None, work_dir=None
 ):
     """Generate reports for a list of subjects."""
-    from .. import config, data
-
     reportlets_dir = None
     if work_dir is not None:
         reportlets_dir = Path(work_dir) / "reportlets"
@@ -59,36 +96,25 @@ def generate_reports(
             bootstrap_file = data.load("reports-spec-anat.yml")
             html_report = ''.join([f"sub-{subject_label.lstrip('sub-')}", "_anat.html"])
 
-        robj = Report(
+        report_error = run_reports(
             output_dir,
+            subject_label,
             run_uuid,
             bootstrap_file=bootstrap_file,
             out_filename=html_report,
             reportlets_dir=reportlets_dir,
-            plugins=None,
-            plugin_meta=None,
-            metadata=None,
-            **entities,
+            entities=entities,
+            errorname=f"report-{run_uuid}-{subject_label}.err",
         )
+        # If the report generation failed, append the subject label for which it failed
+        if report_error is not None:
+            errors.append(report_error)
 
-        # Count nbr of subject for which report generation failed
-        try:
-            robj.generate_report()
-        except:
-            import sys
-            import traceback
-
-            # Store the list of subjects for which report generation failed
-            errors.append(subject_label)
-            traceback.print_exception(
-                *sys.exc_info(),
-                file=str(Path(output_dir) / "logs" / f"report-{run_uuid}-{subject_label}.err"),
-            )
-
-        if n_ses >= config.execution.max_ses_agr:
             # Beyond a certain number of sessions per subject, we separate the functional reports per session
             if session_list is None:
-                session_list = config.execution.layout.get_sessions(subject=subject_label)
+                all_filters = config.execution.bids_filters or {}
+                filters = all_filters.get('bold', {})
+                session_list = config.execution.layout.get_sessions(subject=subject_label, **filters)
 
             # Drop ses- prefixes
             session_list = [ses[4:] if ses.startswith("ses-") else ses for ses in session_list]
@@ -100,30 +126,18 @@ def generate_reports(
                 )
                 entities["session"] = session_label
 
-                robj = Report(
+                report_error = run_reports(
                     output_dir,
+                    subject_label,
                     run_uuid,
                     bootstrap_file=bootstrap_file,
                     out_filename=html_report,
                     reportlets_dir=reportlets_dir,
-                    plugins=None,
-                    plugin_meta=None,
-                    metadata=None,
-                    **entities,
+                    entities=entities,
+                    errorname=f"report-{run_uuid}-{subject_label}-func.err",
                 )
-
-                try:
-                    robj.generate_report()
-                except:
-                    # Store the list of subjects for which report generation failed
-                    errors.append(subject_label)
-                    traceback.print_exception(
-                        *sys.exc_info(),
-                        file=str(
-                            Path(output_dir)
-                            / "logs"
-                            / f"report-{run_uuid}-{subject_label}-func.err"
-                        ),
-                    )
+                # If the report generation failed, append the subject label for which it failed
+                if report_error is not None:
+                    errors.append(report_error)
 
     return errors
