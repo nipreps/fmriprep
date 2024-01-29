@@ -406,7 +406,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         action="store",
         type=PositiveInt,
         default=4,
-        help="Maximum number of sessions aggregated in one subject's visual report."
+        help="Maximum number of sessions aggregated in one subject's visual report. "
         "If exceeded, visual reports are separated per session.",
     )
     g_outputs.add_argument(

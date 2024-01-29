@@ -23,6 +23,7 @@
 from pathlib import Path
 
 from nireports.assembler.report import Report
+from .. import config, data
 
 
 def run_reports(
@@ -87,7 +88,7 @@ def generate_reports(
         if bootstrap_file is not None:
             # If a config file is precised, we do not override it
             html_report = "report.html"
-        elif n_ses < config.execution.max_ses_agr:
+        elif n_ses <= config.execution.aggr_ses_reports:
             # If there is only a few session for this subject, we aggregate them in a single visual report.
             bootstrap_file = data.load("reports-spec.yml")
             html_report = "report.html"
