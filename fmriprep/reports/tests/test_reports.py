@@ -1,11 +1,13 @@
 import os
-import pytest
 import shutil
+from pathlib import Path
+
+import pytest
+from bids.layout import BIDSLayout
+
+from fmriprep.reports.core import generate_reports
 
 from ... import config
-from fmriprep.reports.core import generate_reports
-from pathlib import Path
-from bids.layout import BIDSLayout
 
 
 @pytest.fixture(scope="module")
@@ -86,7 +88,7 @@ def test_ReportSeparation(
     # Generate report
     failed_reports = generate_reports([subject_label], output_dir, fake_uuid)
 
-    # Verify that report generation was successfull
+    # Verify that report generation was successful
     assert not failed_reports
 
     # Check that all expected files were generated

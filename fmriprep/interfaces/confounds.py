@@ -221,6 +221,7 @@ class GatherConfounds(SimpleInterface):
     0  0.1  0.2
 
     """
+    
     input_spec = GatherConfoundsInputSpec
     output_spec = GatherConfoundsOutputSpec
 

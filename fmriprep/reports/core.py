@@ -23,6 +23,7 @@
 from pathlib import Path
 
 from nireports.assembler.report import Report
+
 from .. import config, data
 
 
