@@ -180,7 +180,7 @@ sections:
   reportlets:
   - bids: {datatype: figures, desc: about, suffix: T1w}
   - custom: boilerplate
-    path: '{reportlets_dir}/logs'
+    path: '{output_dir}/logs'
     bibfile: ['fmriprep', 'data/boilerplate.bib']
     caption: |
       <p>We kindly ask to report results preprocessed with this tool using the following boilerplate.</p>
@@ -193,6 +193,6 @@ sections:
       </p>
     title: Methods
   - custom: errors
-    path: '{reportlets_dir}/sub-{subject}/log/{run_uuid}'
+    path: '{output_dir}/sub-{subject}/log/{run_uuid}'
     captions: <em>NiReports</em> may have recorded failure conditions.
     title: Errors
