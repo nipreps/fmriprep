@@ -278,9 +278,11 @@ The BOLD reference was then co-registered to the T1w reference using
 Co-registration was configured with {dof} degrees of freedom{reason}.
 """.format(
         dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2t1w_dof],
-        reason=''
-        if bold2t1w_dof == 6
-        else 'to account for distortions remaining in the BOLD reference',
+        reason=(
+            ''
+            if bold2t1w_dof == 6
+            else 'to account for distortions remaining in the BOLD reference'
+        ),
     )
 
     inputnode = pe.Node(
@@ -486,9 +488,11 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 """.format(
         fsl_ver=fsl.FLIRT().version or '<ver>',
         dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2t1w_dof],
-        reason=''
-        if bold2t1w_dof == 6
-        else 'to account for distortions remaining in the BOLD reference',
+        reason=(
+            ''
+            if bold2t1w_dof == 6
+            else 'to account for distortions remaining in the BOLD reference'
+        ),
     )
 
     inputnode = pe.Node(
