@@ -42,6 +42,7 @@ data_dir = data.load("tests")
 # Test sub- prefix stripping
 @pytest.mark.parametrize("subject_label", ("001", "sub-001"))
 def test_ReportSeparation(
+    tmp_path,
     monkeypatch,
     aggr_ses_reports,
     expected_files,
@@ -52,23 +53,22 @@ def test_ReportSeparation(
 ):
     fake_uuid = "fake_uuid"
 
+    sub_dir = tmp_path / "sub-001"
+    shutil.copytree(data_dir / "work/reportlets/fmriprep/sub-001", sub_dir)
+
     # Test report generation with and without crash file
     if error:
-        # Copy the test crash file under the subject folder
-        dst_path_e = data_dir / f"work/reportlets/fmriprep/sub-001/log/{fake_uuid}/"
-        crash_file = "crash-20170905-182839-root-dvars-b78e9ea8-e295-48a1-af71-2d36afd9cebf.txt"
-        os.makedirs(dst_path_e, exist_ok=True)
-        shutil.copy2(data_dir / f"crash_files/{crash_file}", dst_path_e / crash_file)
+        crash_file = next(data_dir.glob(f"crash_files/crash*.txt"))
+        run_log_dir = sub_dir / "log" / fake_uuid
+        run_log_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(crash_file, run_log_dir / crash_file.name)
 
     # Test report generation with and without boilerplate
     if boilerplate:
-        # Copy the CITATION.html under the logs folder
-        dst_path_c = data_dir / f"work/reportlets/fmriprep/logs"
-        citation_file = "CITATION.html"
-        os.makedirs(dst_path_c, exist_ok=True)
-        shutil.copy2(data_dir / f"logs/{citation_file}", dst_path_c / citation_file)
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        shutil.copy2(data_dir / "logs/CITATION.html", log_dir / "CITATION.html")
 
-    # Patching
     monkeypatch.setattr(config.execution, 'aggr_ses_reports', aggr_ses_reports)
 
     def mock_session_list(*args, **kwargs):
@@ -79,50 +79,32 @@ def test_ReportSeparation(
     monkeypatch.setattr(
         config.execution, "bids_filters", {'bold': {'session': ['001', '003', '004', '005']}}
     )
-    output_dir = data_dir / "work/reportlets/fmriprep"
 
     # Generate report
-    failed_reports = generate_reports([subject_label], output_dir, fake_uuid)
+    failed_reports = generate_reports([subject_label], tmp_path, fake_uuid)
 
     # Verify that report generation was successful
     assert not failed_reports
 
     # Check that all expected files were generated
     for expected_file in expected_files:
-        file_path = output_dir / expected_file
+        file_path = tmp_path / expected_file
         assert file_path.is_file(), f"Expected file {expected_file} is missing"
 
     # Check if there are no unexpected HTML files
-    unexpected_files = {
-        file.name for file in output_dir.iterdir() if file.suffix == '.html'
-    } - set(expected_files)
+    unexpected_files = set(file.name for file in tmp_path.glob("*.html")) - set(expected_files)
     assert not unexpected_files, f"Unexpected HTML files found: {unexpected_files}"
 
-    if boilerplate:
-        # Verify that the keywords indicating the boilerplate is reported are present in the HTML
-        with open(output_dir / expected_files[0], 'r', encoding='utf-8') as file:
-            html_content = file.read()
-            assert (
-                "The boilerplate text was automatically generated" in html_content
-            ), f"The file {file} did not contain the reported error."
+    if not (boilerplate or error):
+        return
 
-        # Delete copied citation file
-        os.remove(dst_path_c / citation_file)
-        os.rmdir(dst_path_c)
+    html_content = Path.read_text(tmp_path / expected_files[0])
+    if boilerplate:
+        assert (
+            "The boilerplate text was automatically generated" in html_content
+        ), f"The file {file} did not contain the reported error."
 
     if error:
-        # Verify that the keywords indicating a reported error are present in the HTML
-        with open(output_dir / expected_files[0], 'r', encoding='utf-8') as file:
-            html_content = file.read()
-            assert (
-                "One or more execution steps failed" in html_content
-            ), f"The file {file} did not contain the reported error."
-
-        # Delete copied crash file
-        os.remove(dst_path_e / crash_file)
-        os.rmdir(dst_path_e)
-
-    # Delete generated HTML files
-    for file in output_dir.iterdir():
-        if file.suffix == '.html':
-            os.remove(file)
+        assert (
+            "One or more execution steps failed" in html_content
+        ), f"The file {file} did not contain the reported error."
