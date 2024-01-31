@@ -41,6 +41,10 @@ data_dir = data.load("tests")
 )
 # Test sub- prefix stripping
 @pytest.mark.parametrize("subject_label", ("001", "sub-001"))
+@pytest.mark.skipif(
+    not Path.exists(data_dir / "work"),
+    reason="Package installed - large test data directory excluded from wheel",
+)
 def test_ReportSeparation(
     tmp_path,
     monkeypatch,
