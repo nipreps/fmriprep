@@ -203,6 +203,7 @@ def init_bold_fit_wf(
     from fmriprep.utils.misc import estimate_bold_mem_usage
 
     layout = config.execution.layout
+    bids_filters = config.execution.get().get('bids_filters', {})
 
     # Fitting operates on the shortest echo
     # This could become more complicated in the future
@@ -211,7 +212,7 @@ def init_bold_fit_wf(
     # Collect sbref files, sorted by EchoTime
     sbref_files = get_sbrefs(
         bold_series,
-        entity_overrides=config.execution.get().get('bids_filters', {}).get('sbref', {}),
+        entity_overrides=bids_filters.get('sbref', {}),
         layout=layout,
     )
 
@@ -312,8 +313,8 @@ def init_bold_fit_wf(
         FunctionalSummary(
             distortion_correction="None",  # Can override with connection
             registration=("FSL", "FreeSurfer")[config.workflow.run_reconall],
-            registration_dof=config.workflow.bold2t1w_dof,
-            registration_init=config.workflow.bold2t1w_init,
+            registration_dof=config.workflow.bold2anat_dof,
+            registration_init=config.workflow.bold2anat_init,
             pe_direction=metadata.get("PhaseEncodingDirection"),
             echo_idx=entities.get("echo", []),
             tr=metadata["RepetitionTime"],
@@ -586,8 +587,8 @@ def init_bold_fit_wf(
     if not boldref2anat_xform:
         # calculate BOLD registration to T1w
         bold_reg_wf = init_bold_reg_wf(
-            bold2t1w_dof=config.workflow.bold2t1w_dof,
-            bold2t1w_init=config.workflow.bold2t1w_init,
+            bold2anat_dof=config.workflow.bold2anat_dof,
+            bold2anat_init=config.workflow.bold2anat_init,
             use_bbr=config.workflow.use_bbr,
             freesurfer=config.workflow.run_reconall,
             omp_nthreads=omp_nthreads,

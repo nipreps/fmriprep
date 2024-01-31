@@ -226,17 +226,14 @@ def main():
         write_bidsignore(config.execution.fmriprep_dir)
 
         if failed_reports:
-            config.loggers.cli.error(
-                "Report generation was not successful for the following participants : %s.",
-                ", ".join(failed_reports),
+            msg = (
+                'Report generation was not successful for the following participants '
+                f': {", ".join(failed_reports)}.'
             )
+            config.loggers.cli.error(msg)
+            if sentry_sdk is not None:
+                sentry_sdk.capture_message(msg, level="error")
 
-        if sentry_sdk is not None and failed_reports:
-            sentry_sdk.capture_message(
-                "Report generation was not successful for the following participants : %s.",
-                ", ".join(failed_reports),
-                level="error",
-            )
         sys.exit(int((errno + len(failed_reports)) > 0))
 
 

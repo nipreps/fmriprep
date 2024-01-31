@@ -495,12 +495,21 @@ class execution(_Config):
         if cls.bids_filters:
             from bids.layout import Query
 
+            def _process_value(value):
+                """Convert string with "Query" in it to Query object."""
+                if isinstance(value, list):
+                    return [_process_value(val) for val in value]
+                else:
+                    return (
+                        getattr(Query, value[7:-4])
+                        if not isinstance(value, Query) and "Query" in value
+                        else value
+                    )
+
             # unserialize pybids Query enum values
             for acq, filters in cls.bids_filters.items():
-                cls.bids_filters[acq] = {
-                    k: getattr(Query, v[7:-4]) if not isinstance(v, Query) and "Query" in v else v
-                    for k, v in filters.items()
-                }
+                for k, v in filters.items():
+                    cls.bids_filters[acq][k] = _process_value(v)
 
         if "all" in cls.debug:
             cls.debug = list(DEBUG_MODES)
@@ -527,11 +536,12 @@ class workflow(_Config):
     aroma_melodic_dim = None
     """Number of ICA components to be estimated by MELODIC
     (positive = exact, negative = maximum)."""
-    bold2t1w_dof = None
-    """Degrees of freedom of the BOLD-to-T1w registration steps."""
-    bold2t1w_init = "register"
-    """Whether to use standard coregistration ('register') or to initialize coregistration from the
-    BOLD image-header ('header')."""
+    bold2anat_dof = None
+    """Degrees of freedom of the BOLD-to-anatomical registration steps."""
+    bold2anat_init = "auto"
+    """Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used
+    if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of
+    the T2w, and `header` uses the BOLD header information without an initial registration."""
     cifti_output = None
     """Generate HCP Grayordinates, accepts either ``'91k'`` (default) or ``'170k'``."""
     dummy_scans = None

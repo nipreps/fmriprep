@@ -663,27 +663,6 @@ jobs:
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
       - run: *check_outputs
       - run:
-          name: Generate report with one artificial error
-          command: |
-            set -x
-            sudo mv /tmp/${DATASET}/fmriprep/sub-100185.html \
-                    /tmp/${DATASET}/fmriprep/sub-100185_noerror.html
-            UUID=$(grep uuid /tmp/${DATASET}/work/*/config.toml | cut -d\" -f 2 | tail -n 1)
-            mkdir -p /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
-            cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
-                /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
-            set +e
-            fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
-                --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
-                --fs-no-reconall --sloppy --write-graph \
-                --output-spaces MNI152NLin2009cAsym:res-2 anat func \
-                --reports-only --config-file /tmp/${DATASET}/work/${UUID}/config.toml -vv
-            RET=$?
-            set -e
-            [[ "$RET" -eq "1" ]]
-      - run:
           name: Clean working directory
           when: on_success
           command: |

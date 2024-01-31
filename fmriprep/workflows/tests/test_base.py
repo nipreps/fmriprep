@@ -105,7 +105,7 @@ def bids_root(tmp_path_factory):
 
 
 def _make_params(
-    bold2t1w_init: str = "register",
+    bold2anat_init: str = "auto",
     use_bbr: bool | None = None,
     dummy_scans: int | None = None,
     me_output_echos: bool = False,
@@ -125,7 +125,7 @@ def _make_params(
     if bids_filters is None:
         bids_filters = {}
     return (
-        bold2t1w_init,
+        bold2anat_init,
         use_bbr,
         dummy_scans,
         me_output_echos,
@@ -146,7 +146,7 @@ def _make_params(
 @pytest.mark.parametrize("anat_only", [False, True])
 @pytest.mark.parametrize(
     (
-        "bold2t1w_init",
+        "bold2anat_init",
         "use_bbr",
         "dummy_scans",
         "me_output_echos",
@@ -163,12 +163,14 @@ def _make_params(
     ),
     [
         _make_params(),
-        _make_params(bold2t1w_init="header"),
+        _make_params(bold2anat_init="t1w"),
+        _make_params(bold2anat_init="t2w"),
+        _make_params(bold2anat_init="header"),
         _make_params(use_bbr=True),
         _make_params(use_bbr=False),
-        _make_params(bold2t1w_init="header", use_bbr=True),
+        _make_params(bold2anat_init="header", use_bbr=True),
         # Currently disabled
-        # _make_params(bold2t1w_init="header", use_bbr=False),
+        # _make_params(bold2anat_init="header", use_bbr=False),
         _make_params(dummy_scans=2),
         _make_params(me_output_echos=True),
         _make_params(medial_surface_nan=True),
@@ -183,9 +185,9 @@ def _make_params(
         _make_params(freesurfer=False, use_bbr=True),
         _make_params(freesurfer=False, use_bbr=False),
         # Currently unsupported:
-        # _make_params(freesurfer=False, bold2t1w_init="header"),
-        # _make_params(freesurfer=False, bold2t1w_init="header", use_bbr=True),
-        # _make_params(freesurfer=False, bold2t1w_init="header", use_bbr=False),
+        # _make_params(freesurfer=False, bold2anat_init="header"),
+        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=True),
+        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=False),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
     ],
@@ -195,7 +197,7 @@ def test_init_fmriprep_wf(
     tmp_path: Path,
     level: str,
     anat_only: bool,
-    bold2t1w_init: str,
+    bold2anat_init: str,
     use_bbr: bool | None,
     dummy_scans: int | None,
     me_output_echos: bool,
@@ -213,7 +215,7 @@ def test_init_fmriprep_wf(
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
         config.workflow.anat_only = anat_only
-        config.workflow.bold2t1w_init = bold2t1w_init
+        config.workflow.bold2anat_init = bold2anat_init
         config.workflow.use_bbr = use_bbr
         config.workflow.dummy_scans = dummy_scans
         config.execution.me_output_echos = me_output_echos

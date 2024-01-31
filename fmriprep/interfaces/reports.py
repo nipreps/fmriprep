@@ -213,11 +213,12 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         6, 9, 12, desc='Registration degrees of freedom', mandatory=True
     )
     registration_init = traits.Enum(
-        'register',
+        't1w',
+        't2w',
         'header',
         mandatory=True,
         desc='Whether to initialize registration with the "header"'
-        ' or by centering the volumes ("register")',
+        ' or by centering the volumes ("t1w" or "t2w")',
     )
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')

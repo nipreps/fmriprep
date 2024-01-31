@@ -38,20 +38,20 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 from ... import config, data
-from ...interfaces import DerivativesDataSink
 
 DEFAULT_MEMORY_MIN_GB = config.DEFAULT_MEMORY_MIN_GB
 LOGGER = config.loggers.workflow
 
 AffineDOF = ty.Literal[6, 9, 12]
-RegistrationInit = ty.Literal['register', 'header']
+RegistrationInit = ty.Literal['t1w', 't2w', 'header']
 
 
 def init_bold_reg_wf(
+    *,
     freesurfer: bool,
     use_bbr: bool,
-    bold2t1w_dof: AffineDOF,
-    bold2t1w_init: RegistrationInit,
+    bold2anat_dof: AffineDOF,
+    bold2anat_init: RegistrationInit,
     mem_gb: float,
     omp_nthreads: int,
     name: str = 'bold_reg_wf',
@@ -78,8 +78,8 @@ def init_bold_reg_wf(
                                   mem_gb=3,
                                   omp_nthreads=1,
                                   use_bbr=True,
-                                  bold2t1w_dof=9,
-                                  bold2t1w_init='register')
+                                  bold2anat_dof=9,
+                                  bold2anat_init='auto')
 
     Parameters
     ----------
@@ -88,11 +88,12 @@ def init_bold_reg_wf(
     use_bbr : :obj:`bool` or None
         Enable/disable boundary-based registration refinement.
         If ``None``, test BBR result for distortion before accepting.
-    bold2t1w_dof : 6, 9 or 12
-        Degrees-of-freedom for BOLD-T1w registration
-    bold2t1w_init : str, 'header' or 'register'
+    bold2anat_dof : 6, 9 or 12
+        Degrees-of-freedom for BOLD-anatomical registration
+    bold2anat_init : str, 't1w', 't2w' or 'header'
         If ``'header'``, use header information for initialization of BOLD and T1 images.
-        If ``'register'``, align volumes by their centers.
+        If ``'t1w'``, align BOLD to T1w by their centers.
+        If ``'t2w'``, align BOLD to T1w using the T2w as an intermediate.
     mem_gb : :obj:`float`
         Size of BOLD file in GB
     omp_nthreads : :obj:`int`
@@ -158,15 +159,15 @@ def init_bold_reg_wf(
     if freesurfer:
         bbr_wf = init_bbreg_wf(
             use_bbr=use_bbr,
-            bold2t1w_dof=bold2t1w_dof,
-            bold2t1w_init=bold2t1w_init,
+            bold2anat_dof=bold2anat_dof,
+            bold2anat_init=bold2anat_init,
             omp_nthreads=omp_nthreads,
         )
     else:
         bbr_wf = init_fsl_bbr_wf(
             use_bbr=use_bbr,
-            bold2t1w_dof=bold2t1w_dof,
-            bold2t1w_init=bold2t1w_init,
+            bold2anat_dof=bold2anat_dof,
+            bold2anat_init=bold2anat_init,
             sloppy=sloppy,
             omp_nthreads=omp_nthreads,
         )
@@ -193,8 +194,8 @@ def init_bold_reg_wf(
 
 def init_bbreg_wf(
     use_bbr: bool,
-    bold2t1w_dof: AffineDOF,
-    bold2t1w_init: RegistrationInit,
+    bold2anat_dof: AffineDOF,
+    bold2anat_init: RegistrationInit,
     omp_nthreads: int,
     name: str = 'bbreg_wf',
 ):
@@ -222,8 +223,8 @@ def init_bbreg_wf(
             :simple_form: yes
 
             from fmriprep.workflows.bold.registration import init_bbreg_wf
-            wf = init_bbreg_wf(use_bbr=True, bold2t1w_dof=9,
-                               bold2t1w_init='register', omp_nthreads=1)
+            wf = init_bbreg_wf(use_bbr=True, bold2anat_dof=9,
+                               bold2anat_init='t1w', omp_nthreads=1)
 
 
     Parameters
@@ -231,11 +232,12 @@ def init_bbreg_wf(
     use_bbr : :obj:`bool` or None
         Enable/disable boundary-based registration refinement.
         If ``None``, test BBR result for distortion before accepting.
-    bold2t1w_dof : 6, 9 or 12
-        Degrees-of-freedom for BOLD-T1w registration
-    bold2t1w_init : str, 'header' or 'register'
+    bold2anat_dof : 6, 9 or 12
+        Degrees-of-freedom for BOLD-anatomical registration
+    bold2anat_init : str, 't1w', 't2w' or 'header'
         If ``'header'``, use header information for initialization of BOLD and T1 images.
-        If ``'register'``, align volumes by their centers.
+        If ``'t1w'``, align BOLD to T1w by their centers.
+        If ``'t2w'``, align BOLD to T1w using the T2w as an intermediate.
     name : :obj:`str`, optional
         Workflow name (default: bbreg_wf)
 
@@ -266,10 +268,11 @@ def init_bbreg_wf(
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
 
     """
-    from nipype.interfaces.freesurfer import BBRegister, MRICoreg
+    from nipype.interfaces.freesurfer import BBRegister
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.freesurfer import PatchedLTAConvert as LTAConvert
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+
+    from fmriprep.interfaces.patches import FreeSurferSource, MRICoreg
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -277,13 +280,17 @@ The BOLD reference was then co-registered to the T1w reference using
 `bbregister` (FreeSurfer) which implements boundary-based registration [@bbr].
 Co-registration was configured with {dof} degrees of freedom{reason}.
 """.format(
-        dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2t1w_dof],
+        dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2anat_dof],
         reason=(
             ''
-            if bold2t1w_dof == 6
+            if bold2anat_dof == 6
             else 'to account for distortions remaining in the BOLD reference'
         ),
     )
+
+    use_t2w = bold2anat_init == 't2w'
+    if use_t2w:
+        workflow.__desc__ += " The aligned T2w image was used for initial co-registration."
 
     inputnode = pe.Node(
         niu.IdentityInterface(
@@ -304,36 +311,39 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='outputnode',
     )
 
-    if bold2t1w_init not in ("register", "header"):
-        raise ValueError(f"Unknown BOLD-T1w initialization option: {bold2t1w_init}")
+    if bold2anat_init not in ty.get_args(RegistrationInit):
+        raise ValueError(f"Unknown BOLD-to-anatomical initialization option: {bold2anat_init}")
 
     # For now make BBR unconditional - in the future, we can fall back to identity,
     # but adding the flexibility without testing seems a bit dangerous
-    if bold2t1w_init == "header":
+    if bold2anat_init == "header":
         if use_bbr is False:
             raise ValueError("Cannot disable BBR and use header registration")
         if use_bbr is None:
             LOGGER.warning("Initializing BBR with header; affine fallback disabled")
             use_bbr = True
 
-    # Define both nodes, but only connect conditionally
+    fssource = pe.Node(FreeSurferSource(), name='fssource')
+
     mri_coreg = pe.Node(
-        MRICoreg(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01),
+        MRICoreg(dof=bold2anat_dof, sep=[4], ftol=0.0001, linmintol=0.01),
         name='mri_coreg',
         n_procs=omp_nthreads,
         mem_gb=5,
     )
+    if use_t2w:
+        mri_coreg.inputs.reference_mask = False
 
     bbregister = pe.Node(
         BBRegister(
-            dof=bold2t1w_dof,
+            dof=bold2anat_dof,
             contrast_type='t2',
             out_lta_file=True,
         ),
         name='bbregister',
         mem_gb=12,
     )
-    if bold2t1w_init == "header":
+    if bold2anat_init == "header":
         bbregister.inputs.init = "header"
 
     transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
@@ -356,13 +366,20 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     ])  # fmt:skip
 
     # Do not initialize with header, use mri_coreg
-    if bold2t1w_init == "register":
+    if bold2anat_init != "header":
         workflow.connect([
             (inputnode, mri_coreg, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id'),
                                     ('in_file', 'source_file')]),
             (mri_coreg, transforms, [('out_lta_file', 'in2')]),
         ])  # fmt:skip
+
+        if use_t2w:
+            workflow.connect([
+                (inputnode, fssource, [('subjects_dir', 'subjects_dir'),
+                                       ('subject_id', 'subject_id')]),
+                (fssource, mri_coreg, [('T2', 'reference_file')]),
+            ])  # fmt:skip
 
         # Short-circuit workflow building, use initial registration
         if use_bbr is False:
@@ -387,7 +404,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
         return workflow
 
-    # Only reach this point if bold2t1w_init is "register" and use_bbr is None
+    # Only reach this point if bold2anat_init is "t1w" or "t2w" and use_bbr is None
     compare_transforms = pe.Node(niu.Function(function=compare_xforms), name='compare_transforms')
 
     workflow.connect([
@@ -401,8 +418,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
 def init_fsl_bbr_wf(
     use_bbr: bool,
-    bold2t1w_dof: AffineDOF,
-    bold2t1w_init: RegistrationInit,
+    bold2anat_dof: AffineDOF,
+    bold2anat_init: RegistrationInit,
     omp_nthreads: int,
     sloppy: bool = False,
     name: str = 'fsl_bbr_wf',
@@ -430,7 +447,7 @@ def init_fsl_bbr_wf(
             :simple_form: yes
 
             from fmriprep.workflows.bold.registration import init_fsl_bbr_wf
-            wf = init_fsl_bbr_wf(use_bbr=True, bold2t1w_dof=9, bold2t1w_init='register', omp_nthreads=1)
+            wf = init_fsl_bbr_wf(use_bbr=True, bold2anat_dof=9, bold2anat_init='t1w', omp_nthreads=1)
 
 
     Parameters
@@ -438,11 +455,12 @@ def init_fsl_bbr_wf(
     use_bbr : :obj:`bool` or None
         Enable/disable boundary-based registration refinement.
         If ``None``, test BBR result for distortion before accepting.
-    bold2t1w_dof : 6, 9 or 12
-        Degrees-of-freedom for BOLD-T1w registration
-    bold2t1w_init : str, 'header' or 'register'
+    bold2anat_dof : 6, 9 or 12
+        Degrees-of-freedom for BOLD-anatomical registration
+    bold2anat_init : str, 't1w', 't2w' or 'header'
         If ``'header'``, use header information for initialization of BOLD and T1 images.
-        If ``'register'``, align volumes by their centers.
+        If ``'t1w'``, align BOLD to T1w by their centers.
+        If ``'t2w'``, align BOLD to T1w using the T2w as an intermediate.
     name : :obj:`str`, optional
         Workflow name (default: fsl_bbr_wf)
 
@@ -487,10 +505,10 @@ with the boundary-based registration [@bbr] cost-function.
 Co-registration was configured with {dof} degrees of freedom{reason}.
 """.format(
         fsl_ver=fsl.FLIRT().version or '<ver>',
-        dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2t1w_dof],
+        dof={6: 'six', 9: 'nine', 12: 'twelve'}[bold2anat_dof],
         reason=(
             ''
-            if bold2t1w_dof == 6
+            if bold2anat_dof == 6
             else 'to account for distortions remaining in the BOLD reference'
         ),
     )
@@ -517,17 +535,21 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     wm_mask = pe.Node(niu.Function(function=_dseg_label), name='wm_mask')
     wm_mask.inputs.label = 2  # BIDS default is WM=2
 
-    if bold2t1w_init not in ("register", "header"):
-        raise ValueError(f"Unknown BOLD-T1w initialization option: {bold2t1w_init}")
+    if bold2anat_init not in ty.get_args(RegistrationInit):
+        raise ValueError(f"Unknown BOLD-T1w initialization option: {bold2anat_init}")
 
-    if bold2t1w_init == "header":
+    if bold2anat_init == "header":
         raise NotImplementedError("Header-based registration initialization not supported for FSL")
+    if bold2anat_init == "t2w":
+        LOGGER.warning(
+            "T2w intermediate for FSL is not implemented, registering with T1w instead."
+        )
 
     # Mask T1w_preproc with T1w_mask to make T1w_brain
     mask_t1w_brain = pe.Node(ApplyMask(), name='mask_t1w_brain')
 
     mri_coreg = pe.Node(
-        MRICoreg(dof=bold2t1w_dof, sep=[4], ftol=0.0001, linmintol=0.01),
+        MRICoreg(dof=bold2anat_dof, sep=[4], ftol=0.0001, linmintol=0.01),
         name='mri_coreg',
         n_procs=omp_nthreads,
         mem_gb=5,
@@ -581,7 +603,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         return workflow
 
     flt_bbr = pe.Node(
-        fsl.FLIRT(cost_func='bbr', dof=bold2t1w_dof, args="-basescale 1"),
+        fsl.FLIRT(cost_func='bbr', dof=bold2anat_dof, args="-basescale 1"),
         name='flt_bbr',
     )
 
