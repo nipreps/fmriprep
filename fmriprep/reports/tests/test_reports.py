@@ -7,12 +7,9 @@ from bids.layout import BIDSLayout
 
 from fmriprep.reports.core import generate_reports
 
-from ... import config
+from ... import config, data
 
-
-@pytest.fixture(scope="module")
-def data_dir():
-    return Path(__file__).parents[2] / "data" / "tests"
+data_dir = data.load("tests")
 
 
 # Test with and without sessions' aggregation
@@ -46,7 +43,6 @@ def data_dir():
 @pytest.mark.parametrize("subject_label", ("001", "sub-001"))
 def test_ReportSeparation(
     monkeypatch,
-    data_dir,
     aggr_ses_reports,
     expected_files,
     error,
