@@ -101,7 +101,6 @@ importlib-resources==6.1.1
     # via
     #   nireports
     #   niworkflows
-    #   sdcflows
     #   templateflow
 indexed-gzip==1.8.7
     # via smriprep
@@ -165,6 +164,7 @@ matplotlib==3.8.2
 migas==0.4.0
     # via
     #   fmriprep
+    #   sdcflows
 more-itertools==10.1.0
     # via jaraco-classes
 msgpack==1.0.7
@@ -302,7 +302,7 @@ psutil==5.9.6
     #   fmriprep (pyproject.toml)
 py-cpuinfo==9.0.0
     # via codecarbon
-pybids==0.16.3
+pybids==0.16.4
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -382,7 +382,7 @@ scipy==1.11.4
     #   scikit-learn
     #   sdcflows
     #   tedana
-sdcflows==2.6.0
+sdcflows==2.8.0
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
@@ -393,8 +393,7 @@ seaborn==0.13.0
 secretstorage==3.3.3
     # via keyring
 sentry-sdk==1.39.0
-    # via
-    #   fmriprep
+    # via fmriprep
 simplejson==3.19.2
     # via nipype
 six==1.16.0
@@ -434,7 +433,7 @@ tifffile==2023.9.26
 toml==0.10.2
     # via
     #   fmriprep
-    #   fmriprep (pyproject.toml)
+    #   sdcflows
 tornado==6.3.3
     # via bokeh
 tqdm==4.66.1

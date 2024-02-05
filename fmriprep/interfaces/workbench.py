@@ -14,11 +14,11 @@ from nipype.interfaces.base import (
 )
 from nipype.interfaces.workbench.base import WBCommand
 
-iflogger = logging.getLogger("nipype.interface")
+iflogger = logging.getLogger('nipype.interface')
 
 
 class OpenMPTraitedSpec(CommandLineInputSpec):
-    num_threads = traits.Int(desc="allows for specifying more threads")
+    num_threads = traits.Int(desc='allows for specifying more threads')
 
 
 class OpenMPCommandMixin(CommandLine):
@@ -28,20 +28,20 @@ class OpenMPCommandMixin(CommandLine):
 
     def __init__(self, **inputs):
         super().__init__(**inputs)
-        self.inputs.on_trait_change(self._num_threads_update, "num_threads")
+        self.inputs.on_trait_change(self._num_threads_update, 'num_threads')
         if not self._num_threads:
-            self._num_threads = os.environ.get("OMP_NUM_THREADS", None)
+            self._num_threads = os.environ.get('OMP_NUM_THREADS', None)
         if not isdefined(self.inputs.num_threads) and self._num_threads:
             self.inputs.num_threads = int(self._num_threads)
         self._num_threads_update()
 
     def _num_threads_update(self):
         if self.inputs.num_threads:
-            self.inputs.environ.update({"OMP_NUM_THREADS": str(self.inputs.num_threads)})
+            self.inputs.environ.update({'OMP_NUM_THREADS': str(self.inputs.num_threads)})
 
     def run(self, **inputs):
-        if "num_threads" in inputs:
-            self.inputs.num_threads = inputs["num_threads"]
+        if 'num_threads' in inputs:
+            self.inputs.num_threads = inputs['num_threads']
         self._num_threads_update()
         return super().run(**inputs)
 
@@ -50,89 +50,89 @@ class MetricDilateInputSpec(OpenMPTraitedSpec):
     in_file = File(
         exists=True,
         mandatory=True,
-        argstr="%s ",
+        argstr='%s ',
         position=0,
-        desc="the metric to dilate",
+        desc='the metric to dilate',
     )
 
     surf_file = File(
         exists=True,
         mandatory=True,
-        argstr="%s ",
+        argstr='%s ',
         position=1,
-        desc="the surface to compute on",
+        desc='the surface to compute on',
     )
 
     distance = traits.Float(
         mandatory=True,
-        argstr="%f ",
+        argstr='%f ',
         position=2,
-        desc="distance in mm to dilate",
+        desc='distance in mm to dilate',
     )
 
     out_file = File(
-        name_source=["in_file"],
-        name_template="%s.func.gii",
+        name_source=['in_file'],
+        name_template='%s.func.gii',
         keep_extension=False,
-        argstr="%s ",
+        argstr='%s ',
         position=3,
-        desc="output - the output metric",
+        desc='output - the output metric',
     )
 
     bad_vertex_roi_file = File(
-        argstr="-bad-vertex-roi %s ",
+        argstr='-bad-vertex-roi %s ',
         position=4,
-        desc="metric file, positive values denote vertices to have their values replaced",
+        desc='metric file, positive values denote vertices to have their values replaced',
     )
 
     data_roi_file = File(
-        argstr="-data-roi %s ",
+        argstr='-data-roi %s ',
         position=5,
-        desc="metric file, positive values denote vertices that have data",
+        desc='metric file, positive values denote vertices that have data',
     )
 
     column = traits.Int(
         position=6,
-        argstr="-column %d ",
-        desc="the column number",
+        argstr='-column %d ',
+        desc='the column number',
     )
 
     nearest = traits.Bool(
         position=7,
-        argstr="-nearest ",
-        desc="use the nearest good value instead of a weighted average",
+        argstr='-nearest ',
+        desc='use the nearest good value instead of a weighted average',
     )
 
     linear = traits.Bool(
         position=8,
-        argstr="-linear ",
-        desc="fill in values with linear interpolation along strongest gradient",
+        argstr='-linear ',
+        desc='fill in values with linear interpolation along strongest gradient',
     )
 
     exponent = traits.Float(
-        argstr="-exponent %f ",
+        argstr='-exponent %f ',
         position=9,
         default=6.0,
-        desc="exponent n to use in (area / (distance ^ n)) as the "
-        "weighting function (default 6)",
+        desc='exponent n to use in (area / (distance ^ n)) as the '
+        'weighting function (default 6)',
     )
 
     corrected_areas = File(
-        argstr="-corrected-areas %s ",
+        argstr='-corrected-areas %s ',
         position=10,
-        desc="vertex areas to use instead of computing them from the surface",
+        desc='vertex areas to use instead of computing them from the surface',
     )
 
     legacy_cutoff = traits.Bool(
         position=11,
-        argstr="-legacy-cutoff ",
-        desc="use the v1.3.2 method of choosing how many vertices to "
-        "use when calculating the dilated value with weighted method",
+        argstr='-legacy-cutoff ',
+        desc='use the v1.3.2 method of choosing how many vertices to '
+        'use when calculating the dilated value with weighted method',
     )
 
 
 class MetricDilateOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc="output file")
+    out_file = File(exists=True, desc='output file')
 
 
 class MetricDilate(WBCommand, OpenMPCommandMixin):
@@ -158,98 +158,98 @@ class MetricDilate(WBCommand, OpenMPCommandMixin):
 
     input_spec = MetricDilateInputSpec
     output_spec = MetricDilateOutputSpec
-    _cmd = "wb_command -metric-dilate "
+    _cmd = 'wb_command -metric-dilate '
 
 
 class MetricResampleInputSpec(OpenMPTraitedSpec):
     in_file = File(
         exists=True,
         mandatory=True,
-        argstr="%s",
+        argstr='%s',
         position=0,
-        desc="The metric file to resample",
+        desc='The metric file to resample',
     )
     current_sphere = File(
         exists=True,
         mandatory=True,
-        argstr="%s",
+        argstr='%s',
         position=1,
-        desc="A sphere surface with the mesh that the metric is currently on",
+        desc='A sphere surface with the mesh that the metric is currently on',
     )
     new_sphere = File(
         exists=True,
         mandatory=True,
-        argstr="%s",
+        argstr='%s',
         position=2,
-        desc="A sphere surface that is in register with <current-sphere> and"
-        " has the desired output mesh",
+        desc='A sphere surface that is in register with <current-sphere> and'
+        ' has the desired output mesh',
     )
     method = traits.Enum(
-        "ADAP_BARY_AREA",
-        "BARYCENTRIC",
-        argstr="%s",
+        'ADAP_BARY_AREA',
+        'BARYCENTRIC',
+        argstr='%s',
         mandatory=True,
         position=3,
-        desc="The method name - ADAP_BARY_AREA method is recommended for"
-        " ordinary metric data, because it should use all data while"
-        " downsampling, unlike BARYCENTRIC. If ADAP_BARY_AREA is used,"
-        " exactly one of area_surfs or area_metrics must be specified",
+        desc='The method name - ADAP_BARY_AREA method is recommended for'
+        ' ordinary metric data, because it should use all data while'
+        ' downsampling, unlike BARYCENTRIC. If ADAP_BARY_AREA is used,'
+        ' exactly one of area_surfs or area_metrics must be specified',
     )
     out_file = File(
-        name_source=["new_sphere"],
-        name_template="%s.out",
+        name_source=['new_sphere'],
+        name_template='%s.out',
         keep_extension=True,
-        argstr="%s",
+        argstr='%s',
         position=4,
-        desc="The output metric",
+        desc='The output metric',
     )
     area_surfs = traits.Bool(
         position=5,
-        argstr="-area-surfs",
-        xor=["area_metrics"],
-        desc="Specify surfaces to do vertex area correction based on",
+        argstr='-area-surfs',
+        xor=['area_metrics'],
+        desc='Specify surfaces to do vertex area correction based on',
     )
     area_metrics = traits.Bool(
         position=5,
-        argstr="-area-metrics",
-        xor=["area_surfs"],
-        desc="Specify vertex area metrics to do area correction based on",
+        argstr='-area-metrics',
+        xor=['area_surfs'],
+        desc='Specify vertex area metrics to do area correction based on',
     )
     current_area = File(
         exists=True,
         position=6,
-        argstr="%s",
-        desc="A relevant anatomical surface with <current-sphere> mesh OR"
-        " a metric file with vertex areas for <current-sphere> mesh",
+        argstr='%s',
+        desc='A relevant anatomical surface with <current-sphere> mesh OR'
+        ' a metric file with vertex areas for <current-sphere> mesh',
     )
     new_area = File(
         exists=True,
         position=7,
-        argstr="%s",
-        desc="A relevant anatomical surface with <current-sphere> mesh OR"
-        " a metric file with vertex areas for <current-sphere> mesh",
+        argstr='%s',
+        desc='A relevant anatomical surface with <current-sphere> mesh OR'
+        ' a metric file with vertex areas for <current-sphere> mesh',
     )
     roi_metric = File(
         exists=True,
         position=8,
-        argstr="-current-roi %s",
-        desc="Input roi on the current mesh used to exclude non-data vertices",
+        argstr='-current-roi %s',
+        desc='Input roi on the current mesh used to exclude non-data vertices',
     )
     valid_roi_out = traits.Bool(
         position=9,
-        argstr="-valid-roi-out",
-        desc="Output the ROI of vertices that got data from valid source vertices",
+        argstr='-valid-roi-out',
+        desc='Output the ROI of vertices that got data from valid source vertices',
     )
     largest = traits.Bool(
         position=10,
-        argstr="-largest",
-        desc="Use only the value of the vertex with the largest weight",
+        argstr='-largest',
+        desc='Use only the value of the vertex with the largest weight',
     )
 
 
 class MetricResampleOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc="the output metric")
-    roi_file = File(desc="ROI of vertices that got data from valid source vertices")
+    out_file = File(exists=True, desc='the output metric')
+    roi_file = File(desc='ROI of vertices that got data from valid source vertices')
 
 
 class MetricResample(WBCommand, OpenMPCommandMixin):
@@ -276,184 +276,182 @@ class MetricResample(WBCommand, OpenMPCommandMixin):
 
     input_spec = MetricResampleInputSpec
     output_spec = MetricResampleOutputSpec
-    _cmd = "wb_command -metric-resample"
+    _cmd = 'wb_command -metric-resample'
 
     def _format_arg(self, opt, spec, val):
-        if opt in ("current_area", "new_area"):
+        if opt in ('current_area', 'new_area'):
             if not self.inputs.area_surfs and not self.inputs.area_metrics:
-                raise ValueError(
-                    "{} was set but neither area_surfs or" " area_metrics were set".format(opt)
-                )
-        if opt == "method":
+                raise ValueError(f'{opt} was set but neither area_surfs or area_metrics were set')
+        if opt == 'method':
             if (
-                val == "ADAP_BARY_AREA"
+                val == 'ADAP_BARY_AREA'
                 and not self.inputs.area_surfs
                 and not self.inputs.area_metrics
             ):
-                raise ValueError("Exactly one of area_surfs or area_metrics" " must be specified")
-        if opt == "valid_roi_out" and val:
+                raise ValueError('Exactly one of area_surfs or area_metrics must be specified')
+        if opt == 'valid_roi_out' and val:
             # generate a filename and add it to argstr
-            roi_out = self._gen_filename(self.inputs.in_file, suffix="_roi")
-            iflogger.info("Setting roi output file as", roi_out)
-            spec.argstr += " " + roi_out
+            roi_out = self._gen_filename(self.inputs.in_file, suffix='_roi')
+            iflogger.info('Setting roi output file as', roi_out)
+            spec.argstr += ' ' + roi_out
         return super()._format_arg(opt, spec, val)
 
     def _list_outputs(self):
         outputs = super()._list_outputs()
         if self.inputs.valid_roi_out:
-            roi_file = self._gen_filename(self.inputs.in_file, suffix="_roi")
-            outputs["roi_file"] = os.path.abspath(roi_file)
+            roi_file = self._gen_filename(self.inputs.in_file, suffix='_roi')
+            outputs['roi_file'] = os.path.abspath(roi_file)
         return outputs
 
 
 class VolumeToSurfaceMappingInputSpec(OpenMPTraitedSpec):
     volume_file = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         mandatory=True,
         position=1,
-        desc="the volume to map data from",
+        desc='the volume to map data from',
     )
     surface_file = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         mandatory=True,
         position=2,
-        desc="the surface to map the data onto",
+        desc='the surface to map the data onto',
     )
     out_file = File(
-        name_source=["surface_file"],
-        name_template="%s_mapped.func.gii",
+        name_source=['surface_file'],
+        name_template='%s_mapped.func.gii',
         keep_extension=False,
-        argstr="%s",
+        argstr='%s',
         position=3,
-        desc="the output metric file",
+        desc='the output metric file',
     )
     method = traits.Enum(
-        "trilinear",
-        "enclosing",
-        "cubic",
-        "ribbon-constrained",
-        "myelin-style",
-        argstr="-%s",
+        'trilinear',
+        'enclosing',
+        'cubic',
+        'ribbon-constrained',
+        'myelin-style',
+        argstr='-%s',
         position=4,
-        desc="the interpolation method to use",
+        desc='the interpolation method to use',
     )
     _ribbon_constrained = [
-        "inner_surface",
-        "outer_surface",
-        "volume_roi",
-        "weighted",
-        "voxel_subdiv",
-        "gaussian",
-        "interpolate",
-        "bad_vertices_out",
-        "output_weights",
-        "output_weights_text",
+        'inner_surface',
+        'outer_surface',
+        'volume_roi',
+        'weighted',
+        'voxel_subdiv',
+        'gaussian',
+        'interpolate',
+        'bad_vertices_out',
+        'output_weights',
+        'output_weights_text',
     ]
     _myelin_style = [
-        "ribbon_roi",
-        "thickness",
-        "sigma",
-        "legacy_bug",
+        'ribbon_roi',
+        'thickness',
+        'sigma',
+        'legacy_bug',
     ]
     inner_surface = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=5,
-        desc="the inner surface of the ribbon [-ribbon-constrained]",
+        desc='the inner surface of the ribbon [-ribbon-constrained]',
         xor=_myelin_style,
     )
     outer_surface = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=6,
-        desc="the outer surface of the ribbon [-ribbon-constrained]",
+        desc='the outer surface of the ribbon [-ribbon-constrained]',
         xor=_myelin_style,
     )
     volume_roi = File(
         exists=True,
-        argstr="-volume-roi %s",
+        argstr='-volume-roi %s',
         position=7,
-        desc="use a volume roi [-ribbon-constrained]",
+        desc='use a volume roi [-ribbon-constrained]',
         xor=_myelin_style,
     )
     weighted = traits.Bool(
-        argstr="-weighted",
+        argstr='-weighted',
         position=8,
-        desc="treat the roi values as weightings rather than binary [-ribbon-constrained]",
-        requires=["volume_roi"],
+        desc='treat the roi values as weightings rather than binary [-ribbon-constrained]',
+        requires=['volume_roi'],
         xor=_myelin_style,
     )
     voxel_subdiv = traits.Int(
         default_value=3,
-        argstr="-voxel-subdiv %d",
-        desc="voxel divisions while estimating voxel weights [-ribbon-constrained]",
+        argstr='-voxel-subdiv %d',
+        desc='voxel divisions while estimating voxel weights [-ribbon-constrained]',
         xor=_myelin_style,
     )
     thin_columns = traits.Bool(
-        argstr="-thin-columns",
-        desc="use non-overlapping polyhedra [-ribbon-constrained]",
+        argstr='-thin-columns',
+        desc='use non-overlapping polyhedra [-ribbon-constrained]',
         xor=_myelin_style,
     )
     gaussian = traits.Float(
-        argstr="-gaussian %g",
+        argstr='-gaussian %g',
         desc="reduce weight to voxels that aren't near <surface> [-ribbon-constrained]",
         xor=_myelin_style,
     )
     interpolate = traits.Enum(
-        "CUBIC",
-        "TRILINEAR",
-        "ENCLOSING_VOXEL",
-        argstr="-interpolate %s",
-        desc="instead of a weighted average of voxels, "
-        "interpolate at subpoints inside the ribbon [-ribbon-constrained]",
+        'CUBIC',
+        'TRILINEAR',
+        'ENCLOSING_VOXEL',
+        argstr='-interpolate %s',
+        desc='instead of a weighted average of voxels, '
+        'interpolate at subpoints inside the ribbon [-ribbon-constrained]',
         xor=_myelin_style,
     )
     bad_vertices_out = File(
-        argstr="-bad-vertices-out %s",
+        argstr='-bad-vertices-out %s',
         desc="output an ROI of which vertices didn't intersect any valid voxels",
         xor=_myelin_style,
     )
     output_weights = traits.Int(
-        argstr="-output-weights %(0)d output_weights.nii.gz",
-        desc="write the voxel weights for a vertex to a volume file",
+        argstr='-output-weights %(0)d output_weights.nii.gz',
+        desc='write the voxel weights for a vertex to a volume file',
         xor=_myelin_style,
     )
     output_weights_text = traits.File(
-        argstr="-output-weights-text %s",
-        desc="write the voxel weights for all vertices to a text file",
+        argstr='-output-weights-text %s',
+        desc='write the voxel weights for all vertices to a text file',
         xor=_myelin_style,
     )
     ribbon_roi = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=5,
-        desc="an roi volume of the cortical ribbon for this hemisphere [-myelin-style]",
+        desc='an roi volume of the cortical ribbon for this hemisphere [-myelin-style]',
         xor=_ribbon_constrained,
     )
     thickness = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=6,
-        desc="the thickness metric file for this hemisphere [-myelin-style]",
+        desc='the thickness metric file for this hemisphere [-myelin-style]',
         xor=_ribbon_constrained,
     )
     sigma = traits.Float(
-        argstr="%g",
+        argstr='%g',
         position=7,
-        desc="gaussian kernel in mm for weighting voxels within range [-myelin-style]",
+        desc='gaussian kernel in mm for weighting voxels within range [-myelin-style]',
         xor=_ribbon_constrained,
     )
     legacy_bug = traits.Bool(
-        argstr="-legacy-bug",
+        argstr='-legacy-bug',
         position=8,
-        desc="use the old bug in the myelin-style algorithm [-myelin-style]",
+        desc='use the old bug in the myelin-style algorithm [-myelin-style]',
         xor=_ribbon_constrained,
     )
     subvol_select = traits.Int(
-        argstr="-subvol-select %d",
-        desc="select a single subvolume to map",
+        argstr='-subvol-select %d',
+        desc='select a single subvolume to map',
     )
 
     """\
@@ -521,10 +519,10 @@ MAP VOLUME TO SURFACE
 
 
 class VolumeToSurfaceMappingOutputSpec(TraitedSpec):
-    out_file = File(desc="the output metric file")
-    bad_vertices_file = File(desc="the output metric file of vertices that have no data")
-    weights_file = File(desc="volume to write the weights to")
-    weights_text_file = File(desc="the output text filename")
+    out_file = File(desc='the output metric file')
+    bad_vertices_file = File(desc='the output metric file of vertices that have no data')
+    weights_file = File(desc='volume to write the weights to')
+    weights_text_file = File(desc='the output text filename')
 
 
 class VolumeToSurfaceMapping(WBCommand, OpenMPCommandMixin):
@@ -585,25 +583,25 @@ class VolumeToSurfaceMapping(WBCommand, OpenMPCommandMixin):
 
     input_spec = VolumeToSurfaceMappingInputSpec
     output_spec = VolumeToSurfaceMappingOutputSpec
-    _cmd = "wb_command -volume-to-surface-mapping"
+    _cmd = 'wb_command -volume-to-surface-mapping'
 
     def _format_arg(self, opt, spec, val):
         if opt in self.input_spec._ribbon_constrained:
-            if self.inputs.method != "ribbon-constrained":
-                return ""
+            if self.inputs.method != 'ribbon-constrained':
+                return ''
         elif opt in self.input_spec._myelin_style:
-            if self.inputs.method != "myelin-style":
-                return ""
+            if self.inputs.method != 'myelin-style':
+                return ''
         return super()._format_arg(opt, spec, val)
 
     def _list_outputs(self):
         outputs = super()._list_outputs()
         if isdefined(self.inputs.bad_vertices_out):
-            outputs["bad_vertices_file"] = os.path.abspath(self.inputs.bad_vertices_out)
+            outputs['bad_vertices_file'] = os.path.abspath(self.inputs.bad_vertices_out)
         if isdefined(self.inputs.output_weights):
-            outputs["weights_file"] = os.path.abspath(self.inputs.output_weights)
+            outputs['weights_file'] = os.path.abspath(self.inputs.output_weights)
         if isdefined(self.inputs.output_weights_text):
-            outputs["weights_text_file"] = os.path.abspath(self.inputs.output_weights_text)
+            outputs['weights_text_file'] = os.path.abspath(self.inputs.output_weights_text)
         return outputs
 
 
@@ -624,36 +622,36 @@ class MetricMaskInputSpec(CommandLineInputSpec):
 
     in_file = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=1,
         mandatory=True,
-        desc="input metric file",
+        desc='input metric file',
     )
     mask = File(
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=2,
         mandatory=True,
-        desc="mask metric file",
+        desc='mask metric file',
     )
     out_file = File(
-        name_template="%s_masked.func.gii",
-        name_source=["in_file"],
+        name_template='%s_masked.func.gii',
+        name_source=['in_file'],
         keep_extension=False,
-        argstr="%s",
+        argstr='%s',
         position=3,
-        desc="output metric file",
+        desc='output metric file',
     )
     column = traits.Either(
         traits.Int,
         traits.String,
-        argstr="-column %s",
-        desc="select a single column by number or name",
+        argstr='-column %s',
+        desc='select a single column by number or name',
     )
 
 
 class MetricMaskOutputSpec(TraitedSpec):
-    out_file = File(desc="output metric file")
+    out_file = File(desc='output metric file')
 
 
 class MetricMask(WBCommand):
@@ -671,7 +669,7 @@ class MetricMask(WBCommand):
 
     input_spec = MetricMaskInputSpec
     output_spec = MetricMaskOutputSpec
-    _cmd = "wb_command -metric-mask"
+    _cmd = 'wb_command -metric-mask'
 
 
 class MetricFillHolesInputSpec(TraitedSpec):
@@ -692,34 +690,34 @@ class MetricFillHolesInputSpec(TraitedSpec):
     surface_file = File(
         mandatory=True,
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=1,
-        desc="surface to use for neighbor information",
+        desc='surface to use for neighbor information',
     )
     metric_file = File(
         mandatory=True,
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=2,
-        desc="input ROI metric",
+        desc='input ROI metric',
     )
     out_file = File(
-        name_template="%s_filled.shape.gii",
-        name_source="metric_file",
+        name_template='%s_filled.shape.gii',
+        name_source='metric_file',
         keep_extension=False,
-        argstr="%s",
+        argstr='%s',
         position=3,
-        desc="output ROI metric",
+        desc='output ROI metric',
     )
     corrected_areas = File(
         exists=True,
-        argstr="-corrected-areas %s",
-        desc="vertex areas to use instead of computing them from the surface",
+        argstr='-corrected-areas %s',
+        desc='vertex areas to use instead of computing them from the surface',
     )
 
 
 class MetricFillHolesOutputSpec(TraitedSpec):
-    out_file = File(desc="output ROI metric")
+    out_file = File(desc='output ROI metric')
 
 
 class MetricFillHoles(WBCommand):
@@ -738,7 +736,7 @@ class MetricFillHoles(WBCommand):
 
     input_spec = MetricFillHolesInputSpec
     output_spec = MetricFillHolesOutputSpec
-    _cmd = "wb_command -metric-fill-holes"
+    _cmd = 'wb_command -metric-fill-holes'
 
 
 class MetricRemoveIslandsInputSpec(TraitedSpec):
@@ -759,34 +757,34 @@ class MetricRemoveIslandsInputSpec(TraitedSpec):
     surface_file = File(
         mandatory=True,
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=1,
-        desc="surface to use for neighbor information",
+        desc='surface to use for neighbor information',
     )
     metric_file = File(
         mandatory=True,
         exists=True,
-        argstr="%s",
+        argstr='%s',
         position=2,
-        desc="input ROI metric",
+        desc='input ROI metric',
     )
     out_file = File(
-        name_template="%s_noislands.shape.gii",
-        name_source="metric_file",
+        name_template='%s_noislands.shape.gii',
+        name_source='metric_file',
         keep_extension=False,
-        argstr="%s",
+        argstr='%s',
         position=3,
-        desc="output ROI metric",
+        desc='output ROI metric',
     )
     corrected_areas = File(
         exists=True,
-        argstr="-corrected-areas %s",
-        desc="vertex areas to use instead of computing them from the surface",
+        argstr='-corrected-areas %s',
+        desc='vertex areas to use instead of computing them from the surface',
     )
 
 
 class MetricRemoveIslandsOutputSpec(TraitedSpec):
-    out_file = File(desc="output ROI metric")
+    out_file = File(desc='output ROI metric')
 
 
 class MetricRemoveIslands(WBCommand):
@@ -805,4 +803,4 @@ class MetricRemoveIslands(WBCommand):
 
     input_spec = MetricRemoveIslandsInputSpec
     output_spec = MetricRemoveIslandsOutputSpec
-    _cmd = "wb_command -metric-remove-islands"
+    _cmd = 'wb_command -metric-remove-islands'

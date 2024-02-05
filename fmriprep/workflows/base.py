@@ -82,7 +82,7 @@ def init_fmriprep_wf():
                 derivatives=config.execution.output_dir,
                 freesurfer_home=os.getenv('FREESURFER_HOME'),
                 spaces=config.workflow.spaces.get_fs_spaces(),
-                minimum_fs_version="7.0.0",
+                minimum_fs_version='7.0.0',
             ),
             name='fsdir_run_%s' % config.execution.run_uuid.replace('-', '_'),
             run_without_submitting=True,
@@ -94,7 +94,7 @@ def init_fmriprep_wf():
         single_subject_wf = init_single_subject_wf(subject_id)
 
         single_subject_wf.config['execution']['crashdump_dir'] = str(
-            config.execution.fmriprep_dir / f"sub-{subject_id}" / "log" / config.execution.run_uuid
+            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
@@ -105,7 +105,7 @@ def init_fmriprep_wf():
 
         # Dump a copy of the config file into the log directory
         log_dir = (
-            config.execution.fmriprep_dir / f"sub-{subject_id}" / 'log' / config.execution.run_uuid
+            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         log_dir.mkdir(exist_ok=True, parents=True)
         config.to_filename(log_dir / 'fmriprep.toml')
@@ -156,7 +156,6 @@ def init_single_subject_wf(subject_id: str):
     from smriprep.workflows.outputs import (
         init_ds_anat_volumes_wf,
         init_ds_grayord_metrics_wf,
-        init_ds_surface_metrics_wf,
         init_template_iterator_wf,
     )
     from smriprep.workflows.surfaces import (
@@ -169,20 +168,18 @@ def init_single_subject_wf(subject_id: str):
     from fmriprep.workflows.bold.base import init_bold_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
-    workflow.__desc__ = """
+    workflow.__desc__ = f"""
 Results included in this manuscript come from preprocessing
-performed using *fMRIPrep* {fmriprep_ver}
+performed using *fMRIPrep* {config.environment.version}
 (@fmriprep1; @fmriprep2; RRID:SCR_016216),
-which is based on *Nipype* {nipype_ver}
+which is based on *Nipype* {config.environment.nipype_version}
 (@nipype1; @nipype2; RRID:SCR_002502).
 
-""".format(
-        fmriprep_ver=config.environment.version, nipype_ver=config.environment.nipype_version
-    )
-    workflow.__postdesc__ = """
+"""
+    workflow.__postdesc__ = f"""
 
 Many internal operations of *fMRIPrep* use
-*Nilearn* {nilearn_ver} [@nilearn, RRID:SCR_001362],
+*Nilearn* {NILEARN_VERSION} [@nilearn, RRID:SCR_001362],
 mostly within the functional processing workflow.
 For more details of the pipeline, see [the section corresponding
 to workflows in *fMRIPrep*'s documentation]\
@@ -200,9 +197,7 @@ It is released under the [CC0]\
 
 ### References
 
-""".format(
-        nilearn_ver=NILEARN_VERSION
-    )
+"""
 
     subject_data = collect_data(
         config.execution.layout,
@@ -222,8 +217,8 @@ It is released under the [CC0]\
     if not anat_only and not subject_data['bold']:
         task_id = config.execution.task_id
         raise RuntimeError(
-            "No BOLD images found for participant {} and task {}. "
-            "All workflows require BOLD images.".format(
+            'No BOLD images found for participant {} and task {}. '
+            'All workflows require BOLD images.'.format(
                 subject_id, task_id if task_id else '<all>'
             )
         )
@@ -242,6 +237,7 @@ It is released under the [CC0]\
             "Future versions of fMRIPrep will use alternative conventions. "
             "Please refer to the documentation before upgrading.",
             FutureWarning,
+            stacklevel=1,
         )
 
     spaces = config.workflow.spaces
@@ -252,7 +248,7 @@ It is released under the [CC0]\
         from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
 
         std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
-        std_spaces.append("fsnative")
+        std_spaces.append('fsnative')
         for deriv_dir in config.execution.derivatives:
             anatomical_cache.update(
                 collect_anat_derivatives(
@@ -269,6 +265,7 @@ It is released under the [CC0]\
             subject_data=subject_data,
             anat_only=config.workflow.anat_only,
             subject_id=subject_id,
+            anat_derivatives=anatomical_cache if anatomical_cache else None,
         ),
         name='bidssrc',
     )
@@ -296,7 +293,7 @@ It is released under the [CC0]\
         DerivativesDataSink(
             base_directory=config.execution.fmriprep_dir,
             desc='summary',
-            datatype="figures",
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_summary',
@@ -307,7 +304,7 @@ It is released under the [CC0]\
         DerivativesDataSink(
             base_directory=config.execution.fmriprep_dir,
             desc='about',
-            datatype="figures",
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_about',
@@ -338,9 +335,24 @@ It is released under the [CC0]\
         skull_strip_fixed_seed=config.workflow.skull_strip_fixed_seed,
     )
 
+    # allow to run with anat-fast-track on fMRI-only dataset
+    if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
+        workflow.connect([
+            (bidssrc, bids_info, [(('bold', fix_multi_T1w_source_name), 'in_file')]),
+            (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
+            (anat_fit_wf, ds_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
+            (anat_fit_wf, ds_report_about, [('outputnode.t1w_preproc', 'source_file')]),
+        ])  # fmt:skip
+    else:
+        workflow.connect([
+            (bidssrc, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
+            (bidssrc, summary, [('t1w', 't1w')]),
+            (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+        ])  # fmt:skip
+
     workflow.connect([
         (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
-        (bidssrc, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
         (bidssrc, anat_fit_wf, [
             ('t1w', 'inputnode.t1w'),
             ('t2w', 'inputnode.t2w'),
@@ -350,10 +362,8 @@ It is released under the [CC0]\
         (bids_info, anat_fit_wf, [(('subject', _prefix), 'inputnode.subject_id')]),
         # Reporting connections
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-        (bidssrc, summary, [('t1w', 't1w'), ('t2w', 't2w'), ('bold', 'bold')]),
+        (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
         (bids_info, summary, [('subject', 'subject_id')]),
-        (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-        (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
@@ -361,13 +371,13 @@ It is released under the [CC0]\
     # Set up the template iterator once, if used
     template_iterator_wf = None
     select_MNI2009c_xfm = None
-    if config.workflow.level == "full":
+    if config.workflow.level == 'full':
         if spaces.cached.get_spaces(nonstandard=False, dim=(3,)):
             template_iterator_wf = init_template_iterator_wf(spaces=spaces)
             ds_std_volumes_wf = init_ds_anat_volumes_wf(
                 bids_root=bids_root,
                 output_dir=fmriprep_dir,
-                name="ds_std_volumes_wf",
+                name='ds_std_volumes_wf',
             )
             workflow.connect([
                 (anat_fit_wf, template_iterator_wf, [
@@ -376,30 +386,30 @@ It is released under the [CC0]\
                 ]),
                 (anat_fit_wf, ds_std_volumes_wf, [
                     ('outputnode.t1w_valid_list', 'inputnode.source_files'),
-                    ("outputnode.t1w_preproc", "inputnode.t1w_preproc"),
-                    ("outputnode.t1w_mask", "inputnode.t1w_mask"),
-                    ("outputnode.t1w_dseg", "inputnode.t1w_dseg"),
-                    ("outputnode.t1w_tpms", "inputnode.t1w_tpms"),
+                    ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
+                    ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
+                    ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
+                    ('outputnode.t1w_tpms', 'inputnode.t1w_tpms'),
                 ]),
                 (template_iterator_wf, ds_std_volumes_wf, [
-                    ("outputnode.std_t1w", "inputnode.ref_file"),
-                    ("outputnode.anat2std_xfm", "inputnode.anat2std_xfm"),
-                    ("outputnode.space", "inputnode.space"),
-                    ("outputnode.cohort", "inputnode.cohort"),
-                    ("outputnode.resolution", "inputnode.resolution"),
+                    ('outputnode.std_t1w', 'inputnode.ref_file'),
+                    ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
+                    ('outputnode.space', 'inputnode.space'),
+                    ('outputnode.cohort', 'inputnode.cohort'),
+                    ('outputnode.resolution', 'inputnode.resolution'),
                 ]),
             ])  # fmt:skip
 
         if 'MNI152NLin2009cAsym' in spaces.get_spaces():
             select_MNI2009c_xfm = pe.Node(
-                KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
-                name="select_MNI2009c_xfm",
+                KeySelect(fields=['std2anat_xfm'], key='MNI152NLin2009cAsym'),
+                name='select_MNI2009c_xfm',
                 run_without_submitting=True,
             )
             workflow.connect([
                 (anat_fit_wf, select_MNI2009c_xfm, [
-                    ("outputnode.std2anat_xfm", "std2anat_xfm"),
-                    ("outputnode.template", "keys"),
+                    ('outputnode.std2anat_xfm', 'std2anat_xfm'),
+                    ('outputnode.template', 'keys'),
                 ]),
             ])  # fmt:skip
 
@@ -411,23 +421,23 @@ It is released under the [CC0]\
             from smriprep.interfaces.templateflow import TemplateFlowSelect
 
             ref = Reference(
-                "MNI152NLin6Asym",
-                {"res": 2 if config.workflow.cifti_output == "91k" else 1},
+                'MNI152NLin6Asym',
+                {'res': 2 if config.workflow.cifti_output == '91k' else 1},
             )
 
             select_MNI6_xfm = pe.Node(
-                KeySelect(fields=["anat2std_xfm"], key=ref.fullname),
-                name="select_MNI6",
+                KeySelect(fields=['anat2std_xfm'], key=ref.fullname),
+                name='select_MNI6',
                 run_without_submitting=True,
             )
             select_MNI6_tpl = pe.Node(
                 TemplateFlowSelect(template=ref.fullname, resolution=ref.spec['res']),
-                name="select_MNI6_tpl",
+                name='select_MNI6_tpl',
             )
             workflow.connect([
                 (anat_fit_wf, select_MNI6_xfm, [
-                    ("outputnode.anat2std_xfm", "anat2std_xfm"),
-                    ("outputnode.template", "keys"),
+                    ('outputnode.anat2std_xfm', 'anat2std_xfm'),
+                    ('outputnode.template', 'keys'),
                 ]),
             ])  # fmt:skip
 
@@ -444,43 +454,43 @@ It is released under the [CC0]\
             ds_grayord_metrics_wf = init_ds_grayord_metrics_wf(
                 bids_root=bids_root,
                 output_dir=fmriprep_dir,
-                metrics=["curv", "thickness", "sulc"],
+                metrics=['curv', 'thickness', 'sulc'],
                 cifti_output=config.workflow.cifti_output,
             )
 
             workflow.connect([
                 (anat_fit_wf, curv_wf, [
-                    ("outputnode.subject_id", "inputnode.subject_id"),
-                    ("outputnode.subjects_dir", "inputnode.subjects_dir"),
+                    ('outputnode.subject_id', 'inputnode.subject_id'),
+                    ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
                 ]),
                 (anat_fit_wf, hcp_morphometrics_wf, [
-                    ("outputnode.subject_id", "inputnode.subject_id"),
-                    ("outputnode.thickness", "inputnode.thickness"),
-                    ("outputnode.sulc", "inputnode.sulc"),
-                    ("outputnode.midthickness", "inputnode.midthickness"),
+                    ('outputnode.subject_id', 'inputnode.subject_id'),
+                    ('outputnode.thickness', 'inputnode.thickness'),
+                    ('outputnode.sulc', 'inputnode.sulc'),
+                    ('outputnode.midthickness', 'inputnode.midthickness'),
                 ]),
                 (curv_wf, hcp_morphometrics_wf, [
-                    ("outputnode.curv", "inputnode.curv"),
+                    ('outputnode.curv', 'inputnode.curv'),
                 ]),
                 (anat_fit_wf, resample_midthickness_wf, [
                     ('outputnode.midthickness', 'inputnode.midthickness'),
                     (
                         f"outputnode.sphere_reg_{'msm' if msm_sulc else 'fsLR'}",
-                        "inputnode.sphere_reg_fsLR",
+                        'inputnode.sphere_reg_fsLR',
                     ),
                 ]),
                 (anat_fit_wf, morph_grayords_wf, [
-                    ("outputnode.midthickness", "inputnode.midthickness"),
+                    ('outputnode.midthickness', 'inputnode.midthickness'),
                     (
                         f'outputnode.sphere_reg_{"msm" if msm_sulc else "fsLR"}',
                         'inputnode.sphere_reg_fsLR',
                     ),
                 ]),
                 (hcp_morphometrics_wf, morph_grayords_wf, [
-                    ("outputnode.curv", "inputnode.curv"),
-                    ("outputnode.thickness", "inputnode.thickness"),
-                    ("outputnode.sulc", "inputnode.sulc"),
-                    ("outputnode.roi", "inputnode.roi"),
+                    ('outputnode.curv', 'inputnode.curv'),
+                    ('outputnode.thickness', 'inputnode.thickness'),
+                    ('outputnode.sulc', 'inputnode.sulc'),
+                    ('outputnode.roi', 'inputnode.roi'),
                 ]),
                 (resample_midthickness_wf, morph_grayords_wf, [
                     ('outputnode.midthickness_fsLR', 'inputnode.midthickness_fsLR'),
@@ -489,12 +499,12 @@ It is released under the [CC0]\
                     ('outputnode.t1w_valid_list', 'inputnode.source_files'),
                 ]),
                 (morph_grayords_wf, ds_grayord_metrics_wf, [
-                    ("outputnode.curv_fsLR", "inputnode.curv"),
-                    ("outputnode.curv_metadata", "inputnode.curv_metadata"),
-                    ("outputnode.thickness_fsLR", "inputnode.thickness"),
-                    ("outputnode.thickness_metadata", "inputnode.thickness_metadata"),
-                    ("outputnode.sulc_fsLR", "inputnode.sulc"),
-                    ("outputnode.sulc_metadata", "inputnode.sulc_metadata"),
+                    ('outputnode.curv_fsLR', 'inputnode.curv'),
+                    ('outputnode.curv_metadata', 'inputnode.curv_metadata'),
+                    ('outputnode.thickness_fsLR', 'inputnode.thickness'),
+                    ('outputnode.thickness_metadata', 'inputnode.thickness_metadata'),
+                    ('outputnode.sulc_fsLR', 'inputnode.sulc'),
+                    ('outputnode.sulc_metadata', 'inputnode.sulc_metadata'),
                 ]),
             ])  # fmt:skip
 
@@ -505,7 +515,7 @@ It is released under the [CC0]\
         layout=config.execution.layout,
         subject_id=subject_id,
         bold_data=bold_runs,
-        ignore_fieldmaps="fieldmaps" in config.workflow.ignore,
+        ignore_fieldmaps='fieldmaps' in config.workflow.ignore,
         use_syn=config.workflow.use_syn_sdc,
         force_syn=config.workflow.force_syn,
         filters=config.execution.get().get('bids_filters', {}).get('fmap'),
@@ -513,16 +523,16 @@ It is released under the [CC0]\
 
     if fmap_estimators:
         config.loggers.workflow.info(
-            "B0 field inhomogeneity map will be estimated with the following "
-            f"{len(fmap_estimators)} estimator(s): "
-            f"{[e.method for e in fmap_estimators]}."
+            'B0 field inhomogeneity map will be estimated with the following '
+            f'{len(fmap_estimators)} estimator(s): '
+            f'{[e.method for e in fmap_estimators]}.'
         )
 
         from sdcflows import fieldmaps as fm
         from sdcflows.workflows.base import init_fmap_preproc_wf
 
         fmap_wf = init_fmap_preproc_wf(
-            debug="fieldmaps" in config.execution.debug,
+            debug='fieldmaps' in config.execution.debug,
             estimators=fmap_estimators,
             omp_nthreads=omp_nthreads,
             output_dir=fmriprep_dir,
@@ -538,20 +548,20 @@ BIDS structure for this particular subject.
 
         # Overwrite ``out_path_base`` of sdcflows's DataSinks
         for node in fmap_wf.list_node_names():
-            if node.split(".")[-1].startswith("ds_"):
-                fmap_wf.get_node(node).interface.out_path_base = ""
+            if node.split('.')[-1].startswith('ds_'):
+                fmap_wf.get_node(node).interface.out_path_base = ''
 
         fmap_select_std = pe.Node(
-            KeySelect(fields=["std2anat_xfm"], key="MNI152NLin2009cAsym"),
-            name="fmap_select_std",
+            KeySelect(fields=['std2anat_xfm'], key='MNI152NLin2009cAsym'),
+            name='fmap_select_std',
             run_without_submitting=True,
         )
         if any(estimator.method == fm.EstimatorType.ANAT for estimator in fmap_estimators):
             # fmt:off
             workflow.connect([
                 (anat_fit_wf, fmap_select_std, [
-                    ("outputnode.std2anat_xfm", "std2anat_xfm"),
-                    ("outputnode.template", "keys")]),
+                    ('outputnode.std2anat_xfm', 'std2anat_xfm'),
+                    ('outputnode.template', 'keys')]),
             ])
             # fmt:on
 
@@ -569,26 +579,26 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
             suffices = [s.suffix for s in estimator.sources]
 
             if estimator.method == fm.EstimatorType.PEPOLAR:
-                if len(suffices) == 2 and all(suf in ("epi", "bold", "sbref") for suf in suffices):
-                    wf_inputs = getattr(fmap_wf.inputs, f"in_{estimator.bids_id}")
+                if len(suffices) == 2 and all(suf in ('epi', 'bold', 'sbref') for suf in suffices):
+                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.bids_id}')
                     wf_inputs.in_data = [str(s.path) for s in estimator.sources]
                     wf_inputs.metadata = [s.metadata for s in estimator.sources]
                 else:
-                    raise NotImplementedError("Sophisticated PEPOLAR schemes are unsupported.")
+                    raise NotImplementedError('Sophisticated PEPOLAR schemes are unsupported.')
 
             elif estimator.method == fm.EstimatorType.ANAT:
                 from sdcflows.workflows.fit.syn import init_syn_preprocessing_wf
 
-                sources = [str(s.path) for s in estimator.sources if s.suffix in ("bold", "sbref")]
+                sources = [str(s.path) for s in estimator.sources if s.suffix in ('bold', 'sbref')]
                 source_meta = [
-                    s.metadata for s in estimator.sources if s.suffix in ("bold", "sbref")
+                    s.metadata for s in estimator.sources if s.suffix in ('bold', 'sbref')
                 ]
                 syn_preprocessing_wf = init_syn_preprocessing_wf(
                     omp_nthreads=omp_nthreads,
                     debug=config.execution.sloppy,
                     auto_bold_nss=True,
                     t1w_inversion=False,
-                    name=f"syn_preprocessing_{estimator.bids_id}",
+                    name=f'syn_preprocessing_{estimator.bids_id}',
                 )
                 syn_preprocessing_wf.inputs.inputnode.in_epis = sources
                 syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
@@ -596,32 +606,39 @@ Setting-up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 # fmt:off
                 workflow.connect([
                     (anat_fit_wf, syn_preprocessing_wf, [
-                        ("outputnode.t1w_preproc", "inputnode.in_anat"),
-                        ("outputnode.t1w_mask", "inputnode.mask_anat"),
+                        ('outputnode.t1w_preproc', 'inputnode.in_anat'),
+                        ('outputnode.t1w_mask', 'inputnode.mask_anat'),
                     ]),
                     (fmap_select_std, syn_preprocessing_wf, [
-                        ("std2anat_xfm", "inputnode.std2anat_xfm"),
+                        ('std2anat_xfm', 'inputnode.std2anat_xfm'),
                     ]),
                     (syn_preprocessing_wf, fmap_wf, [
-                        ("outputnode.epi_ref", f"in_{estimator.bids_id}.epi_ref"),
-                        ("outputnode.epi_mask", f"in_{estimator.bids_id}.epi_mask"),
-                        ("outputnode.anat_ref", f"in_{estimator.bids_id}.anat_ref"),
-                        ("outputnode.anat_mask", f"in_{estimator.bids_id}.anat_mask"),
-                        ("outputnode.sd_prior", f"in_{estimator.bids_id}.sd_prior"),
+                        ('outputnode.epi_ref', f'in_{estimator.bids_id}.epi_ref'),
+                        ('outputnode.epi_mask', f'in_{estimator.bids_id}.epi_mask'),
+                        ('outputnode.anat_ref', f'in_{estimator.bids_id}.anat_ref'),
+                        ('outputnode.anat_mask', f'in_{estimator.bids_id}.anat_mask'),
+                        ('outputnode.sd_prior', f'in_{estimator.bids_id}.sd_prior'),
                     ]),
                 ])
                 # fmt:on
 
     # Append the functional section to the existing anatomical excerpt
     # That way we do not need to stream down the number of bold datasets
-    func_pre_desc = """
+    func_pre_desc = f"""
 Functional data preprocessing
 
-: For each of the {num_bold} BOLD runs found per subject (across all
+: For each of the {len(bold_runs)} BOLD runs found per subject (across all
 tasks and sessions), the following preprocessing was performed.
-""".format(
-        num_bold=len(bold_runs)
-    )
+"""
+
+    # Before initializing BOLD workflow, select/verify anatomical target for coregistration
+    if config.workflow.bold2anat_init in ('auto', 't2w'):
+        has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
+        if config.workflow.bold2anat_init == 't2w' and not has_t2w:
+            raise OSError(
+                'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
+            )
+        config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
 
     for bold_series in bold_runs:
         bold_file = bold_series[0]
@@ -650,7 +667,7 @@ tasks and sessions), the following preprocessing was performed.
         if bold_wf is None:
             continue
 
-        bold_wf.__desc__ = func_pre_desc + (bold_wf.__desc__ or "")
+        bold_wf.__desc__ = func_pre_desc + (bold_wf.__desc__ or '')
 
         workflow.connect([
             (anat_fit_wf, bold_wf, [
@@ -674,32 +691,32 @@ tasks and sessions), the following preprocessing was performed.
         if fieldmap_id:
             workflow.connect([
                 (fmap_wf, bold_wf, [
-                    ("outputnode.fmap", "inputnode.fmap"),
-                    ("outputnode.fmap_ref", "inputnode.fmap_ref"),
-                    ("outputnode.fmap_coeff", "inputnode.fmap_coeff"),
-                    ("outputnode.fmap_mask", "inputnode.fmap_mask"),
-                    ("outputnode.fmap_id", "inputnode.fmap_id"),
-                    ("outputnode.method", "inputnode.sdc_method"),
+                    ('outputnode.fmap', 'inputnode.fmap'),
+                    ('outputnode.fmap_ref', 'inputnode.fmap_ref'),
+                    ('outputnode.fmap_coeff', 'inputnode.fmap_coeff'),
+                    ('outputnode.fmap_mask', 'inputnode.fmap_mask'),
+                    ('outputnode.fmap_id', 'inputnode.fmap_id'),
+                    ('outputnode.method', 'inputnode.sdc_method'),
                 ]),
             ])  # fmt:skip
 
-        if config.workflow.level == "full":
+        if config.workflow.level == 'full':
             if template_iterator_wf is not None:
                 workflow.connect([
                     (template_iterator_wf, bold_wf, [
-                        ("outputnode.anat2std_xfm", "inputnode.anat2std_xfm"),
-                        ("outputnode.space", "inputnode.std_space"),
-                        ("outputnode.resolution", "inputnode.std_resolution"),
-                        ("outputnode.cohort", "inputnode.std_cohort"),
-                        ("outputnode.std_t1w", "inputnode.std_t1w"),
-                        ("outputnode.std_mask", "inputnode.std_mask"),
+                        ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
+                        ('outputnode.space', 'inputnode.std_space'),
+                        ('outputnode.resolution', 'inputnode.std_resolution'),
+                        ('outputnode.cohort', 'inputnode.std_cohort'),
+                        ('outputnode.std_t1w', 'inputnode.std_t1w'),
+                        ('outputnode.std_mask', 'inputnode.std_mask'),
                     ]),
                 ])  # fmt:skip
 
             if select_MNI2009c_xfm is not None:
                 workflow.connect([
                     (select_MNI2009c_xfm, bold_wf, [
-                        ("std2anat_xfm", "inputnode.mni2009c2anat_xfm"),
+                        ('std2anat_xfm', 'inputnode.mni2009c2anat_xfm'),
                     ]),
                 ])  # fmt:skip
 
@@ -709,10 +726,10 @@ tasks and sessions), the following preprocessing was performed.
             # want MNI152NLin6Asym outputs, but we'll live with it.
             if config.workflow.cifti_output:
                 workflow.connect([
-                    (select_MNI6_xfm, bold_wf, [("anat2std_xfm", "inputnode.anat2mni6_xfm")]),
-                    (select_MNI6_tpl, bold_wf, [("brain_mask", "inputnode.mni6_mask")]),
+                    (select_MNI6_xfm, bold_wf, [('anat2std_xfm', 'inputnode.anat2mni6_xfm')]),
+                    (select_MNI6_tpl, bold_wf, [('brain_mask', 'inputnode.mni6_mask')]),
                     (hcp_morphometrics_wf, bold_wf, [
-                        ("outputnode.roi", "inputnode.cortex_mask"),
+                        ('outputnode.roi', 'inputnode.cortex_mask'),
                     ]),
                     (resample_midthickness_wf, bold_wf, [
                         ('outputnode.midthickness_fsLR', 'inputnode.midthickness_fsLR'),
@@ -753,11 +770,11 @@ def map_fieldmap_estimation(
     if not fmap_estimators:
         if use_syn:
             message = (
-                "Fieldmap-less (SyN) estimation was requested, but PhaseEncodingDirection "
-                "information appears to be absent."
+                'Fieldmap-less (SyN) estimation was requested, but PhaseEncodingDirection '
+                'information appears to be absent.'
             )
             config.loggers.workflow.error(message)
-            if use_syn == "error":
+            if use_syn == 'error':
                 raise ValueError(message)
         return [], {}
 
@@ -806,12 +823,12 @@ def clean_datasinks(workflow: pe.Workflow) -> pe.Workflow:
     # Overwrite ``out_path_base`` of smriprep's DataSinks
     for node in workflow.list_node_names():
         if node.split('.')[-1].startswith('ds_'):
-            workflow.get_node(node).interface.out_path_base = ""
+            workflow.get_node(node).interface.out_path_base = ''
     return workflow
 
 
 def get_estimator(layout, fname):
-    field_source = layout.get_metadata(fname).get("B0FieldSource")
+    field_source = layout.get_metadata(fname).get('B0FieldSource')
     if isinstance(field_source, str):
         field_source = (field_source,)
 
@@ -822,7 +839,7 @@ def get_estimator(layout, fname):
         from sdcflows.fieldmaps import get_identifier
 
         # Fallback to IntendedFor
-        intended_rel = re.sub(r"^sub-[a-zA-Z0-9]*/", "", str(Path(fname).relative_to(layout.root)))
+        intended_rel = re.sub(r'^sub-[a-zA-Z0-9]*/', '', str(Path(fname).relative_to(layout.root)))
         field_source = get_identifier(intended_rel)
 
     return field_source

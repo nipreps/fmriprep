@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>"fMRIPrep citation boilerplate"</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for citations */
+    div.csl-bib-body { }
+    div.csl-entry {
+      clear: both;
+    }
+    .hanging-indent div.csl-entry {
+      margin-left:2em;
+      text-indent:-2em;
+    }
+    div.csl-left-margin {
+      min-width:2em;
+      float:left;
+    }
+    div.csl-right-inline {
+      margin-left:2em;
+      padding-left:1em;
+    }
+    div.csl-indent {
+      margin-left: 2em;
+    }  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<p>Results included in this manuscript come from preprocessing performed
+using <em>fMRIPrep</em> 23.1.4 (<span class="citation"
+data-cites="fmriprep1">Esteban et al. (2019)</span>; <span
+class="citation" data-cites="fmriprep2">Esteban et al. (2018)</span>;
+RRID:SCR_016216), which is based on <em>Nipype</em> 1.8.6 (<span
+class="citation" data-cites="nipype1">K. Gorgolewski et al.
+(2011)</span>; <span class="citation" data-cites="nipype2">K. J.
+Gorgolewski et al. (2018)</span>; RRID:SCR_002502).</p>
+<dl>
+<dt>Anatomical data preprocessing</dt>
+<dd>
+<p>A total of 79 T1-weighted (T1w) images were found within the input
+BIDS dataset. Anatomical preprocessing was reused from previously
+existing derivative objects.</p>
+</dd>
+<dt>Functional data preprocessing</dt>
+<dd>
+<p>For each of the 1 BOLD runs found per subject (across all tasks and
+sessions), the following preprocessing was performed. First, a reference
+volume and its skull-stripped version were generated from the shortest
+echo of the BOLD run using a custom methodology of <em>fMRIPrep</em>.
+Head-motion parameters with respect to the BOLD reference
+(transformation matrices, and six corresponding rotation and translation
+parameters) are estimated before any spatiotemporal filtering using
+<code>mcflirt</code> <span class="citation" data-cites="mcflirt">(FSL
+<ver>, Jenkinson et al. 2002)</span>. BOLD runs were slice-time
+corrected to 0.738s (0.5 of slice acquisition range 0s-1.48s) using
+<code>3dTshift</code> from AFNI <span class="citation"
+data-cites="afni">(Cox and Hyde 1997, RRID:SCR_005927)</span>. The BOLD
+time-series (including slice-timing correction when applied) were
+resampled onto their original, native space by applying the transforms
+to correct for head-motion. These resampled BOLD time-series will be
+referred to as <em>preprocessed BOLD in original space</em>, or just
+<em>preprocessed BOLD</em>. A T2<sup>★</sup> map was estimated from the
+preprocessed EPI echoes, by voxel-wise fitting the maximal number of
+echoes with reliable signal in that voxel to a monoexponential signal
+decay model with nonlinear regression. The T2<sup>★</sup>/S<sub>0</sub>
+estimates from a log-linear regression fit were used for initial values.
+The calculated T2<sup>★</sup> map was then used to optimally combine
+preprocessed BOLD across echoes following the method described in <span
+class="citation" data-cites="posse_t2s">(Posse et al. 1999)</span>. The
+optimally combined time series was carried forward as the
+<em>preprocessed BOLD</em>. The BOLD reference was then co-registered to
+the T1w reference using <code>bbregister</code> (FreeSurfer) which
+implements boundary-based registration <span class="citation"
+data-cites="bbr">(Greve and Fischl 2009)</span>. Co-registration was
+configured with six degrees of freedom. First, a reference volume and
+its skull-stripped version were generated using a custom methodology of
+<em>fMRIPrep</em>. Several confounding time-series were calculated based
+on the <em>preprocessed BOLD</em>: framewise displacement (FD), DVARS
+and three region-wise global signals. FD was computed using two
+formulations following Power (absolute sum of relative motions, <span
+class="citation" data-cites="power_fd_dvars">Power et al. (2014)</span>)
+and Jenkinson (relative root mean square displacement between affines,
+<span class="citation" data-cites="mcflirt">Jenkinson et al.
+(2002)</span>). FD and DVARS are calculated for each functional run,
+both using their implementations in <em>Nipype</em> <span
+class="citation" data-cites="power_fd_dvars">(following the definitions
+by Power et al. 2014)</span>. The three global signals are extracted
+within the CSF, the WM, and the whole-brain masks. Additionally, a set
+of physiological regressors were extracted to allow for component-based
+noise correction <span class="citation"
+data-cites="compcor">(<em>CompCor</em>, Behzadi et al. 2007)</span>.
+Principal components are estimated after high-pass filtering the
+<em>preprocessed BOLD</em> time-series (using a discrete cosine filter
+with 128s cut-off) for the two <em>CompCor</em> variants: temporal
+(tCompCor) and anatomical (aCompCor). tCompCor components are then
+calculated from the top 2% variable voxels within the brain mask. For
+aCompCor, three probabilistic masks (CSF, WM and combined CSF+WM) are
+generated in anatomical space. The implementation differs from that of
+Behzadi et al. in that instead of eroding the masks by 2 pixels on BOLD
+space, a mask of pixels that likely contain a volume fraction of GM is
+subtracted from the aCompCor masks. This mask is obtained by dilating a
+GM mask extracted from the FreeSurfer’s <em>aseg</em> segmentation, and
+it ensures components are not extracted from voxels containing a minimal
+fraction of GM. Finally, these masks are resampled into BOLD space and
+binarized by thresholding at 0.99 (as in the original implementation).
+Components are also calculated separately within the WM and CSF masks.
+For each CompCor decomposition, the <em>k</em> components with the
+largest singular values are retained, such that the retained components’
+time series are sufficient to explain 50 percent of variance across the
+nuisance mask (CSF, WM, combined, or temporal). The remaining components
+are dropped from consideration. The head-motion estimates calculated in
+the correction step were also placed within the corresponding confounds
+file. The confound time series derived from head motion estimates and
+global signals were expanded with the inclusion of temporal derivatives
+and quadratic terms for each <span class="citation"
+data-cites="confounds_satterthwaite_2013">(Satterthwaite et al.
+2013)</span>. Frames that exceeded a threshold of 0.5 mm FD or 1.5
+standardized DVARS were annotated as motion outliers. Additional
+nuisance timeseries are calculated by means of principal components
+analysis of the signal found within a thin band (<em>crown</em>) of
+voxels around the edge of the brain, as proposed by <span
+class="citation" data-cites="patriat_improved_2017">(Patriat, Reynolds,
+and Birn 2017)</span>. The BOLD time-series were resampled into standard
+space, generating a <em>preprocessed BOLD run in MNI152NLin2009cAsym
+space</em>. First, a reference volume and its skull-stripped version
+were generated using a custom methodology of <em>fMRIPrep</em>. All
+resamplings can be performed with <em>a single interpolation step</em>
+by composing all the pertinent transformations (i.e. head-motion
+transform matrices, susceptibility distortion correction when available,
+and co-registrations to anatomical and output spaces). Gridded
+(volumetric) resamplings were performed using
+<code>antsApplyTransforms</code> (ANTs), configured with Lanczos
+interpolation to minimize the smoothing effects of other kernels <span
+class="citation" data-cites="lanczos">(Lanczos 1964)</span>. Non-gridded
+(surface) resamplings were performed using <code>mri_vol2surf</code>
+(FreeSurfer).</p>
+</dd>
+</dl>
+<p>Many internal operations of <em>fMRIPrep</em> use <em>Nilearn</em>
+0.10.1 <span class="citation" data-cites="nilearn">(Abraham et al. 2014,
+RRID:SCR_001362)</span>, mostly within the functional processing
+workflow. For more details of the pipeline, see <a
+href="https://fmriprep.readthedocs.io/en/latest/workflows.html"
+title="FMRIPrep&#39;s documentation">the section corresponding to
+workflows in <em>fMRIPrep</em>’s documentation</a>.</p>
+<h3 id="copyright-waiver">Copyright Waiver</h3>
+<p>The above boilerplate text was automatically generated by fMRIPrep
+with the express intention that users should copy and paste this text
+into their manuscripts <em>unchanged</em>. It is released under the <a
+href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>
+license.</p>
+<h3 class="unnumbered" id="references">References</h3>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-nilearn" class="csl-entry" role="listitem">
+Abraham, Alexandre, Fabian Pedregosa, Michael Eickenberg, Philippe
+Gervais, Andreas Mueller, Jean Kossaifi, Alexandre Gramfort, Bertrand
+Thirion, and Gael Varoquaux. 2014. <span>“Machine Learning for
+Neuroimaging with Scikit-Learn.”</span> <em>Frontiers in
+Neuroinformatics</em> 8. <a
+href="https://doi.org/10.3389/fninf.2014.00014">https://doi.org/10.3389/fninf.2014.00014</a>.
+</div>
+<div id="ref-compcor" class="csl-entry" role="listitem">
+Behzadi, Yashar, Khaled Restom, Joy Liau, and Thomas T. Liu. 2007.
+<span>“A Component Based Noise Correction Method (<span>CompCor</span>)
+for <span>BOLD</span> and Perfusion Based fMRI.”</span>
+<em>NeuroImage</em> 37 (1): 90–101. <a
+href="https://doi.org/10.1016/j.neuroimage.2007.04.042">https://doi.org/10.1016/j.neuroimage.2007.04.042</a>.
+</div>
+<div id="ref-afni" class="csl-entry" role="listitem">
+Cox, Robert W., and James S. Hyde. 1997. <span>“Software Tools for
+Analysis and Visualization of fMRI Data.”</span> <em>NMR in
+Biomedicine</em> 10 (4-5): 171–78. <a
+href="https://doi.org/10.1002/(SICI)1099-1492(199706/08)10:4/5&lt;171::AID-NBM453&gt;3.0.CO;2-L">https://doi.org/10.1002/(SICI)1099-1492(199706/08)10:4/5&lt;171::AID-NBM453&gt;3.0.CO;2-L</a>.
+</div>
+<div id="ref-fmriprep2" class="csl-entry" role="listitem">
+Esteban, Oscar, Ross Blair, Christopher J. Markiewicz, Shoshana L.
+Berleant, Craig Moodie, Feilong Ma, Ayse Ilkay Isik, et al. 2018.
+<span>“fMRIPrep 23.1.4.”</span> <em>Software</em>. <a
+href="https://doi.org/10.5281/zenodo.852659">https://doi.org/10.5281/zenodo.852659</a>.
+</div>
+<div id="ref-fmriprep1" class="csl-entry" role="listitem">
+Esteban, Oscar, Christopher Markiewicz, Ross W Blair, Craig Moodie, Ayse
+Ilkay Isik, Asier Erramuzpe Aliaga, James Kent, et al. 2019.
+<span>“<span class="nocase">fMRIPrep</span>: A Robust Preprocessing
+Pipeline for Functional <span>MRI</span>.”</span> <em>Nature
+Methods</em> 16: 111–16. <a
+href="https://doi.org/10.1038/s41592-018-0235-4">https://doi.org/10.1038/s41592-018-0235-4</a>.
+</div>
+<div id="ref-nipype1" class="csl-entry" role="listitem">
+Gorgolewski, K., C. D. Burns, C. Madison, D. Clark, Y. O. Halchenko, M.
+L. Waskom, and S. Ghosh. 2011. <span>“Nipype: A Flexible, Lightweight
+and Extensible Neuroimaging Data Processing Framework in Python.”</span>
+<em>Frontiers in Neuroinformatics</em> 5: 13. <a
+href="https://doi.org/10.3389/fninf.2011.00013">https://doi.org/10.3389/fninf.2011.00013</a>.
+</div>
+<div id="ref-nipype2" class="csl-entry" role="listitem">
+Gorgolewski, Krzysztof J., Oscar Esteban, Christopher J. Markiewicz,
+Erik Ziegler, David Gage Ellis, Michael Philipp Notter, Dorota Jarecka,
+et al. 2018. <span>“Nipype.”</span> <em>Software</em>. <a
+href="https://doi.org/10.5281/zenodo.596855">https://doi.org/10.5281/zenodo.596855</a>.
+</div>
+<div id="ref-bbr" class="csl-entry" role="listitem">
+Greve, Douglas N, and Bruce Fischl. 2009. <span>“Accurate and Robust
+Brain Image Alignment Using Boundary-Based Registration.”</span>
+<em>NeuroImage</em> 48 (1): 63–72. <a
+href="https://doi.org/10.1016/j.neuroimage.2009.06.060">https://doi.org/10.1016/j.neuroimage.2009.06.060</a>.
+</div>
+<div id="ref-mcflirt" class="csl-entry" role="listitem">
+Jenkinson, Mark, Peter Bannister, Michael Brady, and Stephen Smith.
+2002. <span>“Improved Optimization for the Robust and Accurate Linear
+Registration and Motion Correction of Brain Images.”</span>
+<em>NeuroImage</em> 17 (2): 825–41. <a
+href="https://doi.org/10.1006/nimg.2002.1132">https://doi.org/10.1006/nimg.2002.1132</a>.
+</div>
+<div id="ref-lanczos" class="csl-entry" role="listitem">
+Lanczos, C. 1964. <span>“Evaluation of Noisy Data.”</span> <em>Journal
+of the Society for Industrial and Applied Mathematics Series B Numerical
+Analysis</em> 1 (1): 76–85. <a
+href="https://doi.org/10.1137/0701007">https://doi.org/10.1137/0701007</a>.
+</div>
+<div id="ref-patriat_improved_2017" class="csl-entry" role="listitem">
+Patriat, Rémi, Richard C. Reynolds, and Rasmus M. Birn. 2017. <span>“An
+Improved Model of Motion-Related Signal Changes in <span
+class="nocase">fMRI</span>.”</span> <em>NeuroImage</em> 144, Part A
+(January): 74–82. <a
+href="https://doi.org/10.1016/j.neuroimage.2016.08.051">https://doi.org/10.1016/j.neuroimage.2016.08.051</a>.
+</div>
+<div id="ref-posse_t2s" class="csl-entry" role="listitem">
+Posse, Stefan, Stefan Wiese, Daniel Gembris, Klaus Mathiak, Christoph
+Kessler, Maria-Liisa Grosse-Ruyken, Barbara Elghahwagi, Todd Richards,
+Stephen R. Dager, and Valerij G. Kiselev. 1999. <span>“Enhancement of
+<span>BOLD</span>-Contrast Sensitivity by Single-Shot Multi-Echo
+Functional <span>MR</span> Imaging.”</span> <em>Magnetic Resonance in
+Medicine</em> 42 (1): 87–97. <a
+href="https://doi.org/10.1002/(SICI)1522-2594(199907)42:1&lt;87::AID-MRM13&gt;3.0.CO;2-O">https://doi.org/10.1002/(SICI)1522-2594(199907)42:1&lt;87::AID-MRM13&gt;3.0.CO;2-O</a>.
+</div>
+<div id="ref-power_fd_dvars" class="csl-entry" role="listitem">
+Power, Jonathan D., Anish Mitra, Timothy O. Laumann, Abraham Z. Snyder,
+Bradley L. Schlaggar, and Steven E. Petersen. 2014. <span>“Methods to
+Detect, Characterize, and Remove Motion Artifact in Resting State
+fMRI.”</span> <em>NeuroImage</em> 84 (Supplement C): 320–41. <a
+href="https://doi.org/10.1016/j.neuroimage.2013.08.048">https://doi.org/10.1016/j.neuroimage.2013.08.048</a>.
+</div>
+<div id="ref-confounds_satterthwaite_2013" class="csl-entry"
+role="listitem">
+Satterthwaite, Theodore D., Mark A. Elliott, Raphael T. Gerraty, Kosha
+Ruparel, James Loughead, Monica E. Calkins, Simon B. Eickhoff, et al.
+2013. <span>“<span class="nocase">An improved framework for confound
+regression and filtering for control of motion artifact in the
+preprocessing of resting-state functional connectivity
+data</span>.”</span> <em>NeuroImage</em> 64 (1): 240–56. <a
+href="https://doi.org/10.1016/j.neuroimage.2012.08.052">https://doi.org/10.1016/j.neuroimage.2012.08.052</a>.
+</div>
+</div>
+</body>
+</html>

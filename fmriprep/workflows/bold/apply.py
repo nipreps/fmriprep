@@ -92,30 +92,30 @@ def init_bold_volumetric_resample_wf(
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
-                "bold_file",
-                "bold_ref_file",
-                "target_ref_file",
-                "target_mask",
+                'bold_file',
+                'bold_ref_file',
+                'target_ref_file',
+                'target_mask',
                 # HMC
-                "motion_xfm",
+                'motion_xfm',
                 # SDC
-                "boldref2fmap_xfm",
-                "fmap_ref",
-                "fmap_coeff",
-                "fmap_id",
+                'boldref2fmap_xfm',
+                'fmap_ref',
+                'fmap_coeff',
+                'fmap_id',
                 # Anatomical
-                "boldref2anat_xfm",
+                'boldref2anat_xfm',
                 # Template
-                "anat2std_xfm",
+                'anat2std_xfm',
                 # Entity for selecting target resolution
-                "resolution",
+                'resolution',
             ],
         ),
         name='inputnode',
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=["bold_file", "resampling_reference"]),
+        niu.IdentityInterface(fields=['bold_file', 'resampling_reference']),
         name='outputnode',
     )
 
@@ -125,7 +125,7 @@ def init_bold_volumetric_resample_wf(
     bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
     resample = pe.Node(
         ResampleSeries(jacobian=jacobian),
-        name="resample",
+        name='resample',
         n_procs=omp_nthreads,
         mem_gb=mem_gb['resampled'],
     )
@@ -154,13 +154,13 @@ def init_bold_volumetric_resample_wf(
         return workflow
 
     fmap_select = pe.Node(
-        KeySelect(fields=["fmap_ref", "fmap_coeff"], key=fieldmap_id),
-        name="fmap_select",
+        KeySelect(fields=['fmap_ref', 'fmap_coeff'], key=fieldmap_id),
+        name='fmap_select',
         run_without_submitting=True,
     )
     distortion_params = pe.Node(
         DistortionParameters(metadata=metadata),
-        name="distortion_params",
+        name='distortion_params',
         run_without_submitting=True,
     )
     fmap2target = pe.Node(niu.Merge(2), name='fmap2target', run_without_submitting=True)
@@ -170,13 +170,13 @@ def init_bold_volumetric_resample_wf(
         run_without_submitting=True,
     )
 
-    fmap_recon = pe.Node(ReconstructFieldmap(), name="fmap_recon", mem_gb=1)
+    fmap_recon = pe.Node(ReconstructFieldmap(), name='fmap_recon', mem_gb=1)
 
     workflow.connect([
         (inputnode, fmap_select, [
-            ("fmap_ref", "fmap_ref"),
-            ("fmap_coeff", "fmap_coeff"),
-            ("fmap_id", "keys"),
+            ('fmap_ref', 'fmap_ref'),
+            ('fmap_coeff', 'fmap_coeff'),
+            ('fmap_id', 'keys'),
         ]),
         (inputnode, distortion_params, [('bold_file', 'in_file')]),
         (inputnode, fmap2target, [('boldref2fmap_xfm', 'in1')]),
@@ -184,15 +184,15 @@ def init_bold_volumetric_resample_wf(
         (boldref2target, fmap2target, [('out', 'in2')]),
         (boldref2target, inverses, [('out', 'inlist')]),
         (fmap_select, fmap_recon, [
-            ("fmap_coeff", "in_coeffs"),
-            ("fmap_ref", "fmap_ref_file"),
+            ('fmap_coeff', 'in_coeffs'),
+            ('fmap_ref', 'fmap_ref_file'),
         ]),
         (fmap2target, fmap_recon, [('out', 'transforms')]),
         (inverses, fmap_recon, [('out', 'inverse')]),
         # Inject fieldmap correction into resample node
         (distortion_params, resample, [
-            ("readout_time", "ro_time"),
-            ("pe_direction", "pe_dir"),
+            ('readout_time', 'ro_time'),
+            ('pe_direction', 'pe_dir'),
         ]),
         (fmap_recon, resample, [('out_file', 'fieldmap')]),
     ])  # fmt:skip
@@ -214,4 +214,4 @@ def _gen_inverses(inlist: list) -> list[bool]:
 
 
 def _is_native(value):
-    return value == "native"
+    return value == 'native'

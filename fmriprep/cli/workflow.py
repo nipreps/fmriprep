@@ -34,7 +34,6 @@ a hard-limited memory-scope.
 
 def build_workflow(config_file, retval):
     """Create the Nipype Workflow that supports the whole execution graph."""
-    from pathlib import Path
 
     from niworkflows.utils.bids import collect_participants
     from niworkflows.utils.misc import check_valid_fs_license
@@ -52,26 +51,26 @@ def build_workflow(config_file, retval):
     fmriprep_dir = config.execution.fmriprep_dir
     version = config.environment.version
 
-    retval["return_code"] = 1
-    retval["workflow"] = None
+    retval['return_code'] = 1
+    retval['workflow'] = None
 
-    banner = [f"Running fMRIPrep version {version}"]
-    notice_path = data.load.readable("NOTICE")
+    banner = [f'Running fMRIPrep version {version}']
+    notice_path = data.load.readable('NOTICE')
     if notice_path.exists():
-        banner[0] += "\n"
+        banner[0] += '\n'
         banner += [f"License NOTICE {'#' * 50}"]
-        banner += [f"fMRIPrep {version}"]
+        banner += [f'fMRIPrep {version}']
         banner += notice_path.read_text().splitlines(keepends=False)[1:]
-        banner += ["#" * len(banner[1])]
+        banner += ['#' * len(banner[1])]
     build_log.log(25, f"\n{' ' * 9}".join(banner))
 
     # warn if older results exist: check for dataset_description.json in output folder
-    msg = check_pipeline_version("fMRIPrep", version, fmriprep_dir / "dataset_description.json")
+    msg = check_pipeline_version('fMRIPrep', version, fmriprep_dir / 'dataset_description.json')
     if msg is not None:
         build_log.warning(msg)
 
     # Please note this is the input folder's dataset_description.json
-    dset_desc_path = config.execution.bids_dir / "dataset_description.json"
+    dset_desc_path = config.execution.bids_dir / 'dataset_description.json'
     if dset_desc_path.exists():
         from hashlib import sha256
 
@@ -85,34 +84,46 @@ def build_workflow(config_file, retval):
 
     # Called with reports only
     if config.execution.reports_only:
-        build_log.log(25, "Running --reports-only on participants %s", ", ".join(subject_list))
-        retval["return_code"] = generate_reports(
+        build_log.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
+        session_list = (
+            config.execution.bids_filters.get('bold', {}).get('session')
+            if config.execution.bids_filters
+            else None
+        )
+
+        failed_reports = generate_reports(
             config.execution.participant_label,
             config.execution.fmriprep_dir,
             config.execution.run_uuid,
-            config=data.load("reports-spec.yml"),
-            packagename="fmriprep",
+            session_list=session_list,
         )
+        if failed_reports:
+            config.loggers.cli.error(
+                'Report generation was not successful for the following participants : %s.',
+                ', '.join(failed_reports),
+            )
+
+        retval['return_code'] = len(failed_reports)
         return retval
 
     # Build main workflow
     init_msg = [
         "Building fMRIPrep's workflow:",
-        f"BIDS dataset path: {config.execution.bids_dir}.",
-        f"Participant list: {subject_list}.",
-        f"Run identifier: {config.execution.run_uuid}.",
-        f"Output spaces: {config.execution.output_spaces}.",
+        f'BIDS dataset path: {config.execution.bids_dir}.',
+        f'Participant list: {subject_list}.',
+        f'Run identifier: {config.execution.run_uuid}.',
+        f'Output spaces: {config.execution.output_spaces}.',
     ]
 
     if config.execution.derivatives:
-        init_msg += [f"Searching for derivatives: {config.execution.derivatives}."]
+        init_msg += [f'Searching for derivatives: {config.execution.derivatives}.']
 
     if config.execution.fs_subjects_dir:
         init_msg += [f"Pre-run FreeSurfer's SUBJECTS_DIR: {config.execution.fs_subjects_dir}."]
 
     build_log.log(25, f"\n{' ' * 11}* ".join(init_msg))
 
-    retval["workflow"] = init_fmriprep_wf()
+    retval['workflow'] = init_fmriprep_wf()
 
     # Check for FS license after building the workflow
     if not check_valid_fs_license():
@@ -133,25 +144,25 @@ license file at several paths, in this order: 1) command line argument ``--fs-li
 2) ``$FS_LICENSE`` environment variable; and 3) the ``$FREESURFER_HOME/license.txt`` path. Get it \
 (for free) by registering at https://surfer.nmr.mgh.harvard.edu/registration.html"""
             )
-        retval["return_code"] = 126  # 126 == Command invoked cannot execute.
+        retval['return_code'] = 126  # 126 == Command invoked cannot execute.
         return retval
 
     # Check workflow for missing commands
-    missing = check_deps(retval["workflow"])
+    missing = check_deps(retval['workflow'])
     if missing:
         build_log.critical(
-            "Cannot run fMRIPrep. Missing dependencies:%s",
-            "\n\t* ".join([""] + [f"{cmd} (Interface: {iface})" for iface, cmd in missing]),
+            'Cannot run fMRIPrep. Missing dependencies:%s',
+            '\n\t* '.join([''] + [f'{cmd} (Interface: {iface})' for iface, cmd in missing]),
         )
-        retval["return_code"] = 127  # 127 == command not found.
+        retval['return_code'] = 127  # 127 == command not found.
         return retval
 
     config.to_filename(config_file)
     build_log.info(
-        "fMRIPrep workflow graph with %d nodes built successfully.",
-        len(retval["workflow"]._get_all_nodes()),
+        'fMRIPrep workflow graph with %d nodes built successfully.',
+        len(retval['workflow']._get_all_nodes()),
     )
-    retval["return_code"] = 0
+    retval['return_code'] = 0
     return retval
 
 
@@ -160,10 +171,10 @@ def build_boilerplate(config_file, workflow):
     from .. import config
 
     config.load(config_file)
-    logs_path = config.execution.fmriprep_dir / "logs"
+    logs_path = config.execution.fmriprep_dir / 'logs'
     boilerplate = workflow.visit_desc()
     citation_files = {
-        ext: logs_path / ("CITATION.%s" % ext) for ext in ("bib", "tex", "md", "html")
+        ext: logs_path / ('CITATION.%s' % ext) for ext in ('bib', 'tex', 'md', 'html')
     }
 
     if boilerplate:
@@ -176,52 +187,51 @@ def build_boilerplate(config_file, workflow):
             except FileNotFoundError:
                 pass
 
-    citation_files["md"].write_text(boilerplate)
+    citation_files['md'].write_text(boilerplate)
 
-    if not config.execution.md_only_boilerplate and citation_files["md"].exists():
-        from pathlib import Path
+    if not config.execution.md_only_boilerplate and citation_files['md'].exists():
         from subprocess import CalledProcessError, TimeoutExpired, check_call
 
         from .. import data
 
-        bib_text = data.load.readable("boilerplate.bib").read_text()
-        citation_files["bib"].write_text(
-            bib_text.replace("fMRIPrep <version>", f"fMRIPrep {config.environment.version}")
+        bib_text = data.load.readable('boilerplate.bib').read_text()
+        citation_files['bib'].write_text(
+            bib_text.replace('fMRIPrep <version>', f'fMRIPrep {config.environment.version}')
         )
 
         # Generate HTML file resolving citations
         cmd = [
-            "pandoc",
-            "-s",
-            "--bibliography",
-            str(citation_files["bib"]),
-            "--citeproc",
-            "--metadata",
+            'pandoc',
+            '-s',
+            '--bibliography',
+            str(citation_files['bib']),
+            '--citeproc',
+            '--metadata',
             'pagetitle="fMRIPrep citation boilerplate"',
-            str(citation_files["md"]),
-            "-o",
-            str(citation_files["html"]),
+            str(citation_files['md']),
+            '-o',
+            str(citation_files['html']),
         ]
 
-        config.loggers.cli.info("Generating an HTML version of the citation boilerplate...")
+        config.loggers.cli.info('Generating an HTML version of the citation boilerplate...')
         try:
-            check_call(cmd, timeout=10)
+            check_call(cmd, timeout=10)  # noqa: S603
         except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            config.loggers.cli.warning("Could not generate CITATION.html file:\n%s", " ".join(cmd))
+            config.loggers.cli.warning('Could not generate CITATION.html file:\n%s', ' '.join(cmd))
 
         # Generate LaTex file resolving citations
         cmd = [
-            "pandoc",
-            "-s",
-            "--bibliography",
-            str(citation_files["bib"]),
-            "--natbib",
-            str(citation_files["md"]),
-            "-o",
-            str(citation_files["tex"]),
+            'pandoc',
+            '-s',
+            '--bibliography',
+            str(citation_files['bib']),
+            '--natbib',
+            str(citation_files['md']),
+            '-o',
+            str(citation_files['tex']),
         ]
-        config.loggers.cli.info("Generating a LaTeX version of the citation boilerplate...")
+        config.loggers.cli.info('Generating a LaTeX version of the citation boilerplate...')
         try:
-            check_call(cmd, timeout=10)
+            check_call(cmd, timeout=10)  # noqa: S603
         except (FileNotFoundError, CalledProcessError, TimeoutExpired):
-            config.loggers.cli.warning("Could not generate CITATION.tex file:\n%s", " ".join(cmd))
+            config.loggers.cli.warning('Could not generate CITATION.tex file:\n%s', ' '.join(cmd))

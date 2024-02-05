@@ -29,49 +29,49 @@ from niworkflows.utils.misc import read_crashfile
 
 from .. import __version__, config
 
-sentry_sdk = optional_package("sentry_sdk")[0]
-migas = optional_package("migas")[0]
+sentry_sdk = optional_package('sentry_sdk')[0]
+migas = optional_package('migas')[0]
 
 CHUNK_SIZE = 16384
 # Group common events with pre specified fingerprints
 KNOWN_ERRORS = {
-    'permission-denied': ["PermissionError: [Errno 13] Permission denied"],
+    'permission-denied': ['PermissionError: [Errno 13] Permission denied'],
     'memory-error': [
-        "MemoryError",
-        "Cannot allocate memory",
-        "Return code: 134",
+        'MemoryError',
+        'Cannot allocate memory',
+        'Return code: 134',
     ],
-    'reconall-already-running': ["ERROR: it appears that recon-all is already running"],
-    'no-disk-space': ["[Errno 28] No space left on device", "[Errno 122] Disk quota exceeded"],
+    'reconall-already-running': ['ERROR: it appears that recon-all is already running'],
+    'no-disk-space': ['[Errno 28] No space left on device', '[Errno 122] Disk quota exceeded'],
     'segfault': [
-        "Segmentation Fault",
-        "Segfault",
-        "Return code: 139",
+        'Segmentation Fault',
+        'Segfault',
+        'Return code: 139',
     ],
     'potential-race-condition': [
-        "[Errno 39] Directory not empty",
-        "_unfinished.json",
+        '[Errno 39] Directory not empty',
+        '_unfinished.json',
     ],
     'keyboard-interrupt': [
-        "KeyboardInterrupt",
+        'KeyboardInterrupt',
     ],
 }
 
 
 def sentry_setup():
     """Set-up sentry."""
-    release = config.environment.version or "dev"
+    release = config.environment.version or 'dev'
     environment = (
-        "dev"
+        'dev'
         if (
             os.getenv('FMRIPREP_DEV', '').lower in ('1', 'on', 'yes', 'y', 'true')
             or ('+' in release)
         )
-        else "prod"
+        else 'prod'
     )
 
     sentry_sdk.init(
-        "https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693",
+        'https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693',
         release=release,
         environment=environment,
         before_send=before_send,
@@ -89,7 +89,7 @@ def process_crashfile(crashfile):
 
         # Extract node name
         node_name = crash_info.pop('node').split('.')[-1]
-        scope.set_tag("node_name", node_name)
+        scope.set_tag('node_name', node_name)
 
         # Massage the traceback, extract the gist
         traceback = crash_info.pop('traceback')
@@ -134,12 +134,12 @@ def process_crashfile(crashfile):
             sentry_sdk.add_breadcrumb(message=fingerprint, level='fatal')
         else:
             # remove file paths
-            fingerprint = re.sub(r"(/[^/ ]*)+/?", '', message)
+            fingerprint = re.sub(r'(/[^/ ]*)+/?', '', message)
             # remove words containing numbers
-            fingerprint = re.sub(r"([a-zA-Z]*[0-9]+[a-zA-Z]*)+", '', fingerprint)
+            fingerprint = re.sub(r'([a-zA-Z]*[0-9]+[a-zA-Z]*)+', '', fingerprint)
             # adding the return code if it exists
             for line in message.splitlines():
-                if line.startswith("Return code"):
+                if line.startswith('Return code'):
                     fingerprint += line
                     break
 
@@ -151,11 +151,11 @@ def before_send(event, hints):
     """Filter log messages about crashed nodes."""
     if 'logentry' in event and 'message' in event['logentry']:
         msg = event['logentry']['message']
-        if msg.startswith("could not run node:"):
+        if msg.startswith('could not run node:'):
             return None
-        if msg.startswith("Saving crash info to "):
+        if msg.startswith('Saving crash info to '):
             return None
-        if re.match("Node .+ failed to run on host .+", msg):
+        if re.match('Node .+ failed to run on host .+', msg):
             return None
 
     if 'breadcrumbs' in event and isinstance(event['breadcrumbs'], list):
@@ -212,4 +212,4 @@ def send_crumb(**kwargs) -> dict:
     """
     Communicate with the migas telemetry server. This requires `migas.setup()` to be called.
     """
-    return migas.add_breadcrumb("nipreps/fmriprep", __version__, **kwargs)
+    return migas.add_breadcrumb('nipreps/fmriprep', __version__, **kwargs)

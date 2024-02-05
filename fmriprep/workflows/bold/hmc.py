@@ -89,9 +89,7 @@ Head-motion parameters with respect to the BOLD reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
 `mcflirt` [FSL {fsl_ver}, @mcflirt].
-""".format(
-        fsl_ver=fsl.Info().version() or '<ver>'
-    )
+""".format(fsl_ver=fsl.Info().version() or '<ver>')
 
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']), name='inputnode'
@@ -110,7 +108,7 @@ parameters) are estimated before any spatiotemporal filtering using
     fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
 
     normalize_motion = pe.Node(
-        NormalizeMotionParams(format='FSL'), name="normalize_motion", mem_gb=DEFAULT_MEMORY_MIN_GB
+        NormalizeMotionParams(format='FSL'), name='normalize_motion', mem_gb=DEFAULT_MEMORY_MIN_GB
     )
 
     def _pick_rel(rms_files):

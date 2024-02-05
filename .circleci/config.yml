@@ -552,6 +552,21 @@ jobs:
             VARIANT: '_partial'
             SUBDIR: 'fmriprep-partial'
       - run:
+          name: Re-run fMRIPrep on single run of task data, without T1w in BIDS
+          no_output_timeout: 2h
+          command: |
+            rm -Rf /tmp/data/${DATASET}/sub-01/anat
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
+            fmriprep-docker -i nipreps/fmriprep:latest \
+                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
+                --network none \
+                --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_partial \
+                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-partial-noT1w participant \
+                --fs-subjects-dir /tmp/${DATASET}/freesurfer \
+                ${FASTRACK_ARG} \
+                --sloppy --write-graph --mem-mb 14336 \
+                --level minimal --nthreads 4 -vv
+      - run:
           name: Clean working directory
           when: on_success
           command: |
@@ -647,27 +662,6 @@ jobs:
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
       - run: *check_outputs
-      - run:
-          name: Generate report with one artificial error
-          command: |
-            set -x
-            sudo mv /tmp/${DATASET}/fmriprep/sub-100185.html \
-                    /tmp/${DATASET}/fmriprep/sub-100185_noerror.html
-            UUID=$(grep uuid /tmp/${DATASET}/work/*/config.toml | cut -d\" -f 2 | tail -n 1)
-            mkdir -p /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
-            cp /tmp/src/fmriprep/fmriprep/data/tests/crash_files/*.txt \
-                /tmp/${DATASET}/fmriprep/sub-100185/log/$UUID/
-            set +e
-            fmriprep-docker -i nipreps/fmriprep:latest \
-                -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
-                --config $PWD/nipype.cfg -w /tmp/${DATASET}/work \
-                /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
-                --fs-no-reconall --sloppy --write-graph \
-                --output-spaces MNI152NLin2009cAsym:res-2 anat func \
-                --reports-only --config-file /tmp/${DATASET}/work/${UUID}/config.toml -vv
-            RET=$?
-            set -e
-            [[ "$RET" -eq "1" ]]
       - run:
           name: Clean working directory
           when: on_success

@@ -213,16 +213,17 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         6, 9, 12, desc='Registration degrees of freedom', mandatory=True
     )
     registration_init = traits.Enum(
-        'register',
+        't1w',
+        't2w',
         'header',
         mandatory=True,
         desc='Whether to initialize registration with the "header"'
-        ' or by centering the volumes ("register")',
+        ' or by centering the volumes ("t1w" or "t2w")',
     )
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
     algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
-    echo_idx = InputMultiObject(traits.Str, usedefault=True, desc="BIDS echo identifiers")
+    echo_idx = InputMultiObject(traits.Str, usedefault=True, desc='BIDS echo identifiers')
     orientation = traits.Str(mandatory=True, desc='Orientation of the voxel axes')
 
 
@@ -255,30 +256,30 @@ class FunctionalSummary(SummaryInterface):
 
         pedir = get_world_pedir(self.inputs.orientation, self.inputs.pe_direction)
 
-        dummy_scan_tmp = "{n_dum}"
+        dummy_scan_tmp = '{n_dum}'
         if self.inputs.dummy_scans == self.inputs.algo_dummy_scans:
             dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, "(Confirmed: {n_alg} automatically detected)"]
+                [dummy_scan_tmp, '(Confirmed: {n_alg} automatically detected)']
             ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
         # the number of dummy scans was specified by the user and
         # it is not equal to the number detected by the algorithm
         elif self.inputs.dummy_scans is not None:
             dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, "(Warning: {n_alg} automatically detected)"]
+                [dummy_scan_tmp, '(Warning: {n_alg} automatically detected)']
             ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
         # the number of dummy scans was not specified by the user
         else:
             dummy_scan_msg = dummy_scan_tmp.format(n_dum=self.inputs.algo_dummy_scans)
 
-        multiecho = "Single-echo EPI sequence."
+        multiecho = 'Single-echo EPI sequence.'
         n_echos = len(self.inputs.echo_idx)
         if n_echos == 1:
             multiecho = (
-                f"Multi-echo EPI sequence: only echo {self.inputs.echo_idx[0]} processed "
-                "in single-echo mode."
+                f'Multi-echo EPI sequence: only echo {self.inputs.echo_idx[0]} processed '
+                'in single-echo mode.'
             )
         if n_echos > 2:
-            multiecho = f"Multi-echo EPI sequence: {n_echos} echoes."
+            multiecho = f'Multi-echo EPI sequence: {n_echos} echoes.'
 
         return FUNCTIONAL_TEMPLATE.format(
             pedir=pedir,
@@ -305,18 +306,18 @@ class AboutSummary(SummaryInterface):
         return ABOUT_TEMPLATE.format(
             version=self.inputs.version,
             command=self.inputs.command,
-            date=time.strftime("%Y-%m-%d %H:%M:%S %z"),
+            date=time.strftime('%Y-%m-%d %H:%M:%S %z'),
         )
 
 
 class LabeledHistogramInputSpec(nrb._SVGReportCapableInputSpec):
-    in_file = traits.File(exists=True, mandatory=True, desc="Image containing values to plot")
+    in_file = traits.File(exists=True, mandatory=True, desc='Image containing values to plot')
     label_file = traits.File(
         exists=True,
-        desc="Mask or label image where non-zero values will be used to extract data from in_file",
+        desc='Mask or label image where non-zero values will be used to extract data from in_file',
     )
-    mapping = traits.Dict(desc="Map integer label values onto names of voxels")
-    xlabel = traits.Str("voxels", usedefault=True, desc="Description of values plotted")
+    mapping = traits.Dict(desc='Map integer label values onto names of voxels')
+    xlabel = traits.Str('voxels', usedefault=True, desc='Description of values plotted')
 
 
 class LabeledHistogram(nrb.ReportingInterface):
@@ -336,7 +337,7 @@ class LabeledHistogram(nrb.ReportingInterface):
         if self.inputs.label_file:
             label_img = nb.load(self.inputs.label_file)
             if label_img.shape != img.shape[:3] or not np.allclose(label_img.affine, img.affine):
-                label_img = resample_to_img(label_img, img, interpolation="nearest")
+                label_img = resample_to_img(label_img, img, interpolation='nearest')
             labels = np.uint16(label_img.dataobj)
         else:
             labels = np.uint8(data > 0)
@@ -354,19 +355,19 @@ class LabeledHistogram(nrb.ReportingInterface):
 
 def get_world_pedir(ornt, pe_direction):
     """Return world direction of phase encoding"""
-    axes = (("Right", "Left"), ("Anterior", "Posterior"), ("Superior", "Inferior"))
-    ax_idcs = {"i": 0, "j": 1, "k": 2}
+    axes = (('Right', 'Left'), ('Anterior', 'Posterior'), ('Superior', 'Inferior'))
+    ax_idcs = {'i': 0, 'j': 1, 'k': 2}
 
     if pe_direction is not None:
         axcode = ornt[ax_idcs[pe_direction[0]]]
-        inv = pe_direction[1:] == "-"
+        inv = pe_direction[1:] == '-'
 
         for ax in axes:
             for flip in (ax, ax[::-1]):
                 if flip[not inv].startswith(axcode):
-                    return "-".join(flip)
+                    return '-'.join(flip)
     LOGGER.warning(
-        "Cannot determine world direction of phase encoding. "
-        f"Orientation: {ornt}; PE dir: {pe_direction}"
+        'Cannot determine world direction of phase encoding. '
+        f'Orientation: {ornt}; PE dir: {pe_direction}'
     )
-    return "Could not be determined - assuming Anterior-Posterior"
+    return 'Could not be determined - assuming Anterior-Posterior'

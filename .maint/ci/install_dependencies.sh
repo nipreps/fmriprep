@@ -13,7 +13,7 @@ if [ "$OS_TYPE" = "ubuntu-latest" ]; then
 elif  [ "$OS_TYPE" = "macos-latest" ]; then
     brew install graphviz
 else
-    echo "Unknown OS_TYPE: $OS_TYPE"	
+    echo "Unknown OS_TYPE: $OS_TYPE"
 fi
 
 set +eux

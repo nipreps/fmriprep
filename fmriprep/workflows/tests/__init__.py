@@ -66,4 +66,4 @@ def mock_config(bids_dir=None):
     shutil.rmtree(config.execution.fmriprep_dir)
 
     if not _old_fs:
-        del os.environ["FREESURFER_HOME"]
+        del os.environ['FREESURFER_HOME']

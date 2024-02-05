@@ -1,6 +1,12 @@
-# 2022-09-22 - goncalves.mathias@gmail.com - STY: black/isort the docker wrapper
+# 2024-01-16 - effigies@gmail.com - STY: ruff --fix --unsafe-fixes (with cleanup) [git-blame-ignore-rev]
+66734bd0164d1dae3cf299fa9d9d682c22eeda66
+# 2024-01-16 - effigies@gmail.com - STY: ruff format and ruff --fix [git-blame-ignore-rev]
+311686eb329d3594732429f7c3d50d212b8dc519
+# 2023-02-02 - effigies@gmail.com - STY: black [git-blame-ignore-rev]
+d3f380701b3953087475a18cf23c0fb388f7aed6
+# 2022-09-22 - mathiasg@stanford.edu - STY: black/isort the docker wrapper
 9976458388f369cba4b7d81359acc40b52f6621c
-# 2022-09-22 - goncalves.mathias@gmail.com - STY: Apply black/isort to codebase
+# 2022-09-22 - mathiasg@stanford.edu - STY: Apply black/isort to codebase
 7eedab8b29497cee1d8dd540c2266e740f484a86
 # 2021-11-05 - markiewicz@stanford.edu - STY: Update black config
 d2ad20301306f283d504ec7b5a1bd73ce58c2b11

@@ -11,8 +11,8 @@ from nipype.interfaces.base import File, SimpleInterface, TraitedSpec, isdefined
 class CreateROIInputSpec(TraitedSpec):
     subject_id = traits.Str(desc='subject ID')
     hemisphere = traits.Enum(
-        "L",
-        "R",
+        'L',
+        'R',
         mandatory=True,
         desc='hemisphere',
     )
@@ -35,11 +35,11 @@ class CreateROI(SimpleInterface):
             subject = 'sub-XYZ'
         img = nb.GiftiImage.from_filename(self.inputs.thickness_file)
         # wb_command -set-structure
-        img.meta["AnatomicalStructurePrimary"] = {'L': 'CortexLeft', 'R': 'CortexRight'}[hemi]
+        img.meta['AnatomicalStructurePrimary'] = {'L': 'CortexLeft', 'R': 'CortexRight'}[hemi]
         darray = img.darrays[0]
         # wb_command -set-map-names
         meta = darray.meta
-        meta['Name'] = f"{subject}_{hemi}_ROI"
+        meta['Name'] = f'{subject}_{hemi}_ROI'
         # wb_command -metric-palette calls have no effect on ROI files
 
         # Compiling an odd sequence of math operations that works out to:
@@ -61,7 +61,7 @@ class CreateROI(SimpleInterface):
 
         img.darrays[0] = darray
 
-        out_filename = os.path.join(runtime.cwd, f"{subject}.{hemi}.roi.native.shape.gii")
+        out_filename = os.path.join(runtime.cwd, f'{subject}.{hemi}.roi.native.shape.gii')
         img.to_filename(out_filename)
-        self._results["roi_file"] = out_filename
+        self._results['roi_file'] = out_filename
         return runtime

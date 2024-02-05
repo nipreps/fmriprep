@@ -25,7 +25,7 @@
 try:
     from ._version import __version__
 except ImportError:
-    __version__ = "0+unknown"
+    __version__ = '0+unknown'
 
 __packagename__ = 'fmriprep'
 __copyright__ = 'Copyright 2023, The NiPreps Developers'
@@ -35,6 +35,4 @@ __credits__ = (
 )
 __url__ = 'https://github.com/nipreps/fmriprep'
 
-DOWNLOAD_URL = 'https://github.com/nipreps/{name}/archive/{ver}.tar.gz'.format(
-    name=__packagename__, ver=__version__
-)
+DOWNLOAD_URL = f'https://github.com/nipreps/{__packagename__}/archive/{__version__}.tar.gz'

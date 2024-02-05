@@ -21,7 +21,6 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Miscellaneous utilities."""
-import typing as ty
 from functools import cache
 
 
@@ -45,12 +44,12 @@ def fips_enabled():
     """
     from pathlib import Path
 
-    fips = Path("/proc/sys/crypto/fips_enabled")
-    return fips.exists() and fips.read_text()[0] != "0"
+    fips = Path('/proc/sys/crypto/fips_enabled')
+    return fips.exists() and fips.read_text()[0] != '0'
 
 
 @cache
-def estimate_bold_mem_usage(bold_fname: str) -> ty.Tuple[int, dict]:
+def estimate_bold_mem_usage(bold_fname: str) -> tuple[int, dict]:
     import nibabel as nb
     import numpy as np
 
@@ -60,9 +59,9 @@ def estimate_bold_mem_usage(bold_fname: str) -> ty.Tuple[int, dict]:
     bold_size_gb = 8 * nvox / (1024**3)
     bold_tlen = img.shape[-1]
     mem_gb = {
-        "filesize": bold_size_gb,
-        "resampled": bold_size_gb * 4,
-        "largemem": bold_size_gb * (max(bold_tlen / 100, 1.0) + 4),
+        'filesize': bold_size_gb,
+        'resampled': bold_size_gb * 4,
+        'largemem': bold_size_gb * (max(bold_tlen / 100, 1.0) + 4),
     }
 
     return bold_tlen, mem_gb

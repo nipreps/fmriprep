@@ -29,7 +29,10 @@ Temporary patches
 from random import randint
 from time import sleep
 
+import nipype.interfaces.freesurfer as fs
+import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
+from nipype.interfaces.base import File, traits
 from numpy.linalg.linalg import LinAlgError
 
 
@@ -77,3 +80,38 @@ class RobustTCompCor(nac.TCompCor):
                 sleep(randint(start + 4, start + 10))
 
         return runtime
+
+
+class _MRICoregInputSpec(fs.registration.MRICoregInputSpec):
+    reference_file = File(
+        argstr='--ref %s',
+        desc='reference (target) file',
+        copyfile=False,
+    )
+    subject_id = traits.Str(
+        argstr='--s %s',
+        position=1,
+        requires=['subjects_dir'],
+        desc='freesurfer subject ID (implies ``reference_mask == '
+        'aparc+aseg.mgz`` unless otherwise specified)',
+    )
+
+
+class MRICoreg(fs.MRICoreg):
+    """
+    Patched that allows setting both a reference file and the subjects dir.
+    """
+
+    input_spec = _MRICoregInputSpec
+
+
+class _FSSourceOutputSpec(nio.FSSourceOutputSpec):
+    T2 = File(desc='Intensity normalized whole-head volume', loc='mri')
+
+
+class FreeSurferSource(nio.FreeSurferSource):
+    """
+    Patch to allow grabbing the T2 volume, if available
+    """
+
+    output_spec = _FSSourceOutputSpec

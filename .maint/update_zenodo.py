@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Update and sort the creators list of the zenodo record."""
+import json
 import sys
 from pathlib import Path
-import json
+
 from fuzzywuzzy import fuzz, process
 
 # These ORCIDs should go last
@@ -15,17 +16,14 @@ def sort_contributors(entries, git_lines, exclude=None, last=None):
     last = last or []
     sorted_authors = sorted(entries, key=lambda i: i['name'])
 
-    first_last = [' '.join(val['name'].split(',')[::-1]).strip()
-                  for val in sorted_authors]
-    first_last_excl = [' '.join(val['name'].split(',')[::-1]).strip()
-                       for val in exclude or []]
+    first_last = [' '.join(val['name'].split(',')[::-1]).strip() for val in sorted_authors]
+    first_last_excl = [' '.join(val['name'].split(',')[::-1]).strip() for val in exclude or []]
 
     unmatched = []
     author_matches = []
     position = 1
     for ele in git_lines:
-        matches = process.extract(ele, first_last, scorer=fuzz.token_sort_ratio,
-                                  limit=2)
+        matches = process.extract(ele, first_last, scorer=fuzz.token_sort_ratio, limit=2)
         # matches is a list [('First match', % Match), ('Second match', % Match)]
         if matches[0][1] > 80:
             val = sorted_authors[first_last.index(matches[0][0])]
@@ -62,6 +60,7 @@ def get_git_lines(fname='line-contributors.txt'):
     """Run git-line-summary."""
     import shutil
     import subprocess as sp
+
     contrib_file = Path(fname)
 
     lines = []
@@ -71,17 +70,22 @@ def get_git_lines(fname='line-contributors.txt'):
 
     cmd = [shutil.which('git-line-summary')]
     if cmd == [None]:
-        cmd = [shutil.which('git-summary'), "--line"]
+        cmd = [shutil.which('git-summary'), '--line']
     if not lines and cmd[0]:
         print(f"Running {' '.join(cmd)!r} on repo")
         lines = sp.check_output(cmd).decode().splitlines()
-        lines = [line for line in lines if "Not Committed Yet" not in line]
+        lines = [line for line in lines if 'Not Committed Yet' not in line]
         contrib_file.write_text('\n'.join(lines))
 
     if not lines:
-        raise RuntimeError("""\
-Could not find line-contributors from git repository.%s""" % """ \
-git-(line-)summary not found, please install git-extras. """ * (cmd[0] is None))
+        raise RuntimeError(
+            """\
+Could not find line-contributors from git repository.{}""".format(
+                """ \
+git-(line-)summary not found, please install git-extras. """
+                * (cmd[0] is None)
+            )
+        )
     return [' '.join(line.strip().split()[1:-1]) for line in lines if '%' in line]
 
 
@@ -90,14 +94,14 @@ def loads_table_from_markdown(s):
     table = []
     header = None
     for line in s.splitlines():
-        if line.startswith("|"):
+        if line.startswith('|'):
             if not header:
                 # read header and strip bold
-                header = [item.strip("* ") for item in line.split('|')[1:-1]]
+                header = [item.strip('* ') for item in line.split('|')[1:-1]]
             else:
                 values = [item.strip() for item in line.split('|')[1:-1]]
-                if any(any(c != "-" for c in item) for item in values):
-                    table.append(dict(zip(header, values)))
+                if any(any(c != '-' for c in item) for item in values):
+                    table.append(dict(zip(header, values, strict=False)))
         elif header:
             # we have already seen a table, we're past the end of that table
             break
@@ -108,10 +112,11 @@ def loads_contributors(s):
     """Reformat contributors read from the Markdown table."""
     return [
         {
-            "affiliation": contributor["Affiliation"],
-            "name": "{}, {}".format(contributor["Lastname"], contributor["Name"]),
-            "orcid": contributor["ORCID"],
-        } for contributor in loads_table_from_markdown(s)
+            'affiliation': contributor['Affiliation'],
+            'name': '{}, {}'.format(contributor['Lastname'], contributor['Name']),
+            'orcid': contributor['ORCID'],
+        }
+        for contributor in loads_table_from_markdown(s)
     ]
 
 
@@ -123,20 +128,26 @@ if __name__ == '__main__':
 
     creators = json.loads(Path('.maint/developers.json').read_text())
     zen_creators, miss_creators = sort_contributors(
-        creators, data,
+        creators,
+        data,
         exclude=json.loads(Path('.maint/former.json').read_text()),
-        last=CREATORS_LAST)
+        last=CREATORS_LAST,
+    )
     contributors = loads_contributors(Path('.maint/CONTRIBUTORS.md').read_text())
     zen_contributors, miss_contributors = sort_contributors(
-        contributors, data,
+        contributors,
+        data,
         exclude=json.loads(Path('.maint/former.json').read_text()),
-        last=CONTRIBUTORS_LAST)
+        last=CONTRIBUTORS_LAST,
+    )
     zenodo['creators'] = zen_creators
     zenodo['contributors'] = zen_contributors
 
-    print("Some people made commits, but are missing in .maint/ "
-          "files: %s." % ', '.join(set(miss_creators).intersection(miss_contributors)),
-          file=sys.stderr)
+    print(
+        'Some people made commits, but are missing in .maint/ '
+        'files: %s.' % ', '.join(set(miss_creators).intersection(miss_contributors)),
+        file=sys.stderr,
+    )
 
     # Remove position
     for creator in zenodo['creators']:

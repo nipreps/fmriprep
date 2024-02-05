@@ -484,7 +484,7 @@ Averaged value of confound (for example, mean ``framewise_displacement``)
 can also be added as regressors in group level analysis [Yan2013]_.
 *Regressors of motion spikes* for outlier censoring are generated from within *fMRIPrep*,
 and their calculation may be adjusted with the command line options ``--fd-spike-threshold``
-and ``--dvars-spike-threshold`` (defaults are FD > 0.5 mm or DVARS > 1.5).
+and ``--dvars-spike-threshold`` (defaults are FD > 0.5 mm or standardized DVARS > 1.5).
 Regressors of motion spikes are stored in separate ``motion_outlier_XX`` columns.
 
 **Discrete cosine-basis regressors**.

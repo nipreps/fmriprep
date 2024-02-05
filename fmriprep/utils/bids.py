@@ -26,7 +26,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import typing as ty
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,12 +42,12 @@ def collect_derivatives(
     entities: dict,
     fieldmap_id: str | None,
     spec: dict | None = None,
-    patterns: ty.List[str] | None = None,
+    patterns: list[str] | None = None,
 ):
     """Gather existing derivatives and compose a cache."""
     if spec is None or patterns is None:
         _spec, _patterns = tuple(
-            json.loads(load_data.readable("io_spec.json").read_text()).values()
+            json.loads(load_data.readable('io_spec.json').read_text()).values()
         )
 
         if spec is None:
@@ -57,21 +56,21 @@ def collect_derivatives(
             patterns = _patterns
 
     derivs_cache = defaultdict(list, {})
-    layout = BIDSLayout(derivatives_dir, config=["bids", "derivatives"], validate=False)
+    layout = BIDSLayout(derivatives_dir, config=['bids', 'derivatives'], validate=False)
     derivatives_dir = Path(derivatives_dir)
 
     # search for both boldrefs
-    for k, q in spec["baseline"].items():
+    for k, q in spec['baseline'].items():
         query = {**q, **entities}
         item = layout.get(return_type='filename', **query)
         if not item:
             continue
-        derivs_cache["%s_boldref" % k] = item[0] if len(item) == 1 else item
+        derivs_cache['%s_boldref' % k] = item[0] if len(item) == 1 else item
 
     for xfm, q in spec['transforms'].items():
         query = {**q, **entities}
-        if xfm == "boldref2fmap":
-            query["to"] = fieldmap_id
+        if xfm == 'boldref2fmap':
+            query['to'] = fieldmap_id
         item = layout.get(return_type='filename', **q)
         if not item:
             continue
@@ -81,20 +80,20 @@ def collect_derivatives(
 
 def write_bidsignore(deriv_dir):
     bids_ignore = (
-        "*.html",
-        "logs/",
-        "figures/",  # Reports
-        "*_xfm.*",  # Unspecified transform files
-        "*.surf.gii",  # Unspecified structural outputs
+        '*.html',
+        'logs/',
+        'figures/',  # Reports
+        '*_xfm.*',  # Unspecified transform files
+        '*.surf.gii',  # Unspecified structural outputs
         # Unspecified functional outputs
-        "*_boldref.nii.gz",
-        "*_bold.func.gii",
-        "*_mixing.tsv",
-        "*_timeseries.tsv",
+        '*_boldref.nii.gz',
+        '*_bold.func.gii',
+        '*_mixing.tsv',
+        '*_timeseries.tsv',
     )
-    ignore_file = Path(deriv_dir) / ".bidsignore"
+    ignore_file = Path(deriv_dir) / '.bidsignore'
 
-    ignore_file.write_text("\n".join(bids_ignore) + "\n")
+    ignore_file.write_text('\n'.join(bids_ignore) + '\n')
 
 
 def write_derivative_description(bids_dir, deriv_dir):
@@ -121,13 +120,13 @@ def write_derivative_description(bids_dir, deriv_dir):
     # Keys that can only be set by environment
     if 'FMRIPREP_DOCKER_TAG' in os.environ:
         desc['GeneratedBy'][0]['Container'] = {
-            "Type": "docker",
-            "Tag": f"nipreps/fmriprep:{os.environ['FMRIPREP_DOCKER_TAG']}",
+            'Type': 'docker',
+            'Tag': f"nipreps/fmriprep:{os.environ['FMRIPREP_DOCKER_TAG']}",
         }
     if 'FMRIPREP_SINGULARITY_URL' in os.environ:
         desc['GeneratedBy'][0]['Container'] = {
-            "Type": "singularity",
-            "URI": os.getenv('FMRIPREP_SINGULARITY_URL'),
+            'Type': 'singularity',
+            'URI': os.getenv('FMRIPREP_SINGULARITY_URL'),
         }
 
     # Keys deriving from source dataset
@@ -146,58 +145,58 @@ def write_derivative_description(bids_dir, deriv_dir):
     Path.write_text(deriv_dir / 'dataset_description.json', json.dumps(desc, indent=4))
 
 
-def validate_input_dir(exec_env, bids_dir, participant_label):
+def validate_input_dir(exec_env, bids_dir, participant_label, need_T1w=True):
     # Ignore issues and warnings that should not influence FMRIPREP
     import subprocess
     import tempfile
 
     validator_config_dict = {
-        "ignore": [
-            "EVENTS_COLUMN_ONSET",
-            "EVENTS_COLUMN_DURATION",
-            "TSV_EQUAL_ROWS",
-            "TSV_EMPTY_CELL",
-            "TSV_IMPROPER_NA",
-            "VOLUME_COUNT_MISMATCH",
-            "BVAL_MULTIPLE_ROWS",
-            "BVEC_NUMBER_ROWS",
-            "DWI_MISSING_BVAL",
-            "INCONSISTENT_SUBJECTS",
-            "INCONSISTENT_PARAMETERS",
-            "BVEC_ROW_LENGTH",
-            "B_FILE",
-            "PARTICIPANT_ID_COLUMN",
-            "PARTICIPANT_ID_MISMATCH",
-            "TASK_NAME_MUST_DEFINE",
-            "PHENOTYPE_SUBJECTS_MISSING",
-            "STIMULUS_FILE_MISSING",
-            "DWI_MISSING_BVEC",
-            "EVENTS_TSV_MISSING",
-            "TSV_IMPROPER_NA",
-            "ACQTIME_FMT",
-            "Participants age 89 or higher",
-            "DATASET_DESCRIPTION_JSON_MISSING",
-            "FILENAME_COLUMN",
-            "WRONG_NEW_LINE",
-            "MISSING_TSV_COLUMN_CHANNELS",
-            "MISSING_TSV_COLUMN_IEEG_CHANNELS",
-            "MISSING_TSV_COLUMN_IEEG_ELECTRODES",
-            "UNUSED_STIMULUS",
-            "CHANNELS_COLUMN_SFREQ",
-            "CHANNELS_COLUMN_LOWCUT",
-            "CHANNELS_COLUMN_HIGHCUT",
-            "CHANNELS_COLUMN_NOTCH",
-            "CUSTOM_COLUMN_WITHOUT_DESCRIPTION",
-            "ACQTIME_FMT",
-            "SUSPICIOUSLY_LONG_EVENT_DESIGN",
-            "SUSPICIOUSLY_SHORT_EVENT_DESIGN",
-            "MALFORMED_BVEC",
-            "MALFORMED_BVAL",
-            "MISSING_TSV_COLUMN_EEG_ELECTRODES",
-            "MISSING_SESSION",
+        'ignore': [
+            'EVENTS_COLUMN_ONSET',
+            'EVENTS_COLUMN_DURATION',
+            'TSV_EQUAL_ROWS',
+            'TSV_EMPTY_CELL',
+            'TSV_IMPROPER_NA',
+            'VOLUME_COUNT_MISMATCH',
+            'BVAL_MULTIPLE_ROWS',
+            'BVEC_NUMBER_ROWS',
+            'DWI_MISSING_BVAL',
+            'INCONSISTENT_SUBJECTS',
+            'INCONSISTENT_PARAMETERS',
+            'BVEC_ROW_LENGTH',
+            'B_FILE',
+            'PARTICIPANT_ID_COLUMN',
+            'PARTICIPANT_ID_MISMATCH',
+            'TASK_NAME_MUST_DEFINE',
+            'PHENOTYPE_SUBJECTS_MISSING',
+            'STIMULUS_FILE_MISSING',
+            'DWI_MISSING_BVEC',
+            'EVENTS_TSV_MISSING',
+            'TSV_IMPROPER_NA',
+            'ACQTIME_FMT',
+            'Participants age 89 or higher',
+            'DATASET_DESCRIPTION_JSON_MISSING',
+            'FILENAME_COLUMN',
+            'WRONG_NEW_LINE',
+            'MISSING_TSV_COLUMN_CHANNELS',
+            'MISSING_TSV_COLUMN_IEEG_CHANNELS',
+            'MISSING_TSV_COLUMN_IEEG_ELECTRODES',
+            'UNUSED_STIMULUS',
+            'CHANNELS_COLUMN_SFREQ',
+            'CHANNELS_COLUMN_LOWCUT',
+            'CHANNELS_COLUMN_HIGHCUT',
+            'CHANNELS_COLUMN_NOTCH',
+            'CUSTOM_COLUMN_WITHOUT_DESCRIPTION',
+            'ACQTIME_FMT',
+            'SUSPICIOUSLY_LONG_EVENT_DESIGN',
+            'SUSPICIOUSLY_SHORT_EVENT_DESIGN',
+            'MALFORMED_BVEC',
+            'MALFORMED_BVAL',
+            'MISSING_TSV_COLUMN_EEG_ELECTRODES',
+            'MISSING_SESSION',
         ],
-        "error": ["NO_T1W"],
-        "ignoredFiles": ['/dataset_description.json', '/participants.tsv'],
+        'error': ['NO_T1W'] if need_T1w else [],
+        'ignoredFiles': ['/dataset_description.json', '/participants.tsv'],
     }
     # Limit validation only to data from requested participants
     if participant_label:
@@ -229,14 +228,14 @@ def validate_input_dir(exec_env, bids_dir, participant_label):
         ignored_subs = all_subs.difference(selected_subs)
         if ignored_subs:
             for sub in ignored_subs:
-                validator_config_dict["ignoredFiles"].append("/sub-%s/**" % sub)
+                validator_config_dict['ignoredFiles'].append('/sub-%s/**' % sub)
     with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp:
         temp.write(json.dumps(validator_config_dict))
         temp.flush()
         try:
-            subprocess.check_call(['bids-validator', str(bids_dir), '-c', temp.name])
+            subprocess.check_call(['bids-validator', str(bids_dir), '-c', temp.name])  # noqa: S603, S607
         except FileNotFoundError:
-            print("bids-validator does not appear to be installed", file=sys.stderr)
+            print('bids-validator does not appear to be installed', file=sys.stderr)
 
 
 def check_pipeline_version(pipeline_name, cvers, data_desc):
@@ -264,10 +263,14 @@ def check_pipeline_version(pipeline_name, cvers, data_desc):
     Examples
     --------
     >>> check_pipeline_version('fMRIPrep', '23.2.0.dev0', 'sample_dataset_description.json')
-    >>> check_pipeline_version('fMRIPrep', '23.2.0.dev0+gb2e14d98', 'sample_dataset_description.json')
+    >>> check_pipeline_version(
+    ...     'fMRIPrep', '23.2.0.dev0+gb2e14d98', 'sample_dataset_description.json'
+    ... )
     >>> check_pipeline_version('fMRIPrep', '24.0.0', 'sample_dataset_description.json')
     'Previous output generated by version 23.2.0.dev0 found.'
-    >>> check_pipeline_version('fMRIPrep', '24.0.0', 'legacy_dataset_description.json')  # doctest: +ELLIPSIS
+    >>> check_pipeline_version(
+    ...     'fMRIPrep', '24.0.0', 'legacy_dataset_description.json'
+    ... )  # doctest: +ELLIPSIS
     'Previous output generated by version 1.1.1rc5 found.'
 
     Returns
@@ -282,15 +285,15 @@ def check_pipeline_version(pipeline_name, cvers, data_desc):
 
     desc = json.loads(data_desc.read_text())
     generators = {
-        generator["Name"]: generator.get("Version", "0+unknown")
-        for generator in desc.get("GeneratedBy", [])
+        generator['Name']: generator.get('Version', '0+unknown')
+        for generator in desc.get('GeneratedBy', [])
     }
     dvers = generators.get(pipeline_name)
     if dvers is None:
         # Very old style
-        dvers = desc.get("PipelineDescription", {}).get("Version", "0+unknown")
+        dvers = desc.get('PipelineDescription', {}).get('Version', '0+unknown')
     if Version(cvers).public != Version(dvers).public:
-        return "Previous output generated by version {} found.".format(dvers)
+        return f'Previous output generated by version {dvers} found.'
 
 
 def extract_entities(file_list):
@@ -334,6 +337,6 @@ def dismiss_echo(entities=None):
 
     echo_idx = config.execution.echo_idx
     if echo_idx is None or len(listify(echo_idx)) > 2:
-        entities.append("echo")
+        entities.append('echo')
 
     return entities

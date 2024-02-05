@@ -10,6 +10,7 @@
 
 .. autoclass:: Loader
 """
+
 from __future__ import annotations
 
 import atexit
@@ -18,7 +19,6 @@ from contextlib import AbstractContextManager, ExitStack
 from functools import cached_property
 from pathlib import Path
 from types import ModuleType
-from typing import Union
 
 try:
     from functools import cache
@@ -35,7 +35,7 @@ try:  # Prefer stdlib so Sphinx can link to authoritative documentation
 except ImportError:
     from importlib_resources.abc import Traversable
 
-__all__ = ["load"]
+__all__ = ['load']
 
 
 class Loader:
@@ -110,7 +110,7 @@ class Loader:
     .. automethod:: cached
     """
 
-    def __init__(self, anchor: Union[str, ModuleType]):
+    def __init__(self, anchor: str | ModuleType):
         self._anchor = anchor
         self.files = files(anchor)
         self.exit_stack = ExitStack()
@@ -127,19 +127,19 @@ class Loader:
         directory.
         """
         top_level = sorted(
-            os.path.relpath(p, self.files) + "/"[: p.is_dir()]
+            os.path.relpath(p, self.files) + '/'[: p.is_dir()]
             for p in self.files.iterdir()
-            if p.name[0] not in (".", "_") and p.name != "tests"
+            if p.name[0] not in ('.', '_') and p.name != 'tests'
         )
         doclines = [
-            f"Load package files relative to ``{self._anchor}``.",
-            "",
-            "This package contains the following (top-level) files/directories:",
-            "",
-            *(f"* ``{path}``" for path in top_level),
+            f'Load package files relative to ``{self._anchor}``.',
+            '',
+            'This package contains the following (top-level) files/directories:',
+            '',
+            *(f'* ``{path}``' for path in top_level),
         ]
 
-        return "\n".join(doclines)
+        return '\n'.join(doclines)
 
     def readable(self, *segments) -> Traversable:
         """Provide read access to a resource through a Path-like interface.
@@ -163,7 +163,7 @@ class Loader:
         """
         return as_file(self.files.joinpath(*segments))
 
-    @cache
+    @cache  # noqa: B019
     def cached(self, *segments) -> Path:
         """Ensure data is available as a :class:`~pathlib.Path`.
 

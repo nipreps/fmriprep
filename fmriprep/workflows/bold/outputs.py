@@ -23,8 +23,6 @@
 """Writing out derivative files."""
 from __future__ import annotations
 
-import typing as ty
-
 import numpy as np
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
@@ -104,38 +102,38 @@ def prepare_timing_parameters(metadata: dict):
     timing_parameters = {
         key: metadata[key]
         for key in (
-            "RepetitionTime",
-            "VolumeTiming",
-            "DelayTime",
-            "AcquisitionDuration",
-            "SliceTiming",
+            'RepetitionTime',
+            'VolumeTiming',
+            'DelayTime',
+            'AcquisitionDuration',
+            'SliceTiming',
         )
         if key in metadata
     }
 
     # Treat SliceTiming of [] or length 1 as equivalent to missing and remove it in any case
-    slice_timing = timing_parameters.pop("SliceTiming", [])
+    slice_timing = timing_parameters.pop('SliceTiming', [])
 
     run_stc = len(slice_timing) > 1 and 'slicetiming' not in config.workflow.ignore
-    timing_parameters["SliceTimingCorrected"] = run_stc
+    timing_parameters['SliceTimingCorrected'] = run_stc
 
     if len(slice_timing) > 1:
         st = sorted(slice_timing)
         TA = st[-1] + (st[1] - st[0])  # Final slice onset + slice duration
         # For constant TR paradigms, use DelayTime
-        if "RepetitionTime" in timing_parameters:
-            TR = timing_parameters["RepetitionTime"]
+        if 'RepetitionTime' in timing_parameters:
+            TR = timing_parameters['RepetitionTime']
             if not np.isclose(TR, TA) and TA < TR:
-                timing_parameters["DelayTime"] = TR - TA
+                timing_parameters['DelayTime'] = TR - TA
         # For variable TR paradigms, use AcquisitionDuration
-        elif "VolumeTiming" in timing_parameters:
-            timing_parameters["AcquisitionDuration"] = TA
+        elif 'VolumeTiming' in timing_parameters:
+            timing_parameters['AcquisitionDuration'] = TA
 
         if run_stc:
             first, last = st[0], st[-1]
             frac = config.workflow.slice_time_ref
             tzero = np.round(first + frac * (last - first), 3)
-            timing_parameters["StartTime"] = tzero
+            timing_parameters['StartTime'] = tzero
 
     return timing_parameters
 
@@ -145,7 +143,7 @@ def init_func_fit_reports_wf(
     sdc_correction: bool,
     freesurfer: bool,
     output_dir: str,
-    name="func_fit_reports_wf",
+    name='func_fit_reports_wf',
 ) -> pe.Workflow:
     """
     Set up a battery of datasinks to store reports in the right location.
@@ -193,34 +191,34 @@ def init_func_fit_reports_wf(
     workflow = pe.Workflow(name=name)
 
     inputfields = [
-        "source_file",
-        "sdc_boldref",
-        "coreg_boldref",
-        "bold_mask",
-        "boldref2anat_xfm",
-        "boldref2fmap_xfm",
-        "t1w_preproc",
-        "t1w_mask",
-        "t1w_dseg",
-        "fieldmap",
-        "fmap_ref",
+        'source_file',
+        'sdc_boldref',
+        'coreg_boldref',
+        'bold_mask',
+        'boldref2anat_xfm',
+        'boldref2fmap_xfm',
+        't1w_preproc',
+        't1w_mask',
+        't1w_dseg',
+        'fieldmap',
+        'fmap_ref',
         # May be missing
-        "subject_id",
-        "subjects_dir",
+        'subject_id',
+        'subjects_dir',
         # Report snippets
-        "summary_report",
-        "validation_report",
+        'summary_report',
+        'validation_report',
     ]
-    inputnode = pe.Node(niu.IdentityInterface(fields=inputfields), name="inputnode")
+    inputnode = pe.Node(niu.IdentityInterface(fields=inputfields), name='inputnode')
 
     ds_summary = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            desc="summary",
-            datatype="figures",
+            desc='summary',
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
-        name="ds_report_summary",
+        name='ds_report_summary',
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
@@ -228,11 +226,11 @@ def init_func_fit_reports_wf(
     ds_validation = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            desc="validation",
-            datatype="figures",
+            desc='validation',
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
-        name="ds_report_validation",
+        name='ds_report_validation',
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
@@ -244,15 +242,15 @@ def init_func_fit_reports_wf(
             default_value=0,
             float=True,
             invert_transform_flags=[True],
-            interpolation="LanczosWindowedSinc",
+            interpolation='LanczosWindowedSinc',
         ),
-        name="t1w_boldref",
+        name='t1w_boldref',
         mem_gb=1,
     )
 
     t1w_wm = pe.Node(
         niu.Function(function=dseg_label),
-        name="t1w_wm",
+        name='t1w_wm',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
     t1w_wm.inputs.label = 2  # BIDS default is WM=2
@@ -262,9 +260,9 @@ def init_func_fit_reports_wf(
             dimension=3,
             default_value=0,
             invert_transform_flags=[True],
-            interpolation="NearestNeighbor",
+            interpolation='NearestNeighbor',
         ),
-        name="boldref_wm",
+        name='boldref_wm',
         mem_gb=1,
     )
 
@@ -311,54 +309,54 @@ def init_func_fit_reports_wf(
                 default_value=0,
                 float=True,
                 invert_transform_flags=[True],
-                interpolation="LanczosWindowedSinc",
+                interpolation='LanczosWindowedSinc',
             ),
-            name="fmapref_boldref",
+            name='fmapref_boldref',
             mem_gb=1,
         )
 
         # SDC1
         sdcreg_report = pe.Node(
             FieldmapReportlet(
-                reference_label="BOLD reference",
-                moving_label="Fieldmap reference",
-                show="both",
+                reference_label='BOLD reference',
+                moving_label='Fieldmap reference',
+                show='both',
             ),
-            name="sdecreg_report",
+            name='sdecreg_report',
             mem_gb=0.1,
         )
 
         ds_sdcreg_report = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
-                desc="fmapCoreg",
-                suffix="bold",
-                datatype="figures",
+                desc='fmapCoreg',
+                suffix='bold',
+                datatype='figures',
                 dismiss_entities=dismiss_echo(),
             ),
-            name="ds_sdcreg_report",
+            name='ds_sdcreg_report',
         )
 
         # SDC2
         sdc_report = pe.Node(
             SimpleBeforeAfter(
-                before_label="Distorted",
-                after_label="Corrected",
+                before_label='Distorted',
+                after_label='Corrected',
                 dismiss_affine=True,
             ),
-            name="sdc_report",
+            name='sdc_report',
             mem_gb=0.1,
         )
 
         ds_sdc_report = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
-                desc="sdc",
-                suffix="bold",
-                datatype="figures",
+                desc='sdc',
+                suffix='bold',
+                datatype='figures',
                 dismiss_entities=dismiss_echo(),
             ),
-            name="ds_sdc_report",
+            name='ds_sdc_report',
         )
 
         # fmt:off
@@ -391,23 +389,23 @@ def init_func_fit_reports_wf(
 
     epi_t1_report = pe.Node(
         SimpleBeforeAfter(
-            before_label="T1w",
-            after_label="EPI",
+            before_label='T1w',
+            after_label='EPI',
             dismiss_affine=True,
         ),
-        name="epi_t1_report",
+        name='epi_t1_report',
         mem_gb=0.1,
     )
 
     ds_epi_t1_report = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            desc="coreg",
-            suffix="bold",
-            datatype="figures",
+            desc='coreg',
+            suffix='bold',
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
-        name="ds_epi_t1_report",
+        name='ds_epi_t1_report',
     )
 
     # fmt:off
@@ -428,28 +426,28 @@ def init_ds_boldref_wf(
     bids_root,
     output_dir,
     desc: str,
-    name="ds_boldref_wf",
+    name='ds_boldref_wf',
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["source_files", "boldref"]),
-        name="inputnode",
+        niu.IdentityInterface(fields=['source_files', 'boldref']),
+        name='inputnode',
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=["boldref"]), name="outputnode")
+    outputnode = pe.Node(niu.IdentityInterface(fields=['boldref']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name="raw_sources")
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
     raw_sources.inputs.bids_root = bids_root
 
     ds_boldref = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
             desc=desc,
-            suffix="boldref",
+            suffix='boldref',
             compress=True,
             dismiss_entities=dismiss_echo(),
         ),
-        name="ds_boldref",
+        name='ds_boldref',
         run_without_submitting=True,
     )
 
@@ -477,12 +475,12 @@ def init_ds_registration_wf(
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["source_files", "xform"]),
-        name="inputnode",
+        niu.IdentityInterface(fields=['source_files', 'xform']),
+        name='inputnode',
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=["xform"]), name="outputnode")
+    outputnode = pe.Node(niu.IdentityInterface(fields=['xform']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name="raw_sources")
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
     raw_sources.inputs.bids_root = bids_root
 
     ds_xform = pe.Node(
@@ -491,7 +489,7 @@ def init_ds_registration_wf(
             mode='image',
             suffix='xfm',
             extension='.txt',
-            dismiss_entities=dismiss_echo(["part"]),
+            dismiss_entities=dismiss_echo(['part']),
             **{'from': source, 'to': dest},
         ),
         name='ds_xform',
@@ -516,30 +514,30 @@ def init_ds_hmc_wf(
     *,
     bids_root,
     output_dir,
-    name="ds_hmc_wf",
+    name='ds_hmc_wf',
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["source_files", "xforms"]),
-        name="inputnode",
+        niu.IdentityInterface(fields=['source_files', 'xforms']),
+        name='inputnode',
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=["xforms"]), name="outputnode")
+    outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name="raw_sources")
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
     raw_sources.inputs.bids_root = bids_root
 
     ds_xforms = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            desc="hmc",
-            suffix="xfm",
-            extension=".txt",
+            desc='hmc',
+            suffix='xfm',
+            extension='.txt',
             compress=True,
             dismiss_entities=dismiss_echo(),
-            **{"from": "orig", "to": "boldref"},
+            **{'from': 'orig', 'to': 'boldref'},
         ),
-        name="ds_xforms",
+        name='ds_xforms',
         run_without_submitting=True,
     )
 
@@ -563,8 +561,8 @@ def init_ds_bold_native_wf(
     multiecho: bool,
     bold_output: bool,
     echo_output: bool,
-    all_metadata: ty.List[dict],
-    name="ds_bold_native_wf",
+    all_metadata: list[dict],
+    name='ds_bold_native_wf',
 ) -> pe.Workflow:
     metadata = all_metadata[0]
     timing_parameters = prepare_timing_parameters(metadata)
@@ -671,7 +669,7 @@ def init_ds_bold_native_wf(
             run_without_submitting=True,
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
-        ds_bold_echos.inputs.meta_dict = [{"EchoTime": md["EchoTime"]} for md in all_metadata]
+        ds_bold_echos.inputs.meta_dict = [{'EchoTime': md['EchoTime']} for md in all_metadata]
         workflow.connect([
             (inputnode, ds_bold_echos, [
                 ('source_files', 'source_file'),
@@ -687,8 +685,8 @@ def init_ds_volumes_wf(
     bids_root: str,
     output_dir: str,
     multiecho: bool,
-    metadata: ty.List[dict],
-    name="ds_volumes_wf",
+    metadata: list[dict],
+    name='ds_volumes_wf',
 ) -> pe.Workflow:
     timing_parameters = prepare_timing_parameters(metadata)
 
@@ -753,11 +751,11 @@ def init_ds_volumes_wf(
             dimension=3,
             default_value=0,
             float=True,
-            interpolation="LanczosWindowedSinc",
+            interpolation='LanczosWindowedSinc',
         ),
-        name="resample_ref",
+        name='resample_ref',
     )
-    resample_mask = pe.Node(ApplyTransforms(interpolation="MultiLabel"), name="resample_mask")
+    resample_mask = pe.Node(ApplyTransforms(interpolation='MultiLabel'), name='resample_mask')
     resamplers = [resample_ref, resample_mask]
 
     workflow.connect([
@@ -801,9 +799,9 @@ def init_ds_volumes_wf(
                 dimension=3,
                 default_value=0,
                 float=True,
-                interpolation="LanczosWindowedSinc",
+                interpolation='LanczosWindowedSinc',
             ),
-            name="resample_t2star",
+            name='resample_t2star',
         )
         ds_t2star = pe.Node(
             DerivativesDataSink(
@@ -838,8 +836,8 @@ def init_ds_volumes_wf(
             ])
             for datasink in datasinks
         ] + [
-            (resampler, datasink, [("output_image", "in_file")])
-            for resampler, datasink in zip(resamplers, datasinks)
+            (resampler, datasink, [('output_image', 'in_file')])
+            for resampler, datasink in zip(resamplers, datasinks, strict=False)
         ]
     )  # fmt:skip
 
@@ -905,7 +903,7 @@ def init_bold_preproc_report_wf(
         DerivativesDataSink(
             base_directory=reportlets_dir,
             desc='preproc',
-            datatype="figures",
+            datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_bold',

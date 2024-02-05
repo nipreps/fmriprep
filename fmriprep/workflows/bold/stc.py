@@ -47,7 +47,7 @@ class TShift(afni.TShift):
         ntsteps = nb.load(self.inputs.in_file).shape[3]
         if ntsteps - ignore < 5:
             raise RuntimeError(
-                f"Insufficient length of BOLD data ({ntsteps} time points) after "
+                f'Insufficient length of BOLD data ({ntsteps} time points) after '
                 f"discarding {ignore} nonsteady-state (or 'dummy') time points."
             )
         return runtime
@@ -99,7 +99,7 @@ def init_bold_stc_wf(
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.header import CopyXForm
 
-    slice_times = metadata["SliceTiming"]
+    slice_times = metadata['SliceTiming']
     first, last = min(slice_times), max(slice_times)
     frac = config.workflow.slice_time_ref
     tzero = np.round(first + frac * (last - first), 3)

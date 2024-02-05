@@ -52,4 +52,3 @@ fi
 
 # Replace old CHANGES.rst with new file
 mv newchanges CHANGES.rst
-

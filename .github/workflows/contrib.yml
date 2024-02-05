@@ -22,29 +22,18 @@ permissions:
   contents: read
 
 jobs:
-  stable:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ['ubuntu-latest']
-        python-version: [3]
-
+  style:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-      - name: Install ruff
-        run: python -m pip install ruff
       - name: Check fMRIPrep
         run: |
-          python -m ruff check --diff --check fmriprep
-          python -m ruff format --diff --check fmriprep
+          pipx run ruff fmriprep
+          pipx run ruff format --diff fmriprep
       - name: Check wrapper
         run: |
+          pipx run ruff wrapper
+          pipx run ruff format --diff wrapper
           python -m ruff check --diff --check wrapper
           python -m ruff format --diff --check wrapper
   

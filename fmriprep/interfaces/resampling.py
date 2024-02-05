@@ -25,46 +25,46 @@ from ..utils.transforms import load_transforms
 
 
 class ResampleSeriesInputSpec(TraitedSpec):
-    in_file = File(exists=True, mandatory=True, desc="3D or 4D image file to resample")
-    ref_file = File(exists=True, mandatory=True, desc="File to resample in_file to")
+    in_file = File(exists=True, mandatory=True, desc='3D or 4D image file to resample')
+    ref_file = File(exists=True, mandatory=True, desc='File to resample in_file to')
     transforms = InputMultiObject(
         File(exists=True),
         mandatory=True,
-        desc="Transform files, from in_file to ref_file (image mode)",
+        desc='Transform files, from in_file to ref_file (image mode)',
     )
     inverse = InputMultiObject(
         traits.Bool,
         value=[False],
         usedefault=True,
-        desc="Whether to invert each file in transforms",
+        desc='Whether to invert each file in transforms',
     )
-    fieldmap = File(exists=True, desc="Fieldmap file resampled into reference space")
-    ro_time = traits.Float(desc="EPI readout time (s).")
+    fieldmap = File(exists=True, desc='Fieldmap file resampled into reference space')
+    ro_time = traits.Float(desc='EPI readout time (s).')
     pe_dir = traits.Enum(
-        "i",
-        "i-",
-        "j",
-        "j-",
-        "k",
-        "k-",
-        desc="the phase-encoding direction corresponding to in_data",
+        'i',
+        'i-',
+        'j',
+        'j-',
+        'k',
+        'k-',
+        desc='the phase-encoding direction corresponding to in_data',
     )
-    jacobian = traits.Bool(mandatory=True, desc="Whether to apply Jacobian correction")
-    num_threads = traits.Int(1, usedefault=True, desc="Number of threads to use for resampling")
-    output_data_type = traits.Str("float32", usedefault=True, desc="Data type of output image")
-    order = traits.Int(3, usedefault=True, desc="Order of interpolation (0=nearest, 3=cubic)")
+    jacobian = traits.Bool(mandatory=True, desc='Whether to apply Jacobian correction')
+    num_threads = traits.Int(1, usedefault=True, desc='Number of threads to use for resampling')
+    output_data_type = traits.Str('float32', usedefault=True, desc='Data type of output image')
+    order = traits.Int(3, usedefault=True, desc='Order of interpolation (0=nearest, 3=cubic)')
     mode = traits.Str(
         'constant',
         usedefault=True,
-        desc="How data is extended beyond its boundaries. "
-        "See scipy.ndimage.map_coordinates for more details.",
+        desc='How data is extended beyond its boundaries. '
+        'See scipy.ndimage.map_coordinates for more details.',
     )
-    cval = traits.Float(0.0, usedefault=True, desc="Value to fill past edges of data")
-    prefilter = traits.Bool(True, usedefault=True, desc="Spline-prefilter data if order > 1")
+    cval = traits.Float(0.0, usedefault=True, desc='Value to fill past edges of data')
+    prefilter = traits.Bool(True, usedefault=True, desc='Spline-prefilter data if order > 1')
 
 
 class ResampleSeriesOutputSpec(TraitedSpec):
-    out_file = File(desc="Resampled image or series")
+    out_file = File(desc='Resampled image or series')
 
 
 class ResampleSeries(SimpleInterface):
@@ -91,12 +91,12 @@ class ResampleSeries(SimpleInterface):
         pe_info = None
 
         if pe_dir and ro_time:
-            pe_axis = "ijk".index(pe_dir[0])
-            pe_flip = pe_dir.endswith("-")
+            pe_axis = 'ijk'.index(pe_dir[0])
+            pe_flip = pe_dir.endswith('-')
 
             # Nitransforms displacements are positive
             source, axcodes = ensure_positive_cosines(source)
-            axis_flip = axcodes[pe_axis] in "LPI"
+            axis_flip = axcodes[pe_axis] in 'LPI'
 
             pe_info = [(pe_axis, -ro_time if (axis_flip ^ pe_flip) else ro_time)] * nvols
 
@@ -122,29 +122,29 @@ class ResampleSeries(SimpleInterface):
 
 class ReconstructFieldmapInputSpec(TraitedSpec):
     in_coeffs = InputMultiObject(
-        File(exists=True), mandatory=True, desc="SDCflows-style spline coefficient files"
+        File(exists=True), mandatory=True, desc='SDCflows-style spline coefficient files'
     )
     target_ref_file = File(
-        exists=True, mandatory=True, desc="Image to reconstruct the field in alignment with"
+        exists=True, mandatory=True, desc='Image to reconstruct the field in alignment with'
     )
     fmap_ref_file = File(
-        exists=True, mandatory=True, desc="Reference file aligned with coefficients"
+        exists=True, mandatory=True, desc='Reference file aligned with coefficients'
     )
     transforms = InputMultiObject(
         File(exists=True),
         mandatory=True,
-        desc="Transform files, from in_file to ref_file (image mode)",
+        desc='Transform files, from in_file to ref_file (image mode)',
     )
     inverse = InputMultiObject(
         traits.Bool,
         value=[False],
         usedefault=True,
-        desc="Whether to invert each file in transforms",
+        desc='Whether to invert each file in transforms',
     )
 
 
 class ReconstructFieldmapOutputSpec(TraitedSpec):
-    out_file = File(desc="Fieldmap reconstructed in target_ref_file space")
+    out_file = File(desc='Fieldmap reconstructed in target_ref_file space')
 
 
 class ReconstructFieldmap(SimpleInterface):
@@ -181,13 +181,13 @@ class ReconstructFieldmap(SimpleInterface):
 
 
 class DistortionParametersInputSpec(TraitedSpec):
-    in_file = File(exists=True, desc="EPI image corresponding to the metadata")
-    metadata = traits.Dict(mandatory=True, desc="metadata corresponding to the inputs")
+    in_file = File(exists=True, desc='EPI image corresponding to the metadata')
+    metadata = traits.Dict(mandatory=True, desc='metadata corresponding to the inputs')
 
 
 class DistortionParametersOutputSpec(TraitedSpec):
     readout_time = traits.Float
-    pe_direction = traits.Enum("i", "i-", "j", "j-", "k", "k-")
+    pe_direction = traits.Enum('i', 'i-', 'j', 'j-', 'k', 'k-')
 
 
 class DistortionParameters(SimpleInterface):
@@ -204,11 +204,11 @@ class DistortionParameters(SimpleInterface):
         from sdcflows.utils.epimanip import get_trt
 
         try:
-            self._results["readout_time"] = get_trt(
+            self._results['readout_time'] = get_trt(
                 self.inputs.metadata,
                 self.inputs.in_file or None,
             )
-            self._results["pe_direction"] = self.inputs.metadata["PhaseEncodingDirection"]
+            self._results['pe_direction'] = self.inputs.metadata['PhaseEncodingDirection']
         except (KeyError, ValueError):
             pass
 
@@ -547,7 +547,7 @@ def resample_image(
     else:
         if any(isinstance(xfm, nt.linear.LinearTransformsMapping) for xfm in transforms):
             classes = [xfm.__class__.__name__ for xfm in transforms]
-            raise ValueError(f"HMC transforms must come last. Found sequence: {classes}")
+            raise ValueError(f'HMC transforms must come last. Found sequence: {classes}')
         transform_list: list = transforms.transforms
         hmc = []
 

@@ -26,7 +26,7 @@ from ..reports import get_world_pedir
 
 
 @pytest.mark.parametrize(
-    "orientation,pe_dir,expected",
+    ('orientation', 'pe_dir', 'expected'),
     [
         ('RAS', 'j', 'Posterior-Anterior'),
         ('RAS', 'j-', 'Anterior-Posterior'),

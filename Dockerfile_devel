@@ -76,7 +76,7 @@ RUN mkdir /src/codeserver &&\
 
 RUN /src/codeserver/code-server --install-extension eamodio.gitlens &&\
     /src/codeserver/code-server --install-extension ms-python.python
-    
+
 
 ENTRYPOINT ["/src/codeserver/code-server", "--auth", "none", "/src/fmriprep"]
 

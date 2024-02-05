@@ -50,14 +50,13 @@ def init_bold_t2s_wf(
     r"""
     Combine multiple echos of :abbr:`ME-EPI (multi-echo echo-planar imaging)`.
 
-    This workflow wraps the `tedana`_ `T2* workflow`_ to optimally
-    combine multiple preprocessed echos and derive a T2\ :sup:`★` map.
+    This workflow wraps the `tedana`_ :func:`T2* workflow <tedana.workflows.t2smap_workflow>`
+    to optimally combine multiple preprocessed echos and derive a T2\ :sup:`★` map.
     The following steps are performed:
     #. Compute the T2\ :sup:`★` map
     #. Create an optimally combined ME-EPI time series
 
     .. _tedana: https://github.com/me-ica/tedana
-    .. _`T2* workflow`: https://tedana.readthedocs.io/en/latest/generated/tedana.workflows.t2smap_workflow.html#tedana.workflows.t2smap_workflow  # noqa
 
     Parameters
     ----------
@@ -89,14 +88,14 @@ def init_bold_t2s_wf(
     from niworkflows.interfaces.morphology import BinaryDilation
 
     workflow = Workflow(name=name)
-    if config.workflow.me_t2s_fit_method == "curvefit":
+    if config.workflow.me_t2s_fit_method == 'curvefit':
         fit_str = (
-            "nonlinear regression. "
-            "The T2<sup>★</sup>/S<sub>0</sub> estimates from a log-linear regression fit "
-            "were used for initial values"
+            'nonlinear regression. '
+            'The T2<sup>★</sup>/S<sub>0</sub> estimates from a log-linear regression fit '
+            'were used for initial values'
         )
     else:
-        fit_str = "log-linear regression"
+        fit_str = 'log-linear regression'
 
     workflow.__desc__ = f"""\
 A T2<sup>★</sup> map was estimated from the preprocessed EPI echoes, by voxel-wise fitting
@@ -185,25 +184,25 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     )
 
     label_tfm = pe.Node(
-        ApplyTransforms(interpolation="MultiLabel", invert_transform_flags=[True]),
-        name="label_tfm",
+        ApplyTransforms(interpolation='MultiLabel', invert_transform_flags=[True]),
+        name='label_tfm',
     )
 
-    gm_mask = pe.Node(Label2Mask(label_val=1), name="gm_mask")
+    gm_mask = pe.Node(Label2Mask(label_val=1), name='gm_mask')
 
-    clip_t2star = pe.Node(Clip(maximum=0.1), name="clip_t2star")
+    clip_t2star = pe.Node(Clip(maximum=0.1), name='clip_t2star')
 
     t2s_hist = pe.Node(
-        LabeledHistogram(mapping={1: "Gray matter"}, xlabel='T2* (s)'), name='t2s_hist'
+        LabeledHistogram(mapping={1: 'Gray matter'}, xlabel='T2* (s)'), name='t2s_hist'
     )
 
     t2s_comparison = pe.Node(
         SimpleBeforeAfter(
-            before_label="BOLD Reference",
-            after_label="T2* Map",
+            before_label='BOLD Reference',
+            after_label='T2* Map',
             dismiss_affine=True,
         ),
-        name="t2s_comparison",
+        name='t2s_comparison',
         mem_gb=0.1,
     )
     workflow.connect([

@@ -32,7 +32,7 @@ DEFAULT_MEMORY_MIN_GB = 0.01
 def init_raw_boldref_wf(
     bold_file=None,
     multiecho=False,
-    name="raw_boldref_wf",
+    name='raw_boldref_wf',
 ):
     """
     Build a workflow that generates reference BOLD images for a series.
@@ -90,20 +90,20 @@ using a custom methodology of *fMRIPrep*, for use in head motion correction.
 """
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=["bold_file", "dummy_scans"]),
-        name="inputnode",
+        niu.IdentityInterface(fields=['bold_file', 'dummy_scans']),
+        name='inputnode',
     )
     outputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
-                "bold_file",
-                "boldref",
-                "skip_vols",
-                "algo_dummy_scans",
-                "validation_report",
+                'bold_file',
+                'boldref',
+                'skip_vols',
+                'algo_dummy_scans',
+                'validation_report',
             ]
         ),
-        name="outputnode",
+        name='outputnode',
     )
 
     # Simplify manually setting input image
@@ -112,35 +112,35 @@ using a custom methodology of *fMRIPrep*, for use in head motion correction.
 
     val_bold = pe.Node(
         ValidateImage(),
-        name="val_bold",
+        name='val_bold',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
-    get_dummy = pe.Node(NonsteadyStatesDetector(), name="get_dummy")
-    gen_avg = pe.Node(RobustAverage(), name="gen_avg", mem_gb=1)
+    get_dummy = pe.Node(NonsteadyStatesDetector(), name='get_dummy')
+    gen_avg = pe.Node(RobustAverage(), name='gen_avg', mem_gb=1)
 
     calc_dummy_scans = pe.Node(
-        niu.Function(function=pass_dummy_scans, output_names=["skip_vols_num"]),
-        name="calc_dummy_scans",
+        niu.Function(function=pass_dummy_scans, output_names=['skip_vols_num']),
+        name='calc_dummy_scans',
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     # fmt: off
     workflow.connect([
-        (inputnode, val_bold, [("bold_file", "in_file")]),
-        (inputnode, get_dummy, [("bold_file", "in_file")]),
-        (inputnode, calc_dummy_scans, [("dummy_scans", "dummy_scans")]),
-        (val_bold, gen_avg, [("out_file", "in_file")]),
-        (get_dummy, gen_avg, [("t_mask", "t_mask")]),
-        (get_dummy, calc_dummy_scans, [("n_dummy", "algo_dummy_scans")]),
+        (inputnode, val_bold, [('bold_file', 'in_file')]),
+        (inputnode, get_dummy, [('bold_file', 'in_file')]),
+        (inputnode, calc_dummy_scans, [('dummy_scans', 'dummy_scans')]),
+        (val_bold, gen_avg, [('out_file', 'in_file')]),
+        (get_dummy, gen_avg, [('t_mask', 't_mask')]),
+        (get_dummy, calc_dummy_scans, [('n_dummy', 'algo_dummy_scans')]),
         (val_bold, outputnode, [
-            ("out_file", "bold_file"),
-            ("out_report", "validation_report"),
+            ('out_file', 'bold_file'),
+            ('out_report', 'validation_report'),
         ]),
-        (calc_dummy_scans, outputnode, [("skip_vols_num", "skip_vols")]),
-        (gen_avg, outputnode, [("out_file", "boldref")]),
-        (get_dummy, outputnode, [("n_dummy", "algo_dummy_scans")]),
+        (calc_dummy_scans, outputnode, [('skip_vols_num', 'skip_vols')]),
+        (gen_avg, outputnode, [('out_file', 'boldref')]),
+        (get_dummy, outputnode, [('n_dummy', 'algo_dummy_scans')]),
     ])
     # fmt: on
 

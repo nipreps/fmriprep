@@ -18,26 +18,26 @@ os.environ['NO_ET'] = '1'
 def copytree_or_skip(source, target):
     data_dir = ir_files('fmriprep') / source
     if not data_dir.exists():
-        pytest.skip(f"Cannot chdir into {data_dir!r}. Probably in a zipped distribution.")
+        pytest.skip(f'Cannot chdir into {data_dir!r}. Probably in a zipped distribution.')
 
     try:
         copytree(data_dir, target / data_dir.name)
-    except Exception:
-        pytest.skip(f"Cannot copy {data_dir!r} into {target / data_dir.name}. Probably in a zip.")
+    except Exception:  # noqa: BLE001
+        pytest.skip(f'Cannot copy {data_dir!r} into {target / data_dir.name}. Probably in a zip.')
 
 
 @pytest.fixture(autouse=True)
-def populate_namespace(doctest_namespace, tmp_path):
+def _populate_namespace(doctest_namespace, tmp_path):
     doctest_namespace['copytree_or_skip'] = copytree_or_skip
     doctest_namespace['testdir'] = tmp_path
 
 
-@pytest.fixture
+@pytest.fixture()
 def minimal_bids(tmp_path):
-    bids = tmp_path / "bids"
+    bids = tmp_path / 'bids'
     bids.mkdir()
     Path.write_text(
-        bids / "dataset_description.json", json.dumps({"Name": "Test DS", "BIDSVersion": "1.8.0"})
+        bids / 'dataset_description.json', json.dumps({'Name': 'Test DS', 'BIDSVersion': '1.8.0'})
     )
     T1w = bids / 'sub-01' / 'anat' / 'sub-01_T1w.nii.gz'
     T1w.parent.mkdir(parents=True)

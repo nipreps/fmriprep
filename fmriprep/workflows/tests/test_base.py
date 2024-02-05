@@ -16,68 +16,68 @@ from ..base import get_estimator, init_fmriprep_wf
 from ..tests import mock_config
 
 BASE_LAYOUT = {
-    "01": {
-        "anat": [
-            {"run": 1, "suffix": "T1w"},
-            {"run": 2, "suffix": "T1w"},
-            {"suffix": "T2w"},
+    '01': {
+        'anat': [
+            {'run': 1, 'suffix': 'T1w'},
+            {'run': 2, 'suffix': 'T1w'},
+            {'suffix': 'T2w'},
         ],
-        "func": [
+        'func': [
             *(
                 {
-                    "task": "rest",
-                    "run": i,
-                    "suffix": suffix,
-                    "metadata": {
-                        "RepetitionTime": 2.0,
-                        "PhaseEncodingDirection": "j",
-                        "TotalReadoutTime": 0.6,
-                        "EchoTime": 0.03,
-                        "SliceTiming": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
+                    'task': 'rest',
+                    'run': i,
+                    'suffix': suffix,
+                    'metadata': {
+                        'RepetitionTime': 2.0,
+                        'PhaseEncodingDirection': 'j',
+                        'TotalReadoutTime': 0.6,
+                        'EchoTime': 0.03,
+                        'SliceTiming': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
                     },
                 }
-                for suffix in ("bold", "sbref")
+                for suffix in ('bold', 'sbref')
                 for i in range(1, 3)
             ),
             *(
                 {
-                    "task": "nback",
-                    "echo": i,
-                    "suffix": "bold",
-                    "metadata": {
-                        "RepetitionTime": 2.0,
-                        "PhaseEncodingDirection": "j",
-                        "TotalReadoutTime": 0.6,
-                        "EchoTime": 0.015 * i,
-                        "SliceTiming": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
+                    'task': 'nback',
+                    'echo': i,
+                    'suffix': 'bold',
+                    'metadata': {
+                        'RepetitionTime': 2.0,
+                        'PhaseEncodingDirection': 'j',
+                        'TotalReadoutTime': 0.6,
+                        'EchoTime': 0.015 * i,
+                        'SliceTiming': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
                     },
                 }
                 for i in range(1, 4)
             ),
         ],
-        "fmap": [
-            {"suffix": "phasediff", "metadata": {"EchoTime1": 0.005, "EchoTime2": 0.007}},
-            {"suffix": "magnitude1", "metadata": {"EchoTime": 0.005}},
+        'fmap': [
+            {'suffix': 'phasediff', 'metadata': {'EchoTime1': 0.005, 'EchoTime2': 0.007}},
+            {'suffix': 'magnitude1', 'metadata': {'EchoTime': 0.005}},
             {
-                "suffix": "epi",
-                "direction": "PA",
-                "metadata": {"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.6},
+                'suffix': 'epi',
+                'direction': 'PA',
+                'metadata': {'PhaseEncodingDirection': 'j', 'TotalReadoutTime': 0.6},
             },
             {
-                "suffix": "epi",
-                "direction": "AP",
-                "metadata": {"PhaseEncodingDirection": "j-", "TotalReadoutTime": 0.6},
+                'suffix': 'epi',
+                'direction': 'AP',
+                'metadata': {'PhaseEncodingDirection': 'j-', 'TotalReadoutTime': 0.6},
             },
         ],
     },
 }
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope='module', autouse=True)
 def _quiet_logger():
     import logging
 
-    logger = logging.getLogger("nipype.workflow")
+    logger = logging.getLogger('nipype.workflow')
     old_level = logger.getEffectiveLevel()
     logger.setLevel(logging.ERROR)
     yield
@@ -90,10 +90,10 @@ def _reset_sdcflows_registry():
     clear_registry()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def bids_root(tmp_path_factory):
-    base = tmp_path_factory.mktemp("base")
-    bids_dir = base / "bids"
+    base = tmp_path_factory.mktemp('base')
+    bids_dir = base / 'bids'
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
 
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
@@ -101,11 +101,11 @@ def bids_root(tmp_path_factory):
     for bold_path in bids_dir.glob('sub-01/*/*.nii.gz'):
         img.to_filename(bold_path)
 
-    yield bids_dir
+    return bids_dir
 
 
 def _make_params(
-    bold2t1w_init: str = "register",
+    bold2anat_init: str = 'auto',
     use_bbr: bool | None = None,
     dummy_scans: int | None = None,
     me_output_echos: bool = False,
@@ -113,7 +113,7 @@ def _make_params(
     project_goodvoxels: bool = False,
     cifti_output: bool | str = False,
     run_msmsulc: bool = True,
-    skull_strip_t1w: str = "auto",
+    skull_strip_t1w: str = 'auto',
     use_syn_sdc: str | bool = False,
     force_syn: bool = False,
     freesurfer: bool = True,
@@ -125,7 +125,7 @@ def _make_params(
     if bids_filters is None:
         bids_filters = {}
     return (
-        bold2t1w_init,
+        bold2anat_init,
         use_bbr,
         dummy_scans,
         me_output_echos,
@@ -142,33 +142,35 @@ def _make_params(
     )
 
 
-@pytest.mark.parametrize("level", ["minimal", "resampling", "full"])
-@pytest.mark.parametrize("anat_only", [False, True])
+@pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
+@pytest.mark.parametrize('anat_only', [False, True])
 @pytest.mark.parametrize(
     (
-        "bold2t1w_init",
-        "use_bbr",
-        "dummy_scans",
-        "me_output_echos",
-        "medial_surface_nan",
-        "project_goodvoxels",
-        "cifti_output",
-        "run_msmsulc",
-        "skull_strip_t1w",
-        "use_syn_sdc",
-        "force_syn",
-        "freesurfer",
-        "ignore",
-        "bids_filters",
+        'bold2anat_init',
+        'use_bbr',
+        'dummy_scans',
+        'me_output_echos',
+        'medial_surface_nan',
+        'project_goodvoxels',
+        'cifti_output',
+        'run_msmsulc',
+        'skull_strip_t1w',
+        'use_syn_sdc',
+        'force_syn',
+        'freesurfer',
+        'ignore',
+        'bids_filters',
     ),
     [
         _make_params(),
-        _make_params(bold2t1w_init="header"),
+        _make_params(bold2anat_init='t1w'),
+        _make_params(bold2anat_init='t2w'),
+        _make_params(bold2anat_init='header'),
         _make_params(use_bbr=True),
         _make_params(use_bbr=False),
-        _make_params(bold2t1w_init="header", use_bbr=True),
+        _make_params(bold2anat_init='header', use_bbr=True),
         # Currently disabled
-        # _make_params(bold2t1w_init="header", use_bbr=False),
+        # _make_params(bold2anat_init="header", use_bbr=False),
         _make_params(dummy_scans=2),
         _make_params(me_output_echos=True),
         _make_params(medial_surface_nan=True),
@@ -183,9 +185,9 @@ def _make_params(
         _make_params(freesurfer=False, use_bbr=True),
         _make_params(freesurfer=False, use_bbr=False),
         # Currently unsupported:
-        # _make_params(freesurfer=False, bold2t1w_init="header"),
-        # _make_params(freesurfer=False, bold2t1w_init="header", use_bbr=True),
-        # _make_params(freesurfer=False, bold2t1w_init="header", use_bbr=False),
+        # _make_params(freesurfer=False, bold2anat_init="header"),
+        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=True),
+        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=False),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
     ],
@@ -195,7 +197,7 @@ def test_init_fmriprep_wf(
     tmp_path: Path,
     level: str,
     anat_only: bool,
-    bold2t1w_init: str,
+    bold2anat_init: str,
     use_bbr: bool | None,
     dummy_scans: int | None,
     me_output_echos: bool,
@@ -213,7 +215,7 @@ def test_init_fmriprep_wf(
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
         config.workflow.anat_only = anat_only
-        config.workflow.bold2t1w_init = bold2t1w_init
+        config.workflow.bold2anat_init = bold2anat_init
         config.workflow.use_bbr = use_bbr
         config.workflow.dummy_scans = dummy_scans
         config.execution.me_output_echos = me_output_echos
@@ -231,7 +233,7 @@ def test_init_fmriprep_wf(
 
 
 def test_get_estimator_none(tmp_path):
-    bids_dir = tmp_path / "bids"
+    bids_dir = tmp_path / 'bids'
 
     # No IntendedFors/B0Fields
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
@@ -245,7 +247,7 @@ def test_get_estimator_none(tmp_path):
 
 
 def test_get_estimator_b0field_and_intendedfor(tmp_path):
-    bids_dir = tmp_path / "bids"
+    bids_dir = tmp_path / 'bids'
 
     # Set B0FieldSource for run 1
     spec = deepcopy(BASE_LAYOUT)
@@ -269,7 +271,7 @@ def test_get_estimator_b0field_and_intendedfor(tmp_path):
 
 
 def test_get_estimator_overlapping_specs(tmp_path):
-    bids_dir = tmp_path / "bids"
+    bids_dir = tmp_path / 'bids'
 
     # Set B0FieldSource for both runs
     spec = deepcopy(BASE_LAYOUT)
@@ -298,7 +300,7 @@ def test_get_estimator_overlapping_specs(tmp_path):
 
 
 def test_get_estimator_multiple_b0fields(tmp_path):
-    bids_dir = tmp_path / "bids"
+    bids_dir = tmp_path / 'bids'
 
     # Set B0FieldSource for both runs
     spec = deepcopy(BASE_LAYOUT)

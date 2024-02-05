@@ -12,23 +12,23 @@ from ...tests.test_base import BASE_LAYOUT
 from ..fit import init_bold_fit_wf, init_bold_native_wf
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope='module', autouse=True)
 def _quiet_logger():
     import logging
 
-    logger = logging.getLogger("nipype.workflow")
+    logger = logging.getLogger('nipype.workflow')
     old_level = logger.getEffectiveLevel()
     logger.setLevel(logging.ERROR)
     yield
     logger.setLevel(old_level)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def bids_root(tmp_path_factory):
-    base = tmp_path_factory.mktemp("boldfit")
-    bids_dir = base / "bids"
+    base = tmp_path_factory.mktemp('boldfit')
+    bids_dir = base / 'bids'
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
-    yield bids_dir
+    return bids_dir
 
 
 def _make_params(
@@ -47,8 +47,8 @@ def _make_params(
     )
 
 
-@pytest.mark.parametrize("task", ["rest", "nback"])
-@pytest.mark.parametrize("fieldmap_id", ["phasediff", None])
+@pytest.mark.parametrize('task', ['rest', 'nback'])
+@pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize(
     (
         'have_hmcref',
@@ -129,9 +129,9 @@ def test_bold_fit_precomputes(
     generate_expanded_graph(flatgraph)
 
 
-@pytest.mark.parametrize("task", ["rest", "nback"])
-@pytest.mark.parametrize("fieldmap_id", ["phasediff", None])
-@pytest.mark.parametrize("run_stc", [True, False])
+@pytest.mark.parametrize('task', ['rest', 'nback'])
+@pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
+@pytest.mark.parametrize('run_stc', [True, False])
 def test_bold_native_precomputes(
     bids_root: Path,
     tmp_path: Path,

@@ -6,19 +6,19 @@ from fmriprep.interfaces.maths import Clip
 
 
 def test_Clip(tmp_path):
-    in_file = str(tmp_path / "input.nii")
+    in_file = str(tmp_path / 'input.nii')
     data = np.array([[[-1.0, 1.0], [-2.0, 2.0]]])
     nb.Nifti1Image(data, np.eye(4)).to_filename(in_file)
 
-    threshold = pe.Node(Clip(in_file=in_file, minimum=0), name="threshold", base_dir=tmp_path)
+    threshold = pe.Node(Clip(in_file=in_file, minimum=0), name='threshold', base_dir=tmp_path)
 
     ret = threshold.run()
 
-    assert ret.outputs.out_file == str(tmp_path / "threshold/input_clipped.nii")
+    assert ret.outputs.out_file == str(tmp_path / 'threshold/input_clipped.nii')
     out_img = nb.load(ret.outputs.out_file)
     assert np.allclose(out_img.get_fdata(), [[[0.0, 1.0], [0.0, 2.0]]])
 
-    threshold2 = pe.Node(Clip(in_file=in_file, minimum=-3), name="threshold2", base_dir=tmp_path)
+    threshold2 = pe.Node(Clip(in_file=in_file, minimum=-3), name='threshold2', base_dir=tmp_path)
 
     ret = threshold2.run()
 
@@ -26,18 +26,18 @@ def test_Clip(tmp_path):
     out_img = nb.load(ret.outputs.out_file)
     assert np.allclose(out_img.get_fdata(), [[[-1.0, 1.0], [-2.0, 2.0]]])
 
-    clip = pe.Node(Clip(in_file=in_file, minimum=-1, maximum=1), name="clip", base_dir=tmp_path)
+    clip = pe.Node(Clip(in_file=in_file, minimum=-1, maximum=1), name='clip', base_dir=tmp_path)
 
     ret = clip.run()
 
-    assert ret.outputs.out_file == str(tmp_path / "clip/input_clipped.nii")
+    assert ret.outputs.out_file == str(tmp_path / 'clip/input_clipped.nii')
     out_img = nb.load(ret.outputs.out_file)
     assert np.allclose(out_img.get_fdata(), [[[-1.0, 1.0], [-1.0, 1.0]]])
 
-    nonpositive = pe.Node(Clip(in_file=in_file, maximum=0), name="nonpositive", base_dir=tmp_path)
+    nonpositive = pe.Node(Clip(in_file=in_file, maximum=0), name='nonpositive', base_dir=tmp_path)
 
     ret = nonpositive.run()
 
-    assert ret.outputs.out_file == str(tmp_path / "nonpositive/input_clipped.nii")
+    assert ret.outputs.out_file == str(tmp_path / 'nonpositive/input_clipped.nii')
     out_img = nb.load(ret.outputs.out_file)
     assert np.allclose(out_img.get_fdata(), [[[-1.0, 0.0], [-2.0, 0.0]]])

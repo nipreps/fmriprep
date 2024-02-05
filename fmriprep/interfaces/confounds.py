@@ -54,18 +54,18 @@ LOGGER = logging.getLogger('nipype.interface')
 
 
 class _aCompCorMasksInputSpec(BaseInterfaceInputSpec):
-    in_vfs = InputMultiObject(File(exists=True), desc="Input volume fractions.")
+    in_vfs = InputMultiObject(File(exists=True), desc='Input volume fractions.')
     is_aseg = traits.Bool(
         False, usedefault=True, desc="Whether the input volume fractions come from FS' aseg."
     )
     bold_zooms = traits.Tuple(
-        traits.Float, traits.Float, traits.Float, mandatory=True, desc="BOLD series zooms"
+        traits.Float, traits.Float, traits.Float, mandatory=True, desc='BOLD series zooms'
     )
 
 
 class _aCompCorMasksOutputSpec(TraitedSpec):
     out_masks = OutputMultiObject(
-        File(exists=True), desc="CSF, WM and combined masks, respectively"
+        File(exists=True), desc='CSF, WM and combined masks, respectively'
     )
 
 
@@ -78,7 +78,7 @@ class aCompCorMasks(SimpleInterface):
     def _run_interface(self, runtime):
         from ..utils.confounds import acompcor_masks
 
-        self._results["out_masks"] = acompcor_masks(
+        self._results['out_masks'] = acompcor_masks(
             self.inputs.in_vfs,
             self.inputs.is_aseg,
             self.inputs.bold_zooms,
@@ -104,12 +104,12 @@ class FilterDropped(SimpleInterface):
     output_spec = _FilterDroppedOutputSpec
 
     def _run_interface(self, runtime):
-        self._results["out_file"] = fname_presuffix(
+        self._results['out_file'] = fname_presuffix(
             self.inputs.in_file, suffix='_filtered', use_ext=True, newpath=runtime.cwd
         )
 
         metadata = pd.read_csv(self.inputs.in_file, sep='\t')
-        metadata[metadata.retained].to_csv(self._results["out_file"], sep='\t', index=False)
+        metadata[metadata.retained].to_csv(self._results['out_file'], sep='\t', index=False)
 
         return runtime
 
@@ -143,42 +143,42 @@ class RenameACompCor(SimpleInterface):
             metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
         except pd.errors.EmptyDataError:
             # Can occur when testing on short datasets; otherwise rare
-            self._results["components_file"] = self.inputs.components_file
-            self._results["metadata_file"] = self.inputs.metadata_file
+            self._results['components_file'] = self.inputs.components_file
+            self._results['metadata_file'] = self.inputs.metadata_file
             return runtime
 
-        self._results["components_file"] = fname_presuffix(
+        self._results['components_file'] = fname_presuffix(
             self.inputs.components_file, suffix='_renamed', use_ext=True, newpath=runtime.cwd
         )
-        self._results["metadata_file"] = fname_presuffix(
+        self._results['metadata_file'] = fname_presuffix(
             self.inputs.metadata_file, suffix='_renamed', use_ext=True, newpath=runtime.cwd
         )
 
-        all_comp_cor = metadata[metadata["retained"]]
+        all_comp_cor = metadata[metadata['retained']]
 
-        c_comp_cor = all_comp_cor[all_comp_cor["mask"] == "CSF"]
-        w_comp_cor = all_comp_cor[all_comp_cor["mask"] == "WM"]
-        a_comp_cor = all_comp_cor[all_comp_cor["mask"] == "combined"]
+        c_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'CSF']
+        w_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'WM']
+        a_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'combined']
 
-        c_orig = c_comp_cor["component"]
-        c_new = [f"c_comp_cor_{i:02d}" for i in range(len(c_orig))]
+        c_orig = c_comp_cor['component']
+        c_new = [f'c_comp_cor_{i:02d}' for i in range(len(c_orig))]
 
-        w_orig = w_comp_cor["component"]
-        w_new = [f"w_comp_cor_{i:02d}" for i in range(len(w_orig))]
+        w_orig = w_comp_cor['component']
+        w_new = [f'w_comp_cor_{i:02d}' for i in range(len(w_orig))]
 
-        a_orig = a_comp_cor["component"]
-        a_new = [f"a_comp_cor_{i:02d}" for i in range(len(a_orig))]
+        a_orig = a_comp_cor['component']
+        a_new = [f'a_comp_cor_{i:02d}' for i in range(len(a_orig))]
 
-        final_components = components.rename(columns=dict(zip(c_orig, c_new)))
-        final_components.rename(columns=dict(zip(w_orig, w_new)), inplace=True)
-        final_components.rename(columns=dict(zip(a_orig, a_new)), inplace=True)
-        final_components.to_csv(self._results["components_file"], sep='\t', index=False)
+        final_components = components.rename(columns=dict(zip(c_orig, c_new, strict=False)))
+        final_components.rename(columns=dict(zip(w_orig, w_new, strict=False)), inplace=True)
+        final_components.rename(columns=dict(zip(a_orig, a_new, strict=False)), inplace=True)
+        final_components.to_csv(self._results['components_file'], sep='\t', index=False)
 
-        metadata.loc[c_comp_cor.index, "component"] = c_new
-        metadata.loc[w_comp_cor.index, "component"] = w_new
-        metadata.loc[a_comp_cor.index, "component"] = a_new
+        metadata.loc[c_comp_cor.index, 'component'] = c_new
+        metadata.loc[w_comp_cor.index, 'component'] = w_new
+        metadata.loc[a_comp_cor.index, 'component'] = a_new
 
-        metadata.to_csv(self._results["metadata_file"], sep='\t', index=False)
+        metadata.to_csv(self._results['metadata_file'], sep='\t', index=False)
 
         return runtime
 
@@ -221,6 +221,7 @@ class GatherConfounds(SimpleInterface):
     0  0.1  0.2
 
     """
+
     input_spec = GatherConfoundsInputSpec
     output_spec = GatherConfoundsOutputSpec
 
@@ -275,7 +276,7 @@ def _gather_confounds(
     """
 
     def less_breakable(a_string):
-        '''hardens the string to different envs (i.e., case insensitive, no whitespace, '#' '''
+        """hardens the string to different envs (i.e., case insensitive, no whitespace, '#'"""
         return ''.join(a_string.split()).strip('#')
 
     # Taken from https://stackoverflow.com/questions/1175208/
@@ -315,7 +316,7 @@ def _gather_confounds(
     confounds_data = pd.DataFrame()
     for file_name in all_files:  # assumes they all have headings already
         try:
-            new = pd.read_csv(file_name, sep="\t")
+            new = pd.read_csv(file_name, sep='\t')
         except pd.errors.EmptyDataError:
             # No data, nothing to concat
             continue
@@ -337,9 +338,9 @@ def _gather_confounds(
 
 
 class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
-    in_nifti = File(exists=True, mandatory=True, desc="input BOLD (4D NIfTI file)")
-    in_cifti = File(exists=True, desc="input BOLD (CIFTI dense timeseries)")
-    in_segm = File(exists=True, desc="volumetric segmentation corresponding to in_nifti")
+    in_nifti = File(exists=True, mandatory=True, desc='input BOLD (4D NIfTI file)')
+    in_cifti = File(exists=True, desc='input BOLD (CIFTI dense timeseries)')
+    in_segm = File(exists=True, desc='volumetric segmentation corresponding to in_nifti')
     confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
 
     str_or_tuple = traits.Either(
@@ -351,7 +352,7 @@ class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
         str_or_tuple, minlen=1, desc='list of headers to extract from the confounds_file'
     )
     tr = traits.Either(None, traits.Float, usedefault=True, desc='the repetition time')
-    drop_trs = traits.Int(0, usedefault=True, desc="dummy scans")
+    drop_trs = traits.Int(0, usedefault=True, desc='dummy scans')
 
 
 class _FMRISummaryOutputSpec(TraitedSpec):
@@ -380,9 +381,9 @@ class FMRISummary(SimpleInterface):
             nb.load(seg_file),
             remap_rois=False,
             labels=(
-                ("WM+CSF", "Edge")
+                ('WM+CSF', 'Edge')
                 if has_cifti
-                else ("Ctx GM", "dGM", "sWM+sCSF", "dWM+dCSF", "Cb", "Edge")
+                else ('Ctx GM', 'dGM', 'sWM+sCSF', 'dWM+dCSF', 'Cb', 'Edge')
             ),
         )
 
@@ -402,7 +403,7 @@ class FMRISummary(SimpleInterface):
 
         dataframe = pd.read_csv(
             self.inputs.confounds_file,
-            sep="\t",
+            sep='\t',
             index_col=None,
             dtype='float32',
             na_filter=True,
@@ -414,7 +415,7 @@ class FMRISummary(SimpleInterface):
         names = {}
 
         for conf_el in self.inputs.confounds_list:
-            if isinstance(conf_el, (list, tuple)):
+            if isinstance(conf_el, list | tuple):
                 headers.append(conf_el[0])
                 if conf_el[1] is not None:
                     units[conf_el[0]] = conf_el[1]
@@ -441,5 +442,5 @@ class FMRISummary(SimpleInterface):
             nskip=self.inputs.drop_trs,
             paired_carpet=has_cifti,
         ).plot()
-        fig.savefig(self._results["out_file"], bbox_inches="tight")
+        fig.savefig(self._results['out_file'], bbox_inches='tight')
         return runtime
