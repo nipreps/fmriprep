@@ -26,14 +26,14 @@
 ARG BASE_IMAGE=ubuntu:jammy-20240125
 
 #
-# fMRIPrep wheel
+# Build wheel
 #
 FROM python:slim AS src
 RUN pip install build
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git
-COPY . /src/fmriprep
-RUN python -m build /src/fmriprep
+COPY . /src
+RUN python -m build /src
 
 #
 # Download stages
@@ -249,7 +249,7 @@ RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/e
     && chmod +x /usr/local/bin/msm
 
 # Installing FMRIPREP
-COPY --from=src /src/fmriprep/dist/*.whl .
+COPY --from=src /src/dist/*.whl .
 RUN pip install --no-cache-dir $( ls *.whl )[container,test]
 
 RUN find $HOME -type d -exec chmod go=u {} + && \
