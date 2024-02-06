@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 # Ubuntu 22.04 LTS - Jammy
-ARG BASE_IMAGE=ubuntu:jammy-20230308
+ARG BASE_IMAGE=ubuntu:jammy-20240125
 
 #
 # fMRIPrep wheel
