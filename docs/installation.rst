@@ -85,12 +85,12 @@ nipype_.
 not handled by the Python's packaging system (Pypi) used to deploy
 the ``fmriprep`` package:
 
-- FSL_ (version 6.0.6.2)
-- ANTs_ (version 2.4.4)
-- AFNI_ (version 23.1.05)
-- `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.3.0)
+- FSL_ (version 6.0.7.7)
+- ANTs_ (version 2.5.1)
+- AFNI_ (version 24.0.05)
+- `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.4.0)
 - FreeSurfer_ (version 7.3.2)
-- `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.8.0)
+- `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.14.0)
 - `connectome-workbench <https://www.humanconnectome.org/software/connectome-workbench>`_ (version 1.5.0)
 
 Not running on a local machine? - Data transfer
