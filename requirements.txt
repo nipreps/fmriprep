@@ -370,7 +370,7 @@ scikit-learn==1.4.0
     #   mapca
     #   nilearn
     #   tedana
-scipy==1.12.0
+scipy==1.11.4
     # via
     #   formulaic
     #   mapca
