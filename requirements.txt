@@ -54,7 +54,7 @@ contourpy==1.2.0
     # via
     #   bokeh
     #   matplotlib
-cryptography==41.0.7
+cryptography==42.0.2
     # via secretstorage
 cycler==0.12.1
     # via matplotlib
