@@ -87,6 +87,7 @@ The :py:mod:`config` is responsible for other conveniency actions.
     :py:class:`~bids.layout.BIDSLayout`, etc.)
 
 """
+
 import os
 from multiprocessing import set_start_method
 

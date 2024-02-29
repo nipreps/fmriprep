@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Utilities and mocks for testing and documentation building."""
+
 import os
 import shutil
 from contextlib import contextmanager

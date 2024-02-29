@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Test parser."""
+
 from argparse import ArgumentError
 from contextlib import nullcontext
 

@@ -27,6 +27,7 @@ Slice-Timing Correction (STC) of BOLD images
 .. autofunction:: init_bold_stc_wf
 
 """
+
 import nibabel as nb
 import numpy as np
 from nipype.interfaces import afni

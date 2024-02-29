@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Parser."""
+
 import sys
 
 from .. import config

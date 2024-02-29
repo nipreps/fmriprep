@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Miscellaneous utilities."""
+
 from functools import cache
 
 

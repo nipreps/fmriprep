@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generate an author list for a new paper or abstract."""
+
 import json
 import sys
 from pathlib import Path

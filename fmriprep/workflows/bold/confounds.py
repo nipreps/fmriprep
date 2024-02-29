@@ -27,6 +27,7 @@ Calculate BOLD confounds
 .. autofunction:: init_bold_confs_wf
 
 """
+
 from nipype.algorithms import confounds as nac
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe

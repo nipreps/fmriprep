@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Stripped out routines for telemetry"""
+
 import os
 import re
 
