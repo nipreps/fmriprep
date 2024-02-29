@@ -35,7 +35,7 @@ def _warn(message, category=None, stacklevel=1, source=None):
         category = type(category).__name__
         category = category.replace('type', 'WARNING')
 
-    logging.getLogger('py.warnings').warning(f"{category or 'WARNING'}: {message}")
+    logging.getLogger('py.warnings').warning("%s: %s", category or 'WARNING', message)
 
 
 def _showwarning(message, category, filename, lineno, file=None, line=None):
