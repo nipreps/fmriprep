@@ -36,9 +36,9 @@ def _warn(message, category=None, stacklevel=1, source=None, **kwargs):
         category = category.replace('type', 'WARNING')
 
     if kwargs:
-        logging.getLogger('py.warnings').warning(f'Extra warning kwargs: {kwargs}')
+        logging.getLogger('py.warnings').warning('Extra warning kwargs: %s', kwargs)
 
-    logging.getLogger('py.warnings').warning(f'{category or "WARNING"}: {message}')
+    logging.getLogger('py.warnings').warning('%s: %s', category or 'WARNING', message)
 
 
 def _showwarning(message, category, filename, lineno, file=None, line=None, **kwargs):

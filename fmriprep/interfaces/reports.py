@@ -372,7 +372,8 @@ def get_world_pedir(ornt, pe_direction):
                 if flip[not inv].startswith(axcode):
                     return '-'.join(flip)
     LOGGER.warning(
-        'Cannot determine world direction of phase encoding. '
-        f'Orientation: {ornt}; PE dir: {pe_direction}'
+        'Cannot determine world direction of phase encoding. Orientation: %s; PE dir: %s',
+        ornt,
+        pe_direction,
     )
     return 'Could not be determined - assuming Anterior-Posterior'
