@@ -588,6 +588,8 @@ def resample_image(
     )
     resampled_img = nb.Nifti1Image(resampled_data, target.affine, target.header)
     resampled_img.set_data_dtype('f4')
+    # Preserve zooms of additional dimensions
+    resampled_img.header.set_zooms(target.header.get_zooms()[:3] + source.header.get_zooms()[3:])
 
     return resampled_img
 
