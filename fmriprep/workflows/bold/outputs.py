@@ -736,8 +736,8 @@ def init_ds_volumes_wf(
     workflow.connect([
         (inputnode, raw_sources, [('source_files', 'in_files')]),
         (inputnode, boldref2target, [
-            ('boldref2anat_xfm', 'in1'),
-            ('anat2std_xfm', 'in2'),
+            ('anat2std_xfm', 'in1'),
+            ('boldref2anat_xfm', 'in2'),
         ]),
         (inputnode, ds_bold, [
             ('source_files', 'source_file'),
