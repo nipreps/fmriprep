@@ -426,7 +426,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         'rot_x': {'Description': 'Rotation Along X Axis', 'Units': 'rad'},
         'rot_y': {'Description': 'Rotation Along Y Axis', 'Units': 'rad'},
         'rot_z': {'Description': 'Rotation Along Z Axis', 'Units': 'rad'},
-        'framewise_displacement': {'Units': 'mm / TR'},
+        'framewise_displacement': {'Units': 'mm'},
     }
     mrg_conf_metadata2 = pe.Node(
         DictMerge(), name='merge_confound_metadata2', run_without_submitting=True
