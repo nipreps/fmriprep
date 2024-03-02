@@ -420,12 +420,21 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
     # Movement parameters
     mrg_conf_metadata.inputs.in4 = {
-        'trans_x': {'Description': 'Translation Along X Axis', 'Units': 'mm'},
-        'trans_y': {'Description': 'Translation Along Y Axis', 'Units': 'mm'},
-        'trans_z': {'Description': 'Translation Along Z Axis', 'Units': 'mm'},
-        'rot_x': {'Description': 'Rotation Along X Axis', 'Units': 'rad'},
-        'rot_y': {'Description': 'Rotation Along Y Axis', 'Units': 'rad'},
-        'rot_z': {'Description': 'Rotation Along Z Axis', 'Units': 'rad'},
+        'trans_x': {'Description': 'Translation along left-right axis.', 'Units': 'mm'},
+        'trans_y': {'Description': 'Translation along anterior-posterior axis.', 'Units': 'mm'},
+        'trans_z': {'Description': 'Translation along superior-inferior axis.', 'Units': 'mm'},
+        'rot_x': {
+            'Description': 'Rotation about left-right axis. Also known as "pitch".',
+            'Units': 'rad',
+        },
+        'rot_y': {
+            'Description': 'Rotation about anterior-posterior axis. Also known as "roll".',
+            'Units': 'rad',
+        },
+        'rot_z': {
+            'Description': 'Rotation about superior-inferior axis. Also known as "yaw".',
+            'Units': 'rad',
+        },
         'framewise_displacement': {'Units': 'mm / TR'},
     }
     mrg_conf_metadata2 = pe.Node(
