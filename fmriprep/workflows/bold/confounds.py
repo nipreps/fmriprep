@@ -412,10 +412,21 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         name='crowncc_metadata_fmt',
     )
 
+    # Combine all confounds metadata
     mrg_conf_metadata = pe.Node(
-        niu.Merge(3), name='merge_confound_metadata', run_without_submitting=True
+        niu.Merge(4), name='merge_confound_metadata', run_without_submitting=True
     )
+    # Tissue mean time series
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
+    # Movement parameters
+    mrg_conf_metadata.inputs.in4 = {
+        "trans_x": {"Units": "mm"},
+        "trans_y": {"Units": "mm"},
+        "trans_z": {"Units": "mm"},
+        "rot_x": {"Units": "rad"},
+        "rot_y": {"Units": "rad"},
+        "rot_z": {"Units": "rad"},
+    }
     mrg_conf_metadata2 = pe.Node(
         DictMerge(), name='merge_confound_metadata2', run_without_submitting=True
     )
