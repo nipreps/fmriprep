@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Manipulate Python warnings."""
+
 import logging
 import warnings
 

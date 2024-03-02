@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Check the configuration module and file."""
+
 import os
 from unittest.mock import patch
 

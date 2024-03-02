@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Writing out derivative files."""
+
 from __future__ import annotations
 
 import numpy as np

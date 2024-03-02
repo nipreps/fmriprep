@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Test version checks."""
+
 from datetime import datetime, timezone
 from os import getenv, geteuid
 from pathlib import Path

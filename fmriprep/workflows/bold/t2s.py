@@ -27,6 +27,7 @@ Generate T2* map from multi-echo BOLD images
 .. autofunction:: init_bold_t2s_wf
 
 """
+
 import typing as ty
 
 from nipype.interfaces import utility as niu

@@ -30,6 +30,7 @@ Resampling workflows
 .. autofunction:: init_goodvoxels_bold_mask_wf
 
 """
+
 from __future__ import annotations
 
 import typing as ty

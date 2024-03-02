@@ -27,6 +27,7 @@ Multi-echo EPI
 For using multi-echo EPI data.
 
 """
+
 import os
 
 from nipype import logging

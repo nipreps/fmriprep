@@ -15,6 +15,7 @@ please check out the
 `NiPreps documentation <https://www.nipreps.org/intro/transparency/#citation-boilerplates>`__.
 Please report any feedback to our `GitHub repository <https://github.com/nipreps/fmriprep>`__.
 """
+
 import os
 import re
 import subprocess

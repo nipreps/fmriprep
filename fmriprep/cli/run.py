@@ -21,6 +21,7 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """fMRI preprocessing workflow."""
+
 from .. import config
 
 
