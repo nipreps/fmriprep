@@ -420,13 +420,13 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
     # Movement parameters
     mrg_conf_metadata.inputs.in4 = {
-        "trans_x": {"Description": "Translation Along X Axis", "Units": "mm"},
-        "trans_y": {"Description": "Translation Along Y Axis", "Units": "mm"},
-        "trans_z": {"Description": "Translation Along Z Axis", "Units": "mm"},
-        "rot_x": {"Description": "Rotation Along X Axis", "Units": "rad"},
-        "rot_y": {"Description": "Rotation Along Y Axis", "Units": "rad"},
-        "rot_z": {"Description": "Rotation Along Z Axis", "Units": "rad"},
-        "framewise_displacement": {"Units": "mm / TR"},
+        'trans_x': {'Description': 'Translation Along X Axis', 'Units': 'mm'},
+        'trans_y': {'Description': 'Translation Along Y Axis', 'Units': 'mm'},
+        'trans_z': {'Description': 'Translation Along Z Axis', 'Units': 'mm'},
+        'rot_x': {'Description': 'Rotation Along X Axis', 'Units': 'rad'},
+        'rot_y': {'Description': 'Rotation Along Y Axis', 'Units': 'rad'},
+        'rot_z': {'Description': 'Rotation Along Z Axis', 'Units': 'rad'},
+        'framewise_displacement': {'Units': 'mm / TR'},
     }
     mrg_conf_metadata2 = pe.Node(
         DictMerge(), name='merge_confound_metadata2', run_without_submitting=True
