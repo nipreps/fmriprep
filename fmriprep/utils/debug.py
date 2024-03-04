@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 #
 # ORIGINAL WORK'S ATTRIBUTION NOTICE:
 #
-#    Copyright 2020 DANDI Client Developers
+#    Copyright DANDI Client Developers
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.

@@ -25,16 +25,6 @@ try:
 except ImportError:
     __version__ = '0+unknown'
 
-__copyright__ = 'Copyright 2023, Center for Reproducible Neuroscience, Stanford University'
-__credits__ = [
-    'Craig Moodie',
-    'Ross Blair',
-    'Oscar Esteban',
-    'Chris Gorgolewski',
-    'Shoshana Berleant',
-    'Christopher J. Markiewicz',
-    'Russell A. Poldrack',
-]
 __bugreports__ = 'https://github.com/nipreps/fmriprep/issues'
 
 

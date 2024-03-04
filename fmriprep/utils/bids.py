@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2023 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,7 +97,9 @@ def write_bidsignore(deriv_dir):
 
 
 def write_derivative_description(bids_dir, deriv_dir):
-    from ..__about__ import DOWNLOAD_URL, __version__
+    from .. import __version__
+
+    DOWNLOAD_URL = f'https://github.com/nipreps/fmriprep/archive/{__version__}.tar.gz'
 
     bids_dir = Path(bids_dir)
     deriv_dir = Path(deriv_dir)
