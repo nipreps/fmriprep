@@ -636,10 +636,12 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         help='Disable FreeSurfer surface preprocessing.',
     )
     g_fs.add_argument(
-        "--fs-reuse-base",
-        action="store_true",
-        dest="fs_reuse_base",
-        help="Reuse freesurfer base template (from longitudinal preprocessing)",
+        '--fs-no-resume',
+        action='store_true',
+        dest='fs_no_resume',
+        help='Import precomputed freesurfer without resuming '
+        '(longitudinal or fastsurfer data) '
+        "!expert option (you know what you're doing)!",
     )
 
     g_carbon = parser.add_argument_group('Options for carbon usage tracking')

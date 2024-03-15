@@ -321,7 +321,7 @@ It is released under the [CC0]\
         output_dir=fmriprep_dir,
         freesurfer=config.workflow.run_reconall,
         hires=config.workflow.hires,
-        fs_reuse_base=config.workflow.fs_reuse_base,
+        fs_no_resume=config.workflow.fs_no_resume,
         longitudinal=config.workflow.longitudinal,
         msm_sulc=msm_sulc,
         t1w=subject_data['t1w'],
