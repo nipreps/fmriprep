@@ -169,7 +169,6 @@ class SubjectSummary(SummaryInterface):
         if counts:
             header = '\t\t<ul class="elem-desc">'
             footer = '\t\t</ul>'
-            s = '' if n_runs == 1 else 's'
             lines = [
                 f'\t\t\t<li>Task: {task_id} ({n_runs:d} run{"s"[:n_runs > 1]})</li>'
                 for task_id, n_runs in sorted(counts.items())
