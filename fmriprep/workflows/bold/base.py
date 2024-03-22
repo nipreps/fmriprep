@@ -328,6 +328,8 @@ configured with cubic B-spline interpolation.
         workflow.connect([
             (bold_fit_wf, ds_bold_native_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask'),
+                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
+                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ]),
             (bold_native_wf, ds_bold_native_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),

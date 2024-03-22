@@ -29,11 +29,11 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 from niworkflows.utils.images import dseg_label
-from smriprep.workflows.outputs import _bids_relative
 
 from fmriprep import config
 from fmriprep.config import DEFAULT_MEMORY_MIN_GB
 from fmriprep.interfaces import DerivativesDataSink
+from fmriprep.interfaces.bids import BIDSURI
 from fmriprep.utils.bids import dismiss_echo
 
 
@@ -437,8 +437,14 @@ def init_ds_boldref_wf(
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['boldref']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
-    raw_sources.inputs.bids_root = bids_root
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=1,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
 
     ds_boldref = pe.Node(
         DerivativesDataSink(
@@ -454,10 +460,10 @@ def init_ds_boldref_wf(
 
     # fmt:off
     workflow.connect([
-        (inputnode, raw_sources, [('source_files', 'in_files')]),
+        (inputnode, sources, [('source_files', 'in1')]),
         (inputnode, ds_boldref, [('boldref', 'in_file'),
                                  ('source_files', 'source_file')]),
-        (raw_sources, ds_boldref, [('out', 'RawSources')]),
+        (sources, ds_boldref, [('out', 'Sources')]),
         (ds_boldref, outputnode, [('out_file', 'boldref')]),
     ])
     # fmt:on
@@ -481,8 +487,14 @@ def init_ds_registration_wf(
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['xform']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
-    raw_sources.inputs.bids_root = bids_root
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=1,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
 
     ds_xform = pe.Node(
         DerivativesDataSink(
@@ -500,10 +512,10 @@ def init_ds_registration_wf(
 
     # fmt:off
     workflow.connect([
-        (inputnode, raw_sources, [('source_files', 'in_files')]),
+        (inputnode, sources, [('source_files', 'in1')]),
         (inputnode, ds_xform, [('xform', 'in_file'),
                                ('source_files', 'source_file')]),
-        (raw_sources, ds_xform, [('out', 'RawSources')]),
+        (sources, ds_xform, [('out', 'Sources')]),
         (ds_xform, outputnode, [('out_file', 'xform')]),
     ])
     # fmt:on
@@ -525,8 +537,14 @@ def init_ds_hmc_wf(
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
-    raw_sources.inputs.bids_root = bids_root
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=1,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
 
     ds_xforms = pe.Node(
         DerivativesDataSink(
@@ -544,10 +562,10 @@ def init_ds_hmc_wf(
 
     # fmt:off
     workflow.connect([
-        (inputnode, raw_sources, [('source_files', 'in_files')]),
+        (inputnode, sources, [('source_files', 'in1')]),
         (inputnode, ds_xforms, [('xforms', 'in_file'),
                                 ('source_files', 'source_file')]),
-        (raw_sources, ds_xforms, [('out', 'RawSources')]),
+        (sources, ds_xforms, [('out', 'Sources')]),
         (ds_xforms, outputnode, [('out_file', 'xforms')]),
     ])
     # fmt:on
@@ -577,14 +595,29 @@ def init_ds_bold_native_wf(
                 'bold_mask',
                 'bold_echos',
                 't2star',
+                # Transforms previously used to generate the outputs
+                'motion_xfm',
+                'boldref2fmap_xfm',
             ]
         ),
         name='inputnode',
     )
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
-    raw_sources.inputs.bids_root = bids_root
-    workflow.connect(inputnode, 'source_files', raw_sources, 'in_files')
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=3,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
+    workflow.connect([
+        (inputnode, sources, [
+            ('source_files', 'in1'),
+            ('motion_xfm', 'in2'),
+            ('boldref2fmap_xfm', 'in3'),
+        ]),
+    ])  # fmt:skip
 
     # Masks should be output if any other derivatives are output
     ds_bold_mask = pe.Node(
@@ -604,7 +637,7 @@ def init_ds_bold_native_wf(
             ('source_files', 'source_file'),
             ('bold_mask', 'in_file'),
         ]),
-        (raw_sources, ds_bold_mask, [('out', 'RawSources')]),
+        (sources, ds_bold_mask, [('out', 'Sources')]),
     ])  # fmt:skip
 
     if bold_output:
@@ -652,7 +685,7 @@ def init_ds_bold_native_wf(
                 ('source_files', 'source_file'),
                 ('t2star', 'in_file'),
             ]),
-            (raw_sources, ds_t2star, [('out', 'RawSources')]),
+            (sources, ds_t2star, [('out', 'Sources')]),
         ])  # fmt:skip
 
     if echo_output:
@@ -714,8 +747,14 @@ def init_ds_volumes_wf(
         name='inputnode',
     )
 
-    raw_sources = pe.Node(niu.Function(function=_bids_relative), name='raw_sources')
-    raw_sources.inputs.bids_root = bids_root
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=3,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
     boldref2target = pe.Node(niu.Merge(2), name='boldref2target')
 
     # BOLD is pre-resampled
@@ -733,7 +772,11 @@ def init_ds_volumes_wf(
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
     workflow.connect([
-        (inputnode, raw_sources, [('source_files', 'in_files')]),
+        (inputnode, sources, [
+            ('source_files', 'in1'),
+            ('boldref2anat_xfm', 'in2'),
+            ('anat2std_xfm', 'in3'),
+        ]),
         (inputnode, boldref2target, [
             # Note that ANTs expects transforms in target-to-source order
             # Reverse this for nitransforms-based resamplers

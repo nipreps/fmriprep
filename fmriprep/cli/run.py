@@ -224,7 +224,11 @@ def main():
             config.execution.run_uuid,
             session_list=session_list,
         )
-        write_derivative_description(config.execution.bids_dir, config.execution.fmriprep_dir)
+        write_derivative_description(
+            config.execution.bids_dir,
+            config.execution.fmriprep_dir,
+            dataset_links=config.execution.dataset_links,
+        )
         write_bidsignore(config.execution.fmriprep_dir)
 
         if failed_reports:
