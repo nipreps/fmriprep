@@ -35,7 +35,7 @@ dependencies = [
     "sdcflows @ git+https://github.com/nipreps/sdcflows.git@master",
     "smriprep @ git+https://github.com/nipreps/smriprep.git@master",
     "tedana >= 23.0.2",
-    "templateflow >= 23.1.0",
+    "templateflow >= 24.1.0",
     "toml",
     "codecarbon",
     "APScheduler",
