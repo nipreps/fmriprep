@@ -639,9 +639,8 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         '--fs-no-resume',
         action='store_true',
         dest='fs_no_resume',
-        help='Import precomputed freesurfer without resuming '
-        '(longitudinal or fastsurfer data) '
-        "!expert option (you know what you're doing)!",
+        help='EXPERT: Import pre-computed FreeSurfer reconstruction without resuming. '
+        'The user is responsible for ensuring that all necessary files are present.',
     )
 
     g_carbon = parser.add_argument_group('Options for carbon usage tracking')
