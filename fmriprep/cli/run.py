@@ -198,10 +198,17 @@ def main():
             from templateflow import api
 
             dseg_tsv = str(
-                api.get("fsaverage", hemi=None, atlas=None, suffix="dseg", extension=[".tsv"])
+                api.get(
+                    'fsaverage',
+                    hemi=None,
+                    atlas=None,
+                    segmentation='aparc',
+                    suffix='dseg',
+                    extension=['.tsv'],
+                )
             )
-            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / "desc-aseg_dseg.tsv"))
-            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / "desc-aparcaseg_dseg.tsv"))
+            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / 'desc-aseg_dseg.tsv'))
+            _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / 'desc-aparcaseg_dseg.tsv'))
         errno = 0
     finally:
         # Code Carbon
