@@ -418,10 +418,8 @@ tedana==23.0.2
     # via
     #   fmriprep
     #   fmriprep (pyproject.toml)
-templateflow==23.1.0
+templateflow==24.2.0
     # via
-    #   fmriprep
-    #   fmriprep (pyproject.toml)
     #   nireports
     #   niworkflows
     #   sdcflows

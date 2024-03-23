@@ -378,6 +378,10 @@ def init_bold_fit_wf(
     # fmt:on
 
     # Stage 1: Generate motion correction boldref
+    hmc_boldref_source_buffer = pe.Node(
+        niu.IdentityInterface(fields=['in_file']),
+        name='hmc_boldref_source_buffer',
+    )
     if not have_hmcref:
         config.loggers.workflow.info('Stage 1: Adding HMC boldref workflow')
         hmc_boldref_wf = init_raw_boldref_wf(
@@ -395,7 +399,6 @@ def init_bold_fit_wf(
         )
         ds_hmc_boldref_wf.inputs.inputnode.source_files = [bold_file]
 
-        # fmt:off
         workflow.connect([
             (hmc_boldref_wf, hmcref_buffer, [
                 ('outputnode.bold_file', 'bold_file'),
@@ -407,8 +410,10 @@ def init_bold_fit_wf(
             (hmc_boldref_wf, func_fit_reports_wf, [
                 ('outputnode.validation_report', 'inputnode.validation_report'),
             ]),
-        ])
-        # fmt:on
+            (ds_hmc_boldref_wf, hmc_boldref_source_buffer, [
+                ('outputnode.boldref', 'in_file'),
+            ]),
+        ])  # fmt:skip
     else:
         config.loggers.workflow.info('Found HMC boldref - skipping Stage 1')
 
@@ -417,12 +422,11 @@ def init_bold_fit_wf(
 
         hmcref_buffer.inputs.boldref = precomputed['hmc_boldref']
 
-        # fmt:off
         workflow.connect([
             (validate_bold, hmcref_buffer, [('out_file', 'bold_file')]),
             (validate_bold, func_fit_reports_wf, [('out_report', 'inputnode.validation_report')]),
-        ])
-        # fmt:on
+            (hmcref_buffer, hmc_boldref_source_buffer, [('boldref', 'in_file')]),
+        ])  # fmt:skip
 
     # Stage 2: Estimate head motion
     if not hmc_xforms:
@@ -437,7 +441,6 @@ def init_bold_fit_wf(
         )
         ds_hmc_wf.inputs.inputnode.source_files = [bold_file]
 
-        # fmt:off
         workflow.connect([
             (hmcref_buffer, bold_hmc_wf, [
                 ('boldref', 'inputnode.raw_ref_image'),
@@ -445,12 +448,11 @@ def init_bold_fit_wf(
             ]),
             (bold_hmc_wf, ds_hmc_wf, [('outputnode.xforms', 'inputnode.xforms')]),
             (bold_hmc_wf, hmc_buffer, [
-                ('outputnode.xforms', 'hmc_xforms'),
                 ('outputnode.movpar_file', 'movpar_file'),
                 ('outputnode.rmsd_file', 'rmsd_file'),
             ]),
-        ])
-        # fmt:on
+            (ds_hmc_wf, hmc_buffer, [('outputnode.xforms', 'hmc_xforms')]),
+        ])  # fmt:skip
     else:
         config.loggers.workflow.info('Found motion correction transforms - skipping Stage 2')
         hmc_buffer.inputs.hmc_xforms = hmc_xforms
@@ -471,15 +473,15 @@ def init_bold_fit_wf(
             name='ds_coreg_boldref_wf',
         )
 
-        # fmt:off
         workflow.connect([
             (hmcref_buffer, fmapref_buffer, [('boldref', 'boldref_files')]),
             (fmapref_buffer, enhance_boldref_wf, [('out', 'inputnode.in_file')]),
-            (fmapref_buffer, ds_coreg_boldref_wf, [('out', 'inputnode.source_files')]),
+            (hmc_boldref_source_buffer, ds_coreg_boldref_wf, [
+                ('in_file', 'inputnode.source_files'),
+            ]),
             (ds_coreg_boldref_wf, regref_buffer, [('outputnode.boldref', 'boldref')]),
             (fmapref_buffer, func_fit_reports_wf, [('out', 'inputnode.sdc_boldref')]),
-        ])
-        # fmt:on
+        ])  # fmt:skip
 
         if fieldmap_id:
             fmap_select = pe.Node(

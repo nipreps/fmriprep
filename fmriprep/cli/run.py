@@ -197,7 +197,16 @@ def main():
             from niworkflows.utils.misc import _copy_any
             from templateflow import api
 
-            dseg_tsv = str(api.get('fsaverage', suffix='dseg', extension=['.tsv']))
+            dseg_tsv = str(
+                api.get(
+                    'fsaverage',
+                    hemi=None,
+                    atlas=None,
+                    segmentation='aparc',
+                    suffix='dseg',
+                    extension=['.tsv'],
+                )
+            )
             _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / 'desc-aseg_dseg.tsv'))
             _copy_any(dseg_tsv, str(config.execution.fmriprep_dir / 'desc-aparcaseg_dseg.tsv'))
         errno = 0
@@ -222,7 +231,11 @@ def main():
             config.execution.run_uuid,
             session_list=session_list,
         )
-        write_derivative_description(config.execution.bids_dir, config.execution.fmriprep_dir)
+        write_derivative_description(
+            config.execution.bids_dir,
+            config.execution.fmriprep_dir,
+            dataset_links=config.execution.dataset_links,
+        )
         write_bidsignore(config.execution.fmriprep_dir)
 
         if failed_reports:

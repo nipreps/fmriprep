@@ -92,7 +92,7 @@ extend-select = [
   "PT",
   "Q",
 ]
-extend-ignore = [
+ignore = [
   "S311",  # We are not using random for cryptographic purposes
   "ISC001",
 ]
