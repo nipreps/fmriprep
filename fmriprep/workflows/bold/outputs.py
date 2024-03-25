@@ -790,6 +790,7 @@ def init_ds_volumes_wf(
             ('cohort', 'cohort'),
             ('resolution', 'resolution'),
         ]),
+        (sources, ds_bold, [('out', 'Sources')]),
     ])  # fmt:skip
 
     resample_ref = pe.Node(
@@ -880,6 +881,9 @@ def init_ds_volumes_wf(
                 ('cohort', 'cohort'),
                 ('resolution', 'resolution'),
             ])
+            for datasink in datasinks
+        ] + [
+            (sources, datasink, [('out', 'Sources')])
             for datasink in datasinks
         ] + [
             (resampler, datasink, [('output_image', 'in_file')])
