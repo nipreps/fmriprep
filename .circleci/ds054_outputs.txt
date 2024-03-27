@@ -56,7 +56,9 @@ sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res
 sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-01_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_boldref.json
 sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_boldref.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_desc-brain_mask.json
 sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_desc-brain_mask.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-01_space-T1w_desc-preproc_bold.nii.gz
@@ -82,7 +84,9 @@ sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res
 sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_desc-brain_mask.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-02_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_boldref.json
 sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_boldref.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-brain_mask.json
 sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-brain_mask.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-02_space-T1w_desc-preproc_bold.nii.gz
