@@ -16,6 +16,10 @@ defaults:
   run:
     shell: bash
 
+# Force tox and pytest to use color
+env:
+  FORCE_COLOR: true
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -31,14 +35,14 @@ jobs:
       matrix:
         os: ['ubuntu-latest']
         python-version: ['3.10', '3.11', '3.12']
-        install: ['pip']
-        check: ['tests']
-        pip-flags: ['']
+        dependencies: ['', 'pre']
+        include:
+          - os: ubuntu-latest
+            python-version: 3.10
+            dependencies: 'min'
+
     env:
-      INSTALL_TYPE: ${{ matrix.install }}
-      CHECK_TYPE: ${{ matrix.check }}
-      EXTRA_PIP_FLAGS: ${{ matrix.pip-flags }}
-      OS_TYPE: ${{ matrix.os }}
+      DEPENDS: ${{ matrix.dependencies }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,25 +50,23 @@ jobs:
           submodules: recursive
           fetch-depth: 0
       - name: Install dependencies
-        run: .maint/ci/install_dependencies.sh
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends graphviz
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
-      - name: Create virtual environment
-        run: .maint/ci/create_venv.sh
-      - name: Build archive
+      - name: Install tox
         run: |
-          source .maint/ci/build_archive.sh
-          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
-      - name: Install fMRIPrep
-        run: .maint/ci/install.sh
-      - name: Install extras
-        run: .maint/ci/install_extras.sh
-      - name: Run tests
-        run: .maint/ci/check.sh
+          python -m pip install --upgrade pip
+          python -m pip install tox tox-gh-actions
+      - name: Show tox config
+        run: tox c
+      - name: Run tox
+        run: tox -v --exit-and-dump-after 1200
       - uses: codecov/codecov-action@v4
         with:
           file: coverage.xml
