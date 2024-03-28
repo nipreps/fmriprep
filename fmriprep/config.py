@@ -380,7 +380,7 @@ class execution(_Config):
 
     bids_dir = None
     """An existing path to the dataset, which must be BIDS-compliant."""
-    derivatives = []
+    derivatives = {}
     """Path(s) to search for pre-computed derivatives"""
     bids_database_dir = None
     """Path to the directory containing SQLite database indices for the input BIDS dataset."""
@@ -526,8 +526,8 @@ class execution(_Config):
                     cls.bids_filters[acq][k] = _process_value(v)
 
         dataset_links = {'raw': cls.bids_dir}
-        for i_deriv, deriv_path in enumerate(cls.derivatives):
-            dataset_links[f'deriv-{i_deriv}'] = deriv_path
+        for deriv_name, deriv_path in cls.derivatives.items():
+            dataset_links[deriv_name] = deriv_path
         cls.dataset_links = dataset_links
 
         if 'all' in cls.debug:

@@ -22,6 +22,7 @@
 #
 """Parser."""
 
+import os
 import sys
 
 from .. import config
@@ -61,6 +62,17 @@ def _build_parser(**kwargs):
                 msg += f' Please use `{new_opt}` instead.'
             print(msg, file=sys.stderr)
             delattr(namespace, self.dest)
+
+    class ToDict(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            d = {}
+            for i_kv, kv in enumerate(values):
+                if '=' not in kv:
+                    k = f'deriv-{i_kv}'
+                else:
+                    k, v = kv.split('=')
+                d[k] = os.path.abspath(v)
+            setattr(namespace, self.dest, d)
 
     def _path_exists(path, parser):
         """Ensure a given path exists."""
@@ -222,11 +234,15 @@ def _build_parser(**kwargs):
     g_bids.add_argument(
         '-d',
         '--derivatives',
-        action='store',
-        metavar='PATH',
+        action=ToDict,
+        metavar='PACKAGE=PATH',
         type=Path,
         nargs='*',
-        help='Search PATH(s) for pre-computed derivatives.',
+        help=(
+            'Search PATH(s) for pre-computed derivatives. '
+            'These may be provided as named folders '
+            '(e.g., `--derivatives smriprep=/path/to/smriprep`).'
+        ),
     )
     g_bids.add_argument(
         '--bids-database-dir',
