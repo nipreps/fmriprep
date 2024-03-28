@@ -746,6 +746,14 @@ def init_ds_volumes_wf(
         ),
         name='inputnode',
     )
+    outputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                'bold',
+            ],
+        ),
+        name='outputnode',
+    )
 
     sources = pe.Node(
         BIDSURI(
@@ -790,6 +798,7 @@ def init_ds_volumes_wf(
             ('cohort', 'cohort'),
             ('resolution', 'resolution'),
         ]),
+        (ds_bold, outputnode, [('out_file', 'bold')]),
     ])  # fmt:skip
 
     resample_ref = pe.Node(

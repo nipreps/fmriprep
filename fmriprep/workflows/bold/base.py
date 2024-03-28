@@ -504,7 +504,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             output_dir=fmriprep_dir,
             name='bold_surf_wf',
         )
-        bold_surf_wf.inputs.inputnode.source_file = bold_file
         workflow.connect([
             (inputnode, bold_surf_wf, [
                 ('subjects_dir', 'inputnode.subjects_dir'),
@@ -513,6 +512,16 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ]),
             (bold_anat_wf, bold_surf_wf, [('outputnode.bold_file', 'inputnode.bold_t1w')]),
         ])  # fmt:skip
+
+        if nonstd_spaces.intersection(('anat', 'T1w')):
+            # Source file should be output T1w-space volumetric file
+            workflow.connect([
+                (ds_bold_t1_wf, bold_surf_wf, [
+                    ('outputnode.bold_file', 'inputnode.source_file'),
+                ]),
+            ])  # fmt:skip
+        else:
+            bold_surf_wf.inputs.inputnode.source_file = bold_file
 
     if config.workflow.cifti_output:
         from .resampling import (

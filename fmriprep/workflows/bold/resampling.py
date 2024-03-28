@@ -43,7 +43,9 @@ from nipype.pipeline import engine as pe
 from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 from niworkflows.interfaces.freesurfer import MedialNaNs
 
+from ... import config
 from ...config import DEFAULT_MEMORY_MIN_GB
+from ...interfaces.bids import BIDSURI
 from ...interfaces.workbench import MetricDilate, MetricMask, MetricResample
 from ...utils.bids import dismiss_echo
 from .outputs import prepare_timing_parameters
@@ -139,6 +141,15 @@ The BOLD time-series were resampled onto the following surfaces
     itersource = pe.Node(niu.IdentityInterface(fields=['target']), name='itersource')
     itersource.iterables = [('target', surface_spaces)]
 
+    surfs_sources = pe.Node(
+        BIDSURI(
+            numinputs=1,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='surfs_sources',
+    )
+
     get_fsnative = pe.Node(FreeSurferSource(), name='get_fsnative', run_without_submitting=True)
 
     def select_target(subject_id, space):
@@ -212,6 +223,8 @@ The BOLD time-series were resampled onto the following surfaces
         (itk2lta, sampler, [('out_inv', 'reg_file')]),
         (targets, sampler, [('out', 'target_subject')]),
         (inputnode, ds_bold_surfs, [('source_file', 'source_file')]),
+        (inputnode, surfs_sources, [('source_file', 'in1')]),
+        (surfs_sources, ds_bold_surfs, [('out', 'Sources')]),
         (itersource, ds_bold_surfs, [('target', 'space')]),
         (update_metadata, ds_bold_surfs, [('out_file', 'in_file')]),
     ])  # fmt:skip
