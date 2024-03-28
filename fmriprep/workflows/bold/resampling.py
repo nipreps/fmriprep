@@ -95,6 +95,8 @@ def init_bold_surf_wf(
     ------
     source_file
         Original BOLD series
+    sources
+        List of files used to create the output files.
     bold_t1w
         Motion-corrected BOLD series in T1 space
     subjects_dir
@@ -130,6 +132,7 @@ The BOLD time-series were resampled onto the following surfaces
         niu.IdentityInterface(
             fields=[
                 'source_file',
+                'sources',
                 'bold_t1w',
                 'subject_id',
                 'subjects_dir',
@@ -223,7 +226,7 @@ The BOLD time-series were resampled onto the following surfaces
         (itk2lta, sampler, [('out_inv', 'reg_file')]),
         (targets, sampler, [('out', 'target_subject')]),
         (inputnode, ds_bold_surfs, [('source_file', 'source_file')]),
-        (inputnode, surfs_sources, [('source_file', 'in1')]),
+        (inputnode, surfs_sources, [('sources', 'in1')]),
         (surfs_sources, ds_bold_surfs, [('out', 'Sources')]),
         (itersource, ds_bold_surfs, [('target', 'space')]),
         (update_metadata, ds_bold_surfs, [('out_file', 'in_file')]),
@@ -501,14 +504,12 @@ def init_goodvoxels_bold_mask_wf(mem_gb: float, name: str = 'goodvoxels_bold_mas
     )
 
     # apply goodvoxels ribbon mask to bold
-    workflow.connect(
-        [
-            (goodvoxels_mask, goodvoxels_ribbon_mask, [('out_file', 'in_file')]),
-            (ribbon_boldsrc_xfm, goodvoxels_ribbon_mask, [('output_image', 'mask_file')]),
-            (goodvoxels_mask, outputnode, [('out_file', 'goodvoxels_mask')]),
-            (goodvoxels_ribbon_mask, outputnode, [('out_file', 'goodvoxels_ribbon')]),
-        ]
-    )
+    workflow.connect([
+        (goodvoxels_mask, goodvoxels_ribbon_mask, [('out_file', 'in_file')]),
+        (ribbon_boldsrc_xfm, goodvoxels_ribbon_mask, [('output_image', 'mask_file')]),
+        (goodvoxels_mask, outputnode, [('out_file', 'goodvoxels_mask')]),
+        (goodvoxels_ribbon_mask, outputnode, [('out_file', 'goodvoxels_ribbon')]),
+    ])  # fmt:skip
 
     return workflow
 

@@ -504,6 +504,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             output_dir=fmriprep_dir,
             name='bold_surf_wf',
         )
+        bold_surf_wf.inputs.inputnode.source_file = bold_file
         workflow.connect([
             (inputnode, bold_surf_wf, [
                 ('subjects_dir', 'inputnode.subjects_dir'),
@@ -514,14 +515,35 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         ])  # fmt:skip
 
         if nonstd_spaces.intersection(('anat', 'T1w')):
-            # Source file should be output T1w-space volumetric file
+            # Source file should be output T1w-space volumetric file and fsnative2t1w_xfm
+            merge_surface_sources = pe.Node(
+                niu.Merge(2),
+                name='merge_surface_sources',
+                run_without_submitting=True,
+            )
             workflow.connect([
-                (ds_bold_t1_wf, bold_surf_wf, [
-                    ('outputnode.bold_file', 'inputnode.source_file'),
-                ]),
+                (ds_bold_t1_wf, merge_surface_sources, [('outputnode.bold', 'in1')]),
+                (inputnode, merge_surface_sources, [('fsnative2t1w_xfm', 'in2')]),
             ])  # fmt:skip
         else:
-            bold_surf_wf.inputs.inputnode.source_file = bold_file
+            # sources are bold_file, motion_xfm, boldref2anat_xfm, fsnative2t1w_xfm
+            merge_surface_sources = pe.Node(
+                niu.Merge(4),
+                name='merge_surface_sources',
+                run_without_submitting=True,
+            )
+            merge_surface_sources.inputs.in1 = bold_file
+            workflow.connect([
+                (bold_fit_wf, merge_surface_sources, [
+                    ('outputnode.motion_xfm', 'in2'),
+                    ('outputnode.boldref2anat_xfm', 'in3'),
+                ]),
+                (inputnode, merge_surface_sources, [
+                    ('fsnative2t1w_xfm', 'in4'),
+                ]),
+            ])  # fmt:skip
+
+        workflow.connect([(merge_surface_sources, bold_surf_wf, [('out', 'inputnode.sources')])])
 
     if config.workflow.cifti_output:
         from .resampling import (
