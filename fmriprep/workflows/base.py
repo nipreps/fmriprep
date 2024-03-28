@@ -249,7 +249,7 @@ It is released under the [CC0]\
 
         std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
         std_spaces.append('fsnative')
-        for deriv_dir in config.execution.derivatives:
+        for deriv_dir in config.execution.derivatives.values():
             anatomical_cache.update(
                 collect_anat_derivatives(
                     derivatives_dir=deriv_dir,
@@ -653,7 +653,7 @@ tasks and sessions), the following preprocessing was performed.
 
             entities = extract_entities(bold_series)
 
-            for deriv_dir in config.execution.derivatives:
+            for deriv_dir in config.execution.derivatives.values():
                 functional_cache.update(
                     collect_derivatives(
                         derivatives_dir=deriv_dir,

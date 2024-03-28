@@ -116,7 +116,7 @@ def build_workflow(config_file, retval):
     ]
 
     if config.execution.derivatives:
-        init_msg += [f'Searching for derivatives: {config.execution.derivatives}.']
+        init_msg += [f'Searching for derivatives: {list(config.execution.derivatives.values())}.']
 
     if config.execution.fs_subjects_dir:
         init_msg += [f"Pre-run FreeSurfer's SUBJECTS_DIR: {config.execution.fs_subjects_dir}."]
