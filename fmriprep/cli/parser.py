@@ -71,7 +71,7 @@ def _build_parser(**kwargs):
                     k = f'deriv-{i_kv}'
                 else:
                     k, v = kv.split('=')
-                d[k] = os.path.abspath(v)
+                d[k] = Path(v)
             setattr(namespace, self.dest, d)
 
     def _path_exists(path, parser):
@@ -236,7 +236,7 @@ def _build_parser(**kwargs):
         '--derivatives',
         action=ToDict,
         metavar='PACKAGE=PATH',
-        type=Path,
+        type=str,
         nargs='*',
         help=(
             'Search PATH(s) for pre-computed derivatives. '
