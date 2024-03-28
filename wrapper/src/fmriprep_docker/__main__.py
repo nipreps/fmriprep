@@ -521,7 +521,7 @@ def main():
         unknown_args.append('--derivatives')
         for deriv, deriv_path in opts.derivatives.items():
             command.extend(['-v', '{}:/deriv/{}:ro'.format(deriv_path, deriv)])
-            unknown_args.append(f'{deriv}=/deriv/{deriv}')
+            unknown_args.append('{}=/deriv/{}'.format(deriv, deriv))
 
     if opts.work_dir:
         command.extend(['-v', ':'.join((opts.work_dir, '/scratch'))])
