@@ -22,7 +22,6 @@
 #
 """Parser."""
 
-import os
 import sys
 
 from .. import config
