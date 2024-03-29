@@ -63,6 +63,7 @@ def _build_parser(**kwargs):
             delattr(namespace, self.dest)
 
     class ToDict(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
             d = {}
             for spec in values:
                 try:
@@ -73,8 +74,9 @@ def _build_parser(**kwargs):
                     name = loc.name
 
                 if name in d:
-                    raise ValueError(f"Received duplicate derivative name: {name}")
-                d[k] = Path(v)
+                    raise ValueError(f'Received duplicate derivative name: {name}')
+
+                d[name] = loc
             setattr(namespace, self.dest, d)
 
     def _path_exists(path, parser):

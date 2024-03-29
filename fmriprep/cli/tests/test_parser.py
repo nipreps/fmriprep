@@ -248,14 +248,25 @@ def test_derivatives(tmp_path):
     # Providing --derivatives without names should automatically label them
     temp_args = args + ['--derivatives', str(bids_path / 'derivatives/smriprep')]
     opts = parser.parse_args(temp_args)
-    assert opts.derivatives == {'deriv-0': str(bids_path / 'derivatives/smriprep')}
+    assert opts.derivatives == {'smriprep': bids_path / 'derivatives/smriprep'}
     _reset_config()
 
     # Providing --derivatives with names should use them
     temp_args = args + [
         '--derivatives',
-        f'smriprep={str(bids_path / "derivatives/smriprep")}',
+        f'anat={str(bids_path / "derivatives/smriprep")}',
     ]
     opts = parser.parse_args(temp_args)
-    assert opts.derivatives == {'smriprep': str(bids_path / 'derivatives/smriprep')}
+    assert opts.derivatives == {'anat': bids_path / 'derivatives/smriprep'}
+    _reset_config()
+
+    # Providing multiple unlabeled derivatives with the same name should raise an error
+    temp_args = args + [
+        '--derivatives',
+        str(bids_path / 'derivatives_01/smriprep'),
+        str(bids_path / 'derivatives_02/smriprep'),
+    ]
+    with pytest.raises(ValueError, match='Received duplicate derivative name'):
+        parser.parse_args(temp_args)
+
     _reset_config()
