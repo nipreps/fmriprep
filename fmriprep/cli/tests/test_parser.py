@@ -228,3 +228,34 @@ def test_use_syn_sdc(tmp_path, args, expectation):
         assert opts.use_syn_sdc == expectation
 
     _reset_config()
+
+
+def test_derivatives(tmp_path):
+    """Check the correct parsing of the derivatives argument."""
+    bids_path = tmp_path / 'data'
+    out_path = tmp_path / 'out'
+    args = [str(bids_path), str(out_path), 'participant']
+    bids_path.mkdir()
+
+    parser = _build_parser()
+
+    # Providing --derivatives without a path should raise an error
+    temp_args = args + ['--derivatives']
+    with pytest.raises((SystemExit, ArgumentError)):
+        parser.parse_args(temp_args)
+    _reset_config()
+
+    # Providing --derivatives without names should automatically label them
+    temp_args = args + ['--derivatives', str(bids_path / 'derivatives/smriprep')]
+    opts = parser.parse_args(temp_args)
+    assert opts.derivatives == {'deriv-0': str(bids_path / 'derivatives/smriprep')}
+    _reset_config()
+
+    # Providing --derivatives with names should use them
+    temp_args = args + [
+        '--derivatives',
+        f'smriprep={str(bids_path / 'derivatives/smriprep')}',
+    ]
+    opts = parser.parse_args(temp_args)
+    assert opts.derivatives == {'smriprep': str(bids_path / 'derivatives/smriprep')}
+    _reset_config()
