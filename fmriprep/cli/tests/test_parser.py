@@ -254,7 +254,7 @@ def test_derivatives(tmp_path):
     # Providing --derivatives with names should use them
     temp_args = args + [
         '--derivatives',
-        f'smriprep={str(bids_path / 'derivatives/smriprep')}',
+        f'smriprep={str(bids_path / "derivatives/smriprep")}',
     ]
     opts = parser.parse_args(temp_args)
     assert opts.derivatives == {'smriprep': str(bids_path / 'derivatives/smriprep')}
