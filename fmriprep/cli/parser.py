@@ -236,7 +236,7 @@ def _build_parser(**kwargs):
         action=ToDict,
         metavar='PACKAGE=PATH',
         type=str,
-        nargs='*',
+        nargs='+',
         help=(
             'Search PATH(s) for pre-computed derivatives. '
             'These may be provided as named folders '
