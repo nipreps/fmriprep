@@ -63,14 +63,17 @@ def _build_parser(**kwargs):
             delattr(namespace, self.dest)
 
     class ToDict(Action):
-        def __call__(self, parser, namespace, values, option_string=None):
             d = {}
-            for i_kv, kv in enumerate(values):
-                if '=' not in kv:
-                    k = f'deriv-{i_kv}'
-                    v = kv
-                else:
-                    k, v = kv.split('=')
+            for spec in values:
+                try:
+                    name, loc = spec.split('=')
+                    loc = Path(loc)
+                except ValueError:
+                    loc = Path(spec)
+                    name = loc.name
+
+                if name in d:
+                    raise ValueError(f"Received duplicate derivative name: {name}")
                 d[k] = Path(v)
             setattr(namespace, self.dest, d)
 
