@@ -68,6 +68,7 @@ def _build_parser(**kwargs):
             for i_kv, kv in enumerate(values):
                 if '=' not in kv:
                     k = f'deriv-{i_kv}'
+                    v = kv
                 else:
                     k, v = kv.split('=')
                 d[k] = Path(v)
