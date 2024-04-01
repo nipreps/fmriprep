@@ -91,6 +91,8 @@ The :py:mod:`config` is responsible for other conveniency actions.
 import os
 from multiprocessing import set_start_method
 
+from templateflow.conf import TF_LAYOUT
+
 # Disable NiPype etelemetry always
 _disable_et = bool(os.getenv('NO_ET') is not None or os.getenv('NIPYPE_NO_ET') is not None)
 os.environ['NIPYPE_NO_ET'] = '1'
@@ -525,7 +527,10 @@ class execution(_Config):
                 for k, v in filters.items():
                     cls.bids_filters[acq][k] = _process_value(v)
 
-        dataset_links = {'raw': cls.bids_dir}
+        dataset_links = {
+            'raw': cls.bids_dir,
+            'templateflow': Path(TF_LAYOUT.root),
+        }
         for deriv_name, deriv_path in cls.derivatives.items():
             dataset_links[deriv_name] = deriv_path
         cls.dataset_links = dataset_links

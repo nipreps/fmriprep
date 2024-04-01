@@ -734,6 +734,7 @@ def init_ds_volumes_wf(
                 'bold_mask',  # boldref space
                 'bold_ref',  # boldref space
                 't2star',  # boldref space
+                'template',  # target reference image from original transform
                 # Anatomical
                 'boldref2anat_xfm',
                 # Template
@@ -749,7 +750,7 @@ def init_ds_volumes_wf(
 
     sources = pe.Node(
         BIDSURI(
-            numinputs=3,
+            numinputs=4,
             dataset_links=config.execution.dataset_links,
             out_dir=str(config.execution.fmriprep_dir.absolute()),
         ),
@@ -776,6 +777,7 @@ def init_ds_volumes_wf(
             ('source_files', 'in1'),
             ('boldref2anat_xfm', 'in2'),
             ('anat2std_xfm', 'in3'),
+            ('template', 'in4'),
         ]),
         (inputnode, boldref2target, [
             # Note that ANTs expects transforms in target-to-source order

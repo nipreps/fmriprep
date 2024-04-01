@@ -474,6 +474,7 @@ configured with cubic B-spline interpolation.
             ]),
             (inputnode, ds_bold_std_wf, [
                 ('anat2std_xfm', 'inputnode.anat2std_xfm'),
+                ('std_t1w', 'inputnode.template'),
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
                 ('std_cohort', 'inputnode.cohort'),
