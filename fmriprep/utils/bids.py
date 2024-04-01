@@ -148,6 +148,8 @@ def write_derivative_description(bids_dir, deriv_dir, dataset_links=None):
     # Add DatasetLinks
     if dataset_links:
         desc['DatasetLinks'] = {k: str(v) for k, v in dataset_links.items()}
+        if 'templateflow' in dataset_links:
+            desc['DatasetLinks']['templateflow'] = 'https://github.com/templateflow/templateflow'
 
     Path.write_text(deriv_dir / 'dataset_description.json', json.dumps(desc, indent=4))
 
