@@ -469,8 +469,6 @@ configured with cubic B-spline interpolation.
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
                 ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ]),
             (bold_native_wf, bold_std_wf, [
                 ('outputnode.bold_minimal', 'inputnode.bold_file'),
@@ -487,6 +485,8 @@ configured with cubic B-spline interpolation.
                 ('outputnode.bold_mask', 'inputnode.bold_mask'),
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
+                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ]),
             (bold_native_wf, ds_bold_std_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_std_wf, ds_bold_std_wf, [
