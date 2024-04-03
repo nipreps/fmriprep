@@ -283,7 +283,7 @@ pandas==2.2.0
     #   tedana
 patool==2.1.1
     # via datalad
-pillow==10.2.0
+pillow==10.3.0
     # via
     #   bokeh
     #   imageio
