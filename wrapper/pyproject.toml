@@ -63,6 +63,10 @@ universal = true
 # Developer tool configurations
 #
 
+# Disable black
+[tool.black]
+exclude = ".*"
+
 [tool.ruff]
 line-length = 99
 

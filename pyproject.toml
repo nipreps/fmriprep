@@ -119,6 +119,10 @@ version-file = "fmriprep/_version.py"
 # Developer tool configurations
 #
 
+# Disable black
+[tool.black]
+exclude = ".*"
+
 [tool.pytest.ini_options]
 minversion = "6"
 testpaths = ["fmriprep/tests"]
