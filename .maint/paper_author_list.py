@@ -57,7 +57,7 @@ if __name__ == '__main__':
         '{}.'.format(
             '; '.join(
                 [
-                    '{} \\ :sup:`{}`\\ '.format(i['name'], idx)
+                    rf'{i["name"]} \ :sup:`{idx}`\ '
                     for i, idx in zip(author_matches, aff_indexes, strict=False)
                 ]
             )
