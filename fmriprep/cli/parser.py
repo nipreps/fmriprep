@@ -884,7 +884,6 @@ applied."""
             'Please modify the output path (suggestion: {}).'.format(
                 bids_dir / 'derivatives' / f'fmriprep-{version.split("+")[0]}'
             )
-            / ('fmriprep-{}'.format(version.split('+')[0]))
         )
 
     if bids_dir in work_dir.parents:
