@@ -46,7 +46,7 @@ if __name__ == '__main__':
     ]
 
     print(
-        'Some people made commits, but are missing in .maint/ ' 'files: {}.'.format(
+        'Some people made commits, but are missing in .maint/ files: {}.'.format(
             ', '.join(unmatched)
         ),
         file=sys.stderr,
