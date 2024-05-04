@@ -57,10 +57,8 @@ doc = [
     "sphinx_rtd_theme>=0.5.2",
 ]
 dev = [
-    "black ~= 22.3.0",
+    "ruff ~= 0.4.3",
     "pre-commit",
-    "isort ~= 5.10.1",
-    "flake8-pyproject",
 ]
 duecredit = ["duecredit"]
 resmon = []
@@ -120,23 +118,6 @@ version-file = "fmriprep/_version.py"
 #
 # Developer tool configurations
 #
-
-[tool.black]
-line-length = 99
-skip-string-normalization = true
-
-[tool.isort]
-profile = 'black'
-
-[tool.flake8]
-max-line-length = "99"
-doctests = "False"
-exclude = "*build/"
-ignore = ["W503", "E203"]
-per-file-ignores = [
-    "**/__init__.py : F401",
-    "docs/conf.py : E265",
-]
 
 [tool.pytest.ini_options]
 minversion = "6"

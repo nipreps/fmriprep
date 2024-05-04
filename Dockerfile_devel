@@ -26,8 +26,8 @@ ENV FMRIPREP_REGRESSION_SOURCE=/tmp/data/fmriprep_bold_truncated \
     FMRIPREP_REGRESSION_REPORTS=/tmp/data/reports \
     FMRIPREP_DEV=1
 
-# use flake8 as linter
-RUN conda install -y flake8
+# use ruff as linter
+RUN conda install -y ruff
 
 RUN mkdir -p /tmp/data
 
