@@ -881,8 +881,9 @@ applied."""
     if output_dir == bids_dir:
         parser.error(
             'The selected output folder is the same as the input BIDS folder. '
-            f'Please modify the output path (suggestion: {bids_dir}).'
-            / 'derivatives'
+            'Please modify the output path (suggestion: {}).'.format(
+                bids_dir / 'derivatives' / f'fmriprep-{version.split("+")[0]}'
+            )
             / ('fmriprep-{}'.format(version.split('+')[0]))
         )
 
