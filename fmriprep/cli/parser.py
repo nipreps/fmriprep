@@ -881,10 +881,9 @@ applied."""
     if output_dir == bids_dir:
         parser.error(
             'The selected output folder is the same as the input BIDS folder. '
-            'Please modify the output path (suggestion: %s).'
-            % bids_dir
+            f'Please modify the output path (suggestion: {bids_dir}).'
             / 'derivatives'
-            / ('fmriprep-%s' % version.split('+')[0])
+            / ('fmriprep-{}'.format(version.split('+')[0]))
         )
 
     if bids_dir in work_dir.parents:
@@ -924,8 +923,9 @@ applied."""
     missing_subjects = participant_label - set(all_subjects)
     if missing_subjects:
         parser.error(
-            'One or more participant labels were not found in the BIDS directory: '
-            '%s.' % ', '.join(missing_subjects)
+            'One or more participant labels were not found in the BIDS directory: ' '{}.'.format(
+                ', '.join(missing_subjects)
+            )
         )
 
     config.execution.participant_label = sorted(participant_label)

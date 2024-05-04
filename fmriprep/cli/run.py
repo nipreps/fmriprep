@@ -147,7 +147,7 @@ def main():
 
     config.loggers.workflow.log(
         15,
-        '\n'.join(['fMRIPrep config:'] + ['\t\t%s' % s for s in config.dumps().splitlines()]),
+        '\n'.join(['fMRIPrep config:'] + [f'\t\t{s}' for s in config.dumps().splitlines()]),
     )
     config.loggers.workflow.log(25, 'fMRIPrep started!')
     errno = 1  # Default is error exit unless otherwise set

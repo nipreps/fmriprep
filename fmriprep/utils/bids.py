@@ -66,7 +66,7 @@ def collect_derivatives(
         item = layout.get(return_type='filename', **query)
         if not item:
             continue
-        derivs_cache['%s_boldref' % k] = item[0] if len(item) == 1 else item
+        derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
 
     for xfm, q in spec['transforms'].items():
         query = {**q, **entities}
@@ -237,7 +237,7 @@ def validate_input_dir(exec_env, bids_dir, participant_label, need_T1w=True):
         ignored_subs = all_subs.difference(selected_subs)
         if ignored_subs:
             for sub in ignored_subs:
-                validator_config_dict['ignoredFiles'].append('/sub-%s/**' % sub)
+                validator_config_dict['ignoredFiles'].append(f'/sub-{sub}/**')
     with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp:
         temp.write(json.dumps(validator_config_dict))
         temp.flush()

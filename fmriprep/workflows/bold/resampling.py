@@ -126,7 +126,7 @@ def init_bold_surf_wf(
 The BOLD time-series were resampled onto the following surfaces
 (FreeSurfer reconstruction nomenclature):
 {out_spaces}.
-""".format(out_spaces=', '.join(['*%s*' % s for s in surface_spaces]))
+""".format(out_spaces=', '.join([f'*{s}*' for s in surface_spaces]))
 
     inputnode = pe.Node(
         niu.IdentityInterface(

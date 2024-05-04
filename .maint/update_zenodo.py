@@ -145,8 +145,9 @@ if __name__ == '__main__':
     zenodo['contributors'] = zen_contributors
 
     print(
-        'Some people made commits, but are missing in .maint/ '
-        'files: %s.' % ', '.join(set(miss_creators).intersection(miss_contributors)),
+        'Some people made commits, but are missing in .maint/ ' 'files: {}.'.format(
+            ', '.join(set(miss_creators).intersection(miss_contributors))
+        ),
         file=sys.stderr,
     )
 
@@ -162,4 +163,4 @@ if __name__ == '__main__':
         if isinstance(creator['affiliation'], list):
             creator['affiliation'] = creator['affiliation'][0]
 
-    zenodo_file.write_text('%s\n' % json.dumps(zenodo, indent=2, ensure_ascii=False))
+    zenodo_file.write_text(f'{json.dumps(zenodo, indent=2, ensure_ascii=False)}\n')
