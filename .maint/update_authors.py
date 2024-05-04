@@ -277,7 +277,7 @@ def publication(
         '{}.'.format(
             '; '.join(
                 [
-                    '{} \\ :sup:`{}`\\ '.format(i['name'], idx)
+                    rf'{i["name"]} \ :sup:`{idx}`\ '
                     for i, idx in zip(hits, aff_indexes, strict=False)
                 ]
             )
