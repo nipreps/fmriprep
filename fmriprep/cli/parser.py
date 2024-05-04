@@ -924,7 +924,7 @@ applied."""
     missing_subjects = participant_label - set(all_subjects)
     if missing_subjects:
         parser.error(
-            'One or more participant labels were not found in the BIDS directory: ' '{}.'.format(
+            'One or more participant labels were not found in the BIDS directory: {}.'.format(
                 ', '.join(missing_subjects)
             )
         )

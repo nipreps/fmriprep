@@ -145,7 +145,7 @@ if __name__ == '__main__':
     zenodo['contributors'] = zen_contributors
 
     print(
-        'Some people made commits, but are missing in .maint/ ' 'files: {}.'.format(
+        'Some people made commits, but are missing in .maint/ files: {}.'.format(
             ', '.join(set(miss_creators).intersection(miss_contributors))
         ),
         file=sys.stderr,

@@ -187,7 +187,7 @@ def zenodo(
     misses = set(miss_creators).intersection(miss_contributors)
     if misses:
         print(
-            "Some people made commits, but are missing in .maint/ " f"files: {', '.join(misses)}",
+            f"Some people made commits, but are missing in .maint/ files: {', '.join(misses)}",
             file=sys.stderr,
         )
 
@@ -268,7 +268,7 @@ def publication(
 
     if misses:
         print(
-            "Some people made commits, but are missing in .maint/ " f"files: {', '.join(misses)}",
+            f"Some people made commits, but are missing in .maint/ files: {', '.join(misses)}",
             file=sys.stderr,
         )
 
