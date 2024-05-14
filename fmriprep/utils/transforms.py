@@ -73,7 +73,7 @@ def load_ants_h5(filename: Path) -> nt.base.TransformBase:
     # Confirm these transformations are applicable
     if transform2['TransformType'][:][0] not in (
         b'DisplacementFieldTransform_float_3_3',
-        b'DisplacementFieldTransform_double_3_3'
+        b'DisplacementFieldTransform_double_3_3',
     ):
         msg = 'Unknown transform type [2]\n'
         for i in h['TransformGroup'].keys():
