@@ -271,6 +271,7 @@ def init_bbreg_wf(
     """
     from nipype.interfaces.freesurfer import BBRegister
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.morphology import AxisFlip
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 
     from fmriprep.interfaces.patches import FreeSurferSource, MRICoreg
@@ -347,6 +348,16 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     if bold2anat_init == 'header':
         bbregister.inputs.init = 'header'
 
+    lr_flip = pe.Node(AxisFlip(axis=0), name='flip')
+    bbregister_flipped = pe.Node(
+        BBRegister(
+            dof=bold2anat_dof,
+            contrast_type='t2',
+            out_lta_file=True,
+        ),
+        name='bbregister',
+        mem_gb=12,
+    )
     transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
     # In cases where Merge(2) only has `in1` or `in2` defined
     # output list will just contain a single element
@@ -396,6 +407,10 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
+        (inputnode, bbregister_flipped, [('subjects_dir', 'subjects_dir'),
+                                         ('subject_id', 'subject_id')]),
+        (inputnode, lr_flip), [('in_file', 'in_file')],
+        (lr_flip, bbregister_flipped), [('out_file', 'source_file')],
         (bbregister, transforms, [('out_lta_file', 'in1')]),
     ])  # fmt:skip
 
