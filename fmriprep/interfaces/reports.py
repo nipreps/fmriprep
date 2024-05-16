@@ -218,6 +218,12 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         desc='Whether to initialize registration with the "header"'
         ' or by centering the volumes ("t1w" or "t2w")',
     )
+    flip_info = traits.Dict(
+        traits.Enum('lr_flip_warning', 'cost_original', 'cost_flipped'),
+        traits.Either(traits.Bool(), traits.Float()),
+        desc='Left-right flip check warning and registration costs',
+        mandatory=True
+    )
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
     algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
@@ -369,3 +375,40 @@ def get_world_pedir(ornt, pe_direction):
         f'Orientation: {ornt}; PE dir: {pe_direction}'
     )
     return 'Could not be determined - assuming Anterior-Posterior'
+
+
+class _CheckFlipInputSpec(BaseInterfaceInputSpec):
+    cost_original = File(
+        exists=True,
+        mandatory=True,
+        desc='cost associated with registration of BOLD to original T1w images',
+    )
+    cost_flipped = File(
+        exists=True,
+        mandatory=True,
+        desc='cost associated with registration of BOLD to the flipped T1w images',
+    )
+
+
+class _CheckFlipOutputSpec(TraitedSpec):
+    flip_info = traits.Dict(
+        traits.Enum('warning', 'cost_original', 'cost_flipped'),
+        traits.Either(traits.Bool(), traits.Float()),
+        desc='Left-right flip check warning and registration costs',
+        mandatory=True
+    )
+
+
+class CheckFlip(SimpleInterface):
+    """Check for a LR flip by comparing registration cost functions."""
+
+    input_spec = _CheckFlipInputSpec
+    output_spec = _CheckFlipOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['flip_info'] = {
+            'warning': self.inputs.cost_flipped < self.inputs.cost_original,
+            'cost_original': self.inputs.cost_original,
+            'cost_flipped': self.inputs.cost_flipped,
+        }
+        return runtime

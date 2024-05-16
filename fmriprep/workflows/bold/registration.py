@@ -127,6 +127,8 @@ def init_bold_reg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    flip_info
+        Information regarding whether a left-right flip was detected
 
     See Also
     --------
@@ -153,7 +155,9 @@ def init_bold_reg_wf(
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(
+            fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']
+        ),
         name='outputnode',
     )
 
@@ -187,6 +191,7 @@ def init_bold_reg_wf(
             ('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
             ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
             ('outputnode.fallback', 'fallback'),
+            ('outputnode.flip_info', 'flip_info'),
         ]),
     ])  # fmt:skip
 
@@ -267,6 +272,8 @@ def init_bbreg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    flip_info
+        Information regarding whether a left-right flip was detected
 
     """
     from nipype.interfaces.freesurfer import BBRegister
@@ -275,6 +282,7 @@ def init_bbreg_wf(
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 
     from fmriprep.interfaces.patches import FreeSurferSource, MRICoreg
+    from fmriprep.interfaces.reports import CheckFlip
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -309,7 +317,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']),
         name='outputnode',
     )
 
@@ -358,6 +366,9 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='bbregister',
         mem_gb=12,
     )
+
+    check_flip = pe.Node(CheckFlip(), name='check_flip')
+
     transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
     # In cases where Merge(2) only has `in1` or `in2` defined
     # output list will just contain a single element
@@ -411,7 +422,10 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
                                          ('subject_id', 'subject_id')]),
         (inputnode, lr_flip), [('in_file', 'in_file')],
         (lr_flip, bbregister_flipped), [('out_file', 'source_file')],
+        (bbregister, check_flip), [('min_cost_file', 'cost_original')],
+        (bbregister_flipped, check_flip), [('min_cost_file', 'cost_flipped')],
         (bbregister, transforms, [('out_lta_file', 'in1')]),
+        (check_flip, outputnode, [('flip_info', 'flip_info')]),
     ])  # fmt:skip
 
     # Short-circuit workflow building, use boundary-based registration
