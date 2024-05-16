@@ -624,7 +624,8 @@ def init_bold_fit_wf(
             (regref_buffer, ds_boldreg_wf, [('boldref', 'inputnode.source_files')]),
             (bold_reg_wf, ds_boldreg_wf, [('outputnode.itk_bold_to_t1', 'inputnode.xform')]),
             (ds_boldreg_wf, outputnode, [('outputnode.xform', 'boldref2anat_xfm')]),
-            (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
+            (bold_reg_wf, summary, [('outputnode.fallback', 'fallback'),
+                                    ('outputnode.flip_info', 'flip_info')]),
         ])
         # fmt:on
     else:

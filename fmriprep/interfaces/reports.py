@@ -67,6 +67,17 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
+\t\t\t<li>Left-right flip check warning: {lr_flip_warning}</li>
+\t\t<table>
+\t\t\t<tr>
+\t\t\t\t<th>Original Registration Cost</th>
+\t\t\t\t<th>Flipped Registration Cost</th>
+\t\t\t</tr>
+\t\t\t<tr>
+\t\t\t\t<td>{cost_original}</td>
+\t\t\t\t<td>{cost_flipped}</td>
+\t\t\t</tr>
+\t\t</table>
 \t\t\t<li>Non-steady-state volumes: {dummy_scan_desc}</li>
 \t\t</ul>
 \t\t</details>
@@ -285,6 +296,12 @@ class FunctionalSummary(SummaryInterface):
         if n_echos > 2:
             multiecho = f'Multi-echo EPI sequence: {n_echos} echoes.'
 
+        lr_flip_warning = (
+            '<span style="color:red;">LR flip detected</span>'
+            if self.inputs.flip_info.get('lr_flip_warning', False)
+            else 'none'
+        )
+
         return FUNCTIONAL_TEMPLATE.format(
             pedir=pedir,
             stc=stc,
@@ -294,6 +311,9 @@ class FunctionalSummary(SummaryInterface):
             dummy_scan_desc=dummy_scan_msg,
             multiecho=multiecho,
             ornt=self.inputs.orientation,
+            lr_flip_warning=lr_flip_warning,
+            cost_original=self.input.flip_info.get('cost_original', None),
+            cost_flipped=self.input.flip_info.get('cost_flipped', None),
         )
 
 
