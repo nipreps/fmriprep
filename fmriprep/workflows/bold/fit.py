@@ -481,6 +481,7 @@ def init_bold_fit_wf(
             (fmapref_buffer, enhance_boldref_wf, [("out", "inputnode.in_file")]),
             (fmapref_buffer, ds_coreg_boldref_wf, [("out", "inputnode.source_files")]),
             (ds_coreg_boldref_wf, regref_buffer, [("outputnode.boldref", "boldref")]),
+            (fmapref_buffer, ds_boldmask_wf, [("out", "inputnode.source_files")]),
             (ds_boldmask_wf, regref_buffer, [('outputnode.boldmask', 'boldmask')]),
             (fmapref_buffer, func_fit_reports_wf, [("out", "inputnode.sdc_boldref")]),
         ])
