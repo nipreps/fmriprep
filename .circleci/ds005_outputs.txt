@@ -43,6 +43,8 @@ sub-01/anat/sub-01_label-CSF_probseg.nii.gz
 sub-01/anat/sub-01_label-GM_probseg.nii.gz
 sub-01/anat/sub-01_label-WM_probseg.nii.gz
 sub-01/func
+sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-brain_mask.json
+sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-brain_mask.nii.gz
 sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-confounds_timeseries.json
 sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-confounds_timeseries.tsv
 sub-01/func/sub-01_task-mixedgamblestask_run-01_desc-coreg_boldref.json
@@ -61,6 +63,8 @@ sub-01/func/sub-01_task-mixedgamblestask_run-01_hemi-R_space-fsaverage5_bold.fun
 sub-01/func/sub-01_task-mixedgamblestask_run-01_hemi-R_space-fsaverage5_bold.json
 sub-01/func/sub-01_task-mixedgamblestask_run-01_hemi-R_space-fsnative_bold.func.gii
 sub-01/func/sub-01_task-mixedgamblestask_run-01_hemi-R_space-fsnative_bold.json
+sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-brain_mask.json
+sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-brain_mask.nii.gz
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-confounds_timeseries.json
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-confounds_timeseries.tsv
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-coreg_boldref.json
