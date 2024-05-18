@@ -47,6 +47,7 @@ from ...utils.misc import estimate_bold_mem_usage
 # BOLD workflows
 from .hmc import init_bold_hmc_wf
 from .outputs import (
+    init_ds_boldmask_wf,
     init_ds_boldref_wf,
     init_ds_hmc_wf,
     init_ds_registration_wf,
@@ -467,6 +468,12 @@ def init_bold_fit_wf(
             desc='coreg',
             name='ds_coreg_boldref_wf',
         )
+        ds_boldmask_wf = init_ds_boldmask_wf(
+            bids_root=layout.root,
+            output_dir=config.execution.fmriprep_dir,
+            desc='brain',
+            name='ds_boldmask_wf',
+        )
 
         # fmt:off
         workflow.connect([
@@ -474,6 +481,7 @@ def init_bold_fit_wf(
             (fmapref_buffer, enhance_boldref_wf, [("out", "inputnode.in_file")]),
             (fmapref_buffer, ds_coreg_boldref_wf, [("out", "inputnode.source_files")]),
             (ds_coreg_boldref_wf, regref_buffer, [("outputnode.boldref", "boldref")]),
+            (ds_boldmask_wf, regref_buffer, [('outputnode.boldmask', 'boldmask')]),
             (fmapref_buffer, func_fit_reports_wf, [("out", "inputnode.sdc_boldref")]),
         ])
         # fmt:on
@@ -557,8 +565,8 @@ def init_bold_fit_wf(
                 (unwarp_wf, ds_coreg_boldref_wf, [
                     ('outputnode.corrected', 'inputnode.boldref'),
                 ]),
-                (unwarp_wf, regref_buffer, [
-                    ('outputnode.corrected_mask', 'boldmask'),
+                (unwarp_wf, ds_boldmask_wf, [
+                    ('outputnode.corrected_mask', 'inputnode.boldmask'),
                 ]),
                 (fmap_select, func_fit_reports_wf, [("fmap_ref", "inputnode.fmap_ref")]),
                 (fmap_select, summary, [("sdc_method", "distortion_correction")]),
@@ -574,8 +582,8 @@ def init_bold_fit_wf(
                 (enhance_boldref_wf, ds_coreg_boldref_wf, [
                     ('outputnode.bias_corrected_file', 'inputnode.boldref'),
                 ]),
-                (enhance_boldref_wf, regref_buffer, [
-                    ('outputnode.mask_file', 'boldmask'),
+                (enhance_boldref_wf, ds_boldmask_wf, [
+                    ('outputnode.mask_file', 'inputnode.boldmask'),
                 ]),
             ])
             # fmt:on
