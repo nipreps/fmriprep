@@ -466,6 +466,50 @@ def init_ds_boldref_wf(
     return workflow
 
 
+def init_ds_boldmask_wf(
+    *,
+    bids_root,
+    output_dir,
+    desc: str,
+    name='ds_boldmask_wf',
+) -> pe.Workflow:
+    """Write out a BOLD mask."""
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['source_files', 'boldmask']),
+        name='inputnode',
+    )
+    outputnode = pe.Node(niu.IdentityInterface(fields=['boldmask']), name='outputnode')
+
+    raw_sources = pe.Node(niu.Function(function=_bids_relative), name="raw_sources")
+    raw_sources.inputs.bids_root = bids_root
+
+    ds_boldmask = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            desc=desc,
+            suffix='mask',
+            compress=True,
+            dismiss_entities=dismiss_echo(),
+        ),
+        name='ds_boldmask',
+        run_without_submitting=True,
+    )
+
+    workflow.connect([
+        (inputnode, raw_sources, [('source_files', 'in_files')]),
+        (inputnode, ds_boldmask, [
+            ('boldmask', 'in_file'),
+            ('source_files', 'source_file'),
+        ]),
+        (raw_sources, ds_boldmask, [('out', 'RawSources')]),
+        (ds_boldmask, outputnode, [('out_file', 'boldmask')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
 def init_ds_registration_wf(
     *,
     bids_root: str,
