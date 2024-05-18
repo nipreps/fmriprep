@@ -488,6 +488,7 @@ def init_ds_boldmask_wf(
     ds_boldmask = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
+            datatype='func',
             desc=desc,
             suffix='mask',
             compress=True,
