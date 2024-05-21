@@ -347,7 +347,7 @@ rdflib==7.0.0
     # via
     #   nipype
     #   prov
-requests==2.31.0
+requests==2.32.0
     # via
     #   codecarbon
     #   datalad
