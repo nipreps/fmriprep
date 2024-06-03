@@ -1,6 +1,5 @@
 """Utilities for loading transforms for resampling"""
 
-import warnings
 from pathlib import Path
 
 import h5py
@@ -38,16 +37,6 @@ def load_transforms(xfm_paths: list[Path], inverse: list[bool]) -> nt.base.Trans
     return chain
 
 
-FIXED_PARAMS = np.array([
-    193.0, 229.0, 193.0,  # Size
-    96.0, 132.0, -78.0,   # Origin
-    1.0, 1.0, 1.0,        # Spacing
-    -1.0, 0.0, 0.0,       # Directions
-    0.0, -1.0, 0.0,
-    0.0, 0.0, 1.0,
-])  # fmt:skip
-
-
 def load_ants_h5(filename: Path) -> nt.base.TransformBase:
     """Load ANTs H5 files as a nitransforms TransformChain"""
     # Borrowed from https://github.com/feilong/process
@@ -81,15 +70,8 @@ def load_ants_h5(filename: Path) -> nt.base.TransformBase:
         raise ValueError(msg)
 
     fixed_params = transform2['TransformFixedParameters'][:]
-    if not np.array_equal(fixed_params, FIXED_PARAMS):
-        msg = 'Unexpected fixed parameters\n'
-        msg += f'Expected: {FIXED_PARAMS}\n'
-        msg += f'Found: {fixed_params}'
-        if not np.array_equal(fixed_params[6:], FIXED_PARAMS[6:]):
-            raise ValueError(msg)
-        warnings.warn(msg, stacklevel=1)
 
-    shape = tuple(fixed_params[:3].astype(int))
+    shape = tuple(fixed_params[:3].astype(int)[::-1])
     warp = h['TransformGroup']['2']['TransformParameters'][:]
     warp = warp.reshape((*shape, 3)).transpose(2, 1, 0, 3)
     warp *= np.array([-1, -1, 1])
