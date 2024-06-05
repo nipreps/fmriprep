@@ -72,13 +72,13 @@ def load_ants_h5(filename: Path) -> nt.base.TransformBase:
     fixed_params = transform2['TransformFixedParameters'][:]
 
     spacing = fixed_params[6:9]
-    direction = fixed_params[9:]
+    direction = fixed_params[9:].reshape((3, 3))
 
     # Supported spacing
     if not np.array_equal(spacing, np.array([1.0, 1.0, 1.0])):
         raise ValueError(f'Unexpected spacing: {spacing}')
 
-    if not np.array_equal(direction, np.diag([-1, -1, -1])):
+    if not np.array_equal(direction, direction.T):
         raise ValueError(f'Asymmetric direction matrix: {direction}')
 
     shape = tuple(fixed_params[:3].astype(int))
