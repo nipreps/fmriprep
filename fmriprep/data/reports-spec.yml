@@ -1,4 +1,5 @@
 package: fmriprep
+title: Visual report for participant '{subject}' - fMRIPrep
 sections:
 - name: Summary
   reportlets:
