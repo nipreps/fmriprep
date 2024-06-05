@@ -36,6 +36,7 @@ dependencies = [
     "smriprep @ git+https://github.com/nipreps/smriprep.git@master",
     "tedana >= 23.0.2",
     "templateflow >= 24.1.0",
+    "transforms3d",
     "toml",
     "codecarbon",
     "APScheduler",
