@@ -437,7 +437,7 @@ toml==0.10.2
     #   sdcflows
 tornado==6.4
     # via bokeh
-tqdm==4.66.1
+tqdm==4.66.3
     # via
     #   datalad
     #   osfclient
