@@ -7,6 +7,7 @@ import nibabel as nb
 import nitransforms as nt
 import numpy as np
 from nitransforms.io.itk import ITKCompositeH5
+from tranforms3d.affines import compose as compose_affine
 
 
 def load_transforms(xfm_paths: list[Path], inverse: list[bool]) -> nt.base.TransformBase:
@@ -45,7 +46,8 @@ def load_ants_h5(filename: Path) -> nt.base.TransformBase:
     # Changes:
     #   * Tolerate a missing displacement field
     #   * Return the original affine without a round-trip
-    #   * Always return a nitransforms TransformChain
+    #   * Always return a nitransforms TransformBase
+    #   * Construct warp affine from fixed parameters
     #
     # This should be upstreamed into nitransforms
     h = h5py.File(filename)
@@ -69,22 +71,35 @@ def load_ants_h5(filename: Path) -> nt.base.TransformBase:
             msg += f'[{i}]: {h["TransformGroup"][i]["TransformType"][:][0]}\n'
         raise ValueError(msg)
 
-    fixed_params = transform2['TransformFixedParameters'][:]
+    # Warp field fixed parameters as defined in
+    # https://itk.org/Doxygen/html/classitk_1_1DisplacementFieldTransform.html
+    shape = transform2['TransformFixedParameters'][:3]
+    origin = transform2['TransformFixedParameters'][3:6]
+    spacing = transform2['TransformFixedParameters'][6:9]
+    direction = transform2['TransformFixedParameters'][9:].reshape((3, 3))
 
-    shape = tuple(fixed_params[:3].astype(int))
+    # We are not yet confident that we handle non-unit spacing
+    # or direction cosine ordering correctly.
+    # If we confirm or fix, we can remove these checks.
+    if not np.allclose(spacing, 1):
+        raise ValueError(f'Unexpected spacing: {spacing}')
+    if not np.allclose(direction, direction.T):
+        raise ValueError(f'Asymmetric direction matrix: {direction}')
+
+    # ITK uses LPS affines
+    lps_affine = compose_affine(T=origin, R=direction, Z=spacing)
+    ras_affine = np.diag([-1, -1, 1, 1]) @ lps_affine
+
     # ITK stores warps in Fortran-order, where the vector components change fastest
-    # Nitransforms expects 3 volumes, not a volume of three-vectors, so transpose
-    warp = np.reshape(
+    # Vectors are in mm LPS
+    itk_warp = np.reshape(
         transform2['TransformParameters'],
-        (3, *shape),
+        (3, *shape.astype(int)),
         order='F',
-    ).transpose(1, 2, 3, 0)
-    warp *= np.array([-1, -1, 1])
+    )
 
-    warp_affine = np.eye(4)
-    warp_affine[:3, :3] = fixed_params[9:].reshape((3, 3))
-    warp_affine[:3, 3] = fixed_params[3:6]
-    lps_to_ras = np.eye(4) * np.array([-1, -1, 1, 1])
-    warp_affine = lps_to_ras @ warp_affine
-    transforms.insert(0, nt.DenseFieldTransform(nb.Nifti1Image(warp, warp_affine)))
+    # Nitransforms warps are in RAS, with the vector components changing slowest
+    nt_warp = itk_warp.transpose(1, 2, 3, 0) * np.array([-1, -1, 1])
+
+    transforms.insert(0, nt.DenseFieldTransform(nb.Nifti1Image(nt_warp, ras_affine)))
     return nt.TransformChain(transforms)
