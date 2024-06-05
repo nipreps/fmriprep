@@ -7,7 +7,7 @@ import nibabel as nb
 import nitransforms as nt
 import numpy as np
 from nitransforms.io.itk import ITKCompositeH5
-from tranforms3d.affines import compose as compose_affine
+from transforms3d.affines import compose as compose_affine
 
 
 def load_transforms(xfm_paths: list[Path], inverse: list[bool]) -> nt.base.TransformBase:
