@@ -15,12 +15,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Florey Institute of Neuroscience and Mental Health",
-      "name": "Smith, Robert E.",
-      "orcid": "0000-0003-3636-4642",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Neurospin, CEA",
       "name": "Papadopoulos, Dimitri",
       "orcid": "0000-0002-1242-8990",
@@ -30,6 +24,12 @@
       "affiliation": "Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń",
       "name": "Finc, Karolina",
       "orcid": "0000-0002-0157-030X",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Florey Institute of Neuroscience and Mental Health",
+      "name": "Smith, Robert E.",
+      "orcid": "0000-0003-3636-4642",
       "type": "Researcher"
     },
     {
@@ -45,21 +45,15 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Montreal Neurological Institute, McGill University",
-      "name": "Bhagwat, Nikhil",
-      "orcid": "0000-0001-6073-7141",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Dartmouth College: Hanover, NH, United States",
       "name": "Halchenko, Yaroslav O.",
       "orcid": "0000-0003-3456-2493",
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Psychology, New York University",
-      "name": "Benson, Noah C.",
-      "orcid": "0000-0002-2365-8265",
+      "affiliation": "Montreal Neurological Institute, McGill University",
+      "name": "Bhagwat, Nikhil",
+      "orcid": "0000-0001-6073-7141",
       "type": "Researcher"
     },
     {
@@ -81,15 +75,15 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Machine Learning Team, National Institute of Mental Health, USA",
-      "name": "Nielson, Dylan M.",
-      "orcid": "0000-0003-4613-6643",
+      "affiliation": "Department of Psychology, New York University",
+      "name": "Benson, Noah C.",
+      "orcid": "0000-0002-2365-8265",
       "type": "Researcher"
     },
     {
-      "affiliation": "Child Mind Institute",
-      "name": "Heinsfeld, Anibal S.",
-      "orcid": "0000-0002-2050-0614",
+      "affiliation": "Machine Learning Team, National Institute of Mental Health, USA",
+      "name": "Nielson, Dylan M.",
+      "orcid": "0000-0003-4613-6643",
       "type": "Researcher"
     },
     {
@@ -105,6 +99,18 @@
       "type": "Researcher"
     },
     {
+      "affiliation": "Child Mind Institute",
+      "name": "Heinsfeld, Anibal S.",
+      "orcid": "0000-0002-2050-0614",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Radiology, Weill Cornell Medicine",
+      "name": "Jamison, Keith W.",
+      "orcid": "0000-0001-7139-6661",
+      "type": "Researcher"
+    },
+    {
       "affiliation": "Department of Psychology, University of California, Berkeley",
       "name": "Lurie, Daniel J.",
       "orcid": "0000-0001-8012-6399",
@@ -117,18 +123,6 @@
       "type": "Researcher"
     },
     {
-      "affiliation": "Department of Radiology, Weill Cornell Medicine",
-      "name": "Jamison, Keith W.",
-      "orcid": "0000-0001-7139-6661",
-      "type": "Researcher"
-    },
-    {
-      "affiliation": "Department of Psychology, Stanford University",
-      "name": "Wexler, Joseph B.",
-      "orcid": "0000-0001-6424-8740",
-      "type": "Researcher"
-    },
-    {
       "affiliation": "Department of Psychology, Harvard University",
       "name": "Plunkett, Dillon",
       "orcid": "0000-0001-7822-6024",
@@ -138,6 +132,12 @@
       "affiliation": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany",
       "name": "Nitsch, Alexander",
       "orcid": "0000-0002-5740-9451",
+      "type": "Researcher"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Wexler, Joseph B.",
+      "orcid": "0000-0001-6424-8740",
       "type": "Researcher"
     },
     {
@@ -299,14 +299,14 @@
   ],
   "creators": [
     {
-      "affiliation": "Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland",
-      "name": "Esteban, Oscar",
-      "orcid": "0000-0001-8435-6191"
-    },
-    {
       "affiliation": "Department of Psychology, Stanford University",
       "name": "Markiewicz, Christopher J.",
       "orcid": "0000-0002-6533-164X"
+    },
+    {
+      "affiliation": "Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland",
+      "name": "Esteban, Oscar",
+      "orcid": "0000-0001-8435-6191"
     },
     {
       "affiliation": "Department of Psychology, Stanford University",
