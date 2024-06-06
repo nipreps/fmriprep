@@ -435,7 +435,7 @@ toml==0.10.2
     #   fmriprep
     #   fmriprep (pyproject.toml)
     #   sdcflows
-tornado==6.4
+tornado==6.4.1
     # via bokeh
 tqdm==4.66.1
     # via
