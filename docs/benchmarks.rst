@@ -37,6 +37,17 @@ The specific options for each version or mode are presented in the following tab
 | transform  |                                                                                        |
 +------------+----------------------------------------------------------------------------------------+
 
+Machine details
+~~~~~~~~~~~~~~~
+
+Tests were run on a desktop machine running no other significant tests.
+
+* Processor: Intel i9-10900 CPU @ 2.80GHz, 20-core
+* Memory: 64GiB
+* Storage: PC801 NVMe SK hynix 2TB
+* OS: Ubuntu 22.04
+* Environment: Docker images published to https://hub.docker.com/r/nipreps/fmriprep/
+
 Benchmarks
 ----------
 
