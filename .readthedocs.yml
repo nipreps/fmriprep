@@ -9,6 +9,13 @@ build:
   jobs:
     post_checkout:
       - git fetch --unshallow
+      # Use -W builds for PRs
+      - |
+        if (echo $READTHEDOCS_VERSION_NAME | grep -E '^[0-9]+$' >/dev/null); then
+            export SPHINXOPTS="-W"
+        fi
+      - env
+    pre_build:
       - env
 
 python:
