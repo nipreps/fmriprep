@@ -16,6 +16,7 @@ Contents
    usage
    workflows
    outputs
+   benchmarks
    spaces
    faq
    api
