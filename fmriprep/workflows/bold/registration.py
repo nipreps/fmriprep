@@ -560,7 +560,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']),
         name='outputnode',
     )
 
@@ -605,6 +605,11 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='fsl2itk_inv',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
+
+    def flip_detection_not_implemented_yet():
+        return {'warning': 'Flip detection not implemented yet for alignment with FSL flirt', 'cost_original': '', 'cost_flipped': ''}
+
+    check_flip = pe.Node(niu.Function(function=flip_detection_not_implemented_yet, output_names=['flip_info']), name='check_flip')
     # fmt:off
     workflow.connect([
         (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
@@ -619,6 +624,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
+        (check_flip, outputnode, [('flip_info', 'flip_info')]),
     ])
     # fmt:on
 
