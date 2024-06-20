@@ -25,7 +25,7 @@ dependencies = [
     "nireports @ git+https://github.com/nipreps/nireports.git@main",
     "nitime",
     "nitransforms >= 21.0.0",
-    "niworkflows @ git+https://github.com/nipreps/niworkflows.git@master",
+    "niworkflows @ git+https://github.com/celprov/niworkflows.git@enh/flip_image",
     "numpy >= 1.22",
     "packaging",
     "pandas",

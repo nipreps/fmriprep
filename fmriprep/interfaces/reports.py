@@ -233,7 +233,7 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         traits.Enum('lr_flip_warning', 'cost_original', 'cost_flipped'),
         traits.Either(traits.Bool(), traits.Float()),
         desc='Left-right flip check warning and registration costs',
-        mandatory=True
+        mandatory=True,
     )
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
@@ -415,7 +415,7 @@ class _CheckFlipOutputSpec(TraitedSpec):
         traits.Enum('warning', 'cost_original', 'cost_flipped'),
         traits.Either(traits.Bool(), traits.Float()),
         desc='Left-right flip check warning and registration costs',
-        mandatory=True
+        mandatory=True,
     )
 
 

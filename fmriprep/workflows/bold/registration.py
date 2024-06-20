@@ -607,9 +607,16 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     )
 
     def flip_detection_not_implemented_yet():
-        return {'warning': 'Flip detection not implemented yet for alignment with FSL flirt', 'cost_original': '', 'cost_flipped': ''}
+        return {
+            'warning': 'Flip detection not implemented yet for alignment with FSL flirt',
+            'cost_original': '',
+            'cost_flipped': '',
+        }
 
-    check_flip = pe.Node(niu.Function(function=flip_detection_not_implemented_yet, output_names=['flip_info']), name='check_flip')
+    check_flip = pe.Node(
+        niu.Function(function=flip_detection_not_implemented_yet, output_names=['flip_info']),
+        name='check_flip',
+    )
     # fmt:off
     workflow.connect([
         (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
