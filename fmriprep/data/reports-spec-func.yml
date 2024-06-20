@@ -1,4 +1,5 @@
 package: fmriprep
+title: Functional report for participant '{subject}', session '{session}' - fMRIPrep
 sections:
 - name: <em>B<sub>0</sub></em> field mapping
   ordering: session,acquisition,run,fmapid

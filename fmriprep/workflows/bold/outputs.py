@@ -471,6 +471,55 @@ def init_ds_boldref_wf(
     return workflow
 
 
+def init_ds_boldmask_wf(
+    *,
+    output_dir,
+    desc: str,
+    name='ds_boldmask_wf',
+) -> pe.Workflow:
+    """Write out a BOLD mask."""
+    workflow = pe.Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['source_files', 'boldmask']),
+        name='inputnode',
+    )
+    outputnode = pe.Node(niu.IdentityInterface(fields=['boldmask']), name='outputnode')
+
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=1,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(config.execution.fmriprep_dir.absolute()),
+        ),
+        name='sources',
+    )
+
+    ds_boldmask = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            desc=desc,
+            suffix='mask',
+            compress=True,
+            dismiss_entities=dismiss_echo(),
+        ),
+        name='ds_boldmask',
+        run_without_submitting=True,
+    )
+
+    workflow.connect([
+        (inputnode, sources, [('source_files', 'in1')]),
+        (inputnode, ds_boldmask, [
+            ('boldmask', 'in_file'),
+            ('source_files', 'source_file'),
+        ]),
+        (sources, ds_boldmask, [('out', 'Sources')]),
+        (ds_boldmask, outputnode, [('out_file', 'boldmask')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
 def init_ds_registration_wf(
     *,
     bids_root: str,
@@ -592,7 +641,6 @@ def init_ds_bold_native_wf(
             fields=[
                 'source_files',
                 'bold',
-                'bold_mask',
                 'bold_echos',
                 't2star',
                 # Transforms previously used to generate the outputs
@@ -617,27 +665,6 @@ def init_ds_bold_native_wf(
             ('motion_xfm', 'in2'),
             ('boldref2fmap_xfm', 'in3'),
         ]),
-    ])  # fmt:skip
-
-    # Masks should be output if any other derivatives are output
-    ds_bold_mask = pe.Node(
-        DerivativesDataSink(
-            base_directory=output_dir,
-            desc='brain',
-            suffix='mask',
-            compress=True,
-            dismiss_entities=dismiss_echo(),
-        ),
-        name='ds_bold_mask',
-        run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-    workflow.connect([
-        (inputnode, ds_bold_mask, [
-            ('source_files', 'source_file'),
-            ('bold_mask', 'in_file'),
-        ]),
-        (sources, ds_bold_mask, [('out', 'Sources')]),
     ])  # fmt:skip
 
     if bold_output:

@@ -51,6 +51,8 @@ sub-01/fmap/sub-01_run-02_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz
 sub-01/fmap/sub-01_run-02_fmapid-auto00000_desc-preproc_fieldmap.json
 sub-01/fmap/sub-01_run-02_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
 sub-01/func
+sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-brain_mask.json
+sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-brain_mask.nii.gz
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-confounds_timeseries.json
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-confounds_timeseries.tsv
 sub-01/func/sub-01_task-mixedgamblestask_run-02_desc-coreg_boldref.json

@@ -80,7 +80,7 @@ def init_bold_reg_wf(
                                   omp_nthreads=1,
                                   use_bbr=True,
                                   bold2anat_dof=9,
-                                  bold2anat_init='auto')
+                                  bold2anat_init='t2w')
 
     Parameters
     ----------

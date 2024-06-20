@@ -36,6 +36,8 @@ def init_bold_volumetric_resample_wf(
                 'PhaseEncodingDirection': 'j-',
                 'TotalReadoutTime': 0.03
             },
+            mem_gb={'resampled': 1},
+            jacobian=True,
             fieldmap_id='my_fieldmap',
         )
 

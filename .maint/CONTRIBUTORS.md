@@ -20,6 +20,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Feingold          | Franklin     |  | 0000-0002-6533-2909 | Department of Psychology, Stanford University                                                                                                |
 | Finc              | Karolina     |  | 0000-0002-0157-030X | Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń                                                    |
 | Frederick         | Blaise B.    |  | 0000-0001-5832-5279 | McLean Hospital Brain Imaging Center, MA, USA                                                                                                |
+| Gau               | Rémi        |  | 0000-0002-1535-9767 | Neuro Data Science ORIGAMI Laboratory, McConnell Brain Imaging Centre, Faculty of Medicine, McGill University, Montréal, Canada             |
 | Groen             | Iris I. A.   |  | 0000-0002-5536-6128 | Department of Psychology, New York University, NY, USA                                                                                       |
 | Gomez             | Daniel E. P. |  | 0000-0001-8635-021X | Donders Institute for Brain, Cognition and Behaviour, Radboud University Nijmegen                                                            |
 | Ghosh             | Satrajit S.  |  | 0000-0002-5312-6729 | McGovern Institute for Brain Research, MIT, MA, USA                                                                                          |

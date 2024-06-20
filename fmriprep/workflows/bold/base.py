@@ -326,11 +326,6 @@ configured with cubic B-spline interpolation.
         ds_bold_native_wf.inputs.inputnode.source_files = bold_series
 
         workflow.connect([
-            (bold_fit_wf, ds_bold_native_wf, [
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
-            ]),
             (bold_native_wf, ds_bold_native_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
                 ('outputnode.bold_echos', 'inputnode.bold_echos'),
