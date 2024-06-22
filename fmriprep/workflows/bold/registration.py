@@ -156,7 +156,7 @@ def init_bold_reg_wf(
 
     outputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']
+            fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1', 'flipped_boldref']
         ),
         name='outputnode',
     )
@@ -192,6 +192,8 @@ def init_bold_reg_wf(
             ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
             ('outputnode.fallback', 'fallback'),
             ('outputnode.flip_info', 'flip_info'),
+            ('outputnode.itk_fbold_to_t1', 'itk_fbold_to_t1'),
+            ('outputnode.flipped_boldref', 'flipped_boldref'),
         ]),
     ])  # fmt:skip
 
@@ -316,7 +318,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1', 'flipped_boldref']),
         name='outputnode',
     )
 
@@ -365,6 +367,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='bbregister',
         mem_gb=12,
     )
+    if bold2anat_init == 'header':
+        bbregister_flipped.inputs.init = 'header'
 
     check_flip = pe.Node(CheckFlip(), name='check_flip')
 
@@ -396,6 +400,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
         # Otherwise bbregister will also be used
         workflow.connect(mri_coreg, 'out_lta_file', bbregister, 'init_reg_file')
+        workflow.connect(mri_coreg, 'out_lta_file', bbregister_flipped, 'init_reg_file')
 
     # Use bbregister
     workflow.connect([
@@ -406,7 +411,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
                                          ('subject_id', 'subject_id')]),
         (inputnode, lr_flip), [('in_file', 'in_file')],
         (lr_flip, bbregister_flipped), [('out_file', 'source_file')],
-        (lr_flip, outputnode), [('out_file', 'flipped_bold')],
+        (lr_flip, outputnode), [('out_file', 'flipped_boldref')],
         (bbregister, check_flip), [('min_cost_file', 'cost_original')],
         (bbregister, transform_wf, [('out_lta_file', 'inputnode.in1')]),
         (bbregister_flipped, check_flip), [('min_cost_file', 'cost_flipped')],
@@ -415,6 +420,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (transform_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
                                     ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
                                     ('outputnode.fallback', 'fallback')]),
+        (transform_flipped_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_fbold_to_t1')]),
     ])  # fmt:skip
 
     return workflow
@@ -597,7 +603,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1',]),
         name='outputnode',
     )
 
