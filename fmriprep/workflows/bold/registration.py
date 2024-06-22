@@ -156,7 +156,14 @@ def init_bold_reg_wf(
 
     outputnode = pe.Node(
         niu.IdentityInterface(
-            fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1', 'flipped_boldref']
+            fields=[
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+                'flipped_boldref',
+            ]
         ),
         name='outputnode',
     )
@@ -318,7 +325,16 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1', 'flipped_boldref']),
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+                'flipped_boldref',
+            ]
+        ),
         name='outputnode',
     )
 
@@ -425,7 +441,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
     return workflow
 
-def _transform_handling_wf(use_bbr : bool, name: str = 'transform_handling_wf'):
+
+def _transform_handling_wf(use_bbr: bool, name: str = 'transform_handling_wf'):
     """
     Wire up the co-registration alternatives
 
@@ -449,7 +466,13 @@ def _transform_handling_wf(use_bbr : bool, name: str = 'transform_handling_wf'):
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback',]),
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+            ]
+        ),
         name='outputnode',
     )
 
@@ -462,14 +485,16 @@ def _transform_handling_wf(use_bbr : bool, name: str = 'transform_handling_wf'):
     merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
     concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
 
-    workflow.connect([
-        (inputnode, transforms, [('in1', 'in1'), ('in2', 'in2')]),
-        (transforms, select_transform, [('out', 'inlist')]),
-        (select_transform, merge_ltas, [('out', 'in1')]),
-        (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
-        (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
-        (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
-    ]) 
+    workflow.connect(
+        [
+            (inputnode, transforms, [('in1', 'in1'), ('in2', 'in2')]),
+            (transforms, select_transform, [('out', 'inlist')]),
+            (select_transform, merge_ltas, [('out', 'in1')]),
+            (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
+            (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
+            (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
+        ]
+    )
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
@@ -603,7 +628,15 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'flip_info', 'itk_fbold_to_t1',]),
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+            ]
+        ),
         name='outputnode',
     )
 
