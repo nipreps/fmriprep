@@ -104,6 +104,21 @@ sections:
       anatomical white matter mask, which appears as a red contour.
     static: false
     subtitle: Alignment of functional and anatomical MRI data (coregistration)
+  - button:
+      type: button
+      class: btn btn-primary
+      data-toggle: collapse
+      data-target: '#flippedcoreg'
+      text: 'Alignment of functional and flipped anatomical MRI data'
+  - div:
+      class: collapse
+      id: 'flippedcoreg'
+      reportlets:
+      - bids: {datatype: figures, desc: flippedcoreg, suffix: bold}
+        caption: This panel shows the alignment of the reference EPI (BOLD) image to the
+          left-right flipped anatomical (T1-weighted) image.
+        static: false
+        subtitle: Left-right flip check, alignment of functional and flipped anatomical MRI data
   - bids: {datatype: figures, desc: rois, suffix: bold}
     caption: Brain mask calculated on the BOLD signal (red contour), along with the
       regions of interest (ROIs) used for the estimation of physiological and movement

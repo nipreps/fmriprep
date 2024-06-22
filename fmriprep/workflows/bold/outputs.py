@@ -203,6 +203,9 @@ def init_func_fit_reports_wf(
         't1w_dseg',
         'fieldmap',
         'fmap_ref',
+        # LR flip check
+        'fboldref2anat_xfm',
+        'flipped_boldref',
         # May be missing
         'subject_id',
         'subjects_dir',
@@ -267,6 +270,29 @@ def init_func_fit_reports_wf(
         mem_gb=1,
     )
 
+    # LR flip check
+    t1w_flipped_boldref = pe.Node(
+        ApplyTransforms(
+            dimension=3,
+            default_value=0,
+            float=True,
+            invert_transform_flags=[True],
+            interpolation='LanczosWindowedSinc',
+        ),
+        name='t1w_flipped_boldref',
+        mem_gb=1,
+    )
+    flipped_boldref_wm = pe.Node(
+        ApplyTransforms(
+            dimension=3,
+            default_value=0,
+            invert_transform_flags=[True],
+            interpolation='NearestNeighbor',
+        ),
+        name='boldref_wm',
+        mem_gb=1,
+    )
+
     # fmt:off
     workflow.connect([
         (inputnode, ds_summary, [
@@ -288,6 +314,18 @@ def init_func_fit_reports_wf(
             ('boldref2anat_xfm', 'transforms'),
         ]),
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
+        # LR flip check
+        (inputnode, t1w_flipped_boldref, [
+            ('t1w_preproc', 'input_image'),
+            ('flipped_boldref', 'reference_image'),
+            ('fboldref2anat_xfm', 'transforms'),
+        ]),
+        (inputnode, flipped_boldref_wm, [
+            ('flipped_boldref', 'reference_image'),
+            ('fboldref2anat_xfm', 'transforms'),
+        ]),
+        (t1w_wm, flipped_boldref_wm, [('out', 'input_image')]),
+
     ])
     # fmt:on
 
@@ -409,6 +447,27 @@ def init_func_fit_reports_wf(
         name='ds_epi_t1_report',
     )
 
+    flipped_epi_t1_report = pe.Node(
+        SimpleBeforeAfter(
+            before_label='T1w',
+            after_label='EPI',
+            dismiss_affine=True,
+        ),
+        name='flipped_epi_t1_report',
+        mem_gb=0.1,
+    )
+
+    ds_flipped_epi_t1_report = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            desc='flippedcoreg',
+            suffix='bold',
+            datatype='figures',
+            dismiss_entities=dismiss_echo(),
+        ),
+        name='ds_flipped_epi_t1_report',
+    )
+
     # fmt:off
     workflow.connect([
         (inputnode, epi_t1_report, [('coreg_boldref', 'after')]),
@@ -416,6 +475,11 @@ def init_func_fit_reports_wf(
         (boldref_wm, epi_t1_report, [('output_image', 'wm_seg')]),
         (inputnode, ds_epi_t1_report, [('source_file', 'source_file')]),
         (epi_t1_report, ds_epi_t1_report, [('out_report', 'in_file')]),
+        (inputnode, flipped_epi_t1_report, [('flipped_boldref', 'after')]),
+        (t1w_flipped_boldref, flipped_epi_t1_report, [('output_image', 'before')]),
+        (flipped_boldref_wm, flipped_epi_t1_report, [('output_image', 'wm_seg')]),
+        (inputnode, ds_flipped_epi_t1_report, [('source_file', 'source_file')]),
+        (flipped_epi_t1_report, ds_flipped_epi_t1_report, [('out_report', 'in_file')]),
     ])
     # fmt:on
 
