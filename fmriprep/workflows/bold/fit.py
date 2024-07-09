@@ -465,6 +465,14 @@ def init_bold_fit_wf(
 
         # Select initial boldref, enhance contrast, and generate mask
         fmapref_buffer.inputs.sbref_files = sbref_files
+        if sbref_files and nb.load(sbref_files[0]).ndim > 3:
+            raw_sbref_wf = init_raw_boldref_wf(
+                name='raw_sbref_wf',
+                bold_file=sbref_files[0],
+                multiecho=len(sbref_files) > 1,
+            )
+            workflow.connect(raw_sbref_wf, 'outputnode.boldref', fmapref_buffer, 'sbref_files')
+
         enhance_boldref_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
 
         ds_coreg_boldref_wf = init_ds_boldref_wf(
