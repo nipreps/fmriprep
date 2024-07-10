@@ -28,8 +28,7 @@ sub-100185/anat/sub-100185_space-MNI152NLin2009cAsym_res-2_label-CSF_probseg.nii
 sub-100185/anat/sub-100185_space-MNI152NLin2009cAsym_res-2_label-GM_probseg.nii.gz
 sub-100185/anat/sub-100185_space-MNI152NLin2009cAsym_res-2_label-WM_probseg.nii.gz
 sub-100185/fmap
-sub-100185/fmap/sub-100185_fmapid-auto00000_desc-coeff0_fieldmap.nii.gz
-sub-100185/fmap/sub-100185_fmapid-auto00000_desc-coeff1_fieldmap.nii.gz
+sub-100185/fmap/sub-100185_fmapid-auto00000_desc-coeff_fieldmap.nii.gz
 sub-100185/fmap/sub-100185_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz
 sub-100185/fmap/sub-100185_fmapid-auto00000_desc-preproc_fieldmap.json
 sub-100185/fmap/sub-100185_fmapid-auto00000_desc-preproc_fieldmap.nii.gz
