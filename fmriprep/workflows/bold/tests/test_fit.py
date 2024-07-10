@@ -89,15 +89,19 @@ def test_bold_fit_precomputes(
         bold_series = [
             str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
         ]
+        sbref = str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_sbref.nii.gz')
     elif task == 'nback':
         bold_series = [
             str(bids_root / 'sub-01' / 'func' / f'sub-01_task-nback_echo-{i}_bold.nii.gz')
             for i in range(1, 4)
         ]
+        sbref = str(bids_root / 'sub-01' / 'func' / 'sub-01_task-nback_echo-1_sbref.nii.gz')
 
     # The workflow will attempt to read file headers
     for path in bold_series:
         img.to_filename(path)
+    # Single volume sbref; multi-volume tested in test_base
+    img.slicer[:, :, :, 0].to_filename(sbref)
 
     dummy_nifti = str(tmp_path / 'dummy.nii')
     dummy_affine = str(tmp_path / 'dummy.txt')
