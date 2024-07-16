@@ -62,6 +62,13 @@ single reference template (see `Longitudinal processing`_).
 
     from niworkflows.utils.spaces import Reference, SpatialReferences
     from smriprep.workflows.anatomical import init_anat_preproc_wf
+    spaces=SpatialReferences([
+        ('MNI152Lin', {}),
+        ('fsaverage', {'density': '10k'}),
+        ('T1w', {}),
+        ('fsnative', {})
+    ])
+    spaces.checkpoint()
     wf = init_anat_preproc_wf(
         bids_root='.',
         freesurfer=True,
@@ -71,12 +78,7 @@ single reference template (see `Longitudinal processing`_).
         output_dir='.',
         skull_strip_mode='force',
         skull_strip_template=Reference('MNI152NLin2009cAsym'),
-        spaces=SpatialReferences([
-            ('MNI152Lin', {}),
-            ('fsaverage', {'density': '10k'}),
-            ('T1w', {}),
-            ('fsnative', {})
-        ]),
+        spaces=spaces,
         skull_strip_fixed_seed=False,
         t1w=['sub-01/anat/sub-01_T1w.nii.gz'],
         t2w=[],
@@ -267,9 +269,9 @@ packages, including FreeSurfer and the `Connectome Workbench`_.
     :simple_form: yes
 
     from smriprep.workflows.surfaces import init_surface_recon_wf
-    wf = init_surface_recon_wf(omp_nthreads=1,
-                               hires=True,
-                               precomputed={})
+    wf = init_surface_recon_wf(
+        omp_nthreads=1, hires=True, precomputed={}, fs_no_resume=False,
+    )
 
 See also *sMRIPrep*'s
 :py:func:`~smriprep.workflows.surfaces.init_surface_recon_wf`
@@ -401,6 +403,7 @@ Slice time correction
 
     from fmriprep.workflows.bold import init_bold_stc_wf
     wf = init_bold_stc_wf(
+        mem_gb={'filesize': 1},
         metadata={'RepetitionTime': 2.0,
                   'SliceTiming': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
     )
@@ -479,8 +482,9 @@ EPI to T1w registration
     wf = init_bbreg_wf(
         omp_nthreads=1,
         use_bbr=True,
-        bold2t1w_dof=9,
-        bold2t1w_init='register')
+        bold2anat_dof=9,
+        bold2anat_init='t2w',
+    )
 
 The alignment between the reference :abbr:`EPI (echo-planar imaging)` image
 of each run and the reconstructed subject using the gray/white matter boundary
@@ -510,7 +514,16 @@ Resampling BOLD runs onto standard spaces
     :simple_form: yes
 
     from fmriprep.workflows.bold.apply import init_bold_volumetric_resample_wf
-    wf = init_bold_volumetric_resample_wf(metadata={}, fieldmap_id='fmap')
+    wf = init_bold_volumetric_resample_wf(
+        metadata={
+            'RepetitionTime': 2.0,
+            'PhaseEncodingDirection': 'j-',
+            'TotalReadoutTime': 0.03
+        },
+        mem_gb={'resampled': 1},
+        jacobian=True,
+        fieldmap_id='fmap',
+    )
 
 This sub-workflow concatenates the transforms calculated upstream (see
 `Head-motion estimation`_, `Susceptibility Distortion Correction (SDC)`_ --if
@@ -564,7 +577,6 @@ HCP Grayordinates
 
     from fmriprep.workflows.bold.resampling import init_bold_fsLR_resampling_wf
     wf = init_bold_fsLR_resampling_wf(
-        estimate_goodvoxels=True,
         grayord_density='92k',
         omp_nthreads=1,
         mem_gb=1,
