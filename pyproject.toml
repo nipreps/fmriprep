@@ -75,7 +75,7 @@ telemetry = [
     "sentry-sdk >= 1.3",
 ]
 test = [
-    "coverage",
+    "coverage[toml]",
     "pytest",
     "pytest-cov",
     "pytest-env",
@@ -127,11 +127,21 @@ exclude = ".*"
 
 [tool.pytest.ini_options]
 minversion = "6"
-testpaths = ["fmriprep/tests"]
+testpaths = ["fmriprep"]
 log_cli_level = "INFO"
 xfail_strict = true
 norecursedirs = [".git"]
-addopts = ["-svx", "-ra", "--strict-config", "--strict-markers", "--doctest-modules"]
+addopts = [
+  "-svx",
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+  "--doctest-modules",
+  # Config pytest-cov
+  "--cov=fmriprep",
+  "--cov-report=xml",
+  "--cov-config=pyproject.toml",
+]
 doctest_optionflags = "ALLOW_UNICODE NORMALIZE_WHITESPACE ELLIPSIS"
 env = "PYTHONHASHSEED=0"
 filterwarnings = ["ignore::DeprecationWarning"]
@@ -181,3 +191,15 @@ inline-quotes = "single"
 
 [tool.ruff.format]
 quote-style = "single"
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/_version.py"
+]
+
+[tool.coverage.paths]
+source = [
+  "fmriprep",
+  "**/site-packages/fmriprep"
+]
