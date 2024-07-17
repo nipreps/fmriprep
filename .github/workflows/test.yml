@@ -49,6 +49,10 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/templateflow
+          key: templateflow-v1
       - name: Install dependencies
         run: |
           sudo apt update
