@@ -28,14 +28,14 @@ permissions:
   contents: read
 
 jobs:
-  stable:
+  test:
     # Check each OS, all supported Python, minimum versions and latest releases
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ['ubuntu-latest']
         python-version: ['3.10', '3.11', '3.12']
-        dependencies: ['', 'pre']
+        dependencies: ['latest', 'pre']
         include:
           - os: ubuntu-latest
             python-version: '3.10'
