@@ -67,6 +67,17 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
+\t\t\t<li>Left-right flip check warning: {lr_flip_warning}</li>
+\t\t<table>
+\t\t\t<tr>
+\t\t\t\t<th>Original Registration Cost</th>
+\t\t\t\t<th>Flipped Registration Cost</th>
+\t\t\t</tr>
+\t\t\t<tr>
+\t\t\t\t<td>{cost_original}</td>
+\t\t\t\t<td>{cost_flipped}</td>
+\t\t\t</tr>
+\t\t</table>
 \t\t\t<li>Non-steady-state volumes: {dummy_scan_desc}</li>
 \t\t</ul>
 \t\t</details>
@@ -218,6 +229,12 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         desc='Whether to initialize registration with the "header"'
         ' or by centering the volumes ("t1w" or "t2w")',
     )
+    flip_info = traits.Dict(
+        traits.Enum('lr_flip_warning', 'cost_original', 'cost_flipped'),
+        traits.Either(traits.Bool(), traits.Float()),
+        desc='Left-right flip check warning and registration costs',
+        mandatory=True,
+    )
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
     algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
@@ -279,6 +296,12 @@ class FunctionalSummary(SummaryInterface):
         if n_echos > 2:
             multiecho = f'Multi-echo EPI sequence: {n_echos} echoes.'
 
+        lr_flip_warning = (
+            '<span style="color:red;">LR flip detected</span>'
+            if self.inputs.flip_info.get('lr_flip_warning', False)
+            else 'none'
+        )
+
         return FUNCTIONAL_TEMPLATE.format(
             pedir=pedir,
             stc=stc,
@@ -288,6 +311,9 @@ class FunctionalSummary(SummaryInterface):
             dummy_scan_desc=dummy_scan_msg,
             multiecho=multiecho,
             ornt=self.inputs.orientation,
+            lr_flip_warning=lr_flip_warning,
+            cost_original=self.input.flip_info.get('cost_original', None),
+            cost_flipped=self.input.flip_info.get('cost_flipped', None),
         )
 
 
@@ -369,3 +395,40 @@ def get_world_pedir(ornt, pe_direction):
         f'Orientation: {ornt}; PE dir: {pe_direction}'
     )
     return 'Could not be determined - assuming Anterior-Posterior'
+
+
+class _CheckFlipInputSpec(BaseInterfaceInputSpec):
+    cost_original = File(
+        exists=True,
+        mandatory=True,
+        desc='cost associated with registration of BOLD to original T1w images',
+    )
+    cost_flipped = File(
+        exists=True,
+        mandatory=True,
+        desc='cost associated with registration of BOLD to the flipped T1w images',
+    )
+
+
+class _CheckFlipOutputSpec(TraitedSpec):
+    flip_info = traits.Dict(
+        traits.Enum('warning', 'cost_original', 'cost_flipped'),
+        traits.Either(traits.Bool(), traits.Float()),
+        desc='Left-right flip check warning and registration costs',
+        mandatory=True,
+    )
+
+
+class CheckFlip(SimpleInterface):
+    """Check for a LR flip by comparing registration cost functions."""
+
+    input_spec = _CheckFlipInputSpec
+    output_spec = _CheckFlipOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['flip_info'] = {
+            'warning': self.inputs.cost_flipped < self.inputs.cost_original,
+            'cost_original': self.inputs.cost_original,
+            'cost_flipped': self.inputs.cost_flipped,
+        }
+        return runtime

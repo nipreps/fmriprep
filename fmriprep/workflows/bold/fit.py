@@ -289,6 +289,9 @@ def init_bold_fit_wf(
                 'boldref2fmap_xfm',
                 'movpar_file',
                 'rmsd_file',
+                # LR flip check
+                'fboldref2anat_xfm',
+                'flipped_boldref',
             ],
         ),
         name='outputnode',
@@ -373,6 +376,8 @@ def init_bold_fit_wf(
             ('coreg_boldref', 'inputnode.coreg_boldref'),
             ('bold_mask', 'inputnode.bold_mask'),
             ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('fboldref2anat_xfm', 'inputnode.fboldref2anat_xfm'),
+            ('flipped_boldref', 'inputnode.flipped_boldref'),
         ]),
         (summary, func_fit_reports_wf, [('out_report', 'inputnode.summary_report')]),
     ])
@@ -640,7 +645,11 @@ def init_bold_fit_wf(
             (regref_buffer, ds_boldreg_wf, [('boldref', 'inputnode.source_files')]),
             (bold_reg_wf, ds_boldreg_wf, [('outputnode.itk_bold_to_t1', 'inputnode.xform')]),
             (ds_boldreg_wf, outputnode, [('outputnode.xform', 'boldref2anat_xfm')]),
-            (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
+            (bold_reg_wf, outputnode, [
+                ('outputnode.itk_fbold_to_t1', 'fboldref2anat_xfm'), 
+                ('outputnode.flipped_boldref', 'flipped_boldref')]),
+            (bold_reg_wf, summary, [('outputnode.fallback', 'fallback'),
+                                    ('outputnode.flip_info', 'flip_info')]),
         ])
         # fmt:on
     else:

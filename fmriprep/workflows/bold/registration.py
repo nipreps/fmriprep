@@ -127,6 +127,8 @@ def init_bold_reg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    flip_info
+        Information regarding whether a left-right flip was detected
 
     See Also
     --------
@@ -153,7 +155,16 @@ def init_bold_reg_wf(
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(
+            fields=[
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+                'flipped_boldref',
+            ]
+        ),
         name='outputnode',
     )
 
@@ -187,6 +198,9 @@ def init_bold_reg_wf(
             ('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
             ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
             ('outputnode.fallback', 'fallback'),
+            ('outputnode.flip_info', 'flip_info'),
+            ('outputnode.itk_fbold_to_t1', 'itk_fbold_to_t1'),
+            ('outputnode.flipped_boldref', 'flipped_boldref'),
         ]),
     ])  # fmt:skip
 
@@ -267,13 +281,16 @@ def init_bbreg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    flip_info
+        Information regarding whether a left-right flip was detected
 
     """
     from nipype.interfaces.freesurfer import BBRegister
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+    from niworkflows.interfaces.morphology import AxisFlip
 
     from fmriprep.interfaces.patches import FreeSurferSource, MRICoreg
+    from fmriprep.interfaces.reports import CheckFlip
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
@@ -308,7 +325,16 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+                'flipped_boldref',
+            ]
+        ),
         name='outputnode',
     )
 
@@ -347,24 +373,23 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     if bold2anat_init == 'header':
         bbregister.inputs.init = 'header'
 
-    transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
-    # In cases where Merge(2) only has `in1` or `in2` defined
-    # output list will just contain a single element
-    select_transform = pe.Node(
-        niu.Select(index=0), run_without_submitting=True, name='select_transform'
+    lr_flip = pe.Node(AxisFlip(axis=0), name='flip')
+    bbregister_flipped = pe.Node(
+        BBRegister(
+            dof=bold2anat_dof,
+            contrast_type='t2',
+            out_lta_file=True,
+        ),
+        name='bbregister',
+        mem_gb=12,
     )
-    merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
-    concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
+    if bold2anat_init == 'header':
+        bbregister_flipped.inputs.init = 'header'
 
-    workflow.connect([
-        (inputnode, merge_ltas, [('fsnative2t1w_xfm', 'in2')]),
-        # Wire up the co-registration alternatives
-        (transforms, select_transform, [('out', 'inlist')]),
-        (select_transform, merge_ltas, [('out', 'in1')]),
-        (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
-        (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
-        (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
-    ])  # fmt:skip
+    check_flip = pe.Node(CheckFlip(), name='check_flip')
+
+    transform_wf = _transform_handling_wf(use_bbr=use_bbr)
+    transform_flipped_wf = _transform_handling_wf(use_bbr=use_bbr)
 
     # Do not initialize with header, use mri_coreg
     if bold2anat_init != 'header':
@@ -372,7 +397,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             (inputnode, mri_coreg, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id'),
                                     ('in_file', 'source_file')]),
-            (mri_coreg, transforms, [('out_lta_file', 'in2')]),
+            (mri_coreg, transform_wf, [('out_lta_file', 'inputnode.in2')]),
+            (mri_coreg, transform_flipped_wf, [('out_lta_file', 'inputnode.in2')]),
         ])  # fmt:skip
 
         if use_t2w:
@@ -390,14 +416,85 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
 
         # Otherwise bbregister will also be used
         workflow.connect(mri_coreg, 'out_lta_file', bbregister, 'init_reg_file')
+        workflow.connect(mri_coreg, 'out_lta_file', bbregister_flipped, 'init_reg_file')
 
     # Use bbregister
     workflow.connect([
         (inputnode, bbregister, [('subjects_dir', 'subjects_dir'),
                                  ('subject_id', 'subject_id'),
                                  ('in_file', 'source_file')]),
-        (bbregister, transforms, [('out_lta_file', 'in1')]),
+        (inputnode, bbregister_flipped, [('subjects_dir', 'subjects_dir'),
+                                         ('subject_id', 'subject_id')]),
+        (inputnode, lr_flip), [('in_file', 'in_file')],
+        (lr_flip, bbregister_flipped), [('out_file', 'source_file')],
+        (lr_flip, outputnode), [('out_file', 'flipped_boldref')],
+        (bbregister, check_flip), [('min_cost_file', 'cost_original')],
+        (bbregister, transform_wf, [('out_lta_file', 'inputnode.in1')]),
+        (bbregister_flipped, check_flip), [('min_cost_file', 'cost_flipped')],
+        (bbregister_flipped, transform_flipped_wf, [('out_lta_file', 'inputnode.in1')]),
+        (check_flip, outputnode, [('flip_info', 'flip_info')]),
+        (transform_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
+                                    ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
+                                    ('outputnode.fallback', 'fallback')]),
+        (transform_flipped_wf, outputnode, [('outputnode.itk_bold_to_t1', 'itk_fbold_to_t1')]),
     ])  # fmt:skip
+
+    return workflow
+
+
+def _transform_handling_wf(use_bbr: bool, name: str = 'transform_handling_wf'):
+    """
+    Wire up the co-registration alternatives
+
+    Parameters
+    ----------
+    use_bbr : :obj:`bool` or None
+        Enable/disable boundary-based registration refinement.
+        If ``None``, test BBR result for distortion before accepting.
+    """
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+
+    workflow = Workflow(name=name)
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            [
+                'in1',
+                'in2',
+            ]
+        ),
+        name='inputnode',
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+            ]
+        ),
+        name='outputnode',
+    )
+
+    transforms = pe.Node(niu.Merge(2), run_without_submitting=True, name='transforms')
+    # In cases where Merge(2) only has `in1` or `in2` defined
+    # output list will just contain a single element
+    select_transform = pe.Node(
+        niu.Select(index=0), run_without_submitting=True, name='select_transform'
+    )
+    merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
+    concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
+
+    workflow.connect(
+        [
+            (inputnode, transforms, [('in1', 'in1'), ('in2', 'in2')]),
+            (transforms, select_transform, [('out', 'inlist')]),
+            (select_transform, merge_ltas, [('out', 'in1')]),
+            (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
+            (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
+            (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
+        ]
+    )
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
@@ -531,7 +628,15 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(
+            [
+                'itk_bold_to_t1',
+                'itk_t1_to_bold',
+                'fallback',
+                'flip_info',
+                'itk_fbold_to_t1',
+            ]
+        ),
         name='outputnode',
     )
 
@@ -576,6 +681,18 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='fsl2itk_inv',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
+
+    def flip_detection_not_implemented_yet():
+        return {
+            'warning': 'Flip detection not implemented yet for alignment with FSL flirt',
+            'cost_original': '',
+            'cost_flipped': '',
+        }
+
+    check_flip = pe.Node(
+        niu.Function(function=flip_detection_not_implemented_yet, output_names=['flip_info']),
+        name='check_flip',
+    )
     # fmt:off
     workflow.connect([
         (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
@@ -590,6 +707,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
         (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
         (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
+        (check_flip, outputnode, [('flip_info', 'flip_info')]),
     ])
     # fmt:on
 
