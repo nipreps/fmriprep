@@ -37,11 +37,11 @@ from copy import deepcopy
 import bids
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
+from niworkflows.interfaces.bids import PrepareDerivative, SaveDerivative
 from niworkflows.utils.connections import listify
 from packaging.version import Version
 
 from .. import config
-from ..interfaces import DerivativesDataSink
 from ..interfaces.reports import AboutSummary, SubjectSummary
 from ..utils.bids import dismiss_echo
 
@@ -287,24 +287,34 @@ It is released under the [CC0]\
         run_without_submitting=True,
     )
 
-    ds_report_summary = pe.Node(
-        DerivativesDataSink(
-            base_directory=config.execution.fmriprep_dir,
+    prep_report_summary = pe.Node(
+        PrepareDerivative(
             desc='summary',
             datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
+        name='prep_report_summary',
+        run_without_submitting=True,
+    )
+
+    ds_report_summary = pe.Node(
+        SaveDerivative(base_directory=config.execution.fmriprep_dir),
         name='ds_report_summary',
         run_without_submitting=True,
     )
 
-    ds_report_about = pe.Node(
-        DerivativesDataSink(
-            base_directory=config.execution.fmriprep_dir,
+    prep_report_about = pe.Node(
+        PrepareDerivative(
             desc='about',
             datatype='figures',
             dismiss_entities=dismiss_echo(),
         ),
+        name='prep_report_about',
+        run_without_submitting=True,
+    )
+
+    ds_report_about = pe.Node(
+        SaveDerivative(base_directory=config.execution.fmriprep_dir),
         name='ds_report_about',
         run_without_submitting=True,
     )
@@ -339,15 +349,15 @@ It is released under the [CC0]\
         workflow.connect([
             (bidssrc, bids_info, [(('bold', fix_multi_T1w_source_name), 'in_file')]),
             (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
-            (anat_fit_wf, ds_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
-            (anat_fit_wf, ds_report_about, [('outputnode.t1w_preproc', 'source_file')]),
+            (anat_fit_wf, prep_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
+            (anat_fit_wf, prep_report_about, [('outputnode.t1w_preproc', 'source_file')]),
         ])  # fmt:skip
     else:
         workflow.connect([
             (bidssrc, bids_info, [(('t1w', fix_multi_T1w_source_name), 'in_file')]),
             (bidssrc, summary, [('t1w', 't1w')]),
-            (bidssrc, ds_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
-            (bidssrc, ds_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (bidssrc, prep_report_summary, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
+            (bidssrc, prep_report_about, [(('t1w', fix_multi_T1w_source_name), 'source_file')]),
         ])  # fmt:skip
 
     workflow.connect([
@@ -363,8 +373,16 @@ It is released under the [CC0]\
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
         (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
         (bids_info, summary, [('subject', 'subject_id')]),
-        (summary, ds_report_summary, [('out_report', 'in_file')]),
-        (about, ds_report_about, [('out_report', 'in_file')]),
+        (summary, prep_report_summary, [('out_report', 'in_file')]),
+        (about, prep_report_about, [('out_report', 'in_file')]),
+        (prep_report_summary, ds_report_summary, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
+        (prep_report_about, ds_report_about, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
     ])  # fmt:skip
 
     # Set up the template iterator once, if used

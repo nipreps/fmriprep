@@ -31,10 +31,9 @@ Calculate BOLD confounds
 from nipype.algorithms import confounds as nac
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
+from niworkflows.interfaces.bids import PrepareDerivative, SaveDerivative
 from templateflow.api import get as get_template
 
-from ...config import DEFAULT_MEMORY_MIN_GB
-from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
     FilterDropped,
     FMRISummary,
@@ -464,11 +463,16 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         mem_gb=mem_gb,
     )
 
+    prep_report_bold_rois = pe.Node(
+        PrepareDerivative(desc='rois', datatype='figures', dismiss_entities=dismiss_echo()),
+        name='prep_report_bold_rois',
+        run_without_submitting=True,
+    )
+
     ds_report_bold_rois = pe.Node(
-        DerivativesDataSink(desc='rois', datatype='figures', dismiss_entities=dismiss_echo()),
+        SaveDerivative(),
         name='ds_report_bold_rois',
         run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     # Generate reportlet (CompCor)
@@ -483,13 +487,16 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         name='compcor_plot',
     )
 
+    prep_report_compcor = pe.Node(
+        PrepareDerivative(desc='compcorvar', datatype='figures', dismiss_entities=dismiss_echo()),
+        name='prep_report_compcor',
+        run_without_submitting=True,
+    )
+
     ds_report_compcor = pe.Node(
-        DerivativesDataSink(
-            desc='compcorvar', datatype='figures', dismiss_entities=dismiss_echo()
-        ),
+        SaveDerivative(),
         name='ds_report_compcor',
         run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     # Generate reportlet (Confound correlation)
@@ -497,13 +504,18 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         ConfoundsCorrelationPlot(reference_column='global_signal', max_dim=20),
         name='conf_corr_plot',
     )
-    ds_report_conf_corr = pe.Node(
-        DerivativesDataSink(
+    prep_report_conf_corr = pe.Node(
+        PrepareDerivative(
             desc='confoundcorr', datatype='figures', dismiss_entities=dismiss_echo()
         ),
+        name='prep_report_conf_corr',
+        run_without_submitting=True,
+    )
+
+    ds_report_conf_corr = pe.Node(
+        SaveDerivative(),
         name='ds_report_conf_corr',
         run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     def _last(inlist):
@@ -518,7 +530,6 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
             if not col.startswith(('a_comp_cor_', 't_comp_cor_', 'std_dvars'))
         ]
 
-    # fmt:off
     workflow.connect([
         # connect inputnode to each non-anatomical confound node
         (inputnode, dvars, [('bold', 'in_file'),
@@ -607,18 +618,29 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         (acc_msk_bin, mrg_compcor, [(('out_file', _last), 'in2')]),
         (subtract_mask, mrg_compcor, [('out_mask', 'in3')]),
         (mrg_compcor, rois_plot, [('out', 'in_rois')]),
-        (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
+        (rois_plot, prep_report_bold_rois, [('out_report', 'in_file')]),
+        (prep_report_bold_rois, ds_report_bold_rois, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
         (tcompcor, mrg_cc_metadata, [('metadata_file', 'in1')]),
         (acompcor, mrg_cc_metadata, [('metadata_file', 'in2')]),
         (crowncompcor, mrg_cc_metadata, [('metadata_file', 'in3')]),
         (mrg_cc_metadata, compcor_plot, [('out', 'metadata_files')]),
-        (compcor_plot, ds_report_compcor, [('out_file', 'in_file')]),
+        (compcor_plot, prep_report_compcor, [('out_file', 'in_file')]),
+        (prep_report_compcor, ds_report_compcor, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
         (inputnode, conf_corr_plot, [('skip_vols', 'ignore_initial_volumes')]),
         (concat, conf_corr_plot, [('confounds_file', 'confounds_file'),
                                   (('confounds_file', _select_cols), 'columns')]),
-        (conf_corr_plot, ds_report_conf_corr, [('out_file', 'in_file')]),
-    ])
-    # fmt: on
+        (conf_corr_plot, prep_report_conf_corr, [('out_file', 'in_file')]),
+        (prep_report_conf_corr, ds_report_conf_corr, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
+    ])  # fmt:skip
 
     return workflow
 
@@ -709,13 +731,18 @@ def init_carpetplot_wf(
         name='conf_plot',
         mem_gb=mem_gb,
     )
-    ds_report_bold_conf = pe.Node(
-        DerivativesDataSink(
+    prep_report_bold_conf = pe.Node(
+        PrepareDerivative(
             desc='carpetplot', datatype='figures', extension='svg', dismiss_entities=dismiss_echo()
         ),
+        name='prep_report_bold_conf',
+        run_without_submitting=True,
+    )
+
+    ds_report_bold_conf = pe.Node(
+        SaveDerivative(),
         name='ds_report_bold_conf',
         run_without_submitting=True,
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
     parcels = pe.Node(niu.Function(function=_carpet_parcellation), name='parcels')
@@ -763,7 +790,11 @@ def init_carpetplot_wf(
         (mrg_xfms, resample_parc, [('out', 'transforms')]),
         (resample_parc, parcels, [('output_image', 'segmentation')]),
         (parcels, conf_plot, [('out', 'in_segm')]),
-        (conf_plot, ds_report_bold_conf, [('out_file', 'in_file')]),
+        (conf_plot, prep_report_bold_conf, [('out_file', 'in_file')]),
+        (prep_report_bold_conf, ds_report_bold_conf, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+        ]),
         (conf_plot, outputnode, [('out_file', 'out_carpetplot')]),
     ])  # fmt:skip
     return workflow

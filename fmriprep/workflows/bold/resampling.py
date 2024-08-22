@@ -114,10 +114,9 @@ def init_bold_surf_wf(
     """
     from nipype.interfaces.io import FreeSurferSource
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.bids import PrepareDerivative, SaveDerivative
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
     from niworkflows.interfaces.surf import GiftiSetAnatomicalStructure
-
-    from fmriprep.interfaces import DerivativesDataSink
 
     timing_parameters = prepare_timing_parameters(metadata)
 
@@ -191,20 +190,27 @@ The BOLD time-series were resampled onto the following surfaces
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
-    ds_bold_surfs = pe.MapNode(
-        DerivativesDataSink(
-            base_directory=output_dir,
+    prep_bold_surfs = pe.MapNode(
+        PrepareDerivative(
             extension='.func.gii',
             dismiss_entities=dismiss_echo(),
             TaskName=metadata.get('TaskName'),
             **timing_parameters,
         ),
         iterfield=['in_file', 'hemi'],
+        name='prep_bold_surfs',
+        run_without_submitting=True,
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    prep_bold_surfs.inputs.hemi = ['L', 'R']
+
+    ds_bold_surfs = pe.MapNode(
+        SaveDerivative(base_directory=output_dir),
+        iterfield=['in_file'],
         name='ds_bold_surfs',
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
-    ds_bold_surfs.inputs.hemi = ['L', 'R']
 
     workflow.connect([
         (inputnode, get_fsnative, [
@@ -225,11 +231,16 @@ The BOLD time-series were resampled onto the following surfaces
         (itersource, targets, [('target', 'space')]),
         (itk2lta, sampler, [('out_inv', 'reg_file')]),
         (targets, sampler, [('out', 'target_subject')]),
-        (inputnode, ds_bold_surfs, [('source_file', 'source_file')]),
+        (inputnode, prep_bold_surfs, [('source_file', 'source_file')]),
         (inputnode, surfs_sources, [('sources', 'in1')]),
-        (surfs_sources, ds_bold_surfs, [('out', 'Sources')]),
-        (itersource, ds_bold_surfs, [('target', 'space')]),
-        (update_metadata, ds_bold_surfs, [('out_file', 'in_file')]),
+        (surfs_sources, prep_bold_surfs, [('out', 'Sources')]),
+        (itersource, prep_bold_surfs, [('target', 'space')]),
+        (update_metadata, prep_bold_surfs, [('out_file', 'in_file')]),
+        (prep_bold_surfs, ds_bold_surfs, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+            ('out_meta', 'metadata'),
+        ]),
     ])  # fmt:skip
 
     # Refine if medial vertices should be NaNs

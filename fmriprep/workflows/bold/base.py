@@ -32,10 +32,10 @@ Orchestrating the BOLD-preprocessing workflow
 
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
+from niworkflows.interfaces.bids import PrepareDerivative, SaveDerivative
 from niworkflows.utils.connections import listify
 
 from ... import config
-from ...interfaces import DerivativesDataSink
 from ...utils.bids import dismiss_echo
 from ...utils.misc import estimate_bold_mem_usage
 
@@ -336,22 +336,34 @@ configured with cubic B-spline interpolation.
     if multiecho:
         t2s_reporting_wf = init_t2s_reporting_wf()
 
-        ds_report_t2scomp = pe.Node(
-            DerivativesDataSink(
+        prep_report_t2scomp = pe.Node(
+            PrepareDerivative(
                 desc='t2scomp',
                 datatype='figures',
                 dismiss_entities=dismiss_echo(),
             ),
+            name='prep_report_t2scomp',
+            run_without_submitting=True,
+        )
+
+        ds_report_t2scomp = pe.Node(
+            SaveDerivative(),
             name='ds_report_t2scomp',
             run_without_submitting=True,
         )
 
-        ds_report_t2star_hist = pe.Node(
-            DerivativesDataSink(
+        prep_report_t2star_hist = pe.Node(
+            PrepareDerivative(
                 desc='t2starhist',
                 datatype='figures',
                 dismiss_entities=dismiss_echo(),
             ),
+            name='prep_report_t2star_hist',
+            run_without_submitting=True,
+        )
+
+        ds_report_t2star_hist = pe.Node(
+            SaveDerivative(),
             name='ds_report_t2star_hist',
             run_without_submitting=True,
         )
@@ -365,8 +377,16 @@ configured with cubic B-spline interpolation.
             (bold_native_wf, t2s_reporting_wf, [
                 ('outputnode.t2star_map', 'inputnode.t2star_file'),
             ]),
-            (t2s_reporting_wf, ds_report_t2scomp, [('outputnode.t2s_comp_report', 'in_file')]),
-            (t2s_reporting_wf, ds_report_t2star_hist, [('outputnode.t2star_hist', 'in_file')]),
+            (t2s_reporting_wf, prep_report_t2scomp, [('outputnode.t2s_comp_report', 'in_file')]),
+            (t2s_reporting_wf, prep_report_t2star_hist, [('outputnode.t2star_hist', 'in_file')]),
+            (prep_report_t2scomp, ds_report_t2scomp, [
+                ('out_file', 'in_file'),
+                ('out_path', 'relative_path'),
+            ]),
+            (prep_report_t2star_hist, ds_report_t2star_hist, [
+                ('out_file', 'in_file'),
+                ('out_path', 'relative_path'),
+            ]),
         ])  # fmt:skip
 
     if config.workflow.level == 'resampling':
@@ -374,6 +394,7 @@ configured with cubic B-spline interpolation.
         for node in workflow.list_node_names():
             if node.split('.')[-1].startswith('ds_report'):
                 workflow.get_node(node).inputs.base_directory = fmriprep_dir
+            if node.split('.')[-1].startswith('prep_report'):
                 workflow.get_node(node).inputs.source_file = bold_file
         return workflow
 
@@ -584,9 +605,8 @@ excluding voxels whose time-series have a locally high coefficient of variation.
             repetition_time=all_metadata[0]['RepetitionTime'],
         )
 
-        ds_bold_cifti = pe.Node(
-            DerivativesDataSink(
-                base_directory=fmriprep_dir,
+        prep_bold_cifti = pe.Node(
+            PrepareDerivative(
                 dismiss_entities=dismiss_echo(),
                 space='fsLR',
                 density=config.workflow.cifti_output,
@@ -595,10 +615,15 @@ excluding voxels whose time-series have a locally high coefficient of variation.
                 TaskName=all_metadata[0].get('TaskName'),
                 **prepare_timing_parameters(all_metadata[0]),
             ),
+            name='prep_bold_cifti',
+        )
+        prep_bold_cifti.inputs.source_file = bold_file
+
+        ds_bold_cifti = pe.Node(
+            SaveDerivative(base_directory=fmriprep_dir),
             name='ds_bold_cifti',
             run_without_submitting=True,
         )
-        ds_bold_cifti.inputs.source_file = bold_file
 
         workflow.connect([
             # Resample BOLD to MNI152NLin6Asym, may duplicate bold_std_wf above
@@ -637,9 +662,14 @@ excluding voxels whose time-series have a locally high coefficient of variation.
             (bold_fsLR_resampling_wf, bold_grayords_wf, [
                 ('outputnode.bold_fsLR', 'inputnode.bold_fsLR'),
             ]),
-            (bold_grayords_wf, ds_bold_cifti, [
+            (bold_grayords_wf, prep_bold_cifti, [
                 ('outputnode.cifti_bold', 'in_file'),
-                (('outputnode.cifti_metadata', _read_json), 'meta_dict'),
+                ('outputnode.cifti_metadata', 'meta_dict'),
+            ]),
+            (prep_bold_cifti, ds_bold_cifti, [
+                ('out_file', 'in_file'),
+                ('out_path', 'relative_path'),
+                ('out_meta', 'metadata'),
             ]),
         ])  # fmt:skip
 
@@ -653,18 +683,21 @@ excluding voxels whose time-series have a locally high coefficient of variation.
         name='bold_confounds_wf',
     )
 
-    ds_confounds = pe.Node(
-        DerivativesDataSink(
-            base_directory=fmriprep_dir,
+    prepare_confounds = pe.Node(
+        PrepareDerivative(
             desc='confounds',
             suffix='timeseries',
             dismiss_entities=dismiss_echo(),
         ),
+        name='prepare_confounds',
+        run_without_submitting=True,
+    )
+    ds_confounds = pe.Node(
+        SaveDerivative(base_directory=fmriprep_dir),
         name='ds_confounds',
         run_without_submitting=True,
-        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
-    ds_confounds.inputs.source_file = bold_file
+    prepare_confounds.inputs.source_file = bold_file
 
     workflow.connect([
         (inputnode, bold_confounds_wf, [
@@ -681,9 +714,14 @@ excluding voxels whose time-series have a locally high coefficient of variation.
         (bold_native_wf, bold_confounds_wf, [
             ('outputnode.bold_native', 'inputnode.bold'),
         ]),
-        (bold_confounds_wf, ds_confounds, [
+        (bold_confounds_wf, prepare_confounds, [
             ('outputnode.confounds_file', 'in_file'),
             ('outputnode.confounds_metadata', 'meta_dict'),
+        ]),
+        (prepare_confounds, ds_confounds, [
+            ('out_file', 'in_file'),
+            ('out_path', 'relative_path'),
+            ('out_meta', 'metadata'),
         ]),
     ])  # fmt:skip
 
@@ -726,6 +764,7 @@ excluding voxels whose time-series have a locally high coefficient of variation.
     for node in workflow.list_node_names():
         if node.split('.')[-1].startswith('ds_report'):
             workflow.get_node(node).inputs.base_directory = fmriprep_dir
+        if node.split('.')[-1].startswith('prep_report'):
             workflow.get_node(node).inputs.source_file = bold_file
 
     return workflow
