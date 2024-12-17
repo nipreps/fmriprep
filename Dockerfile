@@ -242,10 +242,6 @@ ENV LANG="C.UTF-8" \
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
-# MSM HOCR (Nov 19, 2019 release)
-RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/ecr05/MSM_HOCR/releases/assets/16253707 -o /usr/local/bin/msm \
-    && chmod +x /usr/local/bin/msm
-
 # Installing FMRIPREP
 COPY --from=src /src/dist/*.whl .
 RUN pip install --no-cache-dir $( ls *.whl )[container,test]
