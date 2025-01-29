@@ -17,6 +17,7 @@ def init_bold_volumetric_resample_wf(
     metadata: dict,
     mem_gb: dict[str, float],
     jacobian: bool,
+    fallback_total_readout_time: str | float | None = None,
     fieldmap_id: str | None = None,
     omp_nthreads: int = 1,
     name: str = 'bold_volumetric_resample_wf',
@@ -161,7 +162,10 @@ def init_bold_volumetric_resample_wf(
         run_without_submitting=True,
     )
     distortion_params = pe.Node(
-        DistortionParameters(metadata=metadata),
+        DistortionParameters(
+            metadata=metadata,
+            fallback=fallback_total_readout_time,
+        ),
         name='distortion_params',
         run_without_submitting=True,
     )

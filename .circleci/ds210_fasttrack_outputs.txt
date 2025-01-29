@@ -17,8 +17,7 @@ sub-02/anat/sub-02_space-MNI152NLin2009cAsym_label-CSF_desc-preproc_probseg.nii.
 sub-02/anat/sub-02_space-MNI152NLin2009cAsym_label-GM_desc-preproc_probseg.nii.gz
 sub-02/anat/sub-02_space-MNI152NLin2009cAsym_label-WM_desc-preproc_probseg.nii.gz
 sub-02/fmap
-sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-coeff0_fieldmap.nii.gz
-sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-coeff1_fieldmap.nii.gz
+sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz
 sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz
 sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-preproc_fieldmap.json
 sub-02/fmap/sub-02_run-01_fmapid-auto00000_desc-preproc_fieldmap.nii.gz

@@ -486,7 +486,6 @@ jobs:
 
             # Inject pretend metadata
             json_sidecar=/tmp/data/${DATASET}/task-mixedgamblestask_bold.json
-            awk 'NR==1{print; print "    \"TotalReadoutTime\": 0.05,"} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
             awk 'NR==1{print; print "    \"PhaseEncodingDirection\": \"j\","} NR!=1' ${json_sidecar} > tmp && mv tmp ${json_sidecar}
 
             fmriprep-docker -i nipreps/fmriprep:latest \
@@ -530,7 +529,8 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-partial participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
-                --sloppy --write-graph --use-syn-sdc --mem-mb 14336 \
+                --use-syn-sdc --fallback-total-readout-time 0.03125 \
+                --sloppy --write-graph --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --nthreads 4 --cifti-output --project-goodvoxels -vv
       - store_artifacts:
@@ -745,7 +745,7 @@ jobs:
             # Inject pretend metadata for SDCFlows not to crash
             # TODO / open question - do all echos need the metadata?
             chmod +w /tmp/data/${DATASET}
-            echo '{"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.058}' >> /tmp/data/${DATASET}/task-cuedSGT_bold.json
+            echo '{"PhaseEncodingDirection": "j"}' >> /tmp/data/${DATASET}/task-cuedSGT_bold.json
             chmod -R -w /tmp/data/${DATASET}
 
             fmriprep-docker -i nipreps/fmriprep:latest \
@@ -754,7 +754,8 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep participant \
                 ${FASTRACK_ARG} \
                 --me-output-echos \
-                --fs-no-reconall --use-syn-sdc --ignore slicetiming \
+                --fs-no-reconall --ignore slicetiming \
+                --use-syn-sdc --fallback-total-readout-time 0.0625 \
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \
                 --mem-mb 14336 --nthreads 4 -vv
