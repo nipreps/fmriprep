@@ -151,6 +151,16 @@ def _build_parser(**kwargs):
             raise parser.error(f'Slice time reference must be in range 0-1. Received {value}.')
         return value
 
+    def _fallback_trt(value, parser):
+        if value == 'estimated':
+            return value
+        try:
+            return float(value)
+        except ValueError:
+            raise parser.error(
+                f'Falling back to TRT must be a number or "estimated". Received {value}.'
+            ) from None
+
     verstr = f'fMRIPrep v{config.environment.version}'
     currentv = Version(config.environment.version)
     is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
@@ -165,6 +175,7 @@ def _build_parser(**kwargs):
     PositiveInt = partial(_min_one, parser=parser)
     BIDSFilter = partial(_bids_filter, parser=parser)
     SliceTimeRef = partial(_slice_time_ref, parser=parser)
+    FallbackTRT = partial(_fallback_trt, parser=parser)
 
     # Arguments as specified by BIDS-Apps
     # required, positional arguments
@@ -422,6 +433,15 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=None,
         type=int,
         help='Number of nonsteady-state volumes. Overrides automatic detection.',
+    )
+    g_conf.add_argument(
+        '--fallback-total-readout-time',
+        required=False,
+        action='store',
+        default=None,
+        type=FallbackTRT,
+        help='Fallback value for Total Readout Time (TRT) calculation. '
+        'May be a number or "estimated".',
     )
     g_conf.add_argument(
         '--random-seed',

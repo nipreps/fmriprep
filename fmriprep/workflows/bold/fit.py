@@ -843,7 +843,11 @@ def init_bold_native_wf(
         )
 
         distortion_params = pe.Node(
-            DistortionParameters(metadata=metadata, in_file=bold_file),
+            DistortionParameters(
+                metadata=metadata,
+                in_file=bold_file,
+                fallback=config.workflow.fallback_total_readout_time,
+            ),
             name='distortion_params',
             run_without_submitting=True,
         )
