@@ -32,8 +32,6 @@ from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
-from ...config import DEFAULT_MEMORY_MIN_GB
-
 
 def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
     """
@@ -73,14 +71,11 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
     -------
     xforms
         ITKTransform file aligning each volume to ``ref_image``
-    movpar_file
-        MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
     rmsd_file
         Root mean squared deviation as measured by ``fsl_motion_outliers`` [Jenkinson2002]_.
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.confounds import NormalizeMotionParams
     from niworkflows.interfaces.itk import MCFLIRT2ITK
 
     workflow = Workflow(name=name)
@@ -94,9 +89,7 @@ parameters) are estimated before any spatiotemporal filtering using
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']), name='inputnode'
     )
-    outputnode = pe.Node(
-        niu.IdentityInterface(fields=['xforms', 'movpar_file', 'rmsd_file']), name='outputnode'
-    )
+    outputnode = pe.Node(niu.IdentityInterface(fields=['xforms', 'rmsd_file']), name='outputnode')
 
     # Head motion correction (hmc)
     mcflirt = pe.Node(
@@ -107,25 +100,17 @@ parameters) are estimated before any spatiotemporal filtering using
 
     fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
 
-    normalize_motion = pe.Node(
-        NormalizeMotionParams(format='FSL'), name='normalize_motion', mem_gb=DEFAULT_MEMORY_MIN_GB
-    )
-
     def _pick_rel(rms_files):
         return rms_files[-1]
 
-    # fmt:off
     workflow.connect([
         (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
                               ('bold_file', 'in_file')]),
         (inputnode, fsl2itk, [('raw_ref_image', 'in_source'),
                               ('raw_ref_image', 'in_reference')]),
         (mcflirt, fsl2itk, [('mat_file', 'in_files')]),
-        (mcflirt, normalize_motion, [('par_file', 'in_file')]),
         (mcflirt, outputnode, [(('rms_files', _pick_rel), 'rmsd_file')]),
         (fsl2itk, outputnode, [('out_file', 'xforms')]),
-        (normalize_motion, outputnode, [('out_file', 'movpar_file')]),
-    ])
-    # fmt:on
+    ])  # fmt:skip
 
     return workflow

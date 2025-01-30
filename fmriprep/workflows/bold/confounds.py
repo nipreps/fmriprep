@@ -38,6 +38,8 @@ from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
     FilterDropped,
     FMRISummary,
+    FramewiseDisplacement,
+    FSLMotionParams,
     GatherConfounds,
     RenameACompCor,
 )
@@ -120,8 +122,8 @@ def init_bold_confs_wf(
         when available.
     bold_mask
         BOLD series mask
-    movpar_file
-        SPM-formatted motion parameters file
+    motion_xfm
+        ITK-formatted head motion transforms
     rmsd_file
         Root mean squared deviation as measured by ``fsl_motion_outliers`` [Jenkinson2002]_.
     skip_vols
@@ -221,7 +223,8 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
             fields=[
                 'bold',
                 'bold_mask',
-                'movpar_file',
+                'hmc_boldref',
+                'motion_xfm',
                 'rmsd_file',
                 'skip_vols',
                 't1w_mask',
@@ -262,8 +265,11 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         mem_gb=mem_gb,
     )
 
+    # Motion parameters
+    motion_params = pe.Node(FSLMotionParams(), name='motion_params')
+
     # Frame displacement
-    fdisp = pe.Node(nac.FramewiseDisplacement(parameter_source='SPM'), name='fdisp', mem_gb=mem_gb)
+    fdisp = pe.Node(FramewiseDisplacement(), name='fdisp', mem_gb=mem_gb)
 
     # Generate aCompCor probseg maps
     acc_masks = pe.Node(aCompCorMasks(is_aseg=freesurfer), name='acc_masks')
@@ -364,12 +370,6 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     add_std_dvars_header = pe.Node(
         AddTSVHeader(columns=['std_dvars']),
         name='add_std_dvars_header',
-        mem_gb=0.01,
-        run_without_submitting=True,
-    )
-    add_motion_headers = pe.Node(
-        AddTSVHeader(columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']),
-        name='add_motion_headers',
         mem_gb=0.01,
         run_without_submitting=True,
     )
@@ -518,12 +518,13 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
             if not col.startswith(('a_comp_cor_', 't_comp_cor_', 'std_dvars'))
         ]
 
-    # fmt:off
     workflow.connect([
         # connect inputnode to each non-anatomical confound node
         (inputnode, dvars, [('bold', 'in_file'),
                             ('bold_mask', 'in_mask')]),
-        (inputnode, fdisp, [('movpar_file', 'in_file')]),
+        (inputnode, motion_params, [('motion_xfm', 'xfm_file'),
+                                    ('hmc_boldref', 'boldref_file')]),
+        (motion_params, fdisp, [('out_file', 'in_file')]),
         # Brain mask
         (inputnode, t1w_mask_tfm, [('t1w_mask', 'input_image'),
                                    ('bold_mask', 'reference_image'),
@@ -566,7 +567,6 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         (merge_rois, signals, [('out', 'label_files')]),
 
         # Collate computed confounds together
-        (inputnode, add_motion_headers, [('movpar_file', 'in_file')]),
         (inputnode, add_rmsd_header, [('rmsd_file', 'in_file')]),
         (dvars, add_dvars_header, [('out_nstd', 'in_file')]),
         (dvars, add_std_dvars_header, [('out_std', 'in_file')]),
@@ -576,7 +576,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
                             ('pre_filter_file', 'cos_basis')]),
         (rename_acompcor, concat, [('components_file', 'acompcor')]),
         (crowncompcor, concat, [('components_file', 'crowncompcor')]),
-        (add_motion_headers, concat, [('out_file', 'motion')]),
+        (motion_params, concat, [('out_file', 'motion')]),
         (add_rmsd_header, concat, [('out_file', 'rmsd')]),
         (add_dvars_header, concat, [('out_file', 'dvars')]),
         (add_std_dvars_header, concat, [('out_file', 'std_dvars')]),
@@ -617,8 +617,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         (concat, conf_corr_plot, [('confounds_file', 'confounds_file'),
                                   (('confounds_file', _select_cols), 'columns')]),
         (conf_corr_plot, ds_report_conf_corr, [('out_file', 'in_file')]),
-    ])
-    # fmt: on
+    ])  # fmt: skip
 
     return workflow
 

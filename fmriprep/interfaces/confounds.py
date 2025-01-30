@@ -34,6 +34,7 @@ import os
 import re
 
 import nibabel as nb
+import nitransforms as nt
 import numpy as np
 import pandas as pd
 from nipype import logging
@@ -50,6 +51,8 @@ from nipype.interfaces.base import (
 from nipype.utils.filemanip import fname_presuffix
 from nireports.reportlets.modality.func import fMRIPlot
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
+from scipy import ndimage as ndi
+from scipy.spatial import transform as sst
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -84,6 +87,93 @@ class aCompCorMasks(SimpleInterface):
             self.inputs.is_aseg,
             self.inputs.bold_zooms,
         )
+        return runtime
+
+
+class _FSLMotionParamsInputSpec(BaseInterfaceInputSpec):
+    xfm_file = File(exists=True, desc='Head motion transform file')
+    boldref_file = File(exists=True, desc='BOLD reference file')
+
+
+class _FSLMotionParamsOutputSpec(TraitedSpec):
+    out_file = File(desc='Output motion parameters file')
+
+
+class FSLMotionParams(SimpleInterface):
+    """Reconstruct FSL motion parameters from affine transforms."""
+
+    input_spec = _FSLMotionParamsInputSpec
+    output_spec = _FSLMotionParamsOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
+        )
+
+        boldref = nb.load(self.inputs.boldref_file)
+        hmc = nt.linear.load(self.inputs.xfm_file)
+
+        # FSL's "center of gravity" is the center of mass scaled by zooms
+        # No rotation is applied.
+        center_of_gravity = np.matmul(
+            np.diag(boldref.header.get_zooms()),
+            ndi.center_of_mass(np.asanyarray(boldref.dataobj)),
+        )
+
+        # Revert to vox2vox transforms
+        fsl_hmc = nt.io.fsl.FSLLinearTransformArray.from_ras(
+            hmc.matrix, reference=boldref, moving=boldref
+        )
+        fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
+
+        # FSL uses left-handed rotation conventions, so transpose
+        mats = fsl_matrix[:, :3, :3].transpose(0, 2, 1)
+
+        # Rotations are recovered directly
+        rot_xyz = sst.Rotation.from_matrix(mats).as_euler('XYZ')
+        # Translations are recovered by applying the rotation to the center of gravity
+        trans_xyz = fsl_matrix[:, :3, 3] - mats @ center_of_gravity + center_of_gravity
+
+        params = pd.DataFrame(
+            data=np.hstack((trans_xyz, rot_xyz)),
+            columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
+        )
+
+        params.to_csv(self._results['out_file'], sep='\t', index=False)
+
+        return runtime
+
+
+class _FramewiseDisplacementInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, desc='Head motion transform file')
+    radius = traits.Float(50, usedefault=True, desc='Radius of the head in mm')
+
+
+class _FramewiseDisplacementOutputSpec(TraitedSpec):
+    out_file = File(desc='Output framewise displacement file')
+
+
+class FramewiseDisplacement(SimpleInterface):
+    """Calculate framewise displacement estimates."""
+
+    input_spec = _FramewiseDisplacementInputSpec
+    output_spec = _FramewiseDisplacementOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_file, suffix='_fd.tsv', newpath=runtime.cwd
+        )
+
+        motion = pd.read_csv(self.inputs.in_file, delimiter='\t')
+
+        # Filter and ensure we have all parameters
+        diff = motion[['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']].diff()
+        diff[['rot_x', 'rot_y', 'rot_z']] *= self.inputs.radius
+
+        fd = pd.DataFrame(diff.abs().sum(axis=1), columns=['FramewiseDisplacement'])
+
+        fd.to_csv(self._results['out_file'], sep='\t', index=False)
+
         return runtime
 
 

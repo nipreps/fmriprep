@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 from nipype.pipeline import engine as pe
 
 from fmriprep.interfaces import confounds
@@ -29,3 +31,36 @@ def test_FilterDropped(tmp_path, data_dir):
     target_meta = Path.read_text(data_dir / 'component_metadata_filtered.tsv')
     filtered_meta = Path(res.outputs.out_file).read_text()
     assert filtered_meta == target_meta
+
+
+def test_FSLMotionParams(tmp_path, data_dir):
+    base = 'sub-01_task-mixedgamblestask_run-01'
+    xfms = data_dir / f'{base}_from-orig_to-boldref_mode-image_desc-hmc_xfm.txt'
+    boldref = data_dir / f'{base}_desc-hmc_boldref.nii.gz'
+    orig_timeseries = data_dir / f'{base}_desc-motion_timeseries.tsv'
+
+    motion = pe.Node(
+        confounds.FSLMotionParams(xfm_file=str(xfms), boldref_file=str(boldref)),
+        name='fsl_motion',
+        base_dir=str(tmp_path),
+    )
+    res = motion.run()
+
+    orig_params = pd.read_csv(orig_timeseries, sep='\t')
+    derived_params = pd.read_csv(res.outputs.out_file, sep='\t')
+
+    # Motion parameters are in mm and rad
+    # These are empirically determined bounds, but they seem reasonable
+    # for the units
+    limits = pd.DataFrame(
+        {
+            'trans_x': [1e-4],
+            'trans_y': [1e-4],
+            'trans_z': [1e-4],
+            'rot_x': [1e-6],
+            'rot_y': [1e-6],
+            'rot_z': [1e-6],
+        }
+    )
+    max_diff = (orig_params - derived_params).abs().max()
+    assert np.all(max_diff < limits)

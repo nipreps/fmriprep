@@ -178,8 +178,6 @@ def init_bold_fit_wf(
     boldref2fmap_xfm
         Affine transform mapping from BOLD reference space to the fieldmap
         space, if applicable.
-    movpar_file
-        MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
     rmsd_file
         Root mean squared deviation as measured by ``fsl_motion_outliers`` [Jenkinson2002]_.
     dummy_scans
@@ -287,7 +285,6 @@ def init_bold_fit_wf(
                 'motion_xfm',
                 'boldref2anat_xfm',
                 'boldref2fmap_xfm',
-                'movpar_file',
                 'rmsd_file',
             ],
         ),
@@ -303,7 +300,7 @@ def init_bold_fit_wf(
     )
     fmapref_buffer = pe.Node(niu.Function(function=_select_ref), name='fmapref_buffer')
     hmc_buffer = pe.Node(
-        niu.IdentityInterface(fields=['hmc_xforms', 'movpar_file', 'rmsd_file']), name='hmc_buffer'
+        niu.IdentityInterface(fields=['hmc_xforms', 'rmsd_file']), name='hmc_buffer'
     )
     fmapreg_buffer = pe.Node(
         niu.IdentityInterface(fields=['boldref2fmap_xfm']), name='fmapreg_buffer'
@@ -357,7 +354,6 @@ def init_bold_fit_wf(
         (fmapreg_buffer, outputnode, [('boldref2fmap_xfm', 'boldref2fmap_xfm')]),
         (hmc_buffer, outputnode, [
             ('hmc_xforms', 'motion_xfm'),
-            ('movpar_file', 'movpar_file'),
             ('rmsd_file', 'rmsd_file'),
         ]),
         (inputnode, func_fit_reports_wf, [
@@ -449,7 +445,6 @@ def init_bold_fit_wf(
             ]),
             (bold_hmc_wf, ds_hmc_wf, [('outputnode.xforms', 'inputnode.xforms')]),
             (bold_hmc_wf, hmc_buffer, [
-                ('outputnode.movpar_file', 'movpar_file'),
                 ('outputnode.rmsd_file', 'rmsd_file'),
             ]),
             (ds_hmc_wf, hmc_buffer, [('outputnode.xforms', 'hmc_xforms')]),

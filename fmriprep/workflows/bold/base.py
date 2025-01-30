@@ -673,7 +673,8 @@ excluding voxels whose time-series have a locally high coefficient of variation.
         ]),
         (bold_fit_wf, bold_confounds_wf, [
             ('outputnode.bold_mask', 'inputnode.bold_mask'),
-            ('outputnode.movpar_file', 'inputnode.movpar_file'),
+            ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
+            ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ('outputnode.rmsd_file', 'inputnode.rmsd_file'),
             ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
             ('outputnode.dummy_scans', 'inputnode.skip_vols'),
