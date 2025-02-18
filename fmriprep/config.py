@@ -623,6 +623,8 @@ class workflow(_Config):
     in the absence of any alternatives."""
     me_t2s_fit_method = 'curvefit'
     """The method by which to estimate T2*/S0 for multi-echo data"""
+    thermal_denoise_method = None
+    """Apply NORDIC or MP-PCA denoising to the BOLD data to remove thermal noise."""
 
 
 class loggers:

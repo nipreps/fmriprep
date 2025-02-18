@@ -43,6 +43,7 @@ sub-100185/func/sub-100185_task-machinegame_run-01_desc-hmc_boldref.json
 sub-100185/func/sub-100185_task-machinegame_run-01_desc-hmc_boldref.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-01_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-01_desc-preproc_bold.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-01_desc-noise_boldmap.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-01_from-boldref_to-auto00000_mode-image_xfm.json
 sub-100185/func/sub-100185_task-machinegame_run-01_from-boldref_to-auto00000_mode-image_xfm.txt
 sub-100185/func/sub-100185_task-machinegame_run-01_from-boldref_to-T1w_mode-image_desc-coreg_xfm.json
@@ -71,6 +72,7 @@ sub-100185/func/sub-100185_task-machinegame_run-02_desc-hmc_boldref.json
 sub-100185/func/sub-100185_task-machinegame_run-02_desc-hmc_boldref.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-02_desc-preproc_bold.json
 sub-100185/func/sub-100185_task-machinegame_run-02_desc-preproc_bold.nii.gz
+sub-100185/func/sub-100185_task-machinegame_run-02_desc-noise_boldmap.nii.gz
 sub-100185/func/sub-100185_task-machinegame_run-02_from-boldref_to-auto00000_mode-image_xfm.json
 sub-100185/func/sub-100185_task-machinegame_run-02_from-boldref_to-auto00000_mode-image_xfm.txt
 sub-100185/func/sub-100185_task-machinegame_run-02_from-boldref_to-T1w_mode-image_desc-coreg_xfm.json
