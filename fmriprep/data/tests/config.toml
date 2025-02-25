@@ -47,6 +47,7 @@ run_reconall = true
 skull_strip_fixed_seed = false
 skull_strip_template = "OASIS30ANTs"
 t2s_coreg = false
+thermal_denoise_method = "mppca"
 use_aroma = false
 
 [nipype]

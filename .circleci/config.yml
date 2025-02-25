@@ -650,6 +650,7 @@ jobs:
                 ${FASTRACK_ARG} \
                 --fs-no-reconall --sloppy \
                 --output-spaces MNI152NLin2009cAsym:res-2 anat func \
+                --thermal-denoise-method mppca \
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
       - run: *check_outputs
       - run:
@@ -757,6 +758,7 @@ jobs:
                 --fs-no-reconall --use-syn-sdc --ignore slicetiming \
                 --dummy-scans 1 --sloppy --write-graph \
                 --output-spaces MNI152NLin2009cAsym \
+                --thermal-denoise-method mppca \
                 --mem-mb 14336 --nthreads 4 -vv
       - run: *check_outputs
       - run:
