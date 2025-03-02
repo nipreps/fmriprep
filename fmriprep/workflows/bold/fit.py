@@ -95,7 +95,7 @@ def get_sbrefs(
 def init_bold_fit_wf(
     *,
     bold_series: list[str],
-    precomputed: dict = None,
+    precomputed: dict | None = None,
     fieldmap_id: str | None = None,
     jacobian: bool = False,
     omp_nthreads: int = 1,
