@@ -429,8 +429,8 @@ def _gather_confounds(
     # Taken from https://stackoverflow.com/questions/1175208/
     # If we end up using it more than just here, probably worth pulling in a well-tested package
     def camel_to_snake(name):
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
     def _adjust_indices(left_df, right_df):
         # This forces missing values to appear at the beginning of the DataFrame
