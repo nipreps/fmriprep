@@ -55,7 +55,7 @@ from .t2s import init_t2s_reporting_wf
 def init_bold_wf(
     *,
     bold_series: list[str],
-    precomputed: dict = None,
+    precomputed: dict | None = None,
     fieldmap_id: str | None = None,
     jacobian: bool = False,
 ) -> pe.Workflow:
