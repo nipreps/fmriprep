@@ -841,7 +841,7 @@ def init_bold_native_wf(
                 # Multiecho outputs
                 'bold_echos',  # Individual corrected echos
                 't2star_map',  # T2* map
-            ],  # fmt:skip
+            ],
         ),
         name='outputnode',
     )
