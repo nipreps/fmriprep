@@ -131,12 +131,12 @@ class SubjectSummary(SummaryInterface):
     def _generate_segment(self):
         BIDS_NAME = re.compile(
             r'^(.*\/)?'
-            '(?P<subject_id>sub-[a-zA-Z0-9]+)'
-            '(_(?P<session_id>ses-[a-zA-Z0-9]+))?'
-            '(_(?P<task_id>task-[a-zA-Z0-9]+))?'
-            '(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
-            '(_(?P<rec_id>rec-[a-zA-Z0-9]+))?'
-            '(_(?P<run_id>run-[a-zA-Z0-9]+))?'
+            r'(?P<subject_id>sub-[a-zA-Z0-9]+)'
+            r'(_(?P<session_id>ses-[a-zA-Z0-9]+))?'
+            r'(_(?P<task_id>task-[a-zA-Z0-9]+))?'
+            r'(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
+            r'(_(?P<rec_id>rec-[a-zA-Z0-9]+))?'
+            r'(_(?P<run_id>run-[a-zA-Z0-9]+))?'
         )
 
         if not isdefined(self.inputs.subjects_dir):
