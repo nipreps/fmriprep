@@ -117,8 +117,8 @@ def _make_params(
     use_syn_sdc: str | bool = False,
     force_syn: bool = False,
     freesurfer: bool = True,
-    ignore: list[str] = None,
-    bids_filters: dict = None,
+    ignore: list[str] | None = None,
+    bids_filters: dict | None = None,
 ):
     if ignore is None:
         ignore = []
