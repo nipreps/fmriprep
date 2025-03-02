@@ -156,7 +156,7 @@ def before_send(event, hints):
             return None
         if msg.startswith('Saving crash info to '):
             return None
-        if re.match('Node .+ failed to run on host .+', msg):
+        if re.match(r'Node .+ failed to run on host .+', msg):
             return None
 
     if 'breadcrumbs' in event and isinstance(event['breadcrumbs'], list):

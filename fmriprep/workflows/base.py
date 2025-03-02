@@ -792,8 +792,8 @@ def map_fieldmap_estimation(
     fmap_estimators = find_estimators(
         layout=layout,
         subject=subject_id,
-        fmapless=bool(use_syn) or ignore_fieldmaps and force_syn,
-        force_fmapless=force_syn or ignore_fieldmaps and use_syn,
+        fmapless=bool(use_syn) or (ignore_fieldmaps and force_syn),
+        force_fmapless=force_syn or (ignore_fieldmaps and use_syn),
         bids_filters=filters,
     )
 
