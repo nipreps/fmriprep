@@ -115,9 +115,9 @@ def _make_params(
     skull_strip_t1w: str = 'auto',
     use_syn_sdc: str | bool = False,
     freesurfer: bool = True,
-    ignore: list[str] = None,
-    force: list[str] = None,
-    bids_filters: dict = None,
+    ignore: list[str] | None = None,
+    force: list[str] | None = None,
+    bids_filters: dict | None = None,
 ):
     if ignore is None:
         ignore = []
