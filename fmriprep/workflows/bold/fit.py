@@ -231,7 +231,7 @@ def init_bold_fit_wf(
     metadata = layout.get_metadata(bold_file)
     orientation = ''.join(nb.aff2axcodes(nb.load(bold_file).affine))
 
-    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
+    _bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
     # Boolean used to update workflow self-descriptions
     multiecho = len(bold_series) > 1
@@ -793,7 +793,7 @@ def init_bold_native_wf(
     bold_file = bold_series[0]
     metadata = all_metadata[0]
 
-    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
+    _bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
     if multiecho:
         shapes = [nb.load(echo).shape for echo in bold_series]
