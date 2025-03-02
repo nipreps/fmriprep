@@ -780,9 +780,7 @@ def get(flat=False):
         return settings
 
     return {
-        '.'.join((section, k)): v
-        for section, configs in settings.items()
-        for k, v in configs.items()
+        f'{section}.{k}': v for section, configs in settings.items() for k, v in configs.items()
     }
 
 
