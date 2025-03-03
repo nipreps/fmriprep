@@ -391,6 +391,32 @@ For a more accurate estimation of head-motion, we calculate its parameters
 before any time-domain filtering (i.e., :ref:`slice-timing correction <bold_stc>`),
 as recommended in [Power2017]_.
 
+
+Thermal noise removal
+~~~~~~~~~~~~~~~~~~~~~
+:py:func:`~fmriprep.workflows.bold.denoise.init_bold_dwidenoise_wf`
+
+.. workflow::
+    :graph2use: colored
+    :simple_form: yes
+
+    from fmriprep.workflows.bold.denoise import init_bold_dwidenoise_wf
+
+    wf = init_bold_dwidenoise_wf(
+        has_phase=True,
+        has_norf=True,
+        mem_gb=1,
+    )
+
+Functional MRI exhibits low signal-to-noise, which is exacerbated by thermal noise,
+especially at higher field strengths.
+Thermal noise removal with the ``dwidenoise`` tool from MRtrix3 can be enabled
+with the ``--thermal-denoise-method`` parameter.
+fMRIPrep will automatically leverage phase data, when available, to improve the
+denoising process.
+This can be disabled with the ``--ignore phase`` command line argument.
+
+
 .. _bold_stc:
 
 Slice time correction

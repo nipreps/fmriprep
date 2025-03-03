@@ -334,7 +334,16 @@ def _build_parser(**kwargs):
         action='store',
         nargs='+',
         default=[],
-        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian'],
+        choices=[
+            'fieldmaps',
+            'slicetiming',
+            'sbref',
+            't2w',
+            'flair',
+            'fmap-jacobian',
+            'phase',
+            'norf',
+        ],
         help='Ignore selected aspects of the input dataset to disable corresponding '
         'parts of the workflow (a space delimited list)',
     )
@@ -443,6 +452,14 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
             "'loglin' uses log-linear regression. "
             'It is faster and less memory intensive, but may be less accurate.'
         ),
+    )
+    g_conf.add_argument(
+        '--thermal-denoise-method',
+        action='store',
+        dest='thermal_denoise_method',
+        default=None,
+        choices=['mppca'],
+        help='Apply MP-PCA denoising to the BOLD data to remove thermal noise',
     )
 
     g_outputs = parser.add_argument_group('Options for modulating outputs')

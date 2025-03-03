@@ -656,6 +656,9 @@ def init_ds_bold_native_wf(
             fields=[
                 'source_files',
                 'bold',
+                # Thermal noise map
+                'thermal_noise',
+                # Multi-echo outputs
                 'bold_echos',
                 't2star',
                 # Transforms previously used to generate the outputs
@@ -729,6 +732,46 @@ def init_ds_bold_native_wf(
                 ('t2star', 'in_file'),
             ]),
             (sources, ds_t2star, [('out', 'Sources')]),
+        ])  # fmt:skip
+
+        if config.workflow.thermal_denoise_method:
+            ds_noise = pe.MapNode(
+                DerivativesDataSink(
+                    base_directory=output_dir,
+                    desc='noise',
+                    suffix='boldmap',
+                    compress=True,
+                ),
+                iterfield=['source_file', 'in_file', 'meta_dict'],
+                name='ds_noise',
+                run_without_submitting=True,
+                mem_gb=DEFAULT_MEMORY_MIN_GB,
+            )
+            ds_noise.inputs.meta_dict = [{'EchoTime': md['EchoTime']} for md in all_metadata]
+            workflow.connect([
+                (inputnode, ds_noise, [
+                    ('source_files', 'source_file'),
+                    ('thermal_noise', 'in_file'),
+                ]),
+            ])  # fmt:skip
+    elif bold_output and config.workflow.thermal_denoise_method:
+        ds_noise = pe.Node(
+            DerivativesDataSink(
+                base_directory=output_dir,
+                desc='noise',
+                suffix='boldmap',
+                compress=True,
+                dismiss_entities=dismiss_echo(),
+            ),
+            name='ds_noise',
+            run_without_submitting=True,
+            mem_gb=DEFAULT_MEMORY_MIN_GB,
+        )
+        workflow.connect([
+            (inputnode, ds_noise, [
+                ('source_files', 'source_file'),
+                ('thermal_noise', 'in_file'),
+            ]),
         ])  # fmt:skip
 
     if echo_output:

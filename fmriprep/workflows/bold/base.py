@@ -328,6 +328,7 @@ configured with cubic B-spline interpolation.
         workflow.connect([
             (bold_native_wf, ds_bold_native_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
+                ('outputnode.thermal_noise', 'inputnode.thermal_noise'),
                 ('outputnode.bold_echos', 'inputnode.bold_echos'),
                 ('outputnode.t2star_map', 'inputnode.t2star'),
             ]),

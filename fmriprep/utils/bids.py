@@ -421,3 +421,20 @@ def _find_nearest_path(path_dict, input_path):
         matching_path = f'{matching_key}{matching_path}'
 
     return matching_path
+
+
+def get_associated(source_files, query, entity_overrides, layout):
+    """Get the associated files for a query from a layout."""
+    query.update(entity_overrides)
+    associated = []
+    for source_file in source_files:
+        associated_file = layout.get_nearest(source_file, strict=True, **query)
+        if associated_file:
+            associated.append(associated_file)
+
+    if len(associated) not in (0, len(source_files)):
+        raise ValueError(
+            f'Expected 0 or {len(source_files)} associated files, but found {len(associated)}'
+        )
+
+    return associated
