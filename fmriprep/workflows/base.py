@@ -533,6 +533,18 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
+    fmap_cache = {}
+    if config.execution.derivatives:
+        from fmriprep.utils.bids import collect_fieldmaps
+
+        for deriv_dir in config.execution.derivatives.values():
+            fmap_cache.update(
+                collect_fieldmaps(
+                    derivatives_dir=deriv_dir,
+                    entities={'subject': subject_id},
+                )
+            )
+
     fmap_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
         subject_id=subject_id,
