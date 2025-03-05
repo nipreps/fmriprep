@@ -28,6 +28,7 @@ import json
 import os
 import sys
 from collections import defaultdict
+from functools import cache
 from pathlib import Path
 
 from bids.layout import BIDSLayout
@@ -36,6 +37,15 @@ from packaging.version import Version
 
 from .. import config
 from ..data import load as load_data
+
+
+@cache
+def _get_layout(derivatives_dir: Path) -> BIDSLayout:
+    import niworkflows.data
+
+    return BIDSLayout(
+        derivatives_dir, config=[niworkflows.data.load('nipreps.json')], validate=False
+    )
 
 
 def collect_derivatives(
@@ -57,8 +67,7 @@ def collect_derivatives(
             patterns = _patterns
 
     derivs_cache = defaultdict(list, {})
-    layout = BIDSLayout(derivatives_dir, config=['bids', 'derivatives'], validate=False)
-    derivatives_dir = Path(derivatives_dir)
+    layout = _get_layout(derivatives_dir)
 
     # search for both boldrefs
     for k, q in spec['baseline'].items():
