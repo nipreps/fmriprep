@@ -34,7 +34,7 @@
       "boldref2anat": {
         "datatype": "func",
         "from": "boldref",
-        "to": "anat",
+        "to": ["anat", "T1w", "T2w"],
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"

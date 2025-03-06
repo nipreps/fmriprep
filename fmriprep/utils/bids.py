@@ -28,6 +28,7 @@ import json
 import os
 import sys
 from collections import defaultdict
+from functools import cache
 from pathlib import Path
 
 from bids.layout import BIDSLayout
@@ -36,6 +37,15 @@ from packaging.version import Version
 
 from .. import config
 from ..data import load as load_data
+
+
+@cache
+def _get_layout(derivatives_dir: Path) -> BIDSLayout:
+    import niworkflows.data
+
+    return BIDSLayout(
+        derivatives_dir, config=[niworkflows.data.load('nipreps.json')], validate=False
+    )
 
 
 def collect_derivatives(
@@ -57,8 +67,7 @@ def collect_derivatives(
             patterns = _patterns
 
     derivs_cache = defaultdict(list, {})
-    layout = BIDSLayout(derivatives_dir, config=['bids', 'derivatives'], validate=False)
-    derivatives_dir = Path(derivatives_dir)
+    layout = _get_layout(derivatives_dir)
 
     # search for both boldrefs
     for k, q in spec['baseline'].items():
@@ -84,6 +93,31 @@ def collect_derivatives(
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
     derivs_cache['transforms'] = transforms_cache
     return derivs_cache
+
+
+def collect_fieldmaps(
+    derivatives_dir: Path,
+    entities: dict,
+    spec: dict | None = None,
+):
+    """Gather existing derivatives and compose a cache."""
+    if spec is None:
+        spec = json.loads(load_data.readable('fmap_spec.json').read_text())['queries']
+
+    fmap_cache = defaultdict(dict, {})
+    layout = _get_layout(derivatives_dir)
+
+    fmapids = layout.get_fmapids(**entities)
+
+    for fmapid in fmapids:
+        for k, q in spec['fieldmaps'].items():
+            query = {**entities, **q}
+            item = layout.get(return_type='filename', fmapid=fmapid, **query)
+            if not item:
+                continue
+            fmap_cache[fmapid][k] = item[0] if len(item) == 1 else item
+
+    return fmap_cache
 
 
 def write_bidsignore(deriv_dir):
