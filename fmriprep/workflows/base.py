@@ -557,7 +557,7 @@ It is released under the [CC0]\
         bold_data=bold_runs,
         ignore_fieldmaps='fieldmaps' in config.workflow.ignore,
         use_syn=config.workflow.use_syn_sdc,
-        force_syn=config.workflow.force_syn,
+        force_syn='syn-sdc' in config.workflow.force,
         filters=config.execution.get().get('bids_filters', {}).get('fmap'),
     )
 
@@ -566,6 +566,7 @@ It is released under the [CC0]\
         for field in ['fmap', 'fmap_ref', 'fmap_coeff', 'fmap_mask', 'fmap_id', 'sdc_method']
     }
 
+    estimator_types = {est.bids_id: est.method for est in all_estimators}
     fmap_estimators = []
     if all_estimators:
         # Find precomputed fieldmaps that apply to this workflow
@@ -738,6 +739,15 @@ tasks and sessions), the following preprocessing was performed.
     for bold_series in bold_runs:
         bold_file = bold_series[0]
         fieldmap_id = estimator_map.get(bold_file)
+        jacobian = False
+
+        if fieldmap_id:
+            if 'fmap-jacobian' in config.workflow.force:
+                jacobian = True
+            elif 'fmap-jacobian' not in config.workflow.ignore:
+                # Default behavior is to only use Jacobians for PEPOLAR fieldmaps
+                est_type = estimator_types[fieldmap_id]
+                jacobian = est_type == est_type.__class__.PEPOLAR
 
         functional_cache = {}
         if config.execution.derivatives:
@@ -758,6 +768,7 @@ tasks and sessions), the following preprocessing was performed.
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
+            jacobian=jacobian,
         )
         if bold_wf is None:
             continue
@@ -846,7 +857,7 @@ def map_fieldmap_estimation(
     # In the case where fieldmaps are ignored and `--use-syn-sdc` is requested,
     # SDCFlows `find_estimators` still receives a full layout (which includes the fmap modality)
     # and will not calculate fmapless schemes.
-    # Similarly, if fieldmaps are ignored and `--force-syn` is requested,
+    # Similarly, if fieldmaps are ignored and `--force syn-sdc` is requested,
     # `fmapless` should be set to True to ensure BOLD targets are found to be corrected.
     fmap_estimators = find_estimators(
         layout=layout,
@@ -870,7 +881,7 @@ def map_fieldmap_estimation(
     if ignore_fieldmaps and any(f.method == fm.EstimatorType.ANAT for f in fmap_estimators):
         config.loggers.workflow.info(
             'Option "--ignore fieldmaps" was set, but either "--use-syn-sdc" '
-            'or "--force-syn" were given, so fieldmap-less estimation will be executed.'
+            'or "--force syn-sdc" were given, so fieldmap-less estimation will be executed.'
         )
         fmap_estimators = [f for f in fmap_estimators if f.method == fm.EstimatorType.ANAT]
 
