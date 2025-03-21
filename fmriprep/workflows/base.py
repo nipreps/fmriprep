@@ -566,6 +566,7 @@ It is released under the [CC0]\
         for field in ['fmap', 'fmap_ref', 'fmap_coeff', 'fmap_mask', 'fmap_id', 'sdc_method']
     }
 
+    estimator_types = {est.bids_id: est.method for est in all_estimators}
     fmap_estimators = []
     if all_estimators:
         # Find precomputed fieldmaps that apply to this workflow
@@ -738,6 +739,15 @@ tasks and sessions), the following preprocessing was performed.
     for bold_series in bold_runs:
         bold_file = bold_series[0]
         fieldmap_id = estimator_map.get(bold_file)
+        jacobian = False
+
+        if fieldmap_id:
+            if 'fmap-jacobian' in config.workflow.force:
+                jacobian = True
+            elif 'fmap-jacobian' not in config.workflow.ignore:
+                # Default behavior is to only use Jacobians for PEPOLAR fieldmaps
+                est_type = estimator_types[fieldmap_id]
+                jacobian = est_type == est_type.__class__.PEPOLAR
 
         functional_cache = {}
         if config.execution.derivatives:
@@ -758,6 +768,7 @@ tasks and sessions), the following preprocessing was performed.
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
+            jacobian=jacobian,
         )
         if bold_wf is None:
             continue

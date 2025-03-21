@@ -97,6 +97,7 @@ def init_bold_fit_wf(
     bold_series: list[str],
     precomputed: dict = None,
     fieldmap_id: str | None = None,
+    jacobian: bool = False,
     omp_nthreads: int = 1,
     name: str = 'bold_fit_wf',
 ) -> pe.Workflow:
@@ -668,6 +669,7 @@ def init_bold_native_wf(
     *,
     bold_series: list[str],
     fieldmap_id: str | None = None,
+    jacobian: bool = False,
     omp_nthreads: int = 1,
     name: str = 'bold_native_wf',
 ) -> pe.Workflow:
@@ -875,7 +877,7 @@ def init_bold_native_wf(
 
     # Resample to boldref
     boldref_bold = pe.Node(
-        ResampleSeries(jacobian='fmap-jacobian' not in config.workflow.ignore),
+        ResampleSeries(jacobian=jacobian),
         name='boldref_bold',
         n_procs=omp_nthreads,
         mem_gb=mem_gb['resampled'],

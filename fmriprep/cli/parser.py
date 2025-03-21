@@ -347,7 +347,7 @@ def _build_parser(**kwargs):
         action='store',
         nargs='+',
         default=[],
-        choices=['bbr', 'no-bbr', 'syn-sdc'],
+        choices=['bbr', 'no-bbr', 'syn-sdc', 'fmap-jacobian'],
         help='Force selected processing choices, overriding automatic selections '
         '(a space delimited list).\n'
         ' * [no-]bbr: Use/disable boundary-based registration for BOLD-to-T1w coregistration\n'
@@ -801,10 +801,18 @@ def parse_args(args=None, namespace=None):
     config.from_dict(vars(opts), init=['nipype'])
 
     # Consistency checks
-    if 'bbr' in config.workflow.force and 'no-bbr' in config.workflow.force:
+    force_set = set(config.workflow.force)
+    ignore_set = set(config.workflow.ignore)
+    if {'bbr', 'no-bbr'} <= force_set:
         msg = (
             'Cannot force and disable boundary-based registration at the same time. '
             'Remove `bbr` or `no-bbr` from the `--force` options.'
+        )
+        raise ValueError(msg)
+    if 'fmap-jacobian' in force_set & ignore_set:
+        msg = (
+            'Cannot force and ignore fieldmap Jacobian correction. '
+            'Remove `fmap-jacobian` from either the `--force` or the `--ignore` option.'
         )
         raise ValueError(msg)
 
