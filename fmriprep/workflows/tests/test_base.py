@@ -106,7 +106,6 @@ def bids_root(tmp_path_factory):
 
 def _make_params(
     bold2anat_init: str = 'auto',
-    use_bbr: bool | None = None,
     dummy_scans: int | None = None,
     me_output_echos: bool = False,
     medial_surface_nan: bool = False,
@@ -115,18 +114,19 @@ def _make_params(
     run_msmsulc: bool = True,
     skull_strip_t1w: str = 'auto',
     use_syn_sdc: str | bool = False,
-    force_syn: bool = False,
     freesurfer: bool = True,
     ignore: list[str] = None,
+    force: list[str] = None,
     bids_filters: dict = None,
 ):
     if ignore is None:
         ignore = []
+    if force is None:
+        force = []
     if bids_filters is None:
         bids_filters = {}
     return (
         bold2anat_init,
-        use_bbr,
         dummy_scans,
         me_output_echos,
         medial_surface_nan,
@@ -135,9 +135,9 @@ def _make_params(
         run_msmsulc,
         skull_strip_t1w,
         use_syn_sdc,
-        force_syn,
         freesurfer,
         ignore,
+        force,
         bids_filters,
     )
 
@@ -147,7 +147,6 @@ def _make_params(
 @pytest.mark.parametrize(
     (
         'bold2anat_init',
-        'use_bbr',
         'dummy_scans',
         'me_output_echos',
         'medial_surface_nan',
@@ -156,9 +155,9 @@ def _make_params(
         'run_msmsulc',
         'skull_strip_t1w',
         'use_syn_sdc',
-        'force_syn',
         'freesurfer',
         'ignore',
+        'force',
         'bids_filters',
     ),
     [
@@ -166,11 +165,11 @@ def _make_params(
         _make_params(bold2anat_init='t1w'),
         _make_params(bold2anat_init='t2w'),
         _make_params(bold2anat_init='header'),
-        _make_params(use_bbr=True),
-        _make_params(use_bbr=False),
-        _make_params(bold2anat_init='header', use_bbr=True),
+        _make_params(force=['bbr']),
+        _make_params(force=['no-bbr']),
+        _make_params(bold2anat_init='header', force=['bbr']),
         # Currently disabled
-        # _make_params(bold2anat_init="header", use_bbr=False),
+        # _make_params(bold2anat_init="header", force=['no-bbr']),
         _make_params(dummy_scans=2),
         _make_params(me_output_echos=True),
         _make_params(medial_surface_nan=True),
@@ -180,14 +179,14 @@ def _make_params(
         _make_params(cifti_output='91k', run_msmsulc=False),
         _make_params(skull_strip_t1w='force'),
         _make_params(skull_strip_t1w='skip'),
-        _make_params(use_syn_sdc='warn', force_syn=True, ignore=['fieldmaps']),
+        _make_params(use_syn_sdc='warn', ignore=['fieldmaps'], force=['syn-sdc']),
         _make_params(freesurfer=False),
-        _make_params(freesurfer=False, use_bbr=True),
-        _make_params(freesurfer=False, use_bbr=False),
+        _make_params(freesurfer=False, force=['bbr']),
+        _make_params(freesurfer=False, force=['no-bbr']),
         # Currently unsupported:
         # _make_params(freesurfer=False, bold2anat_init="header"),
-        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=True),
-        # _make_params(freesurfer=False, bold2anat_init="header", use_bbr=False),
+        # _make_params(freesurfer=False, bold2anat_init="header", force=['bbr']),
+        # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
     ],
@@ -198,7 +197,6 @@ def test_init_fmriprep_wf(
     level: str,
     anat_only: bool,
     bold2anat_init: str,
-    use_bbr: bool | None,
     dummy_scans: int | None,
     me_output_echos: bool,
     medial_surface_nan: bool,
@@ -207,16 +205,15 @@ def test_init_fmriprep_wf(
     run_msmsulc: bool,
     skull_strip_t1w: str,
     use_syn_sdc: str | bool,
-    force_syn: bool,
     freesurfer: bool,
     ignore: list[str],
+    force: list[str],
     bids_filters: dict,
 ):
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
         config.workflow.anat_only = anat_only
         config.workflow.bold2anat_init = bold2anat_init
-        config.workflow.use_bbr = use_bbr
         config.workflow.dummy_scans = dummy_scans
         config.execution.me_output_echos = me_output_echos
         config.workflow.medial_surface_nan = medial_surface_nan
@@ -226,6 +223,7 @@ def test_init_fmriprep_wf(
         config.workflow.cifti_output = cifti_output
         config.workflow.run_reconall = freesurfer
         config.workflow.ignore = ignore
+        config.workflow.force = force
         with patch.dict('fmriprep.config.execution.bids_filters', bids_filters):
             wf = init_fmriprep_wf()
 

@@ -104,7 +104,7 @@ sections:
     static: false
     subtitle: Susceptibility distortion correction
   - bids: {datatype: figures, desc: forcedsyn, suffix: bold}
-    caption: The dataset contained some fieldmap information, but the argument <code>--force-syn</code>
+    caption: The dataset contained some fieldmap information, but the argument <code>--force syn-sdc</code>
       was used. The higher-priority SDC method was used. Here, we show the results
       of performing SyN-based SDC on the EPI for comparison.
     static: false

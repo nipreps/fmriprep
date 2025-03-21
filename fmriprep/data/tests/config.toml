@@ -34,6 +34,7 @@ aroma_err_on_warn = false
 aroma_melodic_dim = -200
 bold2anat_dof = 6
 fmap_bspline = false
+force = []
 force_syn = false
 hires = true
 ignore = []

@@ -557,7 +557,7 @@ It is released under the [CC0]\
         bold_data=bold_runs,
         ignore_fieldmaps='fieldmaps' in config.workflow.ignore,
         use_syn=config.workflow.use_syn_sdc,
-        force_syn=config.workflow.force_syn,
+        force_syn='syn-sdc' in config.workflow.force,
         filters=config.execution.get().get('bids_filters', {}).get('fmap'),
     )
 
@@ -846,7 +846,7 @@ def map_fieldmap_estimation(
     # In the case where fieldmaps are ignored and `--use-syn-sdc` is requested,
     # SDCFlows `find_estimators` still receives a full layout (which includes the fmap modality)
     # and will not calculate fmapless schemes.
-    # Similarly, if fieldmaps are ignored and `--force-syn` is requested,
+    # Similarly, if fieldmaps are ignored and `--force syn-sdc` is requested,
     # `fmapless` should be set to True to ensure BOLD targets are found to be corrected.
     fmap_estimators = find_estimators(
         layout=layout,
@@ -870,7 +870,7 @@ def map_fieldmap_estimation(
     if ignore_fieldmaps and any(f.method == fm.EstimatorType.ANAT for f in fmap_estimators):
         config.loggers.workflow.info(
             'Option "--ignore fieldmaps" was set, but either "--use-syn-sdc" '
-            'or "--force-syn" were given, so fieldmap-less estimation will be executed.'
+            'or "--force syn-sdc" were given, so fieldmap-less estimation will be executed.'
         )
         fmap_estimators = [f for f in fmap_estimators if f.method == fm.EstimatorType.ANAT]
 

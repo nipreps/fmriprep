@@ -613,11 +613,18 @@ def init_bold_fit_wf(
         ])  # fmt:skip
 
     if not boldref2anat_xform:
+        use_bbr = (
+            True
+            if 'bbr' in config.workflow.force
+            else False
+            if 'no-bbr' in config.workflow.force
+            else None
+        )
         # calculate BOLD registration to T1w
         bold_reg_wf = init_bold_reg_wf(
             bold2anat_dof=config.workflow.bold2anat_dof,
             bold2anat_init=config.workflow.bold2anat_init,
-            use_bbr=config.workflow.use_bbr,
+            use_bbr=use_bbr,
             freesurfer=config.workflow.run_reconall,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb['resampled'],
