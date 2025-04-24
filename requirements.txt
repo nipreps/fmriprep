@@ -103,7 +103,7 @@ fsspec==2025.2.0
     # via universal-pathlib
 greenlet==3.1.1
     # via sqlalchemy
-h11==0.14.0
+h11==0.16.0
     # via httpcore
 h5py==3.13.0
     # via nitransforms
