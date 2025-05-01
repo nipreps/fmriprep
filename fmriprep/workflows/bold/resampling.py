@@ -598,7 +598,6 @@ using the Connectome Workbench [@hcppipelines].
                 'midthickness',
                 'midthickness_resampled',
                 'sphere_reg_fsLR',
-                # 'cortex_mask',
                 'volume_roi',
             ]
         ),
@@ -632,8 +631,6 @@ using the Connectome Workbench [@hcppipelines].
                 'midthickness_resampled',
                 'sphere_reg_fsLR',
                 'template_sphere',
-                # 'cortex_mask',
-                # 'template_roi',
             ],
             keys=['L', 'R'],
         ),
@@ -665,7 +662,6 @@ using the Connectome Workbench [@hcppipelines].
         mem_gb=1,
         n_procs=omp_nthreads,
     )
-    # mask_native = pe.Node(MetricMask(), name='mask_native')
     resample_to_template = pe.Node(
         MetricResample(method='ADAP_BARY_AREA', area_surfs=True),
         name='resample_to_template',
@@ -673,7 +669,6 @@ using the Connectome Workbench [@hcppipelines].
         n_procs=omp_nthreads,
     )
     # ... line 89
-    # mask_fsLR = pe.Node(MetricMask(), name='mask_fsLR')
 
     workflow.connect([
         (inputnode, select_surfaces, [
@@ -682,7 +677,6 @@ using the Connectome Workbench [@hcppipelines].
             ('midthickness', 'midthickness'),
             ('midthickness_resampled', 'midthickness_resampled'),
             ('sphere_reg_fsLR', 'sphere_reg_fsLR'),
-            # ('cortex_mask', 'cortex_mask'),
         ]),
         (hemisource, select_surfaces, [('hemi', 'key')]),
         # Resample BOLD to native surface, dilate and mask
@@ -696,23 +690,16 @@ using the Connectome Workbench [@hcppipelines].
             ('pial', 'outer_surface'),
         ]),
         (select_surfaces, metric_dilate, [('midthickness', 'surf_file')]),
-        # (select_surfaces, mask_native, [('cortex_mask', 'mask')]),
         (volume_to_surface, metric_dilate, [('out_file', 'in_file')]),
-        # (metric_dilate, mask_native, [('out_file', 'in_file')]),
         # Resample BOLD to fsLR and mask
         (select_surfaces, resample_to_template, [
             ('sphere_reg_fsLR', 'current_sphere'),
             ('template_sphere', 'new_sphere'),
             ('midthickness', 'current_area'),
             ('midthickness_resampled', 'new_area'),
-            # ('cortex_mask', 'roi_metric'),
         ]),
         (metric_dilate, resample_to_template, [('out_file', 'in_file')]),
-        # (mask_native, resample_to_template, [('out_file', 'in_file')]),
-        # (select_surfaces, mask_fsLR, [('template_roi', 'mask')]),
-        # (resample_to_fsLR, mask_fsLR, [('out_file', 'in_file')]),
         # Output
-        # (mask_fsLR, joinnode, [('out_file', 'bold_fsLR')]),
         (resample_to_template, joinnode, [('out_file', 'bold_resampled')]),
         (joinnode, outputnode, [('bold_resampled', 'bold_resampled')]),
     ])  # fmt:skip
