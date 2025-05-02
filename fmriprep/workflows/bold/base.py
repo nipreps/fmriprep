@@ -56,8 +56,6 @@ def init_bold_wf(
     *,
     bold_series: list[str],
     precomputed: dict = None,
-    fieldmap_id: str | None = None,
-    jacobian: bool = False,
 ) -> pe.Workflow:
     """
     This workflow controls the functional preprocessing stages of *fMRIPrep*.
@@ -83,9 +81,6 @@ def init_bold_wf(
         List of paths to NIfTI files.
     precomputed
         Dictionary containing precomputed derivatives to reuse, if possible.
-    fieldmap_id
-        ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
-        no correction will be applied.
 
     Inputs
     ------
@@ -114,18 +109,6 @@ def init_bold_wf(
         Registration spheres from fsnative to fsLR space, collated left, then right
     anat_ribbon
         Binary cortical ribbon mask in T1w space
-    fmap_id
-        Unique identifiers to select fieldmap files
-    fmap
-        List of estimated fieldmaps (collated with fmap_id)
-    fmap_ref
-        List of fieldmap reference files (collated with fmap_id)
-    fmap_coeff
-        List of lists of spline coefficient files (collated with fmap_id)
-    fmap_mask
-        List of fieldmap masks (collated with fmap_id)
-    sdc_method
-        List of fieldmap correction method names (collated with fmap_id)
     anat2std_xfm
         Transform from anatomical space to standard space
     std_t1w
@@ -222,13 +205,6 @@ configured with cubic B-spline interpolation.
                 'midthickness_fsLR',
                 'cortex_mask',
                 'anat_ribbon',
-                # Fieldmap registration
-                'fmap',
-                'fmap_ref',
-                'fmap_coeff',
-                'fmap_mask',
-                'fmap_id',
-                'sdc_method',
                 # Volumetric templates
                 'anat2std_xfm',
                 'std_t1w',
@@ -253,8 +229,6 @@ configured with cubic B-spline interpolation.
     bold_fit_wf = init_bold_fit_wf(
         bold_series=bold_series,
         precomputed=precomputed,
-        fieldmap_id=fieldmap_id,
-        jacobian=jacobian,
         omp_nthreads=omp_nthreads,
     )
 
@@ -266,12 +240,6 @@ configured with cubic B-spline interpolation.
             ('subjects_dir', 'inputnode.subjects_dir'),
             ('subject_id', 'inputnode.subject_id'),
             ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
-            ('fmap', 'inputnode.fmap'),
-            ('fmap_ref', 'inputnode.fmap_ref'),
-            ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_mask', 'inputnode.fmap_mask'),
-            ('fmap_id', 'inputnode.fmap_id'),
-            ('sdc_method', 'inputnode.sdc_method'),
         ]),
     ])  # fmt:skip
 
@@ -293,22 +261,14 @@ configured with cubic B-spline interpolation.
 
     bold_native_wf = init_bold_native_wf(
         bold_series=bold_series,
-        fieldmap_id=fieldmap_id,
-        jacobian=jacobian,
         omp_nthreads=omp_nthreads,
     )
 
     workflow.connect([
-        (inputnode, bold_native_wf, [
-            ('fmap_ref', 'inputnode.fmap_ref'),
-            ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_id', 'inputnode.fmap_id'),
-        ]),
         (bold_fit_wf, bold_native_wf, [
             ('outputnode.coreg_boldref', 'inputnode.boldref'),
             ('outputnode.bold_mask', 'inputnode.bold_mask'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
         ]),
     ])  # fmt:skip
@@ -383,10 +343,8 @@ configured with cubic B-spline interpolation.
     # Resample to anatomical space
     bold_anat_wf = init_bold_volumetric_resample_wf(
         metadata=all_metadata[0],
-        fieldmap_id=fieldmap_id if not multiecho else None,
         omp_nthreads=omp_nthreads,
         mem_gb=mem_gb,
-        jacobian=jacobian,
         name='bold_anat_wf',
     )
     bold_anat_wf.inputs.inputnode.resolution = 'native'
@@ -395,13 +353,9 @@ configured with cubic B-spline interpolation.
         (inputnode, bold_anat_wf, [
             ('t1w_preproc', 'inputnode.target_ref_file'),
             ('t1w_mask', 'inputnode.target_mask'),
-            ('fmap_ref', 'inputnode.fmap_ref'),
-            ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_id', 'inputnode.fmap_id'),
         ]),
         (bold_fit_wf, bold_anat_wf, [
             ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-            ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
         ]),
         (bold_native_wf, bold_anat_wf, [
@@ -428,7 +382,6 @@ configured with cubic B-spline interpolation.
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ]),
             (bold_native_wf, ds_bold_t1_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_anat_wf, ds_bold_t1_wf, [
@@ -443,10 +396,8 @@ configured with cubic B-spline interpolation.
         #  * Resampling parcellations
         bold_std_wf = init_bold_volumetric_resample_wf(
             metadata=all_metadata[0],
-            fieldmap_id=fieldmap_id if not multiecho else None,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
-            jacobian=jacobian,
             name='bold_std_wf',
         )
         ds_bold_std_wf = init_ds_volumes_wf(
@@ -464,13 +415,9 @@ configured with cubic B-spline interpolation.
                 ('std_mask', 'inputnode.target_mask'),
                 ('anat2std_xfm', 'inputnode.anat2std_xfm'),
                 ('std_resolution', 'inputnode.resolution'),
-                ('fmap_ref', 'inputnode.fmap_ref'),
-                ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('fmap_id', 'inputnode.fmap_id'),
             ]),
             (bold_fit_wf, bold_std_wf, [
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
             ]),
             (bold_native_wf, bold_std_wf, [
@@ -489,7 +436,6 @@ configured with cubic B-spline interpolation.
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
             ]),
             (bold_native_wf, ds_bold_std_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_std_wf, ds_bold_std_wf, [
@@ -550,10 +496,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 
         bold_MNI6_wf = init_bold_volumetric_resample_wf(
             metadata=all_metadata[0],
-            fieldmap_id=fieldmap_id if not multiecho else None,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
-            jacobian=jacobian,
             name='bold_MNI6_wf',
         )
 
@@ -609,13 +553,9 @@ excluding voxels whose time-series have a locally high coefficient of variation.
                 ('mni6_mask', 'inputnode.target_ref_file'),
                 ('mni6_mask', 'inputnode.target_mask'),
                 ('anat2mni6_xfm', 'inputnode.anat2std_xfm'),
-                ('fmap_ref', 'inputnode.fmap_ref'),
-                ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('fmap_id', 'inputnode.fmap_id'),
             ]),
             (bold_fit_wf, bold_MNI6_wf, [
                 ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
             ]),
             (bold_native_wf, bold_MNI6_wf, [

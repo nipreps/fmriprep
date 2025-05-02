@@ -528,187 +528,6 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
-    fmap_cache = {}
-    if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fieldmaps
-
-        for deriv_dir in config.execution.derivatives.values():
-            fmaps = collect_fieldmaps(
-                derivatives_dir=deriv_dir,
-                entities={'subject': subject_id},
-            )
-            config.loggers.workflow.debug(
-                'Detected precomputed fieldmaps in %s for fieldmap IDs: %s', deriv_dir, list(fmaps)
-            )
-            fmap_cache.update(fmaps)
-
-    all_estimators, estimator_map = map_fieldmap_estimation(
-        layout=config.execution.layout,
-        subject_id=subject_id,
-        bold_data=bold_runs,
-        ignore_fieldmaps='fieldmaps' in config.workflow.ignore,
-        use_syn=config.workflow.use_syn_sdc,
-        force_syn='syn-sdc' in config.workflow.force,
-        filters=config.execution.get().get('bids_filters', {}).get('fmap'),
-    )
-
-    fmap_buffers = {
-        field: pe.Node(niu.Merge(2), name=f'{field}_merge', run_without_submitting=True)
-        for field in ['fmap', 'fmap_ref', 'fmap_coeff', 'fmap_mask', 'fmap_id', 'sdc_method']
-    }
-
-    estimator_types = {est.bids_id: est.method for est in all_estimators}
-    fmap_estimators = []
-    if all_estimators:
-        # Find precomputed fieldmaps that apply to this workflow
-        pared_cache = {}
-        for est in all_estimators:
-            if found := fmap_cache.get(re.sub(r'[^a-zA-Z0-9]', '', est.bids_id)):
-                pared_cache[est.bids_id] = found
-            else:
-                fmap_estimators.append(est)
-
-        if pared_cache:
-            config.loggers.workflow.info(
-                'Precomputed B0 field inhomogeneity maps found for the following '
-                f'{len(pared_cache)} estimator(s): {list(pared_cache)}.'
-            )
-
-            fieldmaps = [fmap['fieldmap'] for fmap in pared_cache.values()]
-            refs = [fmap['magnitude'] for fmap in pared_cache.values()]
-            coeffs = [fmap['coeffs'] for fmap in pared_cache.values()]
-            config.loggers.workflow.debug('Reusing fieldmaps: %s', fieldmaps)
-            config.loggers.workflow.debug('Reusing references: %s', refs)
-            config.loggers.workflow.debug('Reusing coefficients: %s', coeffs)
-
-            fmap_buffers['fmap'].inputs.in1 = fieldmaps
-            fmap_buffers['fmap_ref'].inputs.in1 = refs
-            fmap_buffers['fmap_coeff'].inputs.in1 = coeffs
-
-            # Note that masks are not emitted. The BOLD-fmap transforms cannot be
-            # computed with precomputed fieldmaps until we either start emitting masks
-            # or start skull-stripping references on the fly.
-            fmap_buffers['fmap_mask'].inputs.in1 = [
-                pared_cache[fmapid].get('mask', 'MISSING') for fmapid in pared_cache
-            ]
-            fmap_buffers['fmap_id'].inputs.in1 = list(pared_cache)
-            fmap_buffers['sdc_method'].inputs.in1 = ['precomputed'] * len(pared_cache)
-
-    # Estimators without precomputed fieldmaps
-    if fmap_estimators:
-        config.loggers.workflow.info(
-            'B0 field inhomogeneity map will be estimated with the following '
-            f'{len(fmap_estimators)} estimator(s): '
-            f'{[e.method for e in fmap_estimators]}.'
-        )
-
-        from sdcflows import fieldmaps as fm
-        from sdcflows.workflows.base import init_fmap_preproc_wf
-
-        fmap_wf = init_fmap_preproc_wf(
-            debug='fieldmaps' in config.execution.debug,
-            estimators=fmap_estimators,
-            omp_nthreads=omp_nthreads,
-            output_dir=fmriprep_dir,
-            subject=subject_id,
-        )
-        fmap_wf.__desc__ = f"""
-
-Preprocessing of B<sub>0</sub> inhomogeneity mappings
-
-: A total of {len(fmap_estimators)} fieldmaps were found available within the input
-BIDS structure for this particular subject.
-"""
-
-        # Overwrite ``out_path_base`` of sdcflows's DataSinks
-        for node in fmap_wf.list_node_names():
-            if node.split('.')[-1].startswith('ds_'):
-                fmap_wf.get_node(node).interface.out_path_base = ''
-
-        workflow.connect([
-            (fmap_wf, fmap_buffers[field], [
-                # We get "sdc_method" as "method" from estimator workflows
-                # All else stays the same, and no other sdc_ prefixes are used
-                (f'outputnode.{field.removeprefix("sdc_")}', 'in2'),
-            ])
-            for field in fmap_buffers
-        ])  # fmt:skip
-
-        fmap_select_std = pe.Node(
-            KeySelect(fields=['std2anat_xfm'], key='MNI152NLin2009cAsym'),
-            name='fmap_select_std',
-            run_without_submitting=True,
-        )
-        if any(estimator.method == fm.EstimatorType.ANAT for estimator in fmap_estimators):
-            workflow.connect([
-                (anat_fit_wf, fmap_select_std, [
-                    ('outputnode.std2anat_xfm', 'std2anat_xfm'),
-                    ('outputnode.template', 'keys')]),
-            ])  # fmt:skip
-
-        for estimator in fmap_estimators:
-            config.loggers.workflow.info(
-                f"""\
-Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
-<{', '.join(s.path.name for s in estimator.sources)}>"""
-            )
-
-            # Mapped and phasediff can be connected internally by SDCFlows
-            if estimator.method in (fm.EstimatorType.MAPPED, fm.EstimatorType.PHASEDIFF):
-                continue
-
-            suffices = [s.suffix for s in estimator.sources]
-
-            if estimator.method == fm.EstimatorType.PEPOLAR:
-                # "Sophisticated" PEPOLAR schemes should be run "manually" with SDCFlows
-                # The following two cases are not considered sophisticated:
-                # 1. All PEPOLAR entities are the same modality
-                #    (typically, more than two EPI PE directions), or
-                # 2. Two modalities are involved, with at most two images to pass
-                #    into FSL TOPUP.
-                if len(set(suffices)) == 1 or (
-                    len(suffices) == 2 and all(suf in ('epi', 'bold', 'sbref') for suf in suffices)
-                ):
-                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.bids_id}')
-                    wf_inputs.in_data = [str(s.path) for s in estimator.sources]
-                    wf_inputs.metadata = [s.metadata for s in estimator.sources]
-                else:
-                    raise NotImplementedError('Sophisticated PEPOLAR schemes are unsupported.')
-
-            elif estimator.method == fm.EstimatorType.ANAT:
-                from sdcflows.workflows.fit.syn import init_syn_preprocessing_wf
-
-                sources = [str(s.path) for s in estimator.sources if s.suffix in ('bold', 'sbref')]
-                source_meta = [
-                    s.metadata for s in estimator.sources if s.suffix in ('bold', 'sbref')
-                ]
-                syn_preprocessing_wf = init_syn_preprocessing_wf(
-                    omp_nthreads=omp_nthreads,
-                    debug=config.execution.sloppy,
-                    auto_bold_nss=True,
-                    t1w_inversion=False,
-                    name=f'syn_preprocessing_{estimator.bids_id}',
-                )
-                syn_preprocessing_wf.inputs.inputnode.in_epis = sources
-                syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
-
-                workflow.connect([
-                    (anat_fit_wf, syn_preprocessing_wf, [
-                        ('outputnode.t1w_preproc', 'inputnode.in_anat'),
-                        ('outputnode.t1w_mask', 'inputnode.mask_anat'),
-                    ]),
-                    (fmap_select_std, syn_preprocessing_wf, [
-                        ('std2anat_xfm', 'inputnode.std2anat_xfm'),
-                    ]),
-                    (syn_preprocessing_wf, fmap_wf, [
-                        ('outputnode.epi_ref', f'in_{estimator.bids_id}.epi_ref'),
-                        ('outputnode.epi_mask', f'in_{estimator.bids_id}.epi_mask'),
-                        ('outputnode.anat_ref', f'in_{estimator.bids_id}.anat_ref'),
-                        ('outputnode.anat_mask', f'in_{estimator.bids_id}.anat_mask'),
-                        ('outputnode.sd_prior', f'in_{estimator.bids_id}.sd_prior'),
-                    ]),
-                ])  # fmt:skip
-
     # Append the functional section to the existing anatomical excerpt
     # That way we do not need to stream down the number of bold datasets
     func_pre_desc = f"""
@@ -728,18 +547,6 @@ tasks and sessions), the following preprocessing was performed.
         config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
 
     for bold_series in bold_runs:
-        bold_file = bold_series[0]
-        fieldmap_id = estimator_map.get(bold_file)
-        jacobian = False
-
-        if fieldmap_id:
-            if 'fmap-jacobian' in config.workflow.force:
-                jacobian = True
-            elif 'fmap-jacobian' not in config.workflow.ignore:
-                # Default behavior is to only use Jacobians for PEPOLAR fieldmaps
-                est_type = estimator_types[fieldmap_id]
-                jacobian = est_type == est_type.__class__.PEPOLAR
-
         functional_cache = {}
         if config.execution.derivatives:
             from fmriprep.utils.bids import collect_derivatives, extract_entities
@@ -751,15 +558,12 @@ tasks and sessions), the following preprocessing was performed.
                     collect_derivatives(
                         derivatives_dir=deriv_dir,
                         entities=entities,
-                        fieldmap_id=fieldmap_id,
                     )
                 )
 
         bold_wf = init_bold_wf(
             bold_series=bold_series,
             precomputed=functional_cache,
-            fieldmap_id=fieldmap_id,
-            jacobian=jacobian,
         )
         if bold_wf is None:
             continue
@@ -784,11 +588,6 @@ tasks and sessions), the following preprocessing was performed.
                     'inputnode.sphere_reg_fsLR',
                 ),
             ]),
-        ])  # fmt:skip
-
-        workflow.connect([
-            (buffer, bold_wf, [('out', f'inputnode.{field}')])
-            for field, buffer in fmap_buffers.items()
         ])  # fmt:skip
 
         if config.workflow.level == 'full':
@@ -830,82 +629,6 @@ tasks and sessions), the following preprocessing was performed.
     return clean_datasinks(workflow)
 
 
-def map_fieldmap_estimation(
-    layout: bids.BIDSLayout,
-    subject_id: str,
-    bold_data: list[list[str]],
-    ignore_fieldmaps: bool,
-    use_syn: bool | str,
-    force_syn: bool,
-    filters: dict | None,
-) -> tuple[list, dict]:
-    if not any((not ignore_fieldmaps, use_syn, force_syn)):
-        return [], {}
-
-    from sdcflows import fieldmaps as fm
-    from sdcflows.utils.wrangler import find_estimators
-
-    # In the case where fieldmaps are ignored and `--use-syn-sdc` is requested,
-    # SDCFlows `find_estimators` still receives a full layout (which includes the fmap modality)
-    # and will not calculate fmapless schemes.
-    # Similarly, if fieldmaps are ignored and `--force syn-sdc` is requested,
-    # `fmapless` should be set to True to ensure BOLD targets are found to be corrected.
-    fmap_estimators = find_estimators(
-        layout=layout,
-        subject=subject_id,
-        fmapless=bool(use_syn) or ignore_fieldmaps and force_syn,
-        force_fmapless=force_syn or ignore_fieldmaps and use_syn,
-        bids_filters=filters,
-    )
-
-    if not fmap_estimators:
-        if use_syn:
-            message = (
-                'Fieldmap-less (SyN) estimation was requested, but PhaseEncodingDirection '
-                'information appears to be absent.'
-            )
-            config.loggers.workflow.error(message)
-            if use_syn == 'error':
-                raise ValueError(message)
-        return [], {}
-
-    if ignore_fieldmaps and any(f.method == fm.EstimatorType.ANAT for f in fmap_estimators):
-        config.loggers.workflow.info(
-            'Option "--ignore fieldmaps" was set, but either "--use-syn-sdc" '
-            'or "--force syn-sdc" were given, so fieldmap-less estimation will be executed.'
-        )
-        fmap_estimators = [f for f in fmap_estimators if f.method == fm.EstimatorType.ANAT]
-
-    # Pare down estimators to those that are actually used
-    # If fmap_estimators == [], all loops/comprehensions terminate immediately
-    all_ids = {fmap.bids_id for fmap in fmap_estimators}
-    bold_files = (bold_series[0] for bold_series in bold_data)
-
-    all_estimators = {
-        bold_file: [fmap_id for fmap_id in get_estimator(layout, bold_file) if fmap_id in all_ids]
-        for bold_file in bold_files
-    }
-
-    for bold_file, estimator_key in all_estimators.items():
-        if len(estimator_key) > 1:
-            config.loggers.workflow.warning(
-                f'Several fieldmaps <{", ".join(estimator_key)}> are '
-                f"'IntendedFor' <{bold_file}>, using {estimator_key[0]}"
-            )
-            estimator_key[1:] = []
-
-    # Final, 1-1 map, dropping uncorrected BOLD
-    estimator_map = {
-        bold_file: estimator_key[0]
-        for bold_file, estimator_key in all_estimators.items()
-        if estimator_key
-    }
-
-    fmap_estimators = [f for f in fmap_estimators if f.bids_id in estimator_map.values()]
-
-    return fmap_estimators, estimator_map
-
-
 def _prefix(subid):
     return subid if subid.startswith('sub-') else f'sub-{subid}'
 
@@ -916,21 +639,3 @@ def clean_datasinks(workflow: pe.Workflow) -> pe.Workflow:
         if node.split('.')[-1].startswith('ds_'):
             workflow.get_node(node).interface.out_path_base = ''
     return workflow
-
-
-def get_estimator(layout, fname):
-    field_source = layout.get_metadata(fname).get('B0FieldSource')
-    if isinstance(field_source, str):
-        field_source = (field_source,)
-
-    if field_source is None:
-        import re
-        from pathlib import Path
-
-        from sdcflows.fieldmaps import get_identifier
-
-        # Fallback to IntendedFor
-        intended_rel = re.sub(r'^sub-[a-zA-Z0-9]*/', '', str(Path(fname).relative_to(layout.root)))
-        field_source = get_identifier(intended_rel)
-
-    return field_source

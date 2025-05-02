@@ -141,7 +141,6 @@ def prepare_timing_parameters(metadata: dict):
 
 def init_func_fit_reports_wf(
     *,
-    sdc_correction: bool,
     freesurfer: bool,
     output_dir: str,
     name='func_fit_reports_wf',
@@ -187,22 +186,17 @@ def init_func_fit_reports_wf(
     from nireports.interfaces.reporting.base import (
         SimpleBeforeAfterRPT as SimpleBeforeAfter,
     )
-    from sdcflows.interfaces.reportlets import FieldmapReportlet
 
     workflow = pe.Workflow(name=name)
 
     inputfields = [
         'source_file',
-        'sdc_boldref',
         'coreg_boldref',
         'bold_mask',
         'boldref2anat_xfm',
-        'boldref2fmap_xfm',
         't1w_preproc',
         't1w_mask',
         't1w_dseg',
-        'fieldmap',
-        'fmap_ref',
         # May be missing
         'subject_id',
         'subjects_dir',
@@ -290,115 +284,6 @@ def init_func_fit_reports_wf(
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
     ])
     # fmt:on
-
-    # Reportlets follow the structure of init_bold_fit_wf stages
-    # - SDC1:
-    #       Before: Pre-SDC boldref
-    #       After: Fieldmap reference resampled on boldref
-    #       Three-way: Fieldmap resampled on boldref
-    # - SDC2:
-    #       Before: Pre-SDC boldref with white matter mask
-    #       After: Post-SDC boldref with white matter mask
-    # - EPI-T1 registration:
-    #       Before: T1w brain with white matter mask
-    #       After: Resampled boldref with white matter mask
-
-    if sdc_correction:
-        fmapref_boldref = pe.Node(
-            ApplyTransforms(
-                dimension=3,
-                default_value=0,
-                float=True,
-                invert_transform_flags=[True],
-                interpolation='LanczosWindowedSinc',
-            ),
-            name='fmapref_boldref',
-            mem_gb=1,
-        )
-
-        fmap_boldref = pe.Node(
-            ApplyTransforms(
-                dimension=3,
-                default_value=0,
-                float=True,
-                invert_transform_flags=[True],
-                interpolation='LanczosWindowedSinc',
-            ),
-            name='fmap_boldref',
-            mem_gb=1,
-        )
-
-        # SDC1
-        sdcreg_report = pe.Node(
-            FieldmapReportlet(
-                reference_label='BOLD reference',
-                moving_label='Fieldmap reference',
-                show='both',
-            ),
-            name='sdcreg_report',
-            mem_gb=0.1,
-        )
-
-        ds_sdcreg_report = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='fmapCoreg',
-                suffix='bold',
-                datatype='figures',
-                dismiss_entities=dismiss_echo(),
-            ),
-            name='ds_sdcreg_report',
-        )
-
-        # SDC2
-        sdc_report = pe.Node(
-            SimpleBeforeAfter(
-                before_label='Distorted',
-                after_label='Corrected',
-                dismiss_affine=True,
-            ),
-            name='sdc_report',
-            mem_gb=0.1,
-        )
-
-        ds_sdc_report = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='sdc',
-                suffix='bold',
-                datatype='figures',
-                dismiss_entities=dismiss_echo(),
-            ),
-            name='ds_sdc_report',
-        )
-
-        workflow.connect([
-            (inputnode, fmapref_boldref, [
-                ('fmap_ref', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
-            (inputnode, fmap_boldref, [
-                ('fieldmap', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
-            (inputnode, sdcreg_report, [
-                ('sdc_boldref', 'reference'),
-                ('bold_mask', 'mask'),
-            ]),
-            (fmapref_boldref, sdcreg_report, [('output_image', 'moving')]),
-            (fmap_boldref, sdcreg_report, [('output_image', 'fieldmap')]),
-            (inputnode, ds_sdcreg_report, [('source_file', 'source_file')]),
-            (sdcreg_report, ds_sdcreg_report, [('out_report', 'in_file')]),
-            (inputnode, sdc_report, [
-                ('sdc_boldref', 'before'),
-                ('coreg_boldref', 'after'),
-            ]),
-            (boldref_wm, sdc_report, [('output_image', 'wm_seg')]),
-            (inputnode, ds_sdc_report, [('source_file', 'source_file')]),
-            (sdc_report, ds_sdc_report, [('out_report', 'in_file')]),
-        ])  # fmt:skip
 
     # EPI-T1 registration
     # Resample T1w image onto EPI-space
@@ -660,7 +545,6 @@ def init_ds_bold_native_wf(
                 't2star',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -678,7 +562,6 @@ def init_ds_bold_native_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
         ]),
     ])  # fmt:skip
 
@@ -788,7 +671,6 @@ def init_ds_volumes_wf(
                 'resolution',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -822,7 +704,6 @@ def init_ds_volumes_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
             ('boldref2anat_xfm', 'in4'),
             ('anat2std_xfm', 'in5'),
             ('template', 'in6'),

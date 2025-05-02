@@ -51,7 +51,6 @@ def _get_layout(derivatives_dir: Path) -> BIDSLayout:
 def collect_derivatives(
     derivatives_dir: Path,
     entities: dict,
-    fieldmap_id: str | None = None,
     spec: dict | None = None,
     patterns: list[str] | None = None,
 ):
@@ -84,40 +83,12 @@ def collect_derivatives(
         # And transform suffixes will be "xfm",
         #   whereas relevant src file will be "bold".
         query = {**entities, **q}
-        if xfm == 'boldref2fmap' and fieldmap_id:
-            # fieldmaps have ids like auto_00000
-            query['to'] = fieldmap_id.replace('_', '')
         item = layout.get(return_type='filename', **query)
         if not item:
             continue
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
     derivs_cache['transforms'] = transforms_cache
     return derivs_cache
-
-
-def collect_fieldmaps(
-    derivatives_dir: Path,
-    entities: dict,
-    spec: dict | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None:
-        spec = json.loads(load_data.readable('fmap_spec.json').read_text())['queries']
-
-    fmap_cache = defaultdict(dict, {})
-    layout = _get_layout(derivatives_dir)
-
-    fmapids = layout.get_fmapids(**entities)
-
-    for fmapid in fmapids:
-        for k, q in spec['fieldmaps'].items():
-            query = {**entities, **q}
-            item = layout.get(return_type='filename', fmapid=fmapid, **query)
-            if not item:
-                continue
-            fmap_cache[fmapid][k] = item[0] if len(item) == 1 else item
-
-    return fmap_cache
 
 
 def write_bidsignore(deriv_dir):

@@ -62,7 +62,6 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t<ul class="elem-desc">
 \t\t\t<li>Original orientation: {ornt}</li>
 \t\t\t<li>Repetition time (TR): {tr:.03g}s</li>
-\t\t\t<li>Phase-encoding (PE) direction: {pedir}</li>
 \t\t\t<li>{multiecho}</li>
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
@@ -191,17 +190,6 @@ class FunctionalSummaryInputSpec(TraitedSpec):
     slice_timing = traits.Enum(False, True, 'TooShort', desc='Slice timing correction used')
     distortion_correction = traits.Str(
         desc='Susceptibility distortion correction method', mandatory=True
-    )
-    pe_direction = traits.Enum(
-        None,
-        'i',
-        'i-',
-        'j',
-        'j-',
-        'k',
-        'k-',
-        mandatory=True,
-        desc='Phase-encoding direction detected',
     )
     registration = traits.Enum(
         'FSL',
