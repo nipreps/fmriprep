@@ -205,7 +205,7 @@ except Exception:  # noqa: S110, BLE001
 
 # Debug modes are names that influence the exposure of internal details to
 # the user, either through additional derivatives or increased verbosity
-DEBUG_MODES = ('pdb')
+DEBUG_MODES = ('pdb','debug')
 
 
 class _Config:
