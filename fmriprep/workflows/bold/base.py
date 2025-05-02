@@ -50,9 +50,9 @@ from .outputs import (
 from .resampling import init_bold_surf_wf
 
 
-def init_bold_wf(
+def init_pet_wf(
     *,
-    bold_series: list[str],
+    pet_series: list[str],
     precomputed: dict = None,
 ) -> pe.Workflow:
     """
@@ -150,23 +150,23 @@ def init_bold_wf(
 
     if precomputed is None:
         precomputed = {}
-    bold_file = bold_series[0]
+    pet_file = pet_series
 
-    fmriprep_dir = config.execution.fmriprep_dir
+    fmriprep_dir = config.execution.petprep_dir
     omp_nthreads = config.nipype.omp_nthreads
-    all_metadata = [config.execution.layout.get_metadata(file) for file in bold_series]
+    all_metadata = [config.execution.layout.get_metadata(file) for file in pet_series]
 
-    nvols, mem_gb = estimate_bold_mem_usage(bold_file)
+    nvols, mem_gb = estimate_bold_mem_usage(pet_file)
     if nvols <= 5 - config.execution.sloppy:
         config.loggers.workflow.warning(
-            f'Too short BOLD series (<= 5 timepoints). Skipping processing of <{bold_file}>.'
+            f'Too short BOLD series (<= 5 timepoints). Skipping processing of <{pet_file}>.'
         )
         return
 
     config.loggers.workflow.debug(
         'Creating bold processing workflow for <%s> (%.2f GB / %d TRs). '
         'Memory resampled/largemem=%.2f/%.2f GB.',
-        bold_file,
+        pet_file,
         mem_gb['filesize'],
         nvols,
         mem_gb['resampled'],
