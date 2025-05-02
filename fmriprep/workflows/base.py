@@ -166,7 +166,7 @@ def init_single_subject_wf(subject_id: str):
         init_resample_surfaces_wf,
     )
 
-    from petprep.workflows.bold.base import init_pet_wf
+    from fmriprep.workflows.bold.base import init_pet_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
     workflow.__desc__ = f"""
@@ -301,7 +301,7 @@ It is released under the [CC0]\
     )
 
     bids_root = str(config.execution.bids_dir)
-    petprep_dir = str(config.execution.fmriprep_dir)
+    petprep_dir = str(config.execution.petprep_dir)
     omp_nthreads = config.nipype.omp_nthreads
 
     # Build the workflow
@@ -355,7 +355,7 @@ It is released under the [CC0]\
         (bids_info, anat_fit_wf, [(('subject', _prefix), 'inputnode.subject_id')]),
         # Reporting connections
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-        (bidssrc, summary, [('t2w', 't2w'), ('pet', 'pet')]),
+        (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
         (bids_info, summary, [('subject', 'subject_id')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
@@ -531,7 +531,7 @@ It is released under the [CC0]\
     func_pre_desc = f"""
 Functional data preprocessing
 
-: For each of the {len(bold_runs)} BOLD runs found per subject (across all
+: For each of the {len(pet_runs)} PET runs found per subject (across all
 tasks and sessions), the following preprocessing was performed.
 """
 
@@ -544,12 +544,12 @@ tasks and sessions), the following preprocessing was performed.
             )
         config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
 
-    for bold_series in bold_runs:
+    for pet_series in pet_runs:
         functional_cache = {}
         if config.execution.derivatives:
             from fmriprep.utils.bids import collect_derivatives, extract_entities
 
-            entities = extract_entities(bold_series)
+            entities = extract_entities(pet_series)
 
             for deriv_dir in config.execution.derivatives.values():
                 functional_cache.update(
@@ -559,17 +559,17 @@ tasks and sessions), the following preprocessing was performed.
                     )
                 )
 
-        bold_wf = init_bold_wf(
-            bold_series=bold_series,
+        pet_wf = init_pet_wf(
+            pet_series=pet_series,
             precomputed=functional_cache,
         )
-        if bold_wf is None:
+        if pet_wf is None:
             continue
 
-        bold_wf.__desc__ = func_pre_desc + (bold_wf.__desc__ or '')
+        pet_wf.__desc__ = func_pre_desc + (pet_wf.__desc__ or '')
 
         workflow.connect([
-            (anat_fit_wf, bold_wf, [
+            (anat_fit_wf, pet_wf, [
                 ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
                 ('outputnode.t1w_mask', 'inputnode.t1w_mask'),
                 ('outputnode.t1w_dseg', 'inputnode.t1w_dseg'),
@@ -591,7 +591,7 @@ tasks and sessions), the following preprocessing was performed.
         if config.workflow.level == 'full':
             if template_iterator_wf is not None:
                 workflow.connect([
-                    (template_iterator_wf, bold_wf, [
+                    (template_iterator_wf, pet_wf, [
                         ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
                         ('outputnode.space', 'inputnode.std_space'),
                         ('outputnode.resolution', 'inputnode.std_resolution'),
@@ -603,7 +603,7 @@ tasks and sessions), the following preprocessing was performed.
 
             if select_MNI2009c_xfm is not None:
                 workflow.connect([
-                    (select_MNI2009c_xfm, bold_wf, [
+                    (select_MNI2009c_xfm, pet_wf, [
                         ('std2anat_xfm', 'inputnode.mni2009c2anat_xfm'),
                     ]),
                 ])  # fmt:skip
@@ -614,12 +614,12 @@ tasks and sessions), the following preprocessing was performed.
             # want MNI152NLin6Asym outputs, but we'll live with it.
             if config.workflow.cifti_output:
                 workflow.connect([
-                    (select_MNI6_xfm, bold_wf, [('anat2std_xfm', 'inputnode.anat2mni6_xfm')]),
-                    (select_MNI6_tpl, bold_wf, [('brain_mask', 'inputnode.mni6_mask')]),
-                    (hcp_morphometrics_wf, bold_wf, [
+                    (select_MNI6_xfm, pet_wf, [('anat2std_xfm', 'inputnode.anat2mni6_xfm')]),
+                    (select_MNI6_tpl, pet_wf, [('brain_mask', 'inputnode.mni6_mask')]),
+                    (hcp_morphometrics_wf, pet_wf, [
                         ('outputnode.roi', 'inputnode.cortex_mask'),
                     ]),
-                    (resample_surfaces_wf, bold_wf, [
+                    (resample_surfaces_wf, pet_wf, [
                         ('outputnode.midthickness_fsLR', 'inputnode.midthickness_fsLR'),
                     ]),
                 ])  # fmt:skip
