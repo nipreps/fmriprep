@@ -503,6 +503,115 @@ configured with cubic B-spline interpolation.
             (merge_bold_sources, ds_bold_std_wf, [('out', 'inputnode.source_files')]),
         ])  # fmt:skip
 
+    surf_std = spaces.get_standard(dim=(2,))
+    if surf_std:  # Probably ensure reconall and msmsulc are run
+        workflow.__postdesc__ += """\
+Non-gridded (surface) resamplings were performed using the Connectome
+Workbench.
+"""
+        config.loggers.workflow.debug('Creating BOLD surface workbench resampling workflow.')
+        from smriprep.workflows.surfaces import init_resample_surfaces_wb_wf
+
+        from .resampling import (
+            init_goodvoxels_bold_mask_wf,
+            init_wb_surf_surf_wf,
+            init_wb_vol_surf_wf,
+        )
+
+        wb_vol_surf_wf = init_wb_vol_surf_wf(
+            name='wb_vol_surf_wf',
+            omp_nthreads=omp_nthreads,
+            mem_gb=mem_gb['resampled'],
+            dilate=True,
+        )
+        workflow.connect([
+            (inputnode, wb_vol_surf_wf,[
+                ('white', 'inputnode.white'),
+                ('pial', 'inputnode.pial'),
+                ('midthickness', 'inputnode.midthickness'),
+            ]),
+            (bold_anat_wf, wb_vol_surf_wf, [
+                ('outputnode.bold_file', 'inputnode.bold_file'),
+            ]),
+        ])  # fmt:skip
+
+        if config.workflow.project_goodvoxels:
+            goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
+
+            workflow.connect([
+                (inputnode, goodvoxels_bold_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
+                (bold_anat_wf, goodvoxels_bold_mask_wf, [
+                    ('outputnode.bold_file', 'inputnode.bold_file'),
+                ]),
+                (goodvoxels_bold_mask_wf, wb_vol_surf_wf, [
+                    ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
+                ]),
+            ])  # fmt:skip
+            workflow.__desc__ += """\
+A "goodvoxels" mask was applied during volume-to-surface sampling, excluding
+voxels whose time-series have a locally high coefficient of variation.
+"""
+
+        for ref_ in surf_std:
+            space, den = ref_.space, ref_.spec['den']
+
+            resample_surfaces_wb_wf = init_resample_surfaces_wb_wf(
+                name=f'resample_surfaces_wb_wf_{space}_{den}',
+                surfaces=['midthickness'],
+                space=space,
+                density=den,
+            )
+
+            wb_surf_surf_wf = init_wb_surf_surf_wf(
+                space=space,
+                density=den,
+                name=f'wb_surf_surf_wf_{space}_{den}',
+                omp_nthreads=omp_nthreads,
+                mem_gb=mem_gb['resampled'],
+            )
+
+            ds_bold_surf_wb = pe.Node(
+                DerivativesDataSink(
+                    base_directory=fmriprep_dir,
+                    hemi=['L', 'R'],
+                    dismiss_entities=dismiss_echo(),
+                    space=space,
+                    density=den,
+                    suffix='bold',
+                    # compress=False, # not sure if needed for gii.
+                    TaskName=all_metadata[0].get('TaskName'),
+                    extension='.func.gii',
+                    **prepare_timing_parameters(all_metadata[0]),
+                ),
+                iterfield=('in_file', 'hemi'),
+                name=f'ds_bold_surf_wb_{space}_{den}',
+                run_without_submitting=True,
+            )
+            ds_bold_surf_wb.inputs.source_file = bold_file
+
+            workflow.connect([
+                (inputnode, resample_surfaces_wb_wf, [
+                    ('midthickness', 'inputnode.midthickness'),
+                    ('sphere_reg_fsLR', 'inputnode.sphere_reg_fsLR'),
+                ]),
+                (wb_vol_surf_wf, wb_surf_surf_wf, [
+                    ('outputnode.bold_fsnative', 'inputnode.bold_fsnative'),
+                ]),
+                (inputnode, wb_surf_surf_wf, [
+                    ('midthickness', 'inputnode.midthickness'),
+                    # # TODO: check inputnode.midthickness_resampled
+                    # ('midthickness_resampled', 'inputnode.midthickness_resampled'),
+                    ('sphere_reg_fsLR', 'inputnode.sphere_reg_fsLR'),
+                ]),
+                (resample_surfaces_wb_wf, wb_surf_surf_wf, [
+                    ('outputnode.midthickness_resampled', 'inputnode.midthickness_resampled'),
+                ]),
+                (wb_surf_surf_wf, ds_bold_surf_wb, [
+                    ('outputnode.bold_resampled', 'in_file'),
+                    # TODO: json metadata?
+                ]),
+            ])  # fmt:skip
+
     if config.workflow.run_reconall and freesurfer_spaces:
         workflow.__postdesc__ += """\
 Non-gridded (surface) resamplings were performed using `mri_vol2surf`
