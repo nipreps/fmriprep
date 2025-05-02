@@ -47,11 +47,11 @@ from ..interfaces.reports import AboutSummary, SubjectSummary
 from ..utils.bids import dismiss_echo
 
 
-def init_fmriprep_wf():
+def init_petprep_wf():
     """
-    Build *fMRIPrep*'s pipeline.
+    Build *PETPrep*'s pipeline.
 
-    This workflow organizes the execution of FMRIPREP, with a sub-workflow for
+    This workflow organizes the execution of PETPREP, with a sub-workflow for
     each subject.
 
     If FreeSurfer's ``recon-all`` is to be run, a corresponding folder is created
@@ -63,9 +63,9 @@ def init_fmriprep_wf():
             :simple_form: yes
 
             from fmriprep.workflows.tests import mock_config
-            from fmriprep.workflows.base import init_fmriprep_wf
+            from fmriprep.workflows.base import init_petprep_wf
             with mock_config():
-                wf = init_fmriprep_wf()
+                wf = init_petprep_wf()
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
@@ -73,8 +73,8 @@ def init_fmriprep_wf():
 
     ver = Version(config.environment.version)
 
-    fmriprep_wf = Workflow(name=f'fmriprep_{ver.major}_{ver.minor}_wf')
-    fmriprep_wf.base_dir = config.execution.work_dir
+    petprep_wf = Workflow(name=f'petprep_{ver.major}_{ver.minor}_wf')
+    petprep_wf.base_dir = config.execution.work_dir
 
     freesurfer = config.workflow.run_reconall
     if freesurfer:
@@ -95,23 +95,23 @@ def init_fmriprep_wf():
         single_subject_wf = init_single_subject_wf(subject_id)
 
         single_subject_wf.config['execution']['crashdump_dir'] = str(
-            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
+            config.execution.petprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
         if freesurfer:
-            fmriprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
+            petprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
         else:
-            fmriprep_wf.add_nodes([single_subject_wf])
+            petprep_wf.add_nodes([single_subject_wf])
 
         # Dump a copy of the config file into the log directory
         log_dir = (
-            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
+            config.execution.petprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         log_dir.mkdir(exist_ok=True, parents=True)
-        config.to_filename(log_dir / 'fmriprep.toml')
+        config.to_filename(log_dir / 'petprep.toml')
 
-    return fmriprep_wf
+    return petprep_wf
 
 
 def init_single_subject_wf(subject_id: str):
@@ -167,7 +167,7 @@ def init_single_subject_wf(subject_id: str):
         init_resample_surfaces_wf,
     )
 
-    from fmriprep.workflows.bold.base import init_bold_wf
+    from petprep.workflows.bold.base import init_pet_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
     workflow.__desc__ = f"""
@@ -216,25 +216,18 @@ It is released under the [CC0]\
 
     anat_only = config.workflow.anat_only
     # Make sure we always go through these two checks
-    if not anat_only and not subject_data['bold']:
-        task_id = config.execution.task_id or '<all>'
+    if not anat_only and not subject_data['pet']:
         raise RuntimeError(
-            f'No BOLD images found for participant {subject_id} and '
-            f'task {task_id}. All workflows require BOLD images.'
+            f'No PET images found for participant {subject_id}.'
+            f'All workflows require BOLD images.'
         )
 
-    bold_runs = [
-        sorted(
-            listify(run),
-            key=lambda file: config.execution.layout.get_metadata(file).get('EchoTime', 0),
-        )
-        for run in subject_data['bold']
-    ]
+    pet_runs = subject_data['pet']
 
     if subject_data['roi']:
         warnings.warn(
             f'Lesion mask {subject_data["roi"]} found. '
-            'Future versions of fMRIPrep will use alternative conventions. '
+            'Future versions of PETPrep will use alternative conventions. '
             'Please refer to the documentation before upgrading.',
             FutureWarning,
             stacklevel=1,
@@ -291,10 +284,9 @@ It is released under the [CC0]\
 
     ds_report_summary = pe.Node(
         DerivativesDataSink(
-            base_directory=config.execution.fmriprep_dir,
+            base_directory=config.execution.petprep_dir,
             desc='summary',
-            datatype='figures',
-            dismiss_entities=dismiss_echo(),
+            datatype='figures'
         ),
         name='ds_report_summary',
         run_without_submitting=True,
@@ -302,23 +294,22 @@ It is released under the [CC0]\
 
     ds_report_about = pe.Node(
         DerivativesDataSink(
-            base_directory=config.execution.fmriprep_dir,
+            base_directory=config.execution.petprep_dir,
             desc='about',
-            datatype='figures',
-            dismiss_entities=dismiss_echo(),
+            datatype='figures'
         ),
         name='ds_report_about',
         run_without_submitting=True,
     )
 
     bids_root = str(config.execution.bids_dir)
-    fmriprep_dir = str(config.execution.fmriprep_dir)
+    petprep_dir = str(config.execution.fmriprep_dir)
     omp_nthreads = config.nipype.omp_nthreads
 
     # Build the workflow
     anat_fit_wf = init_anat_fit_wf(
         bids_root=bids_root,
-        output_dir=fmriprep_dir,
+        output_dir=petprep_dir,
         freesurfer=config.workflow.run_reconall,
         hires=config.workflow.hires,
         fs_no_resume=config.workflow.fs_no_resume,
@@ -336,7 +327,7 @@ It is released under the [CC0]\
         skull_strip_fixed_seed=config.workflow.skull_strip_fixed_seed,
     )
 
-    # allow to run with anat-fast-track on fMRI-only dataset
+    # allow to run with anat-fast-track on PET-only dataset
     if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
         config.loggers.workflow.debug(
             'No T1w image found; using precomputed T1w image: %s', anatomical_cache['t1w_preproc']
@@ -366,7 +357,7 @@ It is released under the [CC0]\
         (bids_info, anat_fit_wf, [(('subject', _prefix), 'inputnode.subject_id')]),
         # Reporting connections
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-        (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
+        (bidssrc, summary, [('t2w', 't2w'), ('pet', 'pet')]),
         (bids_info, summary, [('subject', 'subject_id')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
@@ -382,7 +373,7 @@ It is released under the [CC0]\
             )
             ds_std_volumes_wf = init_ds_anat_volumes_wf(
                 bids_root=bids_root,
-                output_dir=fmriprep_dir,
+                output_dir=petprep_dir,
                 name='ds_std_volumes_wf',
             )
             workflow.connect([
