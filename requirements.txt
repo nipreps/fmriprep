@@ -6,7 +6,6 @@ acres==0.3.0
     #   nipype
     #   nireports
     #   niworkflows
-    #   sdcflows
     #   smriprep
 annexremote==1.6.6
     # via
@@ -24,7 +23,6 @@ attrs==25.1.0
     #   jsonschema
     #   niworkflows
     #   referencing
-    #   sdcflows
 bids-validator==1.14.7.post0
     # via pybids
 bidsschematools==1.0.3
@@ -203,7 +201,6 @@ mdurl==0.1.2
 migas==0.4.0
     # via
     #   fmriprep (pyproject.toml)
-    #   sdcflows
 more-itertools==10.6.0
     # via
     #   datalad-next
@@ -226,7 +223,6 @@ nibabel==5.3.2
     #   nitransforms
     #   niworkflows
     #   pybids
-    #   sdcflows
     #   smriprep
     #   tedana
 nilearn==0.11.1
@@ -240,7 +236,6 @@ nipype==1.9.2
     #   fmriprep (pyproject.toml)
     #   nireports
     #   niworkflows
-    #   sdcflows
     #   smriprep
 nireports==24.1.0
     # via fmriprep (pyproject.toml)
@@ -250,11 +245,9 @@ nitransforms==24.1.1
     # via
     #   fmriprep (pyproject.toml)
     #   niworkflows
-    #   sdcflows
 niworkflows==1.12.2
     # via
     #   fmriprep (pyproject.toml)
-    #   sdcflows
     #   smriprep
 num2words==0.5.14
     # via pybids
@@ -280,7 +273,6 @@ numpy==1.26.4
     #   scikit-image
     #   scikit-learn
     #   scipy
-    #   sdcflows
     #   seaborn
     #   smriprep
     #   tedana
@@ -345,7 +337,6 @@ pybids==0.19.0
     #   fmriprep (pyproject.toml)
     #   nireports
     #   niworkflows
-    #   sdcflows
     #   smriprep
     #   templateflow
 pycparser==2.22
@@ -418,7 +409,6 @@ s3transfer==0.11.4
 scikit-image==0.25.2
     # via
     #   niworkflows
-    #   sdcflows
 scikit-learn==1.6.1
     # via
     #   mapca
@@ -436,10 +426,7 @@ scipy==1.15.2
     #   pybids
     #   scikit-image
     #   scikit-learn
-    #   sdcflows
     #   tedana
-sdcflows==2.11.0
-    # via fmriprep (pyproject.toml)
 seaborn==0.13.2
     # via
     #   nireports
@@ -476,7 +463,6 @@ templateflow==24.2.2
     #   fmriprep (pyproject.toml)
     #   nireports
     #   niworkflows
-    #   sdcflows
     #   smriprep
 termcolor==2.3.0
     # via yaspin
@@ -489,7 +475,6 @@ tifffile==2025.2.18
 toml==0.10.2
     # via
     #   fmriprep (pyproject.toml)
-    #   sdcflows
 tornado==6.4.2
     # via bokeh
 tqdm==4.67.1

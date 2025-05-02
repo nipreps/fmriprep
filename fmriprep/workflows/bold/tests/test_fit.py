@@ -48,7 +48,6 @@ def _make_params(
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
-@pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize(
     (
         'have_hmcref',
@@ -71,7 +70,6 @@ def test_bold_fit_precomputes(
     bids_root: Path,
     tmp_path: Path,
     task: str,
-    fieldmap_id: str | None,
     have_hmcref: bool,
     have_coregref: bool,
     have_hmc_xfms: bool,
@@ -125,7 +123,6 @@ def test_bold_fit_precomputes(
         wf = init_bold_fit_wf(
             bold_series=bold_series,
             precomputed=precomputed,
-            fieldmap_id=fieldmap_id,
             omp_nthreads=1,
         )
 
@@ -134,13 +131,11 @@ def test_bold_fit_precomputes(
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
-@pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize('run_stc', [True, False])
 def test_bold_native_precomputes(
     bids_root: Path,
     tmp_path: Path,
     task: str,
-    fieldmap_id: str | None,
     run_stc: bool,
 ):
     """Test as many combinations of precomputed files and input
@@ -168,7 +163,6 @@ def test_bold_native_precomputes(
         config.workflow.ignore = ['slicetiming'] if not run_stc else []
         wf = init_bold_native_wf(
             bold_series=bold_series,
-            fieldmap_id=fieldmap_id,
             omp_nthreads=1,
         )
 

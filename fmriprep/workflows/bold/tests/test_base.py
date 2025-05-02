@@ -32,7 +32,6 @@ def bids_root(tmp_path_factory):
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
-@pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize('freesurfer', [False, True])
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
 @pytest.mark.parametrize('bold2anat_init', ['t1w', 't2w'])
@@ -40,7 +39,6 @@ def test_bold_wf(
     bids_root: Path,
     tmp_path: Path,
     task: str,
-    fieldmap_id: str | None,
     freesurfer: bool,
     level: str,
     bold2anat_init: str,
@@ -75,7 +73,6 @@ def test_bold_wf(
         config.workflow.run_reconall = freesurfer
         wf = init_bold_wf(
             bold_series=bold_series,
-            fieldmap_id=fieldmap_id,
             precomputed={},
         )
 

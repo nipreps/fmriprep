@@ -38,13 +38,6 @@
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
-      },
-      "boldref2fmap": {
-        "datatype": "func",
-        "from": "boldref",
-        "mode": "image",
-        "suffix": "xfm",
-        "extension": ".txt"
       }
     }
   },

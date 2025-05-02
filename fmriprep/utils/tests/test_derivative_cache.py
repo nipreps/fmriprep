@@ -27,13 +27,12 @@ def test_baseline_found_as_str(tmp_path: Path, desc: str):
     assert dict(derivs) == {f'{desc}_boldref': str(to_find), 'transforms': {}}
 
 
-@pytest.mark.parametrize('xfm', ['boldref2fmap', 'boldref2anat', 'hmc'])
+@pytest.mark.parametrize('xfm', ['boldref2anat', 'hmc'])
 def test_transforms_found_as_str(tmp_path: Path, xfm: str):
     subject = '0'
     task = 'rest'
     fromto = {
         'hmc': 'from-orig_to-boldref',
-        'boldref2fmap': 'from-boldref_to-auto00000',
         'boldref2anat': 'from-boldref_to-anat',
     }[xfm]
 
@@ -53,6 +52,5 @@ def test_transforms_found_as_str(tmp_path: Path, xfm: str):
     derivs = bids.collect_derivatives(
         derivatives_dir=tmp_path,
         entities=entities,
-        fieldmap_id='auto_00000',
     )
     assert derivs == {'transforms': {xfm: str(to_find)}}
