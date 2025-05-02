@@ -26,15 +26,15 @@ A Python module to maintain unique, run-wide *fMRIPrep* settings.
 This module implements the memory structures to keep a consistent, singleton config.
 Settings are passed across processes via filesystem, and a copy of the settings for
 each run and subject is left under
-``<fmriprep_dir>/sub-<participant_id>/log/<run_unique_id>/fmriprep.toml``.
+``<fmriprep_dir>/sub-<participant_id>/log/<run_unique_id>/petprep.toml``.
 Settings are stored using :abbr:`ToML (Tom's Markup Language)`.
-The module has a :py:func:`~fmriprep.config.to_filename` function to allow writing out
+The module has a :py:func:`~petprep.config.to_filename` function to allow writing out
 the settings to hard disk in *ToML* format, which looks like:
 
-.. literalinclude:: ../fmriprep/data/tests/config.toml
+.. literalinclude:: ../petprep/data/tests/config.toml
    :language: toml
-   :name: fmriprep.toml
-   :caption: **Example file representation of fMRIPrep settings**.
+   :name: petprep.toml
+   :caption: **Example file representation of PETPrep settings**.
 
 This config file is used to pass the settings across processes,
 using the :py:func:`~fmriprep.config.load` function.
@@ -57,8 +57,8 @@ graph is built across processes.
 
 .. code-block:: Python
 
-    from fmriprep import config
-    config_file = config.execution.work_dir / '.fmriprep.toml'
+    from petprep import config
+    config_file = config.execution.work_dir / '.petprep.toml'
     config.to_filename(config_file)
     # Call build_workflow(config_file, retval) in a subprocess
     with Manager() as mgr:
@@ -125,13 +125,13 @@ if not any(
     (
         '+' in __version__,
         __version__.endswith('.dirty'),
-        os.getenv('FMRIPREP_DEV', '0').lower() in ('1', 'on', 'true', 'y', 'yes'),
+        os.getenv('PETPREP_DEV', '0').lower() in ('1', 'on', 'true', 'y', 'yes'),
     )
 ):
     from ._warnings import logging
 
     os.environ['PYTHONWARNINGS'] = 'ignore'
-elif os.getenv('FMRIPREP_WARNINGS', '0').lower() in ('1', 'on', 'true', 'y', 'yes'):
+elif os.getenv('PETPREP_WARNINGS', '0').lower() in ('1', 'on', 'true', 'y', 'yes'):
     # allow disabling warnings on development versions
     # https://github.com/nipreps/fmriprep/pull/2080#discussion_r409118765
     from ._warnings import logging
@@ -163,7 +163,7 @@ if os.getenv('IS_DOCKER_8395080871'):
     _cgroup = Path('/proc/1/cgroup')
     if _cgroup.exists() and 'docker' in _cgroup.read_text():
         _docker_ver = os.getenv('DOCKER_VERSION_8395080871')
-        _exec_env = 'fmriprep-docker' if _docker_ver else 'docker'
+        _exec_env = 'petprep-docker' if _docker_ver else 'docker'
     del _cgroup
 
 _fs_license = os.getenv('FS_LICENSE')
@@ -205,7 +205,7 @@ except Exception:  # noqa: S110, BLE001
 
 # Debug modes are names that influence the exposure of internal details to
 # the user, either through additional derivatives or increased verbosity
-DEBUG_MODES = ('compcor', 'fieldmaps', 'pdb')
+DEBUG_MODES = ('pdb')
 
 
 class _Config:
@@ -271,7 +271,7 @@ class environment(_Config):
     Read-only options regarding the platform and environment.
 
     Crawls runtime descriptive settings (e.g., default FreeSurfer license,
-    execution environment, nipype and *fMRIPrep* versions, etc.).
+    execution environment, nipype and *PETPrep* versions, etc.).
     The ``environment`` section is not loaded in from file,
     only written out when settings are exported.
     This config section is useful when reporting issues,
@@ -297,7 +297,7 @@ class environment(_Config):
     templateflow_version = _tf_ver
     """The TemplateFlow client version installed."""
     version = __version__
-    """*fMRIPrep*'s version."""
+    """*PETPrep*'s version."""
 
 
 class nipype(_Config):
@@ -395,9 +395,7 @@ class execution(_Config):
     """Run in sloppy mode (meaning, suboptimal parameters that minimize run-time)."""
     debug = []
     """Debug mode(s)."""
-    echo_idx = None
-    """Select a particular echo for multi-echo EPI datasets."""
-    fmriprep_dir = None
+    petprep_dir = None
     """Root of fMRIPrep BIDS Derivatives dataset. Depends on output_layout."""
     fs_license_file = _fs_license
     """An existing file containing a FreeSurfer license."""
@@ -421,8 +419,6 @@ class execution(_Config):
     """Country ISO code used by carbon trackers."""
     output_dir = None
     """Folder where derivatives will be stored."""
-    me_output_echos = False
-    """Output individual echo time series with slice, motion and susceptibility correction"""
     aggr_ses_reports = None
     """Maximum number of sessions aggregated in one subject's visual report."""
     output_layout = None
@@ -453,7 +449,7 @@ class execution(_Config):
         'bids_dir',
         'derivatives',
         'bids_database_dir',
-        'fmriprep_dir',
+        'petprep_dir',
         'fs_license_file',
         'fs_subjects_dir',
         'layout',
@@ -554,11 +550,6 @@ class workflow(_Config):
 
     anat_only = False
     """Execute the anatomical preprocessing only."""
-    aroma_err_on_warn = None
-    """Cast AROMA warnings to errors."""
-    aroma_melodic_dim = None
-    """Number of ICA components to be estimated by MELODIC
-    (positive = exact, negative = maximum)."""
     bold2anat_dof = None
     """Degrees of freedom of the BOLD-to-anatomical registration steps."""
     bold2anat_init = 'auto'
@@ -569,12 +560,6 @@ class workflow(_Config):
     """Generate HCP Grayordinates, accepts either ``'91k'`` (default) or ``'170k'``."""
     dummy_scans = None
     """Set a number of initial scans to be considered nonsteady states."""
-    fmap_bspline = None
-    """Regularize fieldmaps with a field of B-Spline basis."""
-    fmap_demean = None
-    """Remove the mean from fieldmaps."""
-    force_syn = None
-    """Run *fieldmap-less* susceptibility-derived distortions estimation."""
     hires = None
     """Run FreeSurfer ``recon-all`` with the ``-hires`` flag."""
     fs_no_resume = None
@@ -608,23 +593,11 @@ class workflow(_Config):
     skull_strip_t1w = 'force'
     """Skip brain extraction of the T1w image (default is ``force``, meaning that
     *fMRIPrep* will run brain extraction of the T1w)."""
-    slice_time_ref = 0.5
-    """The time of the reference slice to correct BOLD values to, as a fraction
-    acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end
-    of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5.
-    The default value is 0.5."""
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""
-    use_aroma = None
-    """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None
     """Run boundary-based registration for BOLD-to-T1w registration."""
-    use_syn_sdc = None
-    """Run *fieldmap-less* susceptibility-derived distortions estimation
-    in the absence of any alternatives."""
-    me_t2s_fit_method = 'curvefit'
-    """The method by which to estimate T2*/S0 for multi-echo data"""
 
 
 class loggers:
