@@ -166,7 +166,7 @@ def init_single_subject_wf(subject_id: str):
         init_resample_surfaces_wf,
     )
 
-    from fmriprep.workflows.bold.base import init_pet_wf
+    from fmriprep.workflows.pet.base import init_pet_wf
 
     workflow = Workflow(name=f'sub_{subject_id}_wf')
     workflow.__desc__ = f"""
@@ -331,7 +331,7 @@ It is released under the [CC0]\
             'No T1w image found; using precomputed T1w image: %s', anatomical_cache['t1w_preproc']
         )
         workflow.connect([
-            (bidssrc, bids_info, [(('bold', fix_multi_T1w_source_name), 'in_file')]),
+            (bidssrc, bids_info, [(('pet', fix_multi_T1w_source_name), 'in_file')]),
             (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
             (anat_fit_wf, ds_report_summary, [('outputnode.t1w_preproc', 'source_file')]),
             (anat_fit_wf, ds_report_about, [('outputnode.t1w_preproc', 'source_file')]),
@@ -527,9 +527,9 @@ It is released under the [CC0]\
         return clean_datasinks(workflow)
 
     # Append the functional section to the existing anatomical excerpt
-    # That way we do not need to stream down the number of bold datasets
-    func_pre_desc = f"""
-Functional data preprocessing
+    # That way we do not need to filter down the number of PET datasets
+    pet_pre_desc = f"""
+PET data preprocessing
 
 : For each of the {len(pet_runs)} PET runs found per subject (across all
 tasks and sessions), the following preprocessing was performed.
@@ -566,7 +566,7 @@ tasks and sessions), the following preprocessing was performed.
         if pet_wf is None:
             continue
 
-        pet_wf.__desc__ = func_pre_desc + (pet_wf.__desc__ or '')
+        pet_wf.__desc__ = pet_pre_desc + (pet_wf.__desc__ or '')
 
         workflow.connect([
             (anat_fit_wf, pet_wf, [
