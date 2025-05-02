@@ -43,12 +43,12 @@ def build_workflow(config_file, retval):
 
     from .. import config, data
     from ..utils.misc import check_deps
-    from ..workflows.base import init_fmriprep_wf
+    from ..workflows.base import init_petprep_wf
 
     config.load(config_file)
     build_log = config.loggers.workflow
 
-    fmriprep_dir = config.execution.fmriprep_dir
+    petprep_dir = config.execution.petprep_dir
     version = config.environment.version
 
     retval['return_code'] = 1
@@ -65,7 +65,7 @@ def build_workflow(config_file, retval):
     build_log.log(25, f'\n{" " * 9}'.join(banner))
 
     # warn if older results exist: check for dataset_description.json in output folder
-    msg = check_pipeline_version('fMRIPrep', version, fmriprep_dir / 'dataset_description.json')
+    msg = check_pipeline_version('fMRIPrep', version, petprep_dir / 'dataset_description.json')
     if msg is not None:
         build_log.warning(msg)
 
@@ -93,7 +93,7 @@ def build_workflow(config_file, retval):
 
         failed_reports = generate_reports(
             config.execution.participant_label,
-            config.execution.fmriprep_dir,
+            config.execution.petprep_dir,
             config.execution.run_uuid,
             session_list=session_list,
         )
@@ -123,7 +123,7 @@ def build_workflow(config_file, retval):
 
     build_log.log(25, f'\n{" " * 11}* '.join(init_msg))
 
-    retval['workflow'] = init_fmriprep_wf()
+    retval['workflow'] = init_petprep_wf()
 
     # Check for FS license after building the workflow
     if not check_valid_fs_license():
@@ -171,7 +171,7 @@ def build_boilerplate(config_file, workflow):
     from .. import config
 
     config.load(config_file)
-    logs_path = config.execution.fmriprep_dir / 'logs'
+    logs_path = config.execution.petprep_dir / 'logs'
     boilerplate = workflow.visit_desc()
     citation_files = {ext: logs_path / f'CITATION.{ext}' for ext in ('bib', 'tex', 'md', 'html')}
 
