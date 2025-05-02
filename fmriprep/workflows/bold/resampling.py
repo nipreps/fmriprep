@@ -47,7 +47,6 @@ from ... import config
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces.bids import BIDSURI
 from ...interfaces.workbench import MetricDilate, MetricMask, MetricResample
-from ...utils.bids import dismiss_echo
 from .outputs import prepare_timing_parameters
 
 
@@ -195,7 +194,6 @@ The BOLD time-series were resampled onto the following surfaces
         DerivativesDataSink(
             base_directory=output_dir,
             extension='.func.gii',
-            dismiss_entities=dismiss_echo(),
             TaskName=metadata.get('TaskName'),
             **timing_parameters,
         ),

@@ -31,7 +31,6 @@ DEFAULT_MEMORY_MIN_GB = 0.01
 
 def init_raw_boldref_wf(
     bold_file=None,
-    multiecho=False,
     name='raw_boldref_wf',
 ):
     """
@@ -55,8 +54,6 @@ def init_raw_boldref_wf(
     ----------
     bold_file : :obj:`str`
         BOLD series NIfTI file
-    multiecho : :obj:`bool`
-        If multiecho data was supplied, data from the first echo will be selected
     name : :obj:`str`
         Name of workflow (default: ``bold_reference_wf``)
 
@@ -83,8 +80,8 @@ def init_raw_boldref_wf(
     from niworkflows.interfaces.images import RobustAverage
 
     workflow = Workflow(name=name)
-    workflow.__desc__ = f"""\
-First, a reference volume was generated{' from the shortest echo of the BOLD run' * multiecho},
+    workflow.__desc__ = """\
+First, a reference volume was generated,
 using a custom methodology of *fMRIPrep*, for use in head motion correction.
 """
 

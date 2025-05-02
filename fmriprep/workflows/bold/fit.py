@@ -48,7 +48,6 @@ from .outputs import (
 from .reference import init_raw_boldref_wf, init_validation_and_dummies_wf
 from .registration import init_bold_reg_wf
 from .stc import init_bold_stc_wf
-from .t2s import init_bold_t2s_wf
 
 
 def get_sbrefs(
@@ -74,7 +73,6 @@ def get_sbrefs(
         sorted by EchoTime
     """
     entities = extract_entities(bold_files)
-    entities.pop('echo', None)
     entities.update(suffix='sbref', extension=['.nii', '.nii.gz'])
     entities.update(entity_overrides)
 
@@ -110,7 +108,7 @@ def init_bold_fit_wf(
     Parameters
     ----------
     bold_series
-        List of paths to NIfTI files, sorted by echo time.
+        List of paths to NIfTI files
     precomputed
         Dictionary containing precomputed derivatives to reuse, if possible.
 
@@ -174,8 +172,6 @@ def init_bold_fit_wf(
     layout = config.execution.layout
     bids_filters = config.execution.get().get('bids_filters', {})
 
-    # Fitting operates on the shortest echo
-    # This could become more complicated in the future
     bold_file = bold_series[0]
 
     # Collect sbref files, sorted by EchoTime
@@ -202,9 +198,6 @@ def init_bold_fit_wf(
     orientation = ''.join(nb.aff2axcodes(nb.load(bold_file).affine))
 
     bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
-
-    # Boolean used to update workflow self-descriptions
-    multiecho = len(bold_series) > 1
 
     hmc_boldref = precomputed.get('hmc_boldref')
     coreg_boldref = precomputed.get('coreg_boldref')
@@ -282,7 +275,6 @@ def init_bold_fit_wf(
             ),
             registration_dof=config.workflow.bold2anat_dof,
             registration_init=config.workflow.bold2anat_init,
-            echo_idx=entities.get('echo', []),
             tr=metadata['RepetitionTime'],
             orientation=orientation,
         ),
@@ -346,7 +338,6 @@ def init_bold_fit_wf(
         hmc_boldref_wf = init_raw_boldref_wf(
             name='hmc_boldref_wf',
             bold_file=bold_file,
-            multiecho=multiecho,
         )
         hmc_boldref_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
 
@@ -519,9 +510,8 @@ def init_bold_native_wf(
     Minimal resampling workflow.
 
     This workflow performs slice-timing correction, and resamples to boldref space
-    with head motion and susceptibility distortion correction. It also handles
-    multi-echo processing and selects the transforms needed to perform further
-    resampling.
+    with head motion and susceptibility distortion correction. It also selects
+    the transforms needed to perform further resampling.
 
     Workflow Graph
         .. workflow::
@@ -554,26 +544,16 @@ def init_bold_native_wf(
     Outputs
     -------
     bold_minimal
-        BOLD series ready for further resampling. For single-echo data, only
-        slice-timing correction (STC) may have been applied. For multi-echo
-        data, this is identical to bold_native.
+        BOLD series ready for further resampling.
+        Only slice-timing correction (STC) may have been applied.
     bold_native
         BOLD series resampled into BOLD reference space. Slice-timing,
         head motion and susceptibility distortion correction (STC, HMC, SDC)
-        will all be applied to each file. For multi-echo data, the echos
-        are combined to form an `optimal combination`_.
+        will all be applied to each file.
     metadata
-        Metadata dictionary of BOLD series with the shortest echo
+        Metadata dictionary of BOLD series
     motion_xfm
         Motion correction transforms for further correcting bold_minimal.
-        For multi-echo data, motion correction has already been applied, so
-        this will be undefined.
-    bold_echos
-        The individual, corrected echos, suitable for use in Tedana.
-        (Multi-echo only.)
-    t2star_map
-        The T2\* map estimated by Tedana when calculating the optimal combination.
-        (Multi-echo only.)
 
     See Also
     --------
@@ -587,28 +567,12 @@ def init_bold_native_wf(
 
     layout = config.execution.layout
 
-    # Shortest echo first
     all_metadata = [layout.get_metadata(bold_file) for bold_file in bold_series]
-    echo_times = [md.get('EchoTime') for md in all_metadata]
-    multiecho = len(bold_series) > 1
 
     bold_file = bold_series[0]
     metadata = all_metadata[0]
 
     bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
-
-    if multiecho:
-        shapes = [nb.load(echo).shape for echo in bold_series]
-        if len(set(shapes)) != 1:
-            diagnostic = '\n'.join(
-                f'{os.path.basename(echo)}: {shape}'
-                for echo, shape in zip(bold_series, shapes, strict=False)
-            )
-            raise RuntimeError(f'Multi-echo images found with mismatching shapes\n{diagnostic}')
-        if len(shapes) == 2:
-            raise RuntimeError(
-                'Multi-echo processing requires at least three different echos (found two).'
-            )
 
     run_stc = bool(metadata.get('SliceTiming')) and 'slicetiming' not in config.workflow.ignore
 
@@ -635,9 +599,6 @@ def init_bold_native_wf(
                 'metadata',
                 # Transforms
                 'motion_xfm',
-                # Multiecho outputs
-                'bold_echos',  # Individual corrected echos
-                't2star_map',  # T2* map
             ],  # fmt:skip
         ),
         name='outputnode',
@@ -648,19 +609,10 @@ def init_bold_native_wf(
         niu.IdentityInterface(fields=['bold_file']), name='boldbuffer'
     )
 
-    # Track echo index - this allows us to treat multi- and single-echo workflows
-    # almost identically
-    echo_index = pe.Node(niu.IdentityInterface(fields=['echoidx']), name='echo_index')
-    if multiecho:
-        echo_index.iterables = [('echoidx', range(len(bold_series)))]
-    else:
-        echo_index.inputs.echoidx = 0
-
     # BOLD source: track original BOLD file(s)
     bold_source = pe.Node(niu.Select(inlist=bold_series), name='bold_source')
     validate_bold = pe.Node(ValidateImage(), name='validate_bold')
     workflow.connect([
-        (echo_index, bold_source, [('echoidx', 'index')]),
         (bold_source, validate_bold, [('out', 'in_file')]),
     ])  # fmt:skip
 
@@ -693,42 +645,11 @@ def init_bold_native_wf(
         ]),
     ])  # fmt:skip
 
-    if multiecho:
-        join_echos = pe.JoinNode(
-            niu.IdentityInterface(fields=['bold_files']),
-            joinsource='echo_index',
-            joinfield=['bold_files'],
-            name='join_echos',
-            run_without_submitting=True,
-        )
-
-        # create optimal combination, adaptive T2* map
-        bold_t2s_wf = init_bold_t2s_wf(
-            echo_times=echo_times,
-            mem_gb=mem_gb['filesize'],
-            omp_nthreads=config.nipype.omp_nthreads,
-            name='bold_t2smap_wf',
-        )
-
-        # Do NOT set motion_xfm on outputnode
-        # This prevents downstream resamplers from double-dipping
-        workflow.connect([
-            (inputnode, bold_t2s_wf, [('bold_mask', 'inputnode.bold_mask')]),
-            (boldref_bold, join_echos, [('out_file', 'bold_files')]),
-            (join_echos, bold_t2s_wf, [('bold_files', 'inputnode.bold_file')]),
-            (join_echos, outputnode, [('bold_files', 'bold_echos')]),
-            (bold_t2s_wf, outputnode, [
-                ('outputnode.bold', 'bold_minimal'),
-                ('outputnode.bold', 'bold_native'),
-                ('outputnode.t2star_map', 't2star_map'),
-            ]),
-        ])  # fmt:skip
-    else:
-        workflow.connect([
-            (inputnode, outputnode, [('motion_xfm', 'motion_xfm')]),
-            (boldbuffer, outputnode, [('bold_file', 'bold_minimal')]),
-            (boldref_bold, outputnode, [('out_file', 'bold_native')]),
-        ])  # fmt:skip
+    workflow.connect([
+        (inputnode, outputnode, [('motion_xfm', 'motion_xfm')]),
+        (boldbuffer, outputnode, [('bold_file', 'bold_minimal')]),
+        (boldref_bold, outputnode, [('out_file', 'bold_native')]),
+    ])  # fmt:skip
 
     return workflow
 

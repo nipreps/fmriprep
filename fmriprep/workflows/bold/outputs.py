@@ -34,7 +34,6 @@ from fmriprep import config
 from fmriprep.config import DEFAULT_MEMORY_MIN_GB
 from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.interfaces.bids import BIDSURI
-from fmriprep.utils.bids import dismiss_echo
 
 
 def prepare_timing_parameters(metadata: dict):
@@ -211,7 +210,6 @@ def init_func_fit_reports_wf(
             base_directory=output_dir,
             desc='summary',
             datatype='figures',
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_summary',
         run_without_submitting=True,
@@ -223,7 +221,6 @@ def init_func_fit_reports_wf(
             base_directory=output_dir,
             desc='validation',
             datatype='figures',
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_validation',
         run_without_submitting=True,
@@ -304,7 +301,6 @@ def init_func_fit_reports_wf(
             desc='coreg',
             suffix='bold',
             datatype='figures',
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_epi_t1_report',
     )
@@ -352,7 +348,6 @@ def init_ds_boldref_wf(
             desc=desc,
             suffix='boldref',
             compress=True,
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_boldref',
         run_without_submitting=True,
@@ -401,7 +396,6 @@ def init_ds_boldmask_wf(
             desc=desc,
             suffix='mask',
             compress=True,
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_boldmask',
         run_without_submitting=True,
@@ -451,7 +445,6 @@ def init_ds_registration_wf(
             mode='image',
             suffix='xfm',
             extension='.txt',
-            dismiss_entities=dismiss_echo(['part']),
             **{'from': source, 'to': dest},
         ),
         name='ds_xform',
@@ -502,7 +495,6 @@ def init_ds_hmc_wf(
             suffix='xfm',
             extension='.txt',
             compress=True,
-            dismiss_entities=dismiss_echo(),
             **{'from': 'orig', 'to': 'boldref'},
         ),
         name='ds_xforms',
@@ -526,9 +518,7 @@ def init_ds_bold_native_wf(
     *,
     bids_root: str,
     output_dir: str,
-    multiecho: bool,
     bold_output: bool,
-    echo_output: bool,
     all_metadata: list[dict],
     name='ds_bold_native_wf',
 ) -> pe.Workflow:
@@ -541,8 +531,6 @@ def init_ds_bold_native_wf(
             fields=[
                 'source_files',
                 'bold',
-                'bold_echos',
-                't2star',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
             ]
@@ -571,9 +559,7 @@ def init_ds_bold_native_wf(
                 base_directory=output_dir,
                 desc='preproc',
                 compress=True,
-                SkullStripped=multiecho,
                 TaskName=metadata.get('TaskName'),
-                dismiss_entities=dismiss_echo(),
                 **timing_parameters,
             ),
             name='ds_bold',
@@ -587,56 +573,6 @@ def init_ds_bold_native_wf(
             (sources, ds_bold, [('out', 'Sources')]),
         ])  # fmt:skip
 
-    if bold_output and multiecho:
-        t2star_meta = {
-            'Units': 's',
-            'EstimationReference': 'doi:10.1002/mrm.20900',
-            'EstimationAlgorithm': 'monoexponential decay model',
-        }
-        ds_t2star = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                space='boldref',
-                suffix='T2starmap',
-                compress=True,
-                dismiss_entities=dismiss_echo(),
-                **t2star_meta,
-            ),
-            name='ds_t2star_bold',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        workflow.connect([
-            (inputnode, ds_t2star, [
-                ('source_files', 'source_file'),
-                ('t2star', 'in_file'),
-            ]),
-            (sources, ds_t2star, [('out', 'Sources')]),
-        ])  # fmt:skip
-
-    if echo_output:
-        ds_bold_echos = pe.MapNode(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                desc='preproc',
-                compress=True,
-                SkullStripped=False,
-                TaskName=metadata.get('TaskName'),
-                **timing_parameters,
-            ),
-            iterfield=['source_file', 'in_file', 'meta_dict'],
-            name='ds_bold_echos',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        ds_bold_echos.inputs.meta_dict = [{'EchoTime': md['EchoTime']} for md in all_metadata]
-        workflow.connect([
-            (inputnode, ds_bold_echos, [
-                ('source_files', 'source_file'),
-                ('bold_echos', 'in_file'),
-            ]),
-        ])  # fmt:skip
-
     return workflow
 
 
@@ -644,7 +580,6 @@ def init_ds_volumes_wf(
     *,
     bids_root: str,
     output_dir: str,
-    multiecho: bool,
     metadata: list[dict],
     name='ds_volumes_wf',
 ) -> pe.Workflow:
@@ -692,9 +627,7 @@ def init_ds_volumes_wf(
             base_directory=output_dir,
             desc='preproc',
             compress=True,
-            SkullStripped=multiecho,
             TaskName=metadata.get('TaskName'),
-            dismiss_entities=dismiss_echo(),
             **timing_parameters,
         ),
         name='ds_bold',
@@ -746,7 +679,6 @@ def init_ds_volumes_wf(
             base_directory=output_dir,
             suffix='boldref',
             compress=True,
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_ref',
         run_without_submitting=True,
@@ -758,45 +690,12 @@ def init_ds_volumes_wf(
             desc='brain',
             suffix='mask',
             compress=True,
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_mask',
         run_without_submitting=True,
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
     datasinks = [ds_ref, ds_mask]
-
-    if multiecho:
-        t2star_meta = {
-            'Units': 's',
-            'EstimationReference': 'doi:10.1002/mrm.20900',
-            'EstimationAlgorithm': 'monoexponential decay model',
-        }
-        resample_t2star = pe.Node(
-            ApplyTransforms(
-                dimension=3,
-                default_value=0,
-                float=True,
-                interpolation='LanczosWindowedSinc',
-            ),
-            name='resample_t2star',
-        )
-        ds_t2star = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                suffix='T2starmap',
-                compress=True,
-                dismiss_entities=dismiss_echo(),
-                **t2star_meta,
-            ),
-            name='ds_t2star_std',
-            run_without_submitting=True,
-            mem_gb=DEFAULT_MEMORY_MIN_GB,
-        )
-        resamplers.append(resample_t2star)
-        datasinks.append(ds_t2star)
-
-        workflow.connect([(inputnode, resample_t2star, [('t2star', 'input_image')])])
 
     workflow.connect(
         [
@@ -885,7 +784,6 @@ def init_bold_preproc_report_wf(
             base_directory=reportlets_dir,
             desc='preproc',
             datatype='figures',
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_bold',
         mem_gb=DEFAULT_MEMORY_MIN_GB,

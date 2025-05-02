@@ -62,7 +62,6 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t<ul class="elem-desc">
 \t\t\t<li>Original orientation: {ornt}</li>
 \t\t\t<li>Repetition time (TR): {tr:.03g}s</li>
-\t\t\t<li>{multiecho}</li>
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
@@ -213,7 +212,6 @@ class FunctionalSummaryInputSpec(TraitedSpec):
     tr = traits.Float(desc='Repetition time', mandatory=True)
     dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
     algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
-    echo_idx = InputMultiObject(traits.Str, usedefault=True, desc='BIDS echo identifiers')
     orientation = traits.Str(mandatory=True, desc='Orientation of the voxel axes')
 
 
@@ -264,16 +262,6 @@ class FunctionalSummary(SummaryInterface):
         else:
             dummy_scan_msg = dummy_scan_tmp.format(n_dum=self.inputs.algo_dummy_scans)
 
-        multiecho = 'Single-echo EPI sequence.'
-        n_echos = len(self.inputs.echo_idx)
-        if n_echos == 1:
-            multiecho = (
-                f'Multi-echo EPI sequence: only echo {self.inputs.echo_idx[0]} processed '
-                'in single-echo mode.'
-            )
-        if n_echos > 2:
-            multiecho = f'Multi-echo EPI sequence: {n_echos} echoes.'
-
         return FUNCTIONAL_TEMPLATE.format(
             pedir=pedir,
             stc=stc,
@@ -281,7 +269,6 @@ class FunctionalSummary(SummaryInterface):
             registration=reg,
             tr=self.inputs.tr,
             dummy_scan_desc=dummy_scan_msg,
-            multiecho=multiecho,
             ornt=self.inputs.orientation,
         )
 

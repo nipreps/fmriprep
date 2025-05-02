@@ -620,35 +620,6 @@ Calculated confounds include the mean global signal, mean tissue class signal,
 tCompCor, aCompCor, Frame-wise Displacement, 6 motion parameters, DVARS, and
 spike regressors.
 
-.. _bold_t2s:
-
-T2*-driven echo combination
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-:py:func:`~fmriprep.workflows.bold.t2s.init_bold_t2s_wf`
-
-.. workflow::
-    :graph2use: colored
-    :simple_form: yes
-
-    from fmriprep.workflows.bold.t2s import init_bold_t2s_wf
-    wf = init_bold_t2s_wf(
-        echo_times=[0.015, 0.030, 0.045],
-        mem_gb=1,
-        omp_nthreads=1,
-    )
-
-If multi-echo :abbr:`BOLD (blood-oxygen level-dependent)` data is supplied,
-this workflow uses the `tedana`_ `T2* workflow`_ to generate an adaptive T2* map
-and optimally weighted combination of all supplied single echo time series.
-This optimally combined time series is then carried forward for all subsequent
-preprocessing steps.
-
-The method by which T2* and S0 are estimated is determined by the ``--me-t2s-fit-method`` parameter.
-The default method is "curvefit", which uses nonlinear regression to estimate T2* and S0.
-The other option is "loglin", which uses log-linear regression.
-The "loglin" option is faster and less memory intensive,
-but it may be less accurate than "curvefit".
-
 References
 ----------
 

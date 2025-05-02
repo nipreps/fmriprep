@@ -33,19 +33,6 @@ BASE_LAYOUT = {
                 for suffix in ('bold', 'sbref')
                 for i in range(1, 3)
             ),
-            *(
-                {
-                    'task': 'nback',
-                    'echo': i,
-                    'suffix': 'bold',
-                    'metadata': {
-                        'RepetitionTime': 2.0,
-                        'EchoTime': 0.015 * i,
-                        'SliceTiming': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
-                    },
-                }
-                for i in range(1, 4)
-            ),
         ],
     },
 }
@@ -79,7 +66,6 @@ def bids_root(tmp_path_factory):
 def _make_params(
     bold2anat_init: str = 'auto',
     dummy_scans: int | None = None,
-    me_output_echos: bool = False,
     medial_surface_nan: bool = False,
     project_goodvoxels: bool = False,
     cifti_output: bool | str = False,
@@ -100,7 +86,6 @@ def _make_params(
     return (
         bold2anat_init,
         dummy_scans,
-        me_output_echos,
         medial_surface_nan,
         project_goodvoxels,
         cifti_output,
@@ -120,7 +105,6 @@ def _make_params(
     (
         'bold2anat_init',
         'dummy_scans',
-        'me_output_echos',
         'medial_surface_nan',
         'project_goodvoxels',
         'cifti_output',
@@ -143,7 +127,6 @@ def _make_params(
         # Currently disabled
         # _make_params(bold2anat_init="header", force=['no-bbr']),
         _make_params(dummy_scans=2),
-        _make_params(me_output_echos=True),
         _make_params(medial_surface_nan=True),
         _make_params(cifti_output='91k'),
         _make_params(cifti_output='91k', project_goodvoxels=True),
@@ -169,7 +152,6 @@ def test_init_fmriprep_wf(
     anat_only: bool,
     bold2anat_init: str,
     dummy_scans: int | None,
-    me_output_echos: bool,
     medial_surface_nan: bool,
     project_goodvoxels: bool,
     cifti_output: bool | str,
@@ -186,7 +168,6 @@ def test_init_fmriprep_wf(
         config.workflow.anat_only = anat_only
         config.workflow.bold2anat_init = bold2anat_init
         config.workflow.dummy_scans = dummy_scans
-        config.execution.me_output_echos = me_output_echos
         config.workflow.medial_surface_nan = medial_surface_nan
         config.workflow.project_goodvoxels = project_goodvoxels
         config.workflow.run_msmsulc = run_msmsulc

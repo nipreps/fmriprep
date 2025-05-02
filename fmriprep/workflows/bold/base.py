@@ -36,7 +36,6 @@ from niworkflows.utils.connections import listify
 
 from ... import config
 from ...interfaces import DerivativesDataSink
-from ...utils.bids import dismiss_echo
 from ...utils.misc import estimate_bold_mem_usage
 
 # BOLD workflows
@@ -49,7 +48,6 @@ from .outputs import (
     prepare_timing_parameters,
 )
 from .resampling import init_bold_surf_wf
-from .t2s import init_t2s_reporting_wf
 
 
 def init_bold_wf(
@@ -141,7 +139,6 @@ def init_bold_wf(
     * :func:`~fmriprep.workflows.bold.apply.init_bold_volumetric_resample_wf`
     * :func:`~fmriprep.workflows.bold.outputs.init_ds_bold_native_wf`
     * :func:`~fmriprep.workflows.bold.outputs.init_ds_volumes_wf`
-    * :func:`~fmriprep.workflows.bold.t2s.init_t2s_reporting_wf`
     * :func:`~fmriprep.workflows.bold.resampling.init_bold_surf_wf`
     * :func:`~fmriprep.workflows.bold.resampling.init_bold_fsLR_resampling_wf`
     * :func:`~fmriprep.workflows.bold.resampling.init_bold_grayords_wf`
@@ -246,9 +243,6 @@ configured with cubic B-spline interpolation.
     if config.workflow.level == 'minimal':
         return workflow
 
-    # Now that we're resampling and combining, multiecho matters
-    multiecho = len(bold_series) > 2
-
     spaces = config.workflow.spaces
     nonstd_spaces = set(spaces.get_nonstandard())
     freesurfer_spaces = spaces.get_fs_spaces()
@@ -256,7 +250,7 @@ configured with cubic B-spline interpolation.
     #
     # Resampling outputs workflow:
     #   - Resample to native
-    #   - Save native outputs/echos only if requested
+    #   - Save native outputs only if requested
     #
 
     bold_native_wf = init_bold_native_wf(
@@ -275,15 +269,12 @@ configured with cubic B-spline interpolation.
 
     boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
     boldref_out &= config.workflow.level == 'full'
-    echos_out = multiecho and config.execution.me_output_echos
 
-    if boldref_out or echos_out:
+    if boldref_out:
         ds_bold_native_wf = init_ds_bold_native_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
             bold_output=boldref_out,
-            echo_output=echos_out,
-            multiecho=multiecho,
             all_metadata=all_metadata,
         )
         ds_bold_native_wf.inputs.inputnode.source_files = bold_series
@@ -291,45 +282,7 @@ configured with cubic B-spline interpolation.
         workflow.connect([
             (bold_native_wf, ds_bold_native_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
-                ('outputnode.bold_echos', 'inputnode.bold_echos'),
-                ('outputnode.t2star_map', 'inputnode.t2star'),
             ]),
-        ])  # fmt:skip
-
-    if multiecho:
-        t2s_reporting_wf = init_t2s_reporting_wf()
-
-        ds_report_t2scomp = pe.Node(
-            DerivativesDataSink(
-                desc='t2scomp',
-                datatype='figures',
-                dismiss_entities=dismiss_echo(),
-            ),
-            name='ds_report_t2scomp',
-            run_without_submitting=True,
-        )
-
-        ds_report_t2star_hist = pe.Node(
-            DerivativesDataSink(
-                desc='t2starhist',
-                datatype='figures',
-                dismiss_entities=dismiss_echo(),
-            ),
-            name='ds_report_t2star_hist',
-            run_without_submitting=True,
-        )
-
-        workflow.connect([
-            (inputnode, t2s_reporting_wf, [('t1w_dseg', 'inputnode.label_file')]),
-            (bold_fit_wf, t2s_reporting_wf, [
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                ('outputnode.coreg_boldref', 'inputnode.boldref'),
-            ]),
-            (bold_native_wf, t2s_reporting_wf, [
-                ('outputnode.t2star_map', 'inputnode.t2star_file'),
-            ]),
-            (t2s_reporting_wf, ds_report_t2scomp, [('outputnode.t2s_comp_report', 'in_file')]),
-            (t2s_reporting_wf, ds_report_t2star_hist, [('outputnode.t2star_hist', 'in_file')]),
         ])  # fmt:skip
 
     if config.workflow.level == 'resampling':
@@ -369,7 +322,6 @@ configured with cubic B-spline interpolation.
         ds_bold_t1_wf = init_ds_volumes_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
-            multiecho=multiecho,
             metadata=all_metadata[0],
             name='ds_bold_t1_wf',
         )
@@ -383,7 +335,6 @@ configured with cubic B-spline interpolation.
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            (bold_native_wf, ds_bold_t1_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_anat_wf, ds_bold_t1_wf, [
                 ('outputnode.bold_file', 'inputnode.bold'),
                 ('outputnode.resampling_reference', 'inputnode.ref_file'),
@@ -403,7 +354,6 @@ configured with cubic B-spline interpolation.
         ds_bold_std_wf = init_ds_volumes_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
-            multiecho=multiecho,
             metadata=all_metadata[0],
             name='ds_bold_std_wf',
         )
@@ -437,7 +387,6 @@ configured with cubic B-spline interpolation.
                 ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            (bold_native_wf, ds_bold_std_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_std_wf, ds_bold_std_wf, [
                 ('outputnode.bold_file', 'inputnode.bold'),
                 ('outputnode.resampling_reference', 'inputnode.ref_file'),
@@ -534,7 +483,6 @@ excluding voxels whose time-series have a locally high coefficient of variation.
         ds_bold_cifti = pe.Node(
             DerivativesDataSink(
                 base_directory=fmriprep_dir,
-                dismiss_entities=dismiss_echo(),
                 space='fsLR',
                 density=config.workflow.cifti_output,
                 suffix='bold',
@@ -601,7 +549,6 @@ excluding voxels whose time-series have a locally high coefficient of variation.
             base_directory=fmriprep_dir,
             desc='confounds',
             suffix='timeseries',
-            dismiss_entities=dismiss_echo(),
         ),
         name='ds_confounds',
         run_without_submitting=True,

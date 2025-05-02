@@ -351,18 +351,6 @@ def extract_entities(file_list):
     return {k: _unique(v) for k, v in entities.items()}
 
 
-def dismiss_echo(entities=None):
-    """Set entities to dismiss in a DerivativesDataSink."""
-    if entities is None:
-        entities = []
-
-    echo_idx = config.execution.echo_idx
-    if echo_idx is None or len(listify(echo_idx)) > 2:
-        entities.append('echo')
-
-    return entities
-
-
 def _find_nearest_path(path_dict, input_path):
     """Find the nearest relative path from an input path to a dictionary of paths.
 

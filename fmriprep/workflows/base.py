@@ -44,7 +44,6 @@ from packaging.version import Version
 from .. import config
 from ..interfaces import DerivativesDataSink
 from ..interfaces.reports import AboutSummary, SubjectSummary
-from ..utils.bids import dismiss_echo
 
 
 def init_petprep_wf():
@@ -205,7 +204,6 @@ It is released under the [CC0]\
         config.execution.layout,
         subject_id,
         task=config.execution.task_id,
-        echo=config.execution.echo_idx,
         bids_filters=config.execution.bids_filters,
     )[0]
 
