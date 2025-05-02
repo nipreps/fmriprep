@@ -95,23 +95,23 @@ def init_petprep_wf():
         single_subject_wf = init_single_subject_wf(subject_id)
 
         single_subject_wf.config['execution']['crashdump_dir'] = str(
-            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
+            config.execution.petprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
         if freesurfer:
-            fmriprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
+            petprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
         else:
-            fmriprep_wf.add_nodes([single_subject_wf])
+            petprep_wf.add_nodes([single_subject_wf])
 
         # Dump a copy of the config file into the log directory
         log_dir = (
-            config.execution.fmriprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
+            config.execution.petprep_dir / f'sub-{subject_id}' / 'log' / config.execution.run_uuid
         )
         log_dir.mkdir(exist_ok=True, parents=True)
-        config.to_filename(log_dir / 'fmriprep.toml')
+        config.to_filename(log_dir / 'petprep.toml')
 
-    return fmriprep_wf
+    return petprep_wf
 
 
 def init_single_subject_wf(subject_id: str):
