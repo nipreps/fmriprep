@@ -1,0 +1,22 @@
+{
+    "PlasmaAvail": true,
+    "PlasmaFreeFraction": 15.062331,
+    "PlasmaFreeFractionMethod": "Ultrafiltration",
+    "WholeBloodAvail": false,
+    "DispersionCorrected": false,
+    "MetaboliteAvail": true,
+    "MetaboliteMethod": "HPLC",
+    "MetaboliteRecoveryCorrectionApplied": false,
+    "time": {
+        "Description": "Time in relation to time zero defined by the _pet.json",
+        "Units": "s"
+    },
+    "plasma_radioactivity": {
+        "Description": "Radioactivity in plasma samples",
+        "Units": "Bq/mL"
+    },
+    "metabolite_parent_fraction": {
+        "Description": "Parent fraction of the radiotracer",
+        "Units": "arbitrary"
+    }
+}

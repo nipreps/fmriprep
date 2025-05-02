@@ -1,0 +1,11 @@
+{
+    "Name": "PETPrep HMC workflow",
+    "DatasetType": "derivative",
+    "BIDSVersion": "1.7.0",
+    "GeneratedBy": [
+        {
+            "Name": "petprep_hmc",
+            "Version": "0.0.10"
+        }
+    ]
+}

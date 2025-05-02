@@ -65,7 +65,7 @@ def sentry_setup():
     environment = (
         'dev'
         if (
-            os.getenv('FMRIPREP_DEV', '').lower in ('1', 'on', 'yes', 'y', 'true')
+            os.getenv('PETPREP_DEV', '').lower in ('1', 'on', 'yes', 'y', 'true')
             or ('+' in release)
         )
         else 'prod'
@@ -203,7 +203,7 @@ def setup_migas(init_ping: bool = True, exit_ping: bool = True) -> None:
         from migas.error.nipype import node_execution_error
 
         migas.track_exit(
-            'nipreps/fmriprep',
+            'nipreps/petprep',
             __version__,
             {'NodeExecutionError': node_execution_error},
         )
@@ -213,4 +213,4 @@ def send_crumb(**kwargs) -> dict:
     """
     Communicate with the migas telemetry server. This requires `migas.setup()` to be called.
     """
-    return migas.add_breadcrumb('nipreps/fmriprep', __version__, **kwargs)
+    return migas.add_breadcrumb('nipreps/petprep', __version__, **kwargs)
