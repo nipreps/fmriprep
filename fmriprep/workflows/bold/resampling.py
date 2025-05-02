@@ -25,6 +25,8 @@ Resampling workflows
 ++++++++++++++++++++
 
 .. autofunction:: init_bold_surf_wf
+.. autofunction:: init_wb_vol_surf_wf
+.. autofunction:: init_bold_surf_wb_wf
 .. autofunction:: init_bold_fsLR_resampling_wf
 .. autofunction:: init_bold_grayords_wf
 .. autofunction:: init_goodvoxels_bold_mask_wf
@@ -514,6 +516,172 @@ def init_goodvoxels_bold_mask_wf(mem_gb: float, name: str = 'goodvoxels_bold_mas
     return workflow
 
 
+def init_wb_vol_surf_wf(
+    omp_nthreads: int,
+    mem_gb: float,
+    name: str = 'wb_vol_surf_wf',
+    dilate: bool = True,
+):
+    """Resample volume to native surface and dilate it using the Workbench.
+
+    This workflow performs the first two steps of surface resampling:
+    1. Resample volume to native surface using "ribbon-constrained" method
+    2. Dilate the resampled surface to fix small holes using nearest neighbors
+
+    The output of this workflow can be reused to resample to multiple template
+    spaces and resolutions.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: colored
+            :simple_form: yes
+
+            from fmriprep.workflows.bold.resampling import init_wb_vol_surf_wf
+            wf = init_wb_vol_surf_wf(omp_nthreads=1, mem_gb=1)
+
+
+    Parameters
+    ----------
+    omp_nthreads : :class:`int`
+        Maximum number of threads an individual process may use.
+    mem_gb : :class:`float`
+        Size of BOLD file in GB.
+    name : :class:`str`
+        Name of workflow (default: ``wb_vol_surf_wf``).
+
+    Inputs
+    ------
+    bold_file : :class:`str`
+        Path to BOLD file resampled into T1 space
+    white : :class:`list` of :class:`str`
+        Path to left and right hemisphere white matter GIFTI surfaces.
+    pial : :class:`list` of :class:`str`
+        Path to left and right hemisphere pial GIFTI surfaces.
+    midthickness : :class:`list` of :class:`str`
+        Path to left and right hemisphere midthickness GIFTI surfaces.
+    volume_roi : :class:`str` or Undefined
+        Pre-calculated goodvoxels mask. Not required.
+
+    Outputs
+    -------
+    bold_fsnative : :class:`list` of :class:`str`
+        Path to BOLD series resampled as functional GIFTI files in native
+        surface space.
+    """
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+    from niworkflows.interfaces.utility import KeySelect
+
+    from fmriprep.interfaces.workbench import VolumeToSurfaceMapping
+
+    workflow = Workflow(name=name)
+    workflow.__desc__ = """\
+The BOLD time-series were resampled onto the native surface of the subject
+using the "ribbon-constrained" method
+"""
+    workflow.__desc__ += ' and then dilated by 10 mm.' if dilate else '.'
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                'bold_file',
+                'white',
+                'pial',
+                'midthickness',
+                'volume_roi',
+            ]
+        ),
+        name='inputnode',
+    )
+
+    hemisource = pe.Node(
+        niu.IdentityInterface(fields=['hemi']),
+        name='hemisource',
+        iterables=[('hemi', ['L', 'R'])],
+    )
+
+    joinnode = pe.JoinNode(
+        niu.IdentityInterface(fields=['bold_fsnative']),
+        name='joinnode',
+        joinsource='hemisource',
+    )
+
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['bold_fsnative']),
+        name='outputnode',
+    )
+
+    select_surfaces = pe.Node(
+        KeySelect(
+            fields=[
+                'white',
+                'pial',
+                'midthickness',
+            ],
+            keys=['L', 'R'],
+        ),
+        name='select_surfaces',
+        run_without_submitting=True,
+    )
+
+    volume_to_surface = pe.Node(
+        VolumeToSurfaceMapping(method='ribbon-constrained'),
+        name='volume_to_surface',
+        mem_gb=mem_gb * 3,
+        n_procs=omp_nthreads,
+    )
+    if dilate:
+        metric_dilate = pe.Node(
+            MetricDilate(distance=10, nearest=True),
+            name='metric_dilate',
+            mem_gb=1,
+            n_procs=omp_nthreads,
+        )
+
+    workflow.connect([
+        (inputnode, select_surfaces, [
+            ('white', 'white'),
+            ('pial', 'pial'),
+            ('midthickness', 'midthickness'),
+        ]),
+        (hemisource, select_surfaces, [('hemi', 'key')]),
+        (inputnode, volume_to_surface, [
+            ('bold_file', 'volume_file'),
+            ('volume_roi', 'volume_roi'),
+        ]),
+        (select_surfaces, volume_to_surface, [
+            ('midthickness', 'surface_file'),
+            ('white', 'inner_surface'),
+            ('pial', 'outer_surface'),
+        ]),
+    ])  # fmt:skip
+    if dilate:
+        workflow.connect([
+            (select_surfaces, metric_dilate, [
+                ('midthickness', 'surf_file'),
+            ]),
+            (volume_to_surface, metric_dilate, [
+                ('out_file', 'in_file'),
+            ]),
+            (metric_dilate, joinnode, [
+                ('out_file', 'bold_fsnative'),
+            ]),
+            (joinnode, outputnode, [
+                ('bold_fsnative', 'bold_fsnative'),
+            ]),
+        ])  # fmt:skip
+    else:
+        workflow.connect([
+            (volume_to_surface, joinnode, [
+                ('out_file', 'bold_fsnative'),
+            ]),
+            (joinnode, outputnode, [
+                ('bold_fsnative', 'bold_fsnative'),
+            ]),
+        ])  # fmt:skip
+
+    return workflow
+
+
 def init_bold_surf_wb_wf(
     space: str,
     density: ty.Literal['10k', '32k', '41k'],
@@ -691,7 +859,7 @@ using the Connectome Workbench [@hcppipelines].
         ]),
         (select_surfaces, metric_dilate, [('midthickness', 'surf_file')]),
         (volume_to_surface, metric_dilate, [('out_file', 'in_file')]),
-        # Resample BOLD to fsLR and mask
+        # Resample BOLD to output space and mask
         (select_surfaces, resample_to_template, [
             ('sphere_reg_fsLR', 'current_sphere'),
             ('template_sphere', 'new_sphere'),
