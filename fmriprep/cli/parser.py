@@ -149,12 +149,12 @@ def _build_parser(**kwargs):
             raise parser.error(f'Slice time reference must be in range 0-1. Received {value}.')
         return value
 
-    verstr = f'fMRIPrep v{config.environment.version}'
+    verstr = f'PETPrep v{config.environment.version}'
     currentv = Version(config.environment.version)
     is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
 
     parser = ArgumentParser(
-        description=f'fMRIPrep: fMRI PREProcessing workflows v{config.environment.version}',
+        description=f'PETPrep: PET PREProcessing workflows v{config.environment.version}',
         formatter_class=ArgumentDefaultsHelpFormatter,
         **kwargs,
     )
@@ -162,7 +162,6 @@ def _build_parser(**kwargs):
     IsFile = partial(_is_file, parser=parser)
     PositiveInt = partial(_min_one, parser=parser)
     BIDSFilter = partial(_bids_filter, parser=parser)
-    SliceTimeRef = partial(_slice_time_ref, parser=parser)
 
     # Arguments as specified by BIDS-Apps
     # required, positional arguments
@@ -184,7 +183,7 @@ def _build_parser(**kwargs):
         'analysis_level',
         choices=['participant'],
         help='Processing stage to be run, only "participant" in the case of '
-        'fMRIPrep (see BIDS-Apps specification).',
+        'PETPrep (see BIDS-Apps specification).',
     )
 
     g_bids = parser.add_argument_group('Options for filtering BIDS queries')
@@ -212,12 +211,6 @@ def _build_parser(**kwargs):
     #                     help='Select a specific run to be processed')
     g_bids.add_argument(
         '-t', '--task-id', action='store', help='Select a specific task to be processed'
-    )
-    g_bids.add_argument(
-        '--echo-idx',
-        action='store',
-        type=int,
-        help='Select a specific echo to be processed in a multiecho series',
     )
     g_bids.add_argument(
         '--bids-filter-file',
@@ -399,17 +392,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         help='Deprecated - use `--force no-bbr` instead.',
     )
     g_conf.add_argument(
-        '--slice-time-ref',
-        required=False,
-        action='store',
-        default=None,
-        type=SliceTimeRef,
-        help='The time of the reference slice to correct BOLD values to, as a fraction '
-        'acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end '
-        'of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. '
-        'The default value is 0.5.',
-    )
-    g_conf.add_argument(
         '--dummy-scans',
         required=False,
         action='store',
@@ -425,19 +407,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=None,
         help='Initialize the random seed for the workflow',
     )
-    g_conf.add_argument(
-        '--me-t2s-fit-method',
-        action='store',
-        default='curvefit',
-        choices=['curvefit', 'loglin'],
-        help=(
-            'The method by which to estimate T2* and S0 for multi-echo data. '
-            "'curvefit' uses nonlinear regression. "
-            "It is more memory intensive, but also may be more accurate, than 'loglin'. "
-            "'loglin' uses log-linear regression. "
-            'It is faster and less memory intensive, but may be less accurate.'
-        ),
-    )
 
     g_outputs = parser.add_argument_group('Options for modulating outputs')
     g_outputs.add_argument(
@@ -449,13 +418,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         'directly in the output directory, and defaults to placing FreeSurfer '
         'derivatives in <output-dir>/sourcedata/freesurfer. "legacy" creates '
         'derivative datasets as subdirectories of outputs.',
-    )
-    g_outputs.add_argument(
-        '--me-output-echos',
-        action='store_true',
-        default=False,
-        help='Output individual echo time series with slice, motion and susceptibility '
-        'correction. Useful for further Tedana processing post-fMRIPrep.',
     )
     g_outputs.add_argument(
         '--aggregate-session-reports',
@@ -563,40 +525,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         'based on the outcome of a heuristic to check whether the brain is already masked).',
     )
 
-    # Fieldmap options
-    g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
-    g_fmap.add_argument(
-        '--fmap-bspline',
-        action='store_true',
-        default=False,
-        help='Fit a B-Spline field using least-squares (experimental)',
-    )
-    g_fmap.add_argument(
-        '--fmap-no-demean',
-        action='store_false',
-        default=True,
-        help='Do not remove median (within mask) from fieldmap',
-    )
-
-    # SyN-unwarp options
-    g_syn = parser.add_argument_group('Specific options for SyN distortion correction')
-    g_syn.add_argument(
-        '--use-syn-sdc',
-        nargs='?',
-        choices=['warn', 'error'],
-        action='store',
-        const='error',
-        default=False,
-        help='Use fieldmap-less distortion correction based on anatomical image; '
-        'if unable, error (default) or warn based on optional argument.',
-    )
-    g_syn.add_argument(
-        '--force-syn',
-        action=DeprecatedAction,
-        default=False,
-        help='Deprecated - use `--force syn-sdc` instead.',
-    )
-
     # FreeSurfer options
     g_fs = parser.add_argument_group('Specific options for FreeSurfer preprocessing')
     g_fs.add_argument(
@@ -702,7 +630,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         action='store_true',
         default=False,
         help='Opt-out of sending tracking information of this run to '
-        'the FMRIPREP developers. This information helps to '
+        'the PETPREP developers. This information helps to '
         'improve FMRIPREP and provides an indicator of real '
         'world usage crucial for obtaining funding.',
     )
@@ -729,7 +657,7 @@ https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""",
         _reason = _blist[1] or 'unknown'
         print(
             f"""\
-WARNING: Version {config.environment.version} of fMRIPrep (current) has been FLAGGED
+WARNING: Version {config.environment.version} of PETPrep (current) has been FLAGGED
 (reason: {_reason}).
 That means some severe flaw was found in it and we strongly
 discourage its usage.""",
@@ -842,11 +770,11 @@ applied."""
             config.execution.fs_subjects_dir = output_dir / 'sourcedata' / 'freesurfer'
         elif output_layout == 'legacy':
             config.execution.fs_subjects_dir = output_dir / 'freesurfer'
-    if config.execution.fmriprep_dir is None:
+    if config.execution.petprep_dir is None:
         if output_layout == 'bids':
-            config.execution.fmriprep_dir = output_dir
+            config.execution.petprep_dir = output_dir
         elif output_layout == 'legacy':
-            config.execution.fmriprep_dir = output_dir / 'fmriprep'
+            config.execution.petprep_dir = output_dir / 'petprep'
 
     # Wipe out existing work_dir
     if opts.clean_workdir and work_dir.exists():
@@ -892,7 +820,7 @@ applied."""
         )
 
     # Setup directories
-    config.execution.log_dir = config.execution.fmriprep_dir / 'logs'
+    config.execution.log_dir = config.execution.petprep_dir / 'logs'
     # Check and create output and working directories
     config.execution.log_dir.mkdir(exist_ok=True, parents=True)
     work_dir.mkdir(exist_ok=True, parents=True)
