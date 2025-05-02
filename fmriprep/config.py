@@ -98,7 +98,7 @@ _disable_et = bool(os.getenv('NO_ET') is not None or os.getenv('NIPYPE_NO_ET') i
 os.environ['NIPYPE_NO_ET'] = '1'
 os.environ['NO_ET'] = '1'
 
-CONFIG_FILENAME = 'fmriprep.toml'
+CONFIG_FILENAME = 'petprep.toml'
 
 try:
     set_start_method('forkserver')
