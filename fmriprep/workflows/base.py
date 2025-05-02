@@ -47,11 +47,11 @@ from ..interfaces.reports import AboutSummary, SubjectSummary
 from ..utils.bids import dismiss_echo
 
 
-def init_fmriprep_wf():
+def init_petprep_wf():
     """
-    Build *fMRIPrep*'s pipeline.
+    Build *PETPrep*'s pipeline.
 
-    This workflow organizes the execution of FMRIPREP, with a sub-workflow for
+    This workflow organizes the execution of PETPREP, with a sub-workflow for
     each subject.
 
     If FreeSurfer's ``recon-all`` is to be run, a corresponding folder is created
@@ -63,9 +63,9 @@ def init_fmriprep_wf():
             :simple_form: yes
 
             from fmriprep.workflows.tests import mock_config
-            from fmriprep.workflows.base import init_fmriprep_wf
+            from fmriprep.workflows.base import init_petprep_wf
             with mock_config():
-                wf = init_fmriprep_wf()
+                wf = init_petprep_wf()
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
@@ -73,8 +73,8 @@ def init_fmriprep_wf():
 
     ver = Version(config.environment.version)
 
-    fmriprep_wf = Workflow(name=f'fmriprep_{ver.major}_{ver.minor}_wf')
-    fmriprep_wf.base_dir = config.execution.work_dir
+    petprep_wf = Workflow(name=f'petprep_{ver.major}_{ver.minor}_wf')
+    petprep_wf.base_dir = config.execution.work_dir
 
     freesurfer = config.workflow.run_reconall
     if freesurfer:
