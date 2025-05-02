@@ -267,7 +267,7 @@ configured with cubic B-spline interpolation.
         ]),
     ])  # fmt:skip
 
-    boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
+    boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref')))
     boldref_out &= config.workflow.level == 'full'
 
     if boldref_out:

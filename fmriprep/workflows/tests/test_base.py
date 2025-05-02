@@ -23,14 +23,13 @@ BASE_LAYOUT = {
                 {
                     'task': 'rest',
                     'run': i,
-                    'suffix': suffix,
+                    'suffix': 'bold',
                     'metadata': {
                         'RepetitionTime': 2.0,
                         'EchoTime': 0.03,
                         'SliceTiming': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
                     },
                 }
-                for suffix in ('bold', 'sbref')
                 for i in range(1, 3)
             ),
         ],
@@ -141,8 +140,6 @@ def _make_params(
         # _make_params(freesurfer=False, bold2anat_init="header"),
         # _make_params(freesurfer=False, bold2anat_init="header", force=['bbr']),
         # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
-        # Regression test for gh-3154:
-        _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
     ],
 )
 def test_init_fmriprep_wf(

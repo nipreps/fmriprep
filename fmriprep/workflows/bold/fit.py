@@ -20,10 +20,6 @@
 #
 #     https://www.nipreps.org/community/licensing/
 #
-import os
-import typing as ty
-
-import bids
 import nibabel as nb
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
@@ -48,38 +44,6 @@ from .outputs import (
 from .reference import init_raw_boldref_wf, init_validation_and_dummies_wf
 from .registration import init_bold_reg_wf
 from .stc import init_bold_stc_wf
-
-
-def get_sbrefs(
-    bold_files: list[str],
-    entity_overrides: dict[str, ty.Any],
-    layout: bids.BIDSLayout,
-) -> list[str]:
-    """Find single-band reference(s) associated with BOLD file(s)
-
-    Parameters
-    ----------
-    bold_files
-        List of absolute paths to BOLD files
-    entity_overrides
-        Query parameters to override defaults
-    layout
-        :class:`~bids.layout.BIDSLayout` to query
-
-    Returns
-    -------
-    sbref_files
-        List of absolute paths to sbref files associated with input BOLD files,
-        sorted by EchoTime
-    """
-    entities = extract_entities(bold_files)
-    entities.update(suffix='sbref', extension=['.nii', '.nii.gz'])
-    entities.update(entity_overrides)
-
-    return sorted(
-        layout.get(return_type='file', **entities),
-        key=lambda fname: layout.get_metadata(fname).get('EchoTime'),
-    )
 
 
 def init_bold_fit_wf(
@@ -173,24 +137,6 @@ def init_bold_fit_wf(
     bids_filters = config.execution.get().get('bids_filters', {})
 
     bold_file = bold_series[0]
-
-    # Collect sbref files, sorted by EchoTime
-    sbref_files = get_sbrefs(
-        bold_series,
-        entity_overrides=bids_filters.get('sbref', {}),
-        layout=layout,
-    )
-
-    basename = os.path.basename(bold_file)
-    sbref_msg = f'No single-band-reference found for {basename}.'
-    if sbref_files and 'sbref' in config.workflow.ignore:
-        sbref_msg = f'Single-band reference file(s) found for {basename} and ignored.'
-        sbref_files = []
-    elif sbref_files:
-        sbref_msg = 'Using single-band reference file(s) {}.'.format(
-            ','.join([os.path.basename(sbf) for sbf in sbref_files])
-        )
-    config.loggers.workflow.info(sbref_msg)
 
     # Get metadata from BOLD file(s)
     entities = extract_entities(bold_series)
@@ -652,11 +598,3 @@ def init_bold_native_wf(
     ])  # fmt:skip
 
     return workflow
-
-
-def _select_ref(sbref_files, boldref_files):
-    """Select first sbref or boldref file, preferring sbref if available"""
-    from niworkflows.utils.connections import listify
-
-    refs = sbref_files or boldref_files
-    return listify(refs)[0]

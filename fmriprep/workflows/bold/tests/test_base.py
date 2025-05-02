@@ -31,7 +31,7 @@ def bids_root(tmp_path_factory):
     return bids_dir
 
 
-@pytest.mark.parametrize('task', ['rest', 'nback'])
+@pytest.mark.parametrize('task', ['rest'])
 @pytest.mark.parametrize('freesurfer', [False, True])
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
 @pytest.mark.parametrize('bold2anat_init', ['t1w', 't2w'])
@@ -54,18 +54,10 @@ def test_bold_wf(
         bold_series = [
             str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
         ]
-        sbref = str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_sbref.nii.gz')
-    elif task == 'nback':
-        bold_series = [
-            str(bids_root / 'sub-01' / 'func' / f'sub-01_task-nback_echo-{i}_bold.nii.gz')
-            for i in range(1, 4)
-        ]
-        sbref = str(bids_root / 'sub-01' / 'func' / 'sub-01_task-nback_echo-1_sbref.nii.gz')
 
     # The workflow will attempt to read file headers
     for path in bold_series:
         img.to_filename(path)
-    img.to_filename(sbref)
 
     with mock_config(bids_dir=bids_root):
         config.workflow.bold2anat_init = bold2anat_init
