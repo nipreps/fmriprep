@@ -25,56 +25,46 @@ def _quiet_logger():
 
 @pytest.fixture(scope='module')
 def bids_root(tmp_path_factory):
-    base = tmp_path_factory.mktemp('boldfit')
+    base = tmp_path_factory.mktemp('petfit')
     bids_dir = base / 'bids'
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
     return bids_dir
 
 
 def _make_params(
-    have_hmcref: bool = True,
-    have_coregref: bool = True,
+    have_petref: bool = True,
     have_hmc_xfms: bool = True,
-    have_boldref2fmap_xfm: bool = True,
-    have_boldref2anat_xfm: bool = True,
+    have_petref2anat_xfm: bool = True,
 ):
     return (
-        have_hmcref,
-        have_coregref,
+        have_petref,
         have_hmc_xfms,
-        have_boldref2anat_xfm,
-        have_boldref2fmap_xfm,
+        have_petref2anat_xfm,
     )
 
 
 @pytest.mark.parametrize('task', ['rest'])
 @pytest.mark.parametrize(
     (
-        'have_hmcref',
-        'have_coregref',
+        'have_petref',
         'have_hmc_xfms',
-        'have_boldref2fmap_xfm',
-        'have_boldref2anat_xfm',
+        'have_petref2anat_xfm',
     ),
     [
         (True, True, True, True, True),
         (False, False, False, False, False),
-        _make_params(have_hmcref=False),
+        _make_params(have_petref=False),
         _make_params(have_hmc_xfms=False),
-        _make_params(have_coregref=False),
-        _make_params(have_coregref=False, have_boldref2fmap_xfm=False),
-        _make_params(have_boldref2anat_xfm=False),
+        _make_params(have_petref2anat_xfm=False),
     ],
 )
-def test_bold_fit_precomputes(
+def test_pet_fit_precomputes(
     bids_root: Path,
     tmp_path: Path,
     task: str,
-    have_hmcref: bool,
-    have_coregref: bool,
+    have_petref: bool,
     have_hmc_xfms: bool,
-    have_boldref2fmap_xfm: bool,
-    have_boldref2anat_xfm: bool,
+    have_petref2anat_xfm: bool,
 ):
     """Test as many combinations of precomputed files and input
     configurations as possible."""
@@ -84,13 +74,10 @@ def test_bold_fit_precomputes(
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
 
     if task == 'rest':
-        bold_series = [
-            str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
-        ]
+        pet_file = str(bids_root / 'sub-01' / 'pet' / 'sub-01_task-rest_run-1_pet.nii.gz')
 
     # The workflow will attempt to read file headers
-    for path in bold_series:
-        img.to_filename(path)
+    img.to_filename(pet_file)
 
     dummy_nifti = str(tmp_path / 'dummy.nii')
     dummy_affine = str(tmp_path / 'dummy.txt')
@@ -99,20 +86,16 @@ def test_bold_fit_precomputes(
 
     # Construct precomputed files
     precomputed = {'transforms': {}}
-    if have_hmcref:
-        precomputed['hmc_boldref'] = dummy_nifti
-    if have_coregref:
-        precomputed['coreg_boldref'] = dummy_nifti
+    if have_petref:
+        precomputed['petref'] = dummy_nifti
     if have_hmc_xfms:
         precomputed['transforms']['hmc'] = dummy_affine
-    if have_boldref2anat_xfm:
-        precomputed['transforms']['boldref2anat'] = dummy_affine
-    if have_boldref2fmap_xfm:
-        precomputed['transforms']['boldref2fmap'] = dummy_affine
+    if have_petref2anat_xfm:
+        precomputed['transforms']['petref2anat'] = dummy_affine
 
     with mock_config(bids_dir=bids_root):
         wf = init_pet_fit_wf(
-            bold_series=bold_series,
+            pet_file=pet_file,
             precomputed=precomputed,
             omp_nthreads=1,
         )
@@ -123,7 +106,7 @@ def test_bold_fit_precomputes(
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('run_stc', [True, False])
-def test_bold_native_precomputes(
+def test_pet_native_precomputes(
     bids_root: Path,
     tmp_path: Path,
     task: str,
@@ -137,18 +120,15 @@ def test_bold_native_precomputes(
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
 
     if task == 'rest':
-        bold_series = [
-            str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
-        ]
+        pet_file = str(bids_root / 'sub-01' / 'pet' / 'sub-01_task-rest_run-1_pet.nii.gz')
 
     # The workflow will attempt to read file headers
-    for path in bold_series:
-        img.to_filename(path)
+    img.to_filename(pet_file)
 
     with mock_config(bids_dir=bids_root):
         config.workflow.ignore = ['slicetiming'] if not run_stc else []
         wf = init_pet_native_wf(
-            bold_series=bold_series,
+            pet_file=pet_file,
             omp_nthreads=1,
         )
 

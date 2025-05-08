@@ -118,11 +118,11 @@ def init_single_subject_wf(subject_id: str):
     Organize the preprocessing pipeline for a single subject.
 
     It collects and reports information about the subject, and prepares
-    sub-workflows to perform anatomical and functional preprocessing.
+    sub-workflows to perform anatomical and PET preprocessing.
     Anatomical preprocessing is performed in a single workflow, regardless of
     the number of sessions.
     Functional preprocessing is performed using a separate workflow for each
-    individual BOLD series.
+    individual PET series.
 
     Workflow Graph
         .. workflow::
@@ -181,7 +181,7 @@ which is based on *Nipype* {config.environment.nipype_version}
 
 Many internal operations of *fMRIPrep* use
 *Nilearn* {NILEARN_VERSION} [@nilearn, RRID:SCR_001362],
-mostly within the functional processing workflow.
+mostly within the PET processing workflow.
 For more details of the pipeline, see [the section corresponding
 to workflows in *fMRIPrep*'s documentation]\
 (https://fmriprep.readthedocs.io/en/latest/workflows.html \
@@ -217,7 +217,7 @@ It is released under the [CC0]\
     if not anat_only and not subject_data['pet']:
         raise RuntimeError(
             f'No PET images found for participant {subject_id}.'
-            f'All workflows require BOLD images.'
+            f'All workflows require PET images.'
         )
 
     pet_runs = subject_data['pet']
@@ -526,7 +526,7 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
-    # Append the functional section to the existing anatomical excerpt
+    # Append the PET section to the existing anatomical excerpt
     # That way we do not need to filter down the number of PET datasets
     pet_pre_desc = f"""
 PET data preprocessing
@@ -535,24 +535,15 @@ PET data preprocessing
 tasks and sessions), the following preprocessing was performed.
 """
 
-    # Before initializing BOLD workflow, select/verify anatomical target for coregistration
-    if config.workflow.pet2anat_init in ('auto', 't2w'):
-        has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
-        if config.workflow.pet2anat_init == 't2w' and not has_t2w:
-            raise OSError(
-                'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
-            )
-        config.workflow.pet2anat_init = 't2w' if has_t2w else 't1w'
-
     for pet_series in pet_runs:
-        functional_cache = {}
+        pet_cache = {}
         if config.execution.derivatives:
             from fmriprep.utils.bids import collect_derivatives, extract_entities
 
             entities = extract_entities(pet_series)
 
             for deriv_dir in config.execution.derivatives.values():
-                functional_cache.update(
+                pet_cache.update(
                     collect_derivatives(
                         derivatives_dir=deriv_dir,
                         entities=entities,
@@ -561,7 +552,7 @@ tasks and sessions), the following preprocessing was performed.
 
         pet_wf = init_pet_wf(
             pet_series=pet_series,
-            precomputed=functional_cache,
+            precomputed=pet_cache,
         )
         if pet_wf is None:
             continue

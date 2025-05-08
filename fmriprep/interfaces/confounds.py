@@ -63,7 +63,7 @@ class _aCompCorMasksInputSpec(BaseInterfaceInputSpec):
         False, usedefault=True, desc="Whether the input volume fractions come from FS' aseg."
     )
     bold_zooms = traits.Tuple(
-        traits.Float, traits.Float, traits.Float, mandatory=True, desc='BOLD series zooms'
+        traits.Float, traits.Float, traits.Float, mandatory=True, desc='PET series zooms'
     )
 
 
@@ -92,7 +92,7 @@ class aCompCorMasks(SimpleInterface):
 
 class _FSLRMSDeviationInputSpec(BaseInterfaceInputSpec):
     xfm_file = File(exists=True, mandatory=True, desc='Head motion transform file')
-    boldref_file = File(exists=True, mandatory=True, desc='BOLD reference file')
+    boldref_file = File(exists=True, mandatory=True, desc='PET reference file')
 
 
 class _FSLRMSDeviationOutputSpec(TraitedSpec):
@@ -144,7 +144,7 @@ class FSLRMSDeviation(SimpleInterface):
 
 class _FSLMotionParamsInputSpec(BaseInterfaceInputSpec):
     xfm_file = File(exists=True, desc='Head motion transform file')
-    boldref_file = File(exists=True, desc='BOLD reference file')
+    boldref_file = File(exists=True, desc='PET reference file')
 
 
 class _FSLMotionParamsOutputSpec(TraitedSpec):
@@ -484,9 +484,9 @@ def _gather_confounds(
     return combined_out, confounds_list
 
 
-class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
-    in_nifti = File(exists=True, mandatory=True, desc='input BOLD (4D NIfTI file)')
-    in_cifti = File(exists=True, desc='input BOLD (CIFTI dense timeseries)')
+class _PETSummaryInputSpec(BaseInterfaceInputSpec):
+    in_nifti = File(exists=True, mandatory=True, desc='input PET (4D NIfTI file)')
+    in_cifti = File(exists=True, desc='input PET (CIFTI dense timeseries)')
     in_segm = File(exists=True, desc='volumetric segmentation corresponding to in_nifti')
     confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
 
@@ -502,21 +502,21 @@ class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
     drop_trs = traits.Int(0, usedefault=True, desc='dummy scans')
 
 
-class _FMRISummaryOutputSpec(TraitedSpec):
+class _PETSummaryOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='written file path')
 
 
-class FMRISummary(SimpleInterface):
+class PETSummary(SimpleInterface):
     """
     Copy the x-form matrices from `hdr_file` to `out_file`.
     """
 
-    input_spec = _FMRISummaryInputSpec
-    output_spec = _FMRISummaryOutputSpec
+    input_spec = _PETSummaryInputSpec
+    output_spec = _PETSummaryOutputSpec
 
     def _run_interface(self, runtime):
         self._results['out_file'] = fname_presuffix(
-            self.inputs.in_nifti, suffix='_fmriplot.svg', use_ext=False, newpath=runtime.cwd
+            self.inputs.in_nifti, suffix='_petplot.svg', use_ext=False, newpath=runtime.cwd
         )
 
         has_cifti = isdefined(self.inputs.in_cifti)

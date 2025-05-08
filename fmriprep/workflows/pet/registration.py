@@ -34,30 +34,20 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 AffineDOF = ty.Literal[6, 9, 12]
-RegistrationInit = ty.Literal['t1w', 't2w', 'header']
 
 
 def init_pet_reg_wf(
     *,
-    freesurfer: bool,
-    use_bbr: bool,
     pet2anat_dof: AffineDOF,
-    pet2anat_init: RegistrationInit,
     mem_gb: float,
     omp_nthreads: int,
     name: str = 'pet_reg_wf',
     sloppy: bool = False,
 ):
     """
-    Build a workflow to run same-subject, PET-to-T1w image-registration.
+    Build a workflow to run same-subject, PET-to-anat image-registration.
 
-    Calculates the registration between a reference PET image and T1w-space
-    using a boundary-based registration (BBR) cost function.
-    If FreeSurfer-based preprocessing is enabled, the ``bbregister`` utility
-    is used to align the PET images to the reconstructed subject, and the
-    resulting transform is adjusted to target the T1 space.
-    If FreeSurfer-based preprocessing is disabled, FSL FLIRT is used with the
-    BBR cost function to directly target the T1 space.
+    Calculates the registration between a reference PET image and anat-space.
 
     Workflow Graph
         .. workflow::
@@ -65,26 +55,16 @@ def init_pet_reg_wf(
             :simple_form: yes
 
             from fmriprep.workflows.pet.registration import init_pet_reg_wf
-            wf = init_pet_reg_wf(freesurfer=True,
-                                  mem_gb=3,
-                                  omp_nthreads=1,
-                                  use_bbr=True,
-                                  pet2anat_dof=9,
-                                  pet2anat_init='t2w')
+            wf = init_pet_reg_wf(
+                mem_gb=3,
+                omp_nthreads=1,
+                pet2anat_dof=6,
+            )
 
     Parameters
     ----------
-    freesurfer : :obj:`bool`
-        Enable FreeSurfer functional registration (bbregister)
-    use_bbr : :obj:`bool` or None
-        Enable/disable boundary-based registration refinement.
-        If ``None``, test BBR result for distortion before accepting.
     pet2anat_dof : 6, 9 or 12
         Degrees-of-freedom for PET-anatomical registration
-    pet2anat_init : str, 't1w', 't2w' or 'header'
-        If ``'header'``, use header information for initialization of PET and T1 images.
-        If ``'t1w'``, align PET to T1w by their centers.
-        If ``'t2w'``, align PET to T1w using the T2w as an intermediate.
     mem_gb : :obj:`float`
         Size of PET file in GB
     omp_nthreads : :obj:`int`
@@ -97,31 +77,17 @@ def init_pet_reg_wf(
     ref_pet_brain
         Reference image to which PET series is aligned
         If ``fieldwarp == True``, ``ref_pet_brain`` should be unwarped
-    t1w_brain
-        Skull-stripped ``t1w_preproc``
-    t1w_dseg
-        Segmentation of preprocessed structural image, including
-        gray-matter (GM), white-matter (WM) and cerebrospinal fluid (CSF)
-    subjects_dir
-        FreeSurfer SUBJECTS_DIR
-    subject_id
-        FreeSurfer subject ID
-    fsnative2t1w_xfm
-        LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    anat_preproc
+        Preprocessed anatomical image
+    anat_mask
+        Brainmask for anatomical image
 
     Outputs
     -------
-    itk_pet_to_t1
-        Affine transform from ``ref_pet_brain`` to T1 space (ITK format)
-    itk_t1_to_pet
-        Affine transform from T1 space to PET space (ITK format)
-    fallback
-        Boolean indicating whether BBR was rejected (mri_coreg registration returned)
-
-    See Also
-    --------
-      * :py:func:`~fmriprep.workflows.pet.registration.init_bbreg_wf`
-      * :py:func:`~fmriprep.workflows.pet.registration.init_fsl_bbr_wf`
+    itk_pet_to_anat
+        Affine transform from ``ref_pet_brain`` to anatomical space (ITK format)
+    itk_anat_to_pet
+        Affine transform from anatomical space to PET space (ITK format)
 
     """
     from nipype.interfaces.freesurfer import MRICoreg
@@ -131,7 +97,7 @@ def init_pet_reg_wf(
 
     workflow = Workflow(name=name)
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['ref_pet_brain', 't1w_preproc', 't1w_mask']),
+        niu.IdentityInterface(fields=['ref_pet_brain', 'anat_preproc', 'anat_mask']),
         name='inputnode',
     )
 
@@ -140,7 +106,7 @@ def init_pet_reg_wf(
         name='outputnode',
     )
 
-    mask_t1w_brain = pe.Node(ApplyMask(), name='mask_t1w_brain')
+    mask_brain = pe.Node(ApplyMask(), name='mask_brain')
     mri_coreg = pe.Node(
         MRICoreg(dof=pet2anat_dof, sep=[4], ftol=0.0001, linmintol=0.01),
         name='mri_coreg',
@@ -150,10 +116,12 @@ def init_pet_reg_wf(
     convert_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='convert_xfm')
 
     workflow.connect([
-        (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
-                                     ('t1w_mask', 'in_mask')]),
+        (inputnode, mask_brain, [
+            ('anat_preproc', 'in_file'),
+            ('anat_mask', 'in_mask'),
+        ]),
         (inputnode, mri_coreg, [('ref_pet_brain', 'source_file')]),
-        (mask_t1w_brain, mri_coreg, [('out_file', 'reference_file')]),
+        (mask_brain, mri_coreg, [('out_file', 'reference_file')]),
         (mri_coreg, convert_xfm, [('out_lta_file', 'in_xfms')]),
         (convert_xfm, outputnode, [
             ('out_xfm', 'itk_pet_to_t1'),

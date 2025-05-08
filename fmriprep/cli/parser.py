@@ -42,10 +42,6 @@ def _build_parser(**kwargs):
     from .version import check_latest, is_flagged
 
     deprecations = {
-        # parser attribute name: (replacement flag, version slated to be removed in)
-        'force_bbr': ('--force bbr', '26.0.0'),
-        'force_no_bbr': ('--force no-bbr', '26.0.0'),
-        'force_syn': ('--force syn-sdc', '26.0.0'),
     }
 
     class DeprecatedAction(Action):
@@ -220,8 +216,8 @@ def _build_parser(**kwargs):
         metavar='FILE',
         help='A JSON file describing custom BIDS input filters using PyBIDS. '
         'For further details, please check out '
-        'https://fmriprep.readthedocs.io/en/%s/faq.html#'
-        'how-do-I-select-only-certain-files-to-be-input-to-fMRIPrep'
+        'https://petprep.readthedocs.io/en/%s/faq.html#'
+        'how-do-I-select-only-certain-files-to-be-input-to-PETPrep'
         % (currentv.base_version if is_release else 'latest'),
     )
     g_bids.add_argument(
@@ -270,7 +266,7 @@ def _build_parser(**kwargs):
         action='store',
         type=_to_gb,
         metavar='MEMORY_MB',
-        help='Upper bound memory limit for fMRIPrep processes',
+        help='Upper bound memory limit for PETPrep processes',
     )
     g_perfm.add_argument(
         '--low-mem',
@@ -325,38 +321,35 @@ def _build_parser(**kwargs):
         action='store',
         nargs='+',
         default=[],
-        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian'],
+        choices=['t2w', 'flair'],
         help='Ignore selected aspects of the input dataset to disable corresponding '
         'parts of the workflow (a space delimited list)',
     )
-    g_conf.add_argument(
-        '--force',
-        required=False,
-        action='store',
-        nargs='+',
-        default=[],
-        choices=['bbr', 'no-bbr', 'syn-sdc', 'fmap-jacobian'],
-        help='Force selected processing choices, overriding automatic selections '
-        '(a space delimited list).\n'
-        ' * [no-]bbr: Use/disable boundary-based registration for BOLD-to-T1w coregistration\n'
-        '             (No goodness-of-fit checks)\n'
-        ' * syn-sdc: Calculate SyN-SDC correction *in addition* to other fieldmaps\n',
-    )
+    # g_conf.add_argument(
+    #     '--force',
+    #     required=False,
+    #     action='store',
+    #     nargs='+',
+    #     default=[],
+    #     choices=[],  # No choices yet
+    #     help='Force selected processing choices, overriding automatic selections '
+    #     '(a space delimited list).\n'
+    # )
     g_conf.add_argument(
         '--output-spaces',
         nargs='*',
         action=OutputReferencesAction,
         help="""\
-Standard and non-standard spaces to resample anatomical and functional images to. \
+Standard and non-standard spaces to resample anatomical and PET images to. \
 Standard spaces may be specified by the form \
 ``<SPACE>[:cohort-<label>][:res-<resolution>][...]``, where ``<SPACE>`` is \
 a keyword designating a spatial reference, and may be followed by optional, \
 colon-separated parameters. \
 Non-standard spaces imply specific orientations and sampling grids. \
 Important to note, the ``res-*`` modifier does not define the resolution used for \
-the spatial normalization. To generate no BOLD outputs, use this option without specifying \
+the spatial normalization. To generate no PET outputs, use this option without specifying \
 any spatial references. For further details, please check out \
-https://fmriprep.readthedocs.io/en/%s/spaces.html"""
+https://petprep.readthedocs.io/en/%s/spaces.html"""
         % (currentv.base_version if is_release else 'latest'),
     )
     g_conf.add_argument(
@@ -365,20 +358,12 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         help='Treat dataset as longitudinal - may increase runtime',
     )
     g_conf.add_argument(
-        '--pet2anat-init',
-        choices=['auto', 't1w', 't2w', 'header'],
-        default='auto',
-        help='Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used '
-        'if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of '
-        'the T2w, and `header` uses the BOLD header information without an initial registration.',
-    )
-    g_conf.add_argument(
         '--pet2anat-dof',
         action='store',
         default=6,
         choices=[6, 9, 12],
         type=int,
-        help='Degrees of freedom when registering BOLD to anatomical images. '
+        help='Degrees of freedom when registering PET to anatomical images. '
         '6 degrees (rotation and translation) are used by default.',
     )
     g_conf.add_argument(
@@ -414,7 +399,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         action='store',
         default='bids',
         choices=('bids', 'legacy'),
-        help='Organization of outputs. "bids" (default) places fMRIPrep derivatives '
+        help='Organization of outputs. "bids" (default) places PETPrep derivatives '
         'directly in the output directory, and defaults to placing FreeSurfer '
         'derivatives in <output-dir>/sourcedata/freesurfer. "legacy" creates '
         'derivative datasets as subdirectories of outputs.',
@@ -433,7 +418,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         required=False,
         action='store_true',
         default=False,
-        help='Replace medial wall values with NaNs on functional GIFTI files. Only '
+        help='Replace medial wall values with NaNs on PET GIFTI files. Only '
         'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).',
     )
     g_conf.add_argument(
@@ -458,7 +443,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=False,
         choices=('91k', '170k'),
         type=str,
-        help='Output preprocessed BOLD as a CIFTI dense timeseries. '
+        help='Output preprocessed PET as a CIFTI dense timeseries. '
         'Optionally, the number of grayordinate can be specified '
         '(default is 91k, which equates to 2mm resolution)',
     )
@@ -478,7 +463,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         default=False,
         help='Include all components estimated in CompCor decomposition in the confounds '
         'file instead of only the components sufficient to explain 50 percent of '
-        'BOLD variance in each CompCor mask',
+        'PET variance in each CompCor mask',
     )
     g_confounds.add_argument(
         '--fd-spike-threshold',
@@ -598,7 +583,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         action='store_true',
         default=False,
         help='Clears working directory of contents. Use of this flag is not '
-        'recommended when running concurrent processes of fMRIPrep.',
+        'recommended when running concurrent processes of PETPrep.',
     )
     g_other.add_argument(
         '--resource-monitor',
@@ -646,9 +631,9 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     if latest is not None and currentv < latest:
         print(
             f"""\
-You are using fMRIPrep-{currentv}, and a newer version of fMRIPrep is available: {latest}.
+You are using PETPrep-{currentv}, and a newer version of PETPrep is available: {latest}.
 Please check out our documentation about how and when to upgrade:
-https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""",
+https://petprep.readthedocs.io/en/latest/faq.html#upgrading""",
             file=sys.stderr,
         )
 
@@ -683,22 +668,6 @@ def parse_args(args=None, namespace=None):
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
-
-    # Consistency checks
-    force_set = set(config.workflow.force)
-    ignore_set = set(config.workflow.ignore)
-    if {'bbr', 'no-bbr'} <= force_set:
-        msg = (
-            'Cannot force and disable boundary-based registration at the same time. '
-            'Remove `bbr` or `no-bbr` from the `--force` options.'
-        )
-        raise ValueError(msg)
-    if 'fmap-jacobian' in force_set & ignore_set:
-        msg = (
-            'Cannot force and ignore fieldmap Jacobian correction. '
-            'Remove `fmap-jacobian` from either the `--force` or the `--ignore` option.'
-        )
-        raise ValueError(msg)
 
     if not config.execution.notrack:
         import importlib.util
@@ -755,7 +724,7 @@ inputs. Please, BEWARE OF THE RISKS TO THE CONSISTENCY of results when using var
 processing workflows across participants. To determine whether a participant has been run \
 through the shortcut pipeline (meaning, brain extraction was skipped), please check the \
 citation boilerplate. When reporting results with varying pipelines, please make sure you \
-mention this particular variant of fMRIPrep listing the participants for which it was \
+mention this particular variant of PETPrep listing the participants for which it was \
 applied."""
         )
 
@@ -780,7 +749,7 @@ applied."""
     if opts.clean_workdir and work_dir.exists():
         from niworkflows.utils.misc import clean_directory
 
-        build_log.info(f'Clearing previous fMRIPrep working directory: {work_dir}')
+        build_log.info(f'Clearing previous PETPrep working directory: {work_dir}')
         if not clean_directory(work_dir):
             build_log.warning(f'Could not clear all contents of working directory: {work_dir}')
 
@@ -795,7 +764,7 @@ applied."""
         parser.error(
             'The selected output folder is the same as the input BIDS folder. '
             'Please modify the output path (suggestion: {}).'.format(
-                bids_dir / 'derivatives' / f'fmriprep-{version.split("+")[0]}'
+                bids_dir / 'derivatives' / f'petprep-{version.split("+")[0]}'
             )
         )
 

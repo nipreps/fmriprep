@@ -551,11 +551,7 @@ class workflow(_Config):
     anat_only = False
     """Execute the anatomical preprocessing only."""
     pet2anat_dof = None
-    """Degrees of freedom of the BOLD-to-anatomical registration steps."""
-    pet2anat_init = 'auto'
-    """Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used
-    if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of
-    the T2w, and `header` uses the BOLD header information without an initial registration."""
+    """Degrees of freedom of the PET-to-anatomical registration steps."""
     cifti_output = None
     """Generate HCP Grayordinates, accepts either ``'91k'`` (default) or ``'170k'``."""
     dummy_scans = None
@@ -596,8 +592,6 @@ class workflow(_Config):
     spaces = None
     """Keeps the :py:class:`~niworkflows.utils.spaces.SpatialReferences`
     instance keeping standard and nonstandard spaces."""
-    use_bbr = None
-    """Run boundary-based registration for BOLD-to-T1w registration."""
 
 
 class loggers:

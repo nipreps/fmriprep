@@ -18,17 +18,13 @@ BASE_LAYOUT = {
             {'run': 2, 'suffix': 'T1w'},
             {'suffix': 'T2w'},
         ],
-        'func': [
+        'pet': [
             *(
                 {
                     'task': 'rest',
                     'run': i,
-                    'suffix': 'bold',
-                    'metadata': {
-                        'RepetitionTime': 2.0,
-                        'EchoTime': 0.03,
-                        'SliceTiming': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8],
-                    },
+                    'suffix': 'pet',
+                    'metadata': {},
                 }
                 for i in range(1, 3)
             ),
@@ -56,8 +52,8 @@ def bids_root(tmp_path_factory):
 
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
 
-    for bold_path in bids_dir.glob('sub-01/*/*.nii.gz'):
-        img.to_filename(bold_path)
+    for img_path in bids_dir.glob('sub-01/*/*.nii.gz'):
+        img.to_filename(img_path)
 
     return bids_dir
 
@@ -66,7 +62,6 @@ def _make_params(
     pet2anat_init: str = 'auto',
     dummy_scans: int | None = None,
     medial_surface_nan: bool = False,
-    project_goodvoxels: bool = False,
     cifti_output: bool | str = False,
     run_msmsulc: bool = True,
     skull_strip_t1w: str = 'auto',
@@ -86,7 +81,6 @@ def _make_params(
         pet2anat_init,
         dummy_scans,
         medial_surface_nan,
-        project_goodvoxels,
         cifti_output,
         run_msmsulc,
         skull_strip_t1w,
@@ -105,7 +99,6 @@ def _make_params(
         'pet2anat_init',
         'dummy_scans',
         'medial_surface_nan',
-        'project_goodvoxels',
         'cifti_output',
         'run_msmsulc',
         'skull_strip_t1w',
@@ -128,8 +121,6 @@ def _make_params(
         _make_params(dummy_scans=2),
         _make_params(medial_surface_nan=True),
         _make_params(cifti_output='91k'),
-        _make_params(cifti_output='91k', project_goodvoxels=True),
-        _make_params(cifti_output='91k', project_goodvoxels=True, run_msmsulc=False),
         _make_params(cifti_output='91k', run_msmsulc=False),
         _make_params(skull_strip_t1w='force'),
         _make_params(skull_strip_t1w='skip'),
@@ -150,7 +141,6 @@ def test_init_fmriprep_wf(
     pet2anat_init: str,
     dummy_scans: int | None,
     medial_surface_nan: bool,
-    project_goodvoxels: bool,
     cifti_output: bool | str,
     run_msmsulc: bool,
     skull_strip_t1w: str,
@@ -166,7 +156,6 @@ def test_init_fmriprep_wf(
         config.workflow.pet2anat_init = pet2anat_init
         config.workflow.dummy_scans = dummy_scans
         config.workflow.medial_surface_nan = medial_surface_nan
-        config.workflow.project_goodvoxels = project_goodvoxels
         config.workflow.run_msmsulc = run_msmsulc
         config.workflow.skull_strip_t1w = skull_strip_t1w
         config.workflow.cifti_output = cifti_output

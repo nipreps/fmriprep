@@ -29,52 +29,52 @@ from niworkflows.utils.misc import pass_dummy_scans
 DEFAULT_MEMORY_MIN_GB = 0.01
 
 
-def init_raw_boldref_wf(
-    bold_file=None,
-    name='raw_boldref_wf',
+def init_raw_petref_wf(
+    pet_file=None,
+    name='raw_petref_wf',
 ):
     """
-    Build a workflow that generates reference BOLD images for a series.
+    Build a workflow that generates reference PET images for a series.
 
     The raw reference image is the target of :abbr:`HMC (head motion correction)`, and a
     contrast-enhanced reference is the subject of distortion correction, as well as
     boundary-based registration to T1w and template spaces.
 
-    This workflow assumes only one BOLD file has been passed.
+    This workflow assumes only one PET file has been passed.
 
     Workflow Graph
         .. workflow::
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.pet.reference import init_raw_boldref_wf
-            wf = init_raw_boldref_wf()
+            from fmriprep.workflows.pet.reference import init_raw_petref_wf
+            wf = init_raw_petref_wf()
 
     Parameters
     ----------
-    bold_file : :obj:`str`
-        BOLD series NIfTI file
+    pet_file : :obj:`str`
+        PET series NIfTI file
     name : :obj:`str`
-        Name of workflow (default: ``bold_reference_wf``)
+        Name of workflow (default: ``pet_reference_wf``)
 
     Inputs
     ------
-    bold_file : str
-        BOLD series NIfTI file
+    pet_file : str
+        PET series NIfTI file
     dummy_scans : int or None
-        Number of non-steady-state volumes specified by user at beginning of ``bold_file``
+        Number of non-steady-state volumes specified by user at beginning of ``pet_file``
 
     Outputs
     -------
-    bold_file : str
-        Validated BOLD series NIfTI file
-    boldref : str
-        Reference image to which BOLD series is motion corrected
+    pet_file : str
+        Validated PET series NIfTI file
+    petref : str
+        Reference image to which PET series is motion corrected
     skip_vols : int
-        Number of non-steady-state volumes selected at beginning of ``bold_file``
+        Number of non-steady-state volumes selected at beginning of ``pet_file``
     algo_dummy_scans : int
         Number of non-steady-state volumes agorithmically detected at
-        beginning of ``bold_file``
+        beginning of ``pet_file``
 
     """
     from niworkflows.interfaces.images import RobustAverage
@@ -86,14 +86,14 @@ using a custom methodology of *fMRIPrep*, for use in head motion correction.
 """
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_file', 'dummy_scans']),
+        niu.IdentityInterface(fields=['pet_file', 'dummy_scans']),
         name='inputnode',
     )
     outputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
-                'bold_file',
-                'boldref',
+                'pet_file',
+                'petref',
                 'skip_vols',
                 'algo_dummy_scans',
                 'validation_report',
@@ -103,8 +103,8 @@ using a custom methodology of *fMRIPrep*, for use in head motion correction.
     )
 
     # Simplify manually setting input image
-    if bold_file is not None:
-        inputnode.inputs.bold_file = bold_file
+    if pet_file is not None:
+        inputnode.inputs.pet_file = pet_file
 
     validation_and_dummies_wf = init_validation_and_dummies_wf()
 
@@ -112,31 +112,31 @@ using a custom methodology of *fMRIPrep*, for use in head motion correction.
 
     workflow.connect([
         (inputnode, validation_and_dummies_wf, [
-            ('bold_file', 'inputnode.bold_file'),
+            ('pet_file', 'inputnode.pet_file'),
             ('dummy_scans', 'inputnode.dummy_scans'),
         ]),
         (validation_and_dummies_wf, gen_avg, [
-            ('outputnode.bold_file', 'in_file'),
+            ('outputnode.pet_file', 'in_file'),
             ('outputnode.t_mask', 't_mask'),
         ]),
         (validation_and_dummies_wf, outputnode, [
-            ('outputnode.bold_file', 'bold_file'),
+            ('outputnode.pet_file', 'pet_file'),
             ('outputnode.skip_vols', 'skip_vols'),
             ('outputnode.algo_dummy_scans', 'algo_dummy_scans'),
             ('outputnode.validation_report', 'validation_report'),
         ]),
-        (gen_avg, outputnode, [('out_file', 'boldref')]),
+        (gen_avg, outputnode, [('out_file', 'petref')]),
     ])  # fmt:skip
 
     return workflow
 
 
 def init_validation_and_dummies_wf(
-    bold_file=None,
+    pet_file=None,
     name='validation_and_dummies_wf',
 ):
     """
-    Build a workflow that validates a BOLD image and detects non-steady-state volumes.
+    Build a workflow that validates a PET image and detects non-steady-state volumes.
 
     Workflow Graph
         .. workflow::
@@ -148,27 +148,27 @@ def init_validation_and_dummies_wf(
 
     Parameters
     ----------
-    bold_file : :obj:`str`
-        BOLD series NIfTI file
+    pet_file : :obj:`str`
+        PET series NIfTI file
     name : :obj:`str`
         Name of workflow (default: ``validation_and_dummies_wf``)
 
     Inputs
     ------
-    bold_file : str
-        BOLD series NIfTI file
+    pet_file : str
+        PET series NIfTI file
     dummy_scans : int or None
-        Number of non-steady-state volumes specified by user at beginning of ``bold_file``
+        Number of non-steady-state volumes specified by user at beginning of ``pet_file``
 
     Outputs
     -------
-    bold_file : str
-        Validated BOLD series NIfTI file
+    pet_file : str
+        Validated PET series NIfTI file
     skip_vols : int
-        Number of non-steady-state volumes selected at beginning of ``bold_file``
+        Number of non-steady-state volumes selected at beginning of ``pet_file``
     algo_dummy_scans : int
         Number of non-steady-state volumes agorithmically detected at
-        beginning of ``bold_file``
+        beginning of ``pet_file``
 
     """
     from niworkflows.interfaces.bold import NonsteadyStatesDetector
@@ -176,13 +176,13 @@ def init_validation_and_dummies_wf(
     workflow = Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_file', 'dummy_scans']),
+        niu.IdentityInterface(fields=['pet_file', 'dummy_scans']),
         name='inputnode',
     )
     outputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
-                'bold_file',
+                'pet_file',
                 'skip_vols',
                 'algo_dummy_scans',
                 't_mask',
@@ -193,12 +193,12 @@ def init_validation_and_dummies_wf(
     )
 
     # Simplify manually setting input image
-    if bold_file is not None:
-        inputnode.inputs.bold_file = bold_file
+    if pet_file is not None:
+        inputnode.inputs.pet_file = pet_file
 
-    val_bold = pe.Node(
+    val_pet = pe.Node(
         ValidateImage(),
-        name='val_bold',
+        name='val_pet',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
@@ -212,12 +212,12 @@ def init_validation_and_dummies_wf(
     )
 
     workflow.connect([
-        (inputnode, val_bold, [('bold_file', 'in_file')]),
-        (val_bold, outputnode, [
-            ('out_file', 'bold_file'),
+        (inputnode, val_pet, [('pet_file', 'in_file')]),
+        (val_pet, outputnode, [
+            ('out_file', 'pet_file'),
             ('out_report', 'validation_report'),
         ]),
-        (inputnode, get_dummy, [('bold_file', 'in_file')]),
+        (inputnode, get_dummy, [('pet_file', 'in_file')]),
         (inputnode, calc_dummy_scans, [('dummy_scans', 'dummy_scans')]),
         (get_dummy, calc_dummy_scans, [('n_dummy', 'algo_dummy_scans')]),
         (get_dummy, outputnode, [

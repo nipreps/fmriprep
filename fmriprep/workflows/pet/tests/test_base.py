@@ -25,21 +25,19 @@ def _quiet_logger():
 
 @pytest.fixture(scope='module')
 def bids_root(tmp_path_factory):
-    base = tmp_path_factory.mktemp('boldbase')
+    base = tmp_path_factory.mktemp('petbase')
     bids_dir = base / 'bids'
     generate_bids_skeleton(bids_dir, BASE_LAYOUT)
     return bids_dir
 
 
 @pytest.mark.parametrize('task', ['rest'])
-@pytest.mark.parametrize('freesurfer', [False, True])
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
 @pytest.mark.parametrize('pet2anat_init', ['t1w', 't2w'])
-def test_bold_wf(
+def test_pet_wf(
     bids_root: Path,
     tmp_path: Path,
     task: str,
-    freesurfer: bool,
     level: str,
     pet2anat_init: str,
 ):
@@ -51,12 +49,12 @@ def test_bold_wf(
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
 
     if task == 'rest':
-        bold_series = [
-            str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'),
+        pet_series = [
+            str(bids_root / 'sub-01' / 'pet' / 'sub-01_task-rest_run-1_pet.nii.gz'),
         ]
 
     # The workflow will attempt to read file headers
-    for path in bold_series:
+    for path in pet_series:
         img.to_filename(path)
 
     with mock_config(bids_dir=bids_root):
@@ -64,7 +62,7 @@ def test_bold_wf(
         config.workflow.level = level
         config.workflow.run_reconall = freesurfer
         wf = init_pet_wf(
-            bold_series=bold_series,
+            pet_series=pet_series,
             precomputed={},
         )
 

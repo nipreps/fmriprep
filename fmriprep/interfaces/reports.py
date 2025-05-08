@@ -39,7 +39,6 @@ from nipype.interfaces.base import (
     isdefined,
     traits,
 )
-from nireports.interfaces.reporting import base as nrb
 from smriprep.interfaces.freesurfer import ReconAll
 
 LOGGER = logging.getLogger('nipype.interface')
@@ -48,7 +47,7 @@ SUBJECT_TEMPLATE = """\
 \t<ul class="elem-desc">
 \t\t<li>Subject ID: {subject_id}</li>
 \t\t<li>Structural images: {n_t1s:d} T1-weighted {t2w}</li>
-\t\t<li>Functional series: {n_bold:d}</li>
+\t\t<li>Functional series: {n_pet:d}</li>
 {tasks}
 \t\t<li>Standard output spaces: {std_spaces}</li>
 \t\t<li>Non-standard output spaces: {nstd_spaces}</li>
@@ -61,18 +60,14 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t<summary>Summary</summary>
 \t\t<ul class="elem-desc">
 \t\t\t<li>Original orientation: {ornt}</li>
-\t\t\t<li>Repetition time (TR): {tr:.03g}s</li>
-\t\t\t<li>Slice timing correction: {stc}</li>
-\t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
-\t\t\t<li>Non-steady-state volumes: {dummy_scan_desc}</li>
 \t\t</ul>
 \t\t</details>
 """
 
 ABOUT_TEMPLATE = """\t<ul>
-\t\t<li>fMRIPrep version: {version}</li>
-\t\t<li>fMRIPrep command: <code>{command}</code></li>
+\t\t<li>PETPrep version: {version}</li>
+\t\t<li>PETPrep command: <code>{command}</code></li>
 \t\t<li>Date preprocessed: {date}</li>
 \t</ul>
 </div>
@@ -103,9 +98,9 @@ class SubjectSummaryInputSpec(BaseInterfaceInputSpec):
     t2w = InputMultiObject(File(exists=True), desc='T2w structural images')
     subjects_dir = Directory(desc='FreeSurfer subjects directory')
     subject_id = Str(desc='Subject ID')
-    bold = InputMultiObject(
+    pet = InputMultiObject(
         traits.Either(File(exists=True), traits.List(File(exists=True))),
-        desc='BOLD functional series',
+        desc='PET functional series',
     )
     std_spaces = traits.List(Str, desc='list of standard spaces')
     nstd_spaces = traits.List(Str, desc='list of non-standard spaces')
@@ -149,18 +144,18 @@ class SubjectSummary(SummaryInterface):
             if recon.cmdline.startswith('echo'):
                 freesurfer_status = 'Pre-existing directory'
             else:
-                freesurfer_status = 'Run by fMRIPrep'
+                freesurfer_status = 'Run by PETPrep'
 
         t2w_seg = ''
         if self.inputs.t2w:
             t2w_seg = f'(+ {len(self.inputs.t2w):d} T2-weighted)'
 
         # Add list of tasks with number of runs
-        bold_series = self.inputs.bold if isdefined(self.inputs.bold) else []
-        bold_series = [s[0] if isinstance(s, list) else s for s in bold_series]
+        pet_series = self.inputs.bold or []
 
         counts = Counter(
-            BIDS_NAME.search(series).groupdict()['task_id'][5:] for series in bold_series
+            BIDS_NAME.search(series).groupdict().get('task_id', 'task-<none>')[5:]
+            for series in pet_series
         )
 
         tasks = ''
@@ -177,7 +172,7 @@ class SubjectSummary(SummaryInterface):
             subject_id=self.inputs.subject_id,
             n_t1s=len(self.inputs.t1w),
             t2w=t2w_seg,
-            n_bold=len(bold_series),
+            n_pet=len(pet_series),
             tasks=tasks,
             std_spaces=', '.join(self.inputs.std_spaces),
             nstd_spaces=', '.join(self.inputs.nstd_spaces),
@@ -186,32 +181,15 @@ class SubjectSummary(SummaryInterface):
 
 
 class FunctionalSummaryInputSpec(TraitedSpec):
-    slice_timing = traits.Enum(False, True, 'TooShort', desc='Slice timing correction used')
-    distortion_correction = traits.Str(
-        desc='Susceptibility distortion correction method', mandatory=True
-    )
     registration = traits.Enum(
-        'FSL',
-        'FreeSurfer',
+        'mri_coreg',
         'Precomputed',
         mandatory=True,
-        desc='Functional/anatomical registration method',
+        desc='PET/anatomical registration method',
     )
-    fallback = traits.Bool(desc='Boundary-based registration rejected')
     registration_dof = traits.Enum(
         6, 9, 12, desc='Registration degrees of freedom', mandatory=True
     )
-    registration_init = traits.Enum(
-        't1w',
-        't2w',
-        'header',
-        mandatory=True,
-        desc='Whether to initialize registration with the "header"'
-        ' or by centering the volumes ("t1w" or "t2w")',
-    )
-    tr = traits.Float(desc='Repetition time', mandatory=True)
-    dummy_scans = traits.Either(traits.Int(), None, desc='number of dummy scans specified by user')
-    algo_dummy_scans = traits.Int(desc='number of dummy scans determined by algorithm')
     orientation = traits.Str(mandatory=True, desc='Orientation of the voxel axes')
 
 
@@ -220,55 +198,14 @@ class FunctionalSummary(SummaryInterface):
 
     def _generate_segment(self):
         dof = self.inputs.registration_dof
-        if isdefined(self.inputs.slice_timing):
-            stc = {
-                True: 'Applied',
-                False: 'Not applied',
-                'TooShort': 'Skipped (too few volumes)',
-            }[self.inputs.slice_timing]
-        else:
-            stc = 'n/a'
         # TODO: Add a note about registration_init below?
         if self.inputs.registration == 'Precomputed':
             reg = 'Precomputed affine transformation'
         else:
-            reg = {
-                'FSL': [
-                    'FSL <code>flirt</code> with boundary-based registration'
-                    f' (BBR) metric - {dof} dof',
-                    'FSL <code>flirt</code> rigid registration - 6 dof',
-                ],
-                'FreeSurfer': [
-                    'FreeSurfer <code>bbregister</code> '
-                    f'(boundary-based registration, BBR) - {dof} dof',
-                    f'FreeSurfer <code>mri_coreg</code> - {dof} dof',
-                ],
-            }[self.inputs.registration][self.inputs.fallback]
-
-        pedir = get_world_pedir(self.inputs.orientation, self.inputs.pe_direction)
-
-        dummy_scan_tmp = '{n_dum}'
-        if self.inputs.dummy_scans == self.inputs.algo_dummy_scans:
-            dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, '(Confirmed: {n_alg} automatically detected)']
-            ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
-        # the number of dummy scans was specified by the user and
-        # it is not equal to the number detected by the algorithm
-        elif self.inputs.dummy_scans is not None:
-            dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, '(Warning: {n_alg} automatically detected)']
-            ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
-        # the number of dummy scans was not specified by the user
-        else:
-            dummy_scan_msg = dummy_scan_tmp.format(n_dum=self.inputs.algo_dummy_scans)
+            reg = f'FreeSurfer <code>mri_coreg</code> - {dof} dof'
 
         return FUNCTIONAL_TEMPLATE.format(
-            pedir=pedir,
-            stc=stc,
-            sdc=self.inputs.distortion_correction,
             registration=reg,
-            tr=self.inputs.tr,
-            dummy_scan_desc=dummy_scan_msg,
             ornt=self.inputs.orientation,
         )
 
@@ -288,66 +225,3 @@ class AboutSummary(SummaryInterface):
             command=self.inputs.command,
             date=time.strftime('%Y-%m-%d %H:%M:%S %z'),
         )
-
-
-class LabeledHistogramInputSpec(nrb._SVGReportCapableInputSpec):
-    in_file = traits.File(exists=True, mandatory=True, desc='Image containing values to plot')
-    label_file = traits.File(
-        exists=True,
-        desc='Mask or label image where non-zero values will be used to extract data from in_file',
-    )
-    mapping = traits.Dict(desc='Map integer label values onto names of voxels')
-    xlabel = traits.Str('voxels', usedefault=True, desc='Description of values plotted')
-
-
-class LabeledHistogram(nrb.ReportingInterface):
-    input_spec = LabeledHistogramInputSpec
-
-    def _generate_report(self):
-        import nibabel as nb
-        import numpy as np
-        import seaborn as sns
-        from matplotlib import pyplot as plt
-        from nilearn.image import resample_to_img
-
-        report_file = self._out_report
-        img = nb.load(self.inputs.in_file)
-        data = img.get_fdata(dtype=np.float32)
-
-        if self.inputs.label_file:
-            label_img = nb.load(self.inputs.label_file)
-            if label_img.shape != img.shape[:3] or not np.allclose(label_img.affine, img.affine):
-                label_img = resample_to_img(label_img, img, interpolation='nearest')
-            labels = np.uint16(label_img.dataobj)
-        else:
-            labels = np.uint8(data > 0)
-
-        uniq_labels = np.unique(labels[labels > 0])
-        label_map = self.inputs.mapping or {label: label for label in uniq_labels}
-
-        rois = {label_map.get(label, label): data[labels == label] for label in label_map}
-        with sns.axes_style('whitegrid'):
-            fig = sns.histplot(rois, bins=50)
-            fig.set_xlabel(self.inputs.xlabel)
-        plt.savefig(report_file)
-        plt.close()
-
-
-def get_world_pedir(ornt, pe_direction):
-    """Return world direction of phase encoding"""
-    axes = (('Right', 'Left'), ('Anterior', 'Posterior'), ('Superior', 'Inferior'))
-    ax_idcs = {'i': 0, 'j': 1, 'k': 2}
-
-    if pe_direction is not None:
-        axcode = ornt[ax_idcs[pe_direction[0]]]
-        inv = pe_direction[1:] == '-'
-
-        for ax in axes:
-            for flip in (ax, ax[::-1]):
-                if flip[not inv].startswith(axcode):
-                    return '-'.join(flip)
-    LOGGER.warning(
-        'Cannot determine world direction of phase encoding. '
-        f'Orientation: {ornt}; PE dir: {pe_direction}'
-    )
-    return 'Could not be determined - assuming Anterior-Posterior'

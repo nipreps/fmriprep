@@ -439,7 +439,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         from .resampling import (
             init_pet_fsLR_resampling_wf,
             init_pet_grayords_wf,
-            init_goodvoxels_pet_mask_wf,
         )
 
         pet_MNI6_wf = init_pet_volumetric_resample_wf(
@@ -454,24 +453,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb['resampled'],
         )
-
-        if config.workflow.project_goodvoxels:
-            goodvoxels_pet_mask_wf = init_goodvoxels_pet_mask_wf(mem_gb['resampled'])
-
-            workflow.connect([
-                (inputnode, goodvoxels_pet_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
-                (pet_anat_wf, goodvoxels_pet_mask_wf, [
-                    ('outputnode.pet_file', 'inputnode.pet_file'),
-                ]),
-                (goodvoxels_pet_mask_wf, pet_fsLR_resampling_wf, [
-                    ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
-                ]),
-            ])  # fmt:skip
-
-            pet_fsLR_resampling_wf.__desc__ += """\
-A "goodvoxels" mask was applied during volume-to-surface sampling in fsLR space,
-excluding voxels whose time-series have a locally high coefficient of variation.
-"""
 
         pet_grayords_wf = init_pet_grayords_wf(
             grayord_density=config.workflow.cifti_output,

@@ -159,7 +159,7 @@ def init_func_fit_reports_wf(
     Inputs
     ------
     source_file
-        Input BOLD images
+        Input PET images
 
     std_t1w
         T1w image resampled to standard space
@@ -190,9 +190,9 @@ def init_func_fit_reports_wf(
 
     inputfields = [
         'source_file',
-        'coreg_boldref',
-        'bold_mask',
-        'boldref2anat_xfm',
+        'petref',
+        'pet_mask',
+        'petref2anat_xfm',
         't1w_preproc',
         't1w_mask',
         't1w_dseg',
@@ -227,8 +227,8 @@ def init_func_fit_reports_wf(
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
 
-    # Resample anatomical references into BOLD space for plotting
-    t1w_boldref = pe.Node(
+    # Resample anatomical references into PET space for plotting
+    t1w_petref = pe.Node(
         ApplyTransforms(
             dimension=3,
             default_value=0,
@@ -236,7 +236,7 @@ def init_func_fit_reports_wf(
             invert_transform_flags=[True],
             interpolation='LanczosWindowedSinc',
         ),
-        name='t1w_boldref',
+        name='t1w_petref',
         mem_gb=1,
     )
 
@@ -247,14 +247,14 @@ def init_func_fit_reports_wf(
     )
     t1w_wm.inputs.label = 2  # BIDS default is WM=2
 
-    boldref_wm = pe.Node(
+    petref_wm = pe.Node(
         ApplyTransforms(
             dimension=3,
             default_value=0,
             invert_transform_flags=[True],
             interpolation='NearestNeighbor',
         ),
-        name='boldref_wm',
+        name='petref_wm',
         mem_gb=1,
     )
 
@@ -268,70 +268,69 @@ def init_func_fit_reports_wf(
             ('source_file', 'source_file'),
             ('validation_report', 'in_file'),
         ]),
-        (inputnode, t1w_boldref, [
+        (inputnode, t1w_petref, [
             ('t1w_preproc', 'input_image'),
-            ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+            ('petref', 'reference_image'),
+            ('petref2anat_xfm', 'transforms'),
         ]),
         (inputnode, t1w_wm, [('t1w_dseg', 'in_seg')]),
-        (inputnode, boldref_wm, [
-            ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+        (inputnode, petref_wm, [
+            ('petref', 'reference_image'),
+            ('petref2anat_xfm', 'transforms'),
         ]),
-        (t1w_wm, boldref_wm, [('out', 'input_image')]),
+        (t1w_wm, petref_wm, [('out', 'input_image')]),
     ])
     # fmt:on
 
     # EPI-T1 registration
     # Resample T1w image onto EPI-space
 
-    epi_t1_report = pe.Node(
+    pet_t1_report = pe.Node(
         SimpleBeforeAfter(
             before_label='T1w',
             after_label='EPI',
             dismiss_affine=True,
         ),
-        name='epi_t1_report',
+        name='pet_t1_report',
         mem_gb=0.1,
     )
 
-    ds_epi_t1_report = pe.Node(
+    ds_pet_t1_report = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            desc='coreg',
-            suffix='bold',
+            suffix='pet',
             datatype='figures',
         ),
-        name='ds_epi_t1_report',
+        name='ds_pet_t1_report',
     )
 
     # fmt:off
     workflow.connect([
-        (inputnode, epi_t1_report, [('coreg_boldref', 'after')]),
-        (t1w_boldref, epi_t1_report, [('output_image', 'before')]),
-        (boldref_wm, epi_t1_report, [('output_image', 'wm_seg')]),
-        (inputnode, ds_epi_t1_report, [('source_file', 'source_file')]),
-        (epi_t1_report, ds_epi_t1_report, [('out_report', 'in_file')]),
+        (inputnode, pet_t1_report, [('petref', 'after')]),
+        (t1w_petref, pet_t1_report, [('output_image', 'before')]),
+        (petref_wm, pet_t1_report, [('output_image', 'wm_seg')]),
+        (inputnode, ds_pet_t1_report, [('source_file', 'source_file')]),
+        (pet_t1_report, ds_pet_t1_report, [('out_report', 'in_file')]),
     ])
     # fmt:on
 
     return workflow
 
 
-def init_ds_boldref_wf(
+def init_ds_petref_wf(
     *,
     bids_root,
     output_dir,
     desc: str,
-    name='ds_boldref_wf',
+    name='ds_petref_wf',
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['source_files', 'boldref']),
+        niu.IdentityInterface(fields=['source_files', 'petref']),
         name='inputnode',
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=['boldref']), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=['petref']), name='outputnode')
 
     sources = pe.Node(
         BIDSURI(
@@ -342,44 +341,44 @@ def init_ds_boldref_wf(
         name='sources',
     )
 
-    ds_boldref = pe.Node(
+    ds_petref = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
             desc=desc,
-            suffix='boldref',
+            suffix='petref',
             compress=True,
         ),
-        name='ds_boldref',
+        name='ds_petref',
         run_without_submitting=True,
     )
 
     # fmt:off
     workflow.connect([
         (inputnode, sources, [('source_files', 'in1')]),
-        (inputnode, ds_boldref, [('boldref', 'in_file'),
+        (inputnode, ds_petref, [('petref', 'in_file'),
                                  ('source_files', 'source_file')]),
-        (sources, ds_boldref, [('out', 'Sources')]),
-        (ds_boldref, outputnode, [('out_file', 'boldref')]),
+        (sources, ds_petref, [('out', 'Sources')]),
+        (ds_petref, outputnode, [('out_file', 'petref')]),
     ])
     # fmt:on
 
     return workflow
 
 
-def init_ds_boldmask_wf(
+def init_ds_petmask_wf(
     *,
     output_dir,
     desc: str,
-    name='ds_boldmask_wf',
+    name='ds_petmask_wf',
 ) -> pe.Workflow:
-    """Write out a BOLD mask."""
+    """Write out a PET mask."""
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['source_files', 'boldmask']),
+        niu.IdentityInterface(fields=['source_files', 'petmask']),
         name='inputnode',
     )
-    outputnode = pe.Node(niu.IdentityInterface(fields=['boldmask']), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=['petmask']), name='outputnode')
 
     sources = pe.Node(
         BIDSURI(
@@ -390,25 +389,25 @@ def init_ds_boldmask_wf(
         name='sources',
     )
 
-    ds_boldmask = pe.Node(
+    ds_petmask = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
             desc=desc,
             suffix='mask',
             compress=True,
         ),
-        name='ds_boldmask',
+        name='ds_petmask',
         run_without_submitting=True,
     )
 
     workflow.connect([
         (inputnode, sources, [('source_files', 'in1')]),
-        (inputnode, ds_boldmask, [
-            ('boldmask', 'in_file'),
+        (inputnode, ds_petmask, [
+            ('petmask', 'in_file'),
             ('source_files', 'source_file'),
         ]),
-        (sources, ds_boldmask, [('out', 'Sources')]),
-        (ds_boldmask, outputnode, [('out_file', 'boldmask')]),
+        (sources, ds_petmask, [('out', 'Sources')]),
+        (ds_petmask, outputnode, [('out_file', 'petmask')]),
     ])  # fmt:skip
 
     return workflow
@@ -495,7 +494,7 @@ def init_ds_hmc_wf(
             suffix='xfm',
             extension='.txt',
             compress=True,
-            **{'from': 'orig', 'to': 'boldref'},
+            **{'from': 'orig', 'to': 'petref'},
         ),
         name='ds_xforms',
         run_without_submitting=True,
@@ -514,13 +513,13 @@ def init_ds_hmc_wf(
     return workflow
 
 
-def init_ds_bold_native_wf(
+def init_ds_pet_native_wf(
     *,
     bids_root: str,
     output_dir: str,
-    bold_output: bool,
+    pet_output: bool,
     all_metadata: list[dict],
-    name='ds_bold_native_wf',
+    name='ds_pet_native_wf',
 ) -> pe.Workflow:
     metadata = all_metadata[0]
     timing_parameters = prepare_timing_parameters(metadata)
@@ -530,7 +529,7 @@ def init_ds_bold_native_wf(
         niu.IdentityInterface(
             fields=[
                 'source_files',
-                'bold',
+                'pet',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
             ]
@@ -553,8 +552,8 @@ def init_ds_bold_native_wf(
         ]),
     ])  # fmt:skip
 
-    if bold_output:
-        ds_bold = pe.Node(
+    if pet_output:
+        ds_pet = pe.Node(
             DerivativesDataSink(
                 base_directory=output_dir,
                 desc='preproc',
@@ -562,15 +561,15 @@ def init_ds_bold_native_wf(
                 TaskName=metadata.get('TaskName'),
                 **timing_parameters,
             ),
-            name='ds_bold',
+            name='ds_pet',
             mem_gb=DEFAULT_MEMORY_MIN_GB,
         )
         workflow.connect([
-            (inputnode, ds_bold, [
+            (inputnode, ds_pet, [
                 ('source_files', 'source_file'),
-                ('bold', 'in_file'),
+                ('pet', 'in_file'),
             ]),
-            (sources, ds_bold, [('out', 'Sources')]),
+            (sources, ds_pet, [('out', 'Sources')]),
         ])  # fmt:skip
 
     return workflow
@@ -591,13 +590,13 @@ def init_ds_volumes_wf(
             fields=[
                 'source_files',
                 'ref_file',
-                'bold',  # Resampled into target space
-                'bold_mask',  # boldref space
-                'bold_ref',  # boldref space
-                't2star',  # boldref space
+                'pet',  # Resampled into target space
+                'pet_mask',  # petref space
+                'pet_ref',  # petref space
+                't2star',  # petref space
                 'template',  # target reference image from original transform
                 # Anatomical
-                'boldref2anat_xfm',
+                'petref2anat_xfm',
                 # Template
                 'anat2std_xfm',
                 # Entities
@@ -619,10 +618,10 @@ def init_ds_volumes_wf(
         ),
         name='sources',
     )
-    boldref2target = pe.Node(niu.Merge(2), name='boldref2target')
+    petref2target = pe.Node(niu.Merge(2), name='petref2target')
 
-    # BOLD is pre-resampled
-    ds_bold = pe.Node(
+    # PET is pre-resampled
+    ds_pet = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
             desc='preproc',
@@ -630,31 +629,31 @@ def init_ds_volumes_wf(
             TaskName=metadata.get('TaskName'),
             **timing_parameters,
         ),
-        name='ds_bold',
+        name='ds_pet',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
     workflow.connect([
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2anat_xfm', 'in4'),
+            ('petref2anat_xfm', 'in4'),
             ('anat2std_xfm', 'in5'),
             ('template', 'in6'),
         ]),
-        (inputnode, boldref2target, [
+        (inputnode, petref2target, [
             # Note that ANTs expects transforms in target-to-source order
             # Reverse this for nitransforms-based resamplers
             ('anat2std_xfm', 'in1'),
-            ('boldref2anat_xfm', 'in2'),
+            ('petref2anat_xfm', 'in2'),
         ]),
-        (inputnode, ds_bold, [
+        (inputnode, ds_pet, [
             ('source_files', 'source_file'),
-            ('bold', 'in_file'),
+            ('pet', 'in_file'),
             ('space', 'space'),
             ('cohort', 'cohort'),
             ('resolution', 'resolution'),
         ]),
-        (sources, ds_bold, [('out', 'Sources')]),
+        (sources, ds_pet, [('out', 'Sources')]),
     ])  # fmt:skip
 
     resample_ref = pe.Node(
@@ -670,14 +669,14 @@ def init_ds_volumes_wf(
     resamplers = [resample_ref, resample_mask]
 
     workflow.connect([
-        (inputnode, resample_ref, [('bold_ref', 'input_image')]),
-        (inputnode, resample_mask, [('bold_mask', 'input_image')]),
+        (inputnode, resample_ref, [('pet_ref', 'input_image')]),
+        (inputnode, resample_mask, [('pet_mask', 'input_image')]),
     ])  # fmt:skip
 
     ds_ref = pe.Node(
         DerivativesDataSink(
             base_directory=output_dir,
-            suffix='boldref',
+            suffix='petref',
             compress=True,
         ),
         name='ds_ref',
@@ -702,7 +701,7 @@ def init_ds_volumes_wf(
             (inputnode, resampler, [('ref_file', 'reference_image')])
             for resampler in resamplers
         ] + [
-            (boldref2target, resampler, [('out', 'transforms')])
+            (petref2target, resampler, [('out', 'transforms')])
             for resampler in resamplers
         ] + [
             (inputnode, datasink, [
@@ -727,13 +726,13 @@ def init_ds_volumes_wf(
 def init_pet_preproc_report_wf(
     mem_gb: float,
     reportlets_dir: str,
-    name: str = 'bold_preproc_report_wf',
+    name: str = 'pet_preproc_report_wf',
 ):
     """
     Generate a visual report.
 
     This workflow generates and saves a reportlet showing the effect of resampling
-    the BOLD signal using the standard deviation maps.
+    the PET signal using the standard deviation maps.
 
     Workflow Graph
         .. workflow::
@@ -746,20 +745,20 @@ def init_pet_preproc_report_wf(
     Parameters
     ----------
     mem_gb : :obj:`float`
-        Size of BOLD file in GB
+        Size of PET file in GB
     reportlets_dir : :obj:`str`
         Directory in which to save reportlets
     name : :obj:`str`, optional
-        Workflow name (default: bold_preproc_report_wf)
+        Workflow name (default: pet_preproc_report_wf)
 
     Inputs
     ------
     in_pre
-        BOLD time-series, before resampling
+        PET time-series, before resampling
     in_post
-        BOLD time-series, after resampling
+        PET time-series, after resampling
     name_source
-        BOLD series NIfTI file
+        PET series NIfTI file
         Used to recover original information lost during processing
 
     """
@@ -778,25 +777,25 @@ def init_pet_preproc_report_wf(
     pre_tsnr = pe.Node(TSNR(), name='pre_tsnr', mem_gb=mem_gb * 4.5)
     pos_tsnr = pe.Node(TSNR(), name='pos_tsnr', mem_gb=mem_gb * 4.5)
 
-    bold_rpt = pe.Node(SimpleBeforeAfterRPT(), name='bold_rpt', mem_gb=0.1)
-    ds_report_bold = pe.Node(
+    pet_rpt = pe.Node(SimpleBeforeAfterRPT(), name='pet_rpt', mem_gb=0.1)
+    ds_report_pet = pe.Node(
         DerivativesDataSink(
             base_directory=reportlets_dir,
             desc='preproc',
             datatype='figures',
         ),
-        name='ds_report_bold',
+        name='ds_report_pet',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
         run_without_submitting=True,
     )
     # fmt:off
     workflow.connect([
-        (inputnode, ds_report_bold, [('name_source', 'source_file')]),
+        (inputnode, ds_report_pet, [('name_source', 'source_file')]),
         (inputnode, pre_tsnr, [('in_pre', 'in_file')]),
         (inputnode, pos_tsnr, [('in_post', 'in_file')]),
-        (pre_tsnr, bold_rpt, [('stddev_file', 'before')]),
-        (pos_tsnr, bold_rpt, [('stddev_file', 'after')]),
-        (bold_rpt, ds_report_bold, [('out_report', 'in_file')]),
+        (pre_tsnr, pet_rpt, [('stddev_file', 'before')]),
+        (pos_tsnr, pet_rpt, [('stddev_file', 'after')]),
+        (pet_rpt, ds_report_pet, [('out_report', 'in_file')]),
     ])
     # fmt:on
 

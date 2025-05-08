@@ -21,8 +21,8 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """
-Head-Motion Estimation and Correction (HMC) of BOLD images
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Head-Motion Estimation and Correction (HMC) of PET images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: init_pet_hmc_wf
 
@@ -33,13 +33,13 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 
-def init_pet_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
+def init_pet_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'pet_hmc_wf'):
     """
     Build a workflow to estimate head-motion parameters.
 
     This workflow estimates the motion parameters to perform
     :abbr:`HMC (head motion correction)` over the input
-    :abbr:`BOLD (blood-oxygen-level dependent)` image.
+    :abbr:`PET (positron emission tomography)` image.
 
     Workflow Graph
         .. workflow::
@@ -54,18 +54,18 @@ def init_pet_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf')
     Parameters
     ----------
     mem_gb : :obj:`float`
-        Size of BOLD file in GB
+        Size of PET file in GB
     omp_nthreads : :obj:`int`
         Maximum number of threads an individual process may use
     name : :obj:`str`
-        Name of workflow (default: ``bold_hmc_wf``)
+        Name of workflow (default: ``pet_hmc_wf``)
 
     Inputs
     ------
-    bold_file
-        BOLD series NIfTI file
+    pet_file
+        PET series NIfTI file
     raw_ref_image
-        Reference image to which BOLD series is motion corrected
+        Reference image to which PET series is motion corrected
 
     Outputs
     -------
@@ -78,14 +78,14 @@ def init_pet_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf')
 
     workflow = Workflow(name=name)
     workflow.__desc__ = """\
-Head-motion parameters with respect to the BOLD reference
+Head-motion parameters with respect to the PET reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
 `mcflirt` [FSL {fsl_ver}, @mcflirt].
 """.format(fsl_ver=fsl.Info().version() or '<ver>')
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']), name='inputnode'
+        niu.IdentityInterface(fields=['pet_file', 'raw_ref_image']), name='inputnode'
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
@@ -96,7 +96,7 @@ parameters) are estimated before any spatiotemporal filtering using
 
     workflow.connect([
         (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
-                              ('bold_file', 'in_file')]),
+                              ('pet_file', 'in_file')]),
         (inputnode, fsl2itk, [('raw_ref_image', 'in_source'),
                               ('raw_ref_image', 'in_reference')]),
         (mcflirt, fsl2itk, [('mat_file', 'in_files')]),

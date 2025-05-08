@@ -120,7 +120,7 @@ def resample_vol(
         dimensions have the shape of the target array.
     hmc_xfm
         Affine transformation accounting for head motion from the individual
-        volume into the BOLD reference space. This affine must be in VOX2VOX
+        volume into the PET reference space. This affine must be in VOX2VOX
         form.
     output
         The dtype or a pre-allocated array for sampling into the target space.
@@ -191,7 +191,7 @@ async def resample_series_async(
         The further dimensions determine the shape of the target array.
     hmc_xfm
         A sequence of affine transformations accounting for head motion from
-        the individual volume into the BOLD reference space.
+        the individual volume into the PET reference space.
         These affines must be in VOX2VOX form.
     output_dtype
         The dtype of the output array.
@@ -284,7 +284,7 @@ def resample_series(
         The further dimensions determine the shape of the target array.
     hmc_xfm
         A sequence of affine transformations accounting for head motion from
-        the individual volume into the BOLD reference space.
+        the individual volume into the PET reference space.
         These affines must be in VOX2VOX form.
     output_dtype
         The dtype of the output array.
@@ -338,12 +338,12 @@ def resample_image(
     Parameters
     ----------
     source
-        The 3D bold image or 4D bold series to resample.
+        The 3D PET image or 4D PET series to resample.
     target
         An image sampled in the target space.
     transforms
         A nitransforms TransformChain that maps images from the individual
-        BOLD volume space into the target space.
+        PET volume space into the target space.
     nthreads
         Number of threads to use for parallel resampling
     output_dtype
@@ -360,8 +360,8 @@ def resample_image(
 
     Returns
     -------
-    resampled_bold
-        The BOLD series resampled into the target space
+    resampled_pet
+        The PET series resampled into the target space
     """
     if not isinstance(transforms, nt.TransformChain):
         transforms = nt.TransformChain([transforms])
@@ -383,7 +383,7 @@ def resample_image(
     # Transform RAS2RAS head motion transforms to VOX2VOX
     hmc_xfms = [ras2vox @ xfm.matrix @ vox2ras for xfm in hmc]
 
-    # After removing the head-motion transforms, add a mapping from boldref
+    # After removing the head-motion transforms, add a mapping from petref
     # world space to voxels. This new transform maps from world coordinates
     # in the target space to voxel coordinates in the source space.
     ref2vox = nt.TransformChain(transform_list + [nt.Affine(ras2vox)])
