@@ -724,7 +724,7 @@ def init_ds_volumes_wf(
     return workflow
 
 
-def init_bold_preproc_report_wf(
+def init_pet_preproc_report_wf(
     mem_gb: float,
     reportlets_dir: str,
     name: str = 'bold_preproc_report_wf',
@@ -740,8 +740,8 @@ def init_bold_preproc_report_wf(
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.bold.resampling import init_bold_preproc_report_wf
-            wf = init_bold_preproc_report_wf(mem_gb=1, reportlets_dir='.')
+            from fmriprep.workflows.pet.resampling import init_pet_preproc_report_wf
+            wf = init_pet_preproc_report_wf(mem_gb=1, reportlets_dir='.')
 
     Parameters
     ----------

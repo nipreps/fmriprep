@@ -676,7 +676,7 @@ to which tissue-specific regressors correlate with global signal.
     are those with greatest correlation with the global signal.
     This information can be used to diagnose partial volume effects.
 
-See implementation on :mod:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`.
+See implementation on :mod:`~fmriprep.workflows.pet.confounds.init_pet_confs_wf`.
 
 Legacy layout
 -------------

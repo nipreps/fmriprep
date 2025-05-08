@@ -63,7 +63,7 @@ def bids_root(tmp_path_factory):
 
 
 def _make_params(
-    bold2anat_init: str = 'auto',
+    pet2anat_init: str = 'auto',
     dummy_scans: int | None = None,
     medial_surface_nan: bool = False,
     project_goodvoxels: bool = False,
@@ -83,7 +83,7 @@ def _make_params(
     if bids_filters is None:
         bids_filters = {}
     return (
-        bold2anat_init,
+        pet2anat_init,
         dummy_scans,
         medial_surface_nan,
         project_goodvoxels,
@@ -102,7 +102,7 @@ def _make_params(
 @pytest.mark.parametrize('anat_only', [False, True])
 @pytest.mark.parametrize(
     (
-        'bold2anat_init',
+        'pet2anat_init',
         'dummy_scans',
         'medial_surface_nan',
         'project_goodvoxels',
@@ -117,14 +117,14 @@ def _make_params(
     ),
     [
         _make_params(),
-        _make_params(bold2anat_init='t1w'),
-        _make_params(bold2anat_init='t2w'),
-        _make_params(bold2anat_init='header'),
+        _make_params(pet2anat_init='t1w'),
+        _make_params(pet2anat_init='t2w'),
+        _make_params(pet2anat_init='header'),
         _make_params(force=['bbr']),
         _make_params(force=['no-bbr']),
-        _make_params(bold2anat_init='header', force=['bbr']),
+        _make_params(pet2anat_init='header', force=['bbr']),
         # Currently disabled
-        # _make_params(bold2anat_init="header", force=['no-bbr']),
+        # _make_params(pet2anat_init="header", force=['no-bbr']),
         _make_params(dummy_scans=2),
         _make_params(medial_surface_nan=True),
         _make_params(cifti_output='91k'),
@@ -137,9 +137,9 @@ def _make_params(
         _make_params(freesurfer=False, force=['bbr']),
         _make_params(freesurfer=False, force=['no-bbr']),
         # Currently unsupported:
-        # _make_params(freesurfer=False, bold2anat_init="header"),
-        # _make_params(freesurfer=False, bold2anat_init="header", force=['bbr']),
-        # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
+        # _make_params(freesurfer=False, pet2anat_init="header"),
+        # _make_params(freesurfer=False, pet2anat_init="header", force=['bbr']),
+        # _make_params(freesurfer=False, pet2anat_init="header", force=['no-bbr']),
     ],
 )
 def test_init_fmriprep_wf(
@@ -147,7 +147,7 @@ def test_init_fmriprep_wf(
     tmp_path: Path,
     level: str,
     anat_only: bool,
-    bold2anat_init: str,
+    pet2anat_init: str,
     dummy_scans: int | None,
     medial_surface_nan: bool,
     project_goodvoxels: bool,
@@ -163,7 +163,7 @@ def test_init_fmriprep_wf(
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
         config.workflow.anat_only = anat_only
-        config.workflow.bold2anat_init = bold2anat_init
+        config.workflow.pet2anat_init = pet2anat_init
         config.workflow.dummy_scans = dummy_scans
         config.workflow.medial_surface_nan = medial_surface_nan
         config.workflow.project_goodvoxels = project_goodvoxels

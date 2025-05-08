@@ -33,22 +33,21 @@ from ...utils.bids import extract_entities
 from ...utils.misc import estimate_bold_mem_usage
 
 # BOLD workflows
-from .hmc import init_bold_hmc_wf
+from .hmc import init_pet_hmc_wf
 from .outputs import (
-    init_ds_boldmask_wf,
-    init_ds_boldref_wf,
+    init_ds_petmask_wf,
+    init_ds_petref_wf,
     init_ds_hmc_wf,
     init_ds_registration_wf,
     init_func_fit_reports_wf,
 )
-from .reference import init_raw_boldref_wf, init_validation_and_dummies_wf
-from .registration import init_bold_reg_wf
-from .stc import init_bold_stc_wf
+from .reference import init_petref_wf, init_validation_and_dummies_wf
+from .registration import init_pet_reg_wf
 
 
-def init_bold_fit_wf(
+def init_pet_fit_wf(
     *,
-    bold_series: list[str],
+    pet_file: str,
     precomputed: dict = None,
     omp_nthreads: int = 1,
     name: str = 'bold_fit_wf',
@@ -63,11 +62,11 @@ def init_bold_fit_wf(
 
             from fmriprep.workflows.tests import mock_config
             from fmriprep import config
-            from fmriprep.workflows.bold.fit import init_bold_fit_wf
+            from fmriprep.workflows.pet.fit import init_pet_fit_wf
             with mock_config():
                 bold_file = config.execution.bids_dir / "sub-01" / "func" \
                     / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
-                wf = init_bold_fit_wf(bold_series=[str(bold_file)])
+                wf = init_pet_fit_wf(bold_series=[str(bold_file)])
 
     Parameters
     ----------
@@ -98,19 +97,15 @@ def init_bold_fit_wf(
 
     Outputs
     -------
-    hmc_boldref
-        BOLD reference image used for head motion correction.
-        Minimally processed to ensure consistent contrast with BOLD series.
-    coreg_boldref
-        BOLD reference image used for coregistration. Contrast-enhanced
-        for greater anatomical fidelity, and aligned with ``hmc_boldref``.
-    bold_mask
-        Mask of ``coreg_boldref``.
+    petref
+        PET reference image used for head motion correction.
+    pet_mask
+        Mask of ``petref``.
     motion_xfm
-        Affine transforms from each BOLD volume to ``hmc_boldref``, written
+        Affine transforms from each PET volume to ``petref``, written
         as concatenated ITK affine transforms.
-    boldref2anat_xfm
-        Affine transform mapping from BOLD reference space to the anatomical
+    petref2anat_xfm
+        Affine transform mapping from PET reference space to the anatomical
         space.
     dummy_scans
         The number of dummy scans declared or detected at the beginning of the series.
@@ -118,48 +113,44 @@ def init_bold_fit_wf(
     See Also
     --------
 
-    * :py:func:`~fmriprep.workflows.bold.reference.init_raw_boldref_wf`
-    * :py:func:`~fmriprep.workflows.bold.hmc.init_bold_hmc_wf`
-    * :py:func:`~niworkflows.func.utils.init_enhance_and_skullstrip_bold_wf`
-    * :py:func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`
-    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_boldref_wf`
-    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_hmc_wf`
-    * :py:func:`~fmriprep.workflows.bold.outputs.init_ds_registration_wf`
+    * :py:func:`~fmriprep.workflows.pet.reference.init_petref_wf`
+    * :py:func:`~fmriprep.workflows.pet.hmc.init_pet_hmc_wf`
+    * :py:func:`~niworkflows.func.utils.init_enhance_and_skullstrip_pet_wf`
+    * :py:func:`~fmriprep.workflows.pet.registration.init_pet_reg_wf`
+    * :py:func:`~fmriprep.workflows.pet.outputs.init_ds_petref_wf`
+    * :py:func:`~fmriprep.workflows.pet.outputs.init_ds_hmc_wf`
+    * :py:func:`~fmriprep.workflows.pet.outputs.init_ds_registration_wf`
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
-    from fmriprep.utils.misc import estimate_bold_mem_usage
+    from fmriprep.utils.misc import estimate_pet_mem_usage
 
     if precomputed is None:
         precomputed = {}
     layout = config.execution.layout
-    bids_filters = config.execution.get().get('bids_filters', {})
 
-    bold_file = bold_series[0]
+    # Get metadata from PET file(s)
+    entities = extract_entities(pet_file)
+    metadata = layout.get_metadata(pet_file)
+    orientation = ''.join(nb.aff2axcodes(nb.load(pet_file).affine))
 
-    # Get metadata from BOLD file(s)
-    entities = extract_entities(bold_series)
-    metadata = layout.get_metadata(bold_file)
-    orientation = ''.join(nb.aff2axcodes(nb.load(bold_file).affine))
+    pet_tlen, mem_gb = estimate_pet_mem_usage(pet_file)
 
-    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
-
-    hmc_boldref = precomputed.get('hmc_boldref')
-    coreg_boldref = precomputed.get('coreg_boldref')
+    petref = precomputed.get('petref')
     # Can contain
-    #  1) boldref2anat
+    #  1) petref2anat
     #  2) hmc
     transforms = precomputed.get('transforms', {})
     hmc_xforms = transforms.get('hmc')
-    boldref2anat_xform = transforms.get('boldref2anat')
+    petref2anat_xform = transforms.get('petref2anat')
 
     workflow = Workflow(name=name)
 
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
-                'bold_file',
+                'pet_file',
                 # Anatomical coregistration
                 't1w_preproc',
                 't1w_mask',
@@ -171,17 +162,16 @@ def init_bold_fit_wf(
         ),
         name='inputnode',
     )
-    inputnode.inputs.bold_file = bold_series
+    inputnode.inputs.pet_file = pet_file
 
     outputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
                 'dummy_scans',
-                'hmc_boldref',
-                'coreg_boldref',
-                'bold_mask',
+                'petref',
+                'pet_mask',
                 'motion_xfm',
-                'boldref2anat_xfm',
+                'petref2anat_xfm',
             ],
         ),
         name='outputnode',
@@ -190,37 +180,31 @@ def init_bold_fit_wf(
     # If all derivatives exist, inputnode could go unconnected, so add explicitly
     workflow.add_nodes([inputnode])
 
-    hmcref_buffer = pe.Node(
-        niu.IdentityInterface(fields=['boldref', 'bold_file', 'dummy_scans']),
-        name='hmcref_buffer',
+    petref_buffer = pe.Node(
+        niu.IdentityInterface(fields=['petref', 'pet_file', 'pet_mask']),
+        name='petref_buffer',
     )
     hmc_buffer = pe.Node(niu.IdentityInterface(fields=['hmc_xforms']), name='hmc_buffer')
-    regref_buffer = pe.Node(
-        niu.IdentityInterface(fields=['boldref', 'boldmask']), name='regref_buffer'
-    )
 
-    if hmc_boldref:
-        hmcref_buffer.inputs.boldref = hmc_boldref
-        config.loggers.workflow.debug('Reusing motion correction reference: %s', hmc_boldref)
+    if petref:
+        petref_buffer.inputs.petref = petref
+        config.loggers.workflow.debug('Reusing motion correction reference: %s', petref)
     if hmc_xforms:
         hmc_buffer.inputs.hmc_xforms = hmc_xforms
         config.loggers.workflow.debug('Reusing motion correction transforms: %s', hmc_xforms)
-    if coreg_boldref:
-        regref_buffer.inputs.boldref = coreg_boldref
-        config.loggers.workflow.debug('Reusing coregistration reference: %s', coreg_boldref)
 
     summary = pe.Node(
         FunctionalSummary(
             distortion_correction='None',  # Can override with connection
             registration=(
                 'Precomputed'
-                if boldref2anat_xform
+                if petref2anat_xform
                 else 'FreeSurfer'
                 if config.workflow.run_reconall
                 else 'FSL'
             ),
-            registration_dof=config.workflow.bold2anat_dof,
-            registration_init=config.workflow.bold2anat_init,
+            registration_dof=config.workflow.pet2anat_dof,
+            registration_init=config.workflow.pet2anat_init,
             tr=metadata['RepetitionTime'],
             orientation=orientation,
         ),
@@ -239,26 +223,21 @@ def init_bold_fit_wf(
         )
 
     func_fit_reports_wf = init_func_fit_reports_wf(
-        # TODO: Enable sdc report even if we find coregref
         sdc_correction=False,
         freesurfer=config.workflow.run_reconall,
         output_dir=config.execution.fmriprep_dir,
     )
 
     workflow.connect([
-        (hmcref_buffer, outputnode, [
-            ('boldref', 'hmc_boldref'),
-            ('dummy_scans', 'dummy_scans'),
-        ]),
-        (regref_buffer, outputnode, [
-            ('boldref', 'coreg_boldref'),
-            ('boldmask', 'bold_mask'),
+        (petref_buffer, outputnode, [
+            ('petref', 'petref'),
+            ('petmask', 'petmask'),
         ]),
         (hmc_buffer, outputnode, [
             ('hmc_xforms', 'motion_xfm'),
         ]),
         (inputnode, func_fit_reports_wf, [
-            ('bold_file', 'inputnode.source_file'),
+            ('pet_file', 'inputnode.source_file'),
             ('t1w_preproc', 'inputnode.t1w_preproc'),
             # May not need all of these
             ('t1w_mask', 'inputnode.t1w_mask'),
@@ -267,46 +246,45 @@ def init_bold_fit_wf(
             ('subject_id', 'inputnode.subject_id'),
         ]),
         (outputnode, func_fit_reports_wf, [
-            ('coreg_boldref', 'inputnode.coreg_boldref'),
-            ('bold_mask', 'inputnode.bold_mask'),
-            ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('pet_mask', 'inputnode.pet_mask'),
+            ('petref2anat_xfm', 'inputnode.petref2anat_xfm'),
         ]),
         (summary, func_fit_reports_wf, [('out_report', 'inputnode.summary_report')]),
     ])  # fmt:skip
 
-    # Stage 1: Generate motion correction boldref
-    hmc_boldref_source_buffer = pe.Node(
+    # Stage 1: Generate motion correction petref
+    petref_source_buffer = pe.Node(
         niu.IdentityInterface(fields=['in_file']),
-        name='hmc_boldref_source_buffer',
+        name='petref_source_buffer',
     )
-    if not hmc_boldref:
-        config.loggers.workflow.info('Stage 1: Adding HMC boldref workflow')
-        hmc_boldref_wf = init_raw_boldref_wf(
-            name='hmc_boldref_wf',
-            bold_file=bold_file,
+    if not petref:
+        config.loggers.workflow.info('Stage 1: Adding PET reference workflow')
+        petref_wf = init_petref_wf(
+            name='petref_wf',
+            pet_file=pet_file,
         )
-        hmc_boldref_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
+        petref_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
 
-        ds_hmc_boldref_wf = init_ds_boldref_wf(
+        ds_petref_wf = init_ds_petref_wf(
             bids_root=layout.root,
             output_dir=config.execution.fmriprep_dir,
             desc='hmc',
-            name='ds_hmc_boldref_wf',
+            name='ds_petref_wf',
         )
-        ds_hmc_boldref_wf.inputs.inputnode.source_files = [bold_file]
+        ds_petref_wf.inputs.inputnode.source_files = [pet_file]
 
         workflow.connect([
-            (hmc_boldref_wf, hmcref_buffer, [
+            (petref_wf, petref_buffer, [
                 ('outputnode.bold_file', 'bold_file'),
                 ('outputnode.boldref', 'boldref'),
                 ('outputnode.skip_vols', 'dummy_scans'),
             ]),
-            (hmcref_buffer, ds_hmc_boldref_wf, [('boldref', 'inputnode.boldref')]),
-            (hmc_boldref_wf, summary, [('outputnode.algo_dummy_scans', 'algo_dummy_scans')]),
-            (hmc_boldref_wf, func_fit_reports_wf, [
+            (petref_buffer, ds_petref_wf, [('boldref', 'inputnode.boldref')]),
+            (petref_wf, summary, [('outputnode.algo_dummy_scans', 'algo_dummy_scans')]),
+            (petref_wf, func_fit_reports_wf, [
                 ('outputnode.validation_report', 'inputnode.validation_report'),
             ]),
-            (ds_hmc_boldref_wf, hmc_boldref_source_buffer, [
+            (ds_petref_wf, petref_source_buffer, [
                 ('outputnode.boldref', 'in_file'),
             ]),
         ])  # fmt:skip
@@ -316,21 +294,21 @@ def init_bold_fit_wf(
         validation_and_dummies_wf = init_validation_and_dummies_wf(bold_file=bold_file)
 
         workflow.connect([
-            (validation_and_dummies_wf, hmcref_buffer, [
+            (validation_and_dummies_wf, petref_buffer, [
                 ('outputnode.bold_file', 'bold_file'),
                 ('outputnode.skip_vols', 'dummy_scans'),
             ]),
             (validation_and_dummies_wf, func_fit_reports_wf, [
                 ('outputnode.validation_report', 'inputnode.validation_report'),
             ]),
-            (hmcref_buffer, hmc_boldref_source_buffer, [('boldref', 'in_file')]),
+            (petref_buffer, petref_source_buffer, [('boldref', 'in_file')]),
         ])  # fmt:skip
 
     # Stage 2: Estimate head motion
     if not hmc_xforms:
         config.loggers.workflow.info('Stage 2: Adding motion correction workflow')
-        bold_hmc_wf = init_bold_hmc_wf(
-            name='bold_hmc_wf', mem_gb=mem_gb['filesize'], omp_nthreads=omp_nthreads
+        pet_hmc_wf = init_pet_hmc_wf(
+            name='pet_hmc_wf', mem_gb=mem_gb['filesize'], omp_nthreads=omp_nthreads
         )
 
         ds_hmc_wf = init_ds_hmc_wf(
@@ -340,11 +318,11 @@ def init_bold_fit_wf(
         ds_hmc_wf.inputs.inputnode.source_files = [bold_file]
 
         workflow.connect([
-            (hmcref_buffer, bold_hmc_wf, [
+            (petref_buffer, pet_hmc_wf, [
                 ('boldref', 'inputnode.raw_ref_image'),
                 ('bold_file', 'inputnode.bold_file'),
             ]),
-            (bold_hmc_wf, ds_hmc_wf, [('outputnode.xforms', 'inputnode.xforms')]),
+            (pet_hmc_wf, ds_hmc_wf, [('outputnode.xforms', 'inputnode.xforms')]),
             (ds_hmc_wf, hmc_buffer, [('outputnode.xforms', 'hmc_xforms')]),
         ])  # fmt:skip
     else:
@@ -357,22 +335,22 @@ def init_bold_fit_wf(
 
         enhance_boldref_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
 
-        ds_coreg_boldref_wf = init_ds_boldref_wf(
+        ds_coreg_boldref_wf = init_ds_petref_wf(
             bids_root=layout.root,
             output_dir=config.execution.fmriprep_dir,
             desc='coreg',
             name='ds_coreg_boldref_wf',
         )
-        ds_boldmask_wf = init_ds_boldmask_wf(
+        ds_petmask_wf = init_ds_petmask_wf(
             output_dir=config.execution.fmriprep_dir,
             desc='brain',
-            name='ds_boldmask_wf',
+            name='ds_petmask_wf',
         )
         ds_boldmask_wf.inputs.inputnode.source_files = [bold_file]
 
         workflow.connect([
-            (hmcref_buffer, enhance_boldref_wf, [('boldref', 'inputnode.in_file')]),
-            (hmc_boldref_source_buffer, ds_coreg_boldref_wf, [
+            (petref_buffer, enhance_boldref_wf, [('boldref', 'inputnode.in_file')]),
+            (petref_source_buffer, ds_coreg_boldref_wf, [
                 ('in_file', 'inputnode.source_files'),
             ]),
             (ds_coreg_boldref_wf, regref_buffer, [('outputnode.boldref', 'boldref')]),
@@ -399,13 +377,13 @@ def init_bold_fit_wf(
             (skullstrip_precomp_ref_wf, regref_buffer, [('outputnode.mask_file', 'boldmask')])
         ])  # fmt:skip
 
-    if not boldref2anat_xform:
+    if not petref2anat_xform:
         use_bbr = False
 
-        # calculate BOLD registration to T1w
-        bold_reg_wf = init_bold_reg_wf(
-            bold2anat_dof=config.workflow.bold2anat_dof,
-            bold2anat_init=config.workflow.bold2anat_init,
+        # calculate PET registration to T1w
+        bold_reg_wf = init_pet_reg_wf(
+            pet2anat_dof=config.workflow.pet2anat_dof,
+            pet2anat_init=config.workflow.pet2anat_init,
             use_bbr=use_bbr,
             freesurfer=config.workflow.run_reconall,
             omp_nthreads=omp_nthreads,
@@ -432,23 +410,23 @@ def init_bold_fit_wf(
                 ('subject_id', 'inputnode.subject_id'),
                 ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ]),
-            (regref_buffer, bold_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
+            (regref_buffer, bold_reg_wf, [('boldref', 'inputnode.ref_pet_brain')]),
             # Incomplete sources
             (regref_buffer, ds_boldreg_wf, [('boldref', 'inputnode.source_files')]),
             (bold_reg_wf, ds_boldreg_wf, [('outputnode.itk_bold_to_t1', 'inputnode.xform')]),
-            (ds_boldreg_wf, outputnode, [('outputnode.xform', 'boldref2anat_xfm')]),
+            (ds_boldreg_wf, outputnode, [('outputnode.xform', 'petref2anat_xfm')]),
             (bold_reg_wf, summary, [('outputnode.fallback', 'fallback')]),
         ])
         # fmt:on
     else:
-        outputnode.inputs.boldref2anat_xfm = boldref2anat_xform
+        outputnode.inputs.petref2anat_xfm = petref2anat_xform
 
     return workflow
 
 
-def init_bold_native_wf(
+def init_pet_native_wf(
     *,
-    bold_series: list[str],
+    pet_file: str,
     omp_nthreads: int = 1,
     name: str = 'bold_native_wf',
 ) -> pe.Workflow:
@@ -466,59 +444,46 @@ def init_bold_native_wf(
 
             from fmriprep.workflows.tests import mock_config
             from fmriprep import config
-            from fmriprep.workflows.bold.fit import init_bold_native_wf
+            from fmriprep.workflows.pet.fit import init_pet_native_wf
             with mock_config():
                 bold_file = config.execution.bids_dir / "sub-01" / "func" \
                     / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
-                wf = init_bold_native_wf(bold_series=[str(bold_file)])
+                wf = init_pet_native_wf(bold_series=[str(bold_file)])
 
     Parameters
     ----------
-    bold_series
-        List of paths to NIfTI files.
+    pet_file
+        Path to NIfTI file.
 
     Inputs
     ------
-    boldref
-        BOLD reference file
-    bold_mask
-        Mask of BOLD reference file
+    petref
+        PET reference file
+    pet_mask
+        Mask of pet reference file
     motion_xfm
-        Affine transforms from each BOLD volume to ``hmc_boldref``, written
+        Affine transforms from each PET volume to ``petref``, written
         as concatenated ITK affine transforms.
 
     Outputs
     -------
-    bold_minimal
+    pet_minimal
         BOLD series ready for further resampling.
-        Only slice-timing correction (STC) may have been applied.
-    bold_native
-        BOLD series resampled into BOLD reference space. Slice-timing,
-        head motion and susceptibility distortion correction (STC, HMC, SDC)
-        will all be applied to each file.
+    pet_native
+        BOLD series resampled into BOLD reference space. Head motion correction
+        will be applied to each file.
     metadata
         Metadata dictionary of BOLD series
     motion_xfm
         Motion correction transforms for further correcting bold_minimal.
 
-    See Also
-    --------
-
-    * :py:func:`~fmriprep.workflows.bold.stc.init_bold_stc_wf`
-    * :py:func:`~fmriprep.workflows.bold.t2s.init_bold_t2s_wf`
-
-    .. _optimal combination: https://tedana.readthedocs.io/en/stable/approach.html#optimal-combination
-
     """
 
     layout = config.execution.layout
 
-    all_metadata = [layout.get_metadata(bold_file) for bold_file in bold_series]
+    metadata = layout.get_metadata(pet_file)
 
-    bold_file = bold_series[0]
-    metadata = all_metadata[0]
-
-    bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
+    _, mem_gb = estimate_bold_mem_usage(pet_file)
 
     run_stc = bool(metadata.get('SliceTiming')) and 'slicetiming' not in config.workflow.ignore
 
@@ -562,16 +527,7 @@ def init_bold_native_wf(
         (bold_source, validate_bold, [('out', 'in_file')]),
     ])  # fmt:skip
 
-    # Slice-timing correction
-    if run_stc:
-        bold_stc_wf = init_bold_stc_wf(metadata=metadata, mem_gb=mem_gb)
-        workflow.connect([
-            (inputnode, bold_stc_wf, [('dummy_scans', 'inputnode.skip_vols')]),
-            (validate_bold, bold_stc_wf, [('out_file', 'inputnode.bold_file')]),
-            (bold_stc_wf, boldbuffer, [('outputnode.stc_file', 'bold_file')]),
-        ])  # fmt:skip
-    else:
-        workflow.connect([(validate_bold, boldbuffer, [('out_file', 'bold_file')])])
+    workflow.connect([(validate_bold, boldbuffer, [('out_file', 'bold_file')])])
 
     # Resample to boldref
     boldref_bold = pe.Node(

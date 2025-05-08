@@ -355,7 +355,7 @@ It is released under the [CC0]\
         (bids_info, anat_fit_wf, [(('subject', _prefix), 'inputnode.subject_id')]),
         # Reporting connections
         (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
-        (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
+        (bidssrc, summary, [('t2w', 't2w'), ('pet', 'pet')]),
         (bids_info, summary, [('subject', 'subject_id')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
@@ -536,13 +536,13 @@ tasks and sessions), the following preprocessing was performed.
 """
 
     # Before initializing BOLD workflow, select/verify anatomical target for coregistration
-    if config.workflow.bold2anat_init in ('auto', 't2w'):
+    if config.workflow.pet2anat_init in ('auto', 't2w'):
         has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
-        if config.workflow.bold2anat_init == 't2w' and not has_t2w:
+        if config.workflow.pet2anat_init == 't2w' and not has_t2w:
             raise OSError(
                 'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
             )
-        config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
+        config.workflow.pet2anat_init = 't2w' if has_t2w else 't1w'
 
     for pet_series in pet_runs:
         functional_cache = {}

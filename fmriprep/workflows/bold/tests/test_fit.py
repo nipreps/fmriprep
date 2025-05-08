@@ -9,7 +9,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.test_base import BASE_LAYOUT
-from ..fit import init_bold_fit_wf, init_bold_native_wf
+from ..fit import init_pet_fit_wf, init_pet_native_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -111,7 +111,7 @@ def test_bold_fit_precomputes(
         precomputed['transforms']['boldref2fmap'] = dummy_affine
 
     with mock_config(bids_dir=bids_root):
-        wf = init_bold_fit_wf(
+        wf = init_pet_fit_wf(
             bold_series=bold_series,
             precomputed=precomputed,
             omp_nthreads=1,
@@ -147,7 +147,7 @@ def test_bold_native_precomputes(
 
     with mock_config(bids_dir=bids_root):
         config.workflow.ignore = ['slicetiming'] if not run_stc else []
-        wf = init_bold_native_wf(
+        wf = init_pet_native_wf(
             bold_series=bold_series,
             omp_nthreads=1,
         )

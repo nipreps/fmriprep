@@ -24,7 +24,7 @@
 Calculate BOLD confounds
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: init_bold_confs_wf
+.. autofunction:: init_pet_confs_wf
 
 """
 
@@ -46,7 +46,7 @@ from ...interfaces.confounds import (
 )
 
 
-def init_bold_confs_wf(
+def init_pet_confs_wf(
     mem_gb: float,
     metadata: dict,
     regressors_all_comps: bool,
@@ -87,8 +87,8 @@ def init_bold_confs_wf(
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.bold.confounds import init_bold_confs_wf
-            wf = init_bold_confs_wf(
+            from fmriprep.workflows.pet.confounds import init_pet_confs_wf
+            wf = init_pet_confs_wf(
                 mem_gb=1,
                 metadata={},
                 regressors_all_comps=False,

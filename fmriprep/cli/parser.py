@@ -365,7 +365,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         help='Treat dataset as longitudinal - may increase runtime',
     )
     g_conf.add_argument(
-        '--bold2anat-init',
+        '--pet2anat-init',
         choices=['auto', 't1w', 't2w', 'header'],
         default='auto',
         help='Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used '
@@ -373,7 +373,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         'the T2w, and `header` uses the BOLD header information without an initial registration.',
     )
     g_conf.add_argument(
-        '--bold2anat-dof',
+        '--pet2anat-dof',
         action='store',
         default=6,
         choices=[6, 9, 12],

@@ -5,26 +5,24 @@
 Pre-processing fMRI - BOLD signal workflows
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: fmriprep.workflows.bold.base
-.. automodule:: fmriprep.workflows.bold.hmc
-.. automodule:: fmriprep.workflows.bold.stc
-.. automodule:: fmriprep.workflows.bold.registration
-.. automodule:: fmriprep.workflows.bold.resampling
-.. automodule:: fmriprep.workflows.bold.confounds
+.. automodule:: fmriprep.workflows.pet.base
+.. automodule:: fmriprep.workflows.pet.hmc
+.. automodule:: fmriprep.workflows.pet.stc
+.. automodule:: fmriprep.workflows.pet.registration
+.. automodule:: fmriprep.workflows.pet.resampling
+.. automodule:: fmriprep.workflows.pet.confounds
 
 
 """
 
-from .confounds import init_bold_confs_wf
-from .hmc import init_bold_hmc_wf
-from .registration import init_bold_reg_wf
-from .resampling import init_bold_surf_wf
-from .stc import init_bold_stc_wf
+from .confounds import init_pet_confs_wf
+from .hmc import init_pet_hmc_wf
+from .registration import init_pet_reg_wf
+from .resampling import init_pet_surf_wf
 
 __all__ = [
-    'init_bold_confs_wf',
-    'init_bold_hmc_wf',
-    'init_bold_reg_wf',
-    'init_bold_stc_wf',
-    'init_bold_surf_wf',
+    'init_pet_confs_wf',
+    'init_pet_hmc_wf',
+    'init_pet_reg_wf',
+    'init_pet_surf_wf',
 ]

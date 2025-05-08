@@ -9,7 +9,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.test_base import BASE_LAYOUT
-from ..base import init_bold_wf
+from ..base import init_pet_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -34,14 +34,14 @@ def bids_root(tmp_path_factory):
 @pytest.mark.parametrize('task', ['rest'])
 @pytest.mark.parametrize('freesurfer', [False, True])
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
-@pytest.mark.parametrize('bold2anat_init', ['t1w', 't2w'])
+@pytest.mark.parametrize('pet2anat_init', ['t1w', 't2w'])
 def test_bold_wf(
     bids_root: Path,
     tmp_path: Path,
     task: str,
     freesurfer: bool,
     level: str,
-    bold2anat_init: str,
+    pet2anat_init: str,
 ):
     """Test as many combinations of precomputed files and input
     configurations as possible."""
@@ -60,10 +60,10 @@ def test_bold_wf(
         img.to_filename(path)
 
     with mock_config(bids_dir=bids_root):
-        config.workflow.bold2anat_init = bold2anat_init
+        config.workflow.pet2anat_init = pet2anat_init
         config.workflow.level = level
         config.workflow.run_reconall = freesurfer
-        wf = init_bold_wf(
+        wf = init_pet_wf(
             bold_series=bold_series,
             precomputed={},
         )

@@ -550,9 +550,9 @@ class workflow(_Config):
 
     anat_only = False
     """Execute the anatomical preprocessing only."""
-    bold2anat_dof = None
+    pet2anat_dof = None
     """Degrees of freedom of the BOLD-to-anatomical registration steps."""
-    bold2anat_init = 'auto'
+    pet2anat_init = 'auto'
     """Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used
     if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of
     the T2w, and `header` uses the BOLD header information without an initial registration."""

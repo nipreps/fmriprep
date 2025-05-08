@@ -24,9 +24,9 @@
 Resampling workflows
 ++++++++++++++++++++
 
-.. autofunction:: init_bold_surf_wf
-.. autofunction:: init_bold_fsLR_resampling_wf
-.. autofunction:: init_bold_grayords_wf
+.. autofunction:: init_pet_surf_wf
+.. autofunction:: init_pet_fsLR_resampling_wf
+.. autofunction:: init_pet_grayords_wf
 .. autofunction:: init_goodvoxels_bold_mask_wf
 
 """
@@ -50,7 +50,7 @@ from ...interfaces.workbench import MetricDilate, MetricMask, MetricResample
 from .outputs import prepare_timing_parameters
 
 
-def init_bold_surf_wf(
+def init_pet_surf_wf(
     *,
     mem_gb: float,
     surface_spaces: list[str],
@@ -72,8 +72,8 @@ def init_bold_surf_wf(
             :graph2use: colored
             :simple_form: yes
 
-            from fmriprep.workflows.bold import init_bold_surf_wf
-            wf = init_bold_surf_wf(mem_gb=0.1,
+            from fmriprep.workflows.pet import init_pet_surf_wf
+            wf = init_pet_surf_wf(mem_gb=0.1,
                                    surface_spaces=["fsnative", "fsaverage5"],
                                    medial_surface_nan=False,
                                    metadata={},
@@ -257,7 +257,7 @@ def init_goodvoxels_bold_mask_wf(mem_gb: float, name: str = 'goodvoxels_bold_mas
             :graph2use: colored
             :simple_form: yes
 
-            from fmriprep.workflows.bold.resampling import init_goodvoxels_bold_mask_wf
+            from fmriprep.workflows.pet.resampling import init_goodvoxels_bold_mask_wf
             wf = init_goodvoxels_bold_mask_wf(mem_gb=0.1)
 
     Parameters
@@ -512,7 +512,7 @@ def init_goodvoxels_bold_mask_wf(mem_gb: float, name: str = 'goodvoxels_bold_mas
     return workflow
 
 
-def init_bold_fsLR_resampling_wf(
+def init_pet_fsLR_resampling_wf(
     grayord_density: ty.Literal['91k', '170k'],
     omp_nthreads: int,
     mem_gb: float,
@@ -530,8 +530,8 @@ def init_bold_fsLR_resampling_wf(
             :graph2use: colored
             :simple_form: yes
 
-            from fmriprep.workflows.bold.resampling import init_bold_fsLR_resampling_wf
-            wf = init_bold_fsLR_resampling_wf(
+            from fmriprep.workflows.pet.resampling import init_pet_fsLR_resampling_wf
+            wf = init_pet_fsLR_resampling_wf(
                 grayord_density='92k',
                 omp_nthreads=1,
                 mem_gb=1,
@@ -723,7 +723,7 @@ The BOLD time-series were resampled onto the left/right-symmetric template
     return workflow
 
 
-def init_bold_grayords_wf(
+def init_pet_grayords_wf(
     grayord_density: ty.Literal['91k', '170k'],
     mem_gb: float,
     repetition_time: float,
@@ -739,8 +739,8 @@ def init_bold_grayords_wf(
             :graph2use: colored
             :simple_form: yes
 
-            from fmriprep.workflows.bold.resampling import init_bold_grayords_wf
-            wf = init_bold_grayords_wf(mem_gb=0.1, grayord_density="91k", repetition_time=2)
+            from fmriprep.workflows.pet.resampling import init_pet_grayords_wf
+            wf = init_pet_grayords_wf(mem_gb=0.1, grayord_density="91k", repetition_time=2)
 
     Parameters
     ----------

@@ -24,7 +24,7 @@
 Head-Motion Estimation and Correction (HMC) of BOLD images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: init_bold_hmc_wf
+.. autofunction:: init_pet_hmc_wf
 
 """
 
@@ -33,7 +33,7 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 
-def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
+def init_pet_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
     """
     Build a workflow to estimate head-motion parameters.
 
@@ -46,8 +46,8 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.bold import init_bold_hmc_wf
-            wf = init_bold_hmc_wf(
+            from fmriprep.workflows.pet import init_pet_hmc_wf
+            wf = init_pet_hmc_wf(
                 mem_gb=3,
                 omp_nthreads=1)
 

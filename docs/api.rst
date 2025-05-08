@@ -34,5 +34,5 @@ Workflows
 ---------
 
 .. automodule:: fmriprep.workflows.base
-.. automodule:: fmriprep.workflows.bold
-.. automodule:: fmriprep.workflows.bold.fit
+.. automodule:: fmriprep.workflows.pet
+.. automodule:: fmriprep.workflows.pet.fit

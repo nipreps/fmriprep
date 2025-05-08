@@ -47,7 +47,7 @@ def init_raw_boldref_wf(
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.bold.reference import init_raw_boldref_wf
+            from fmriprep.workflows.pet.reference import init_raw_boldref_wf
             wf = init_raw_boldref_wf()
 
     Parameters
@@ -143,7 +143,7 @@ def init_validation_and_dummies_wf(
             :graph2use: orig
             :simple_form: yes
 
-            from fmriprep.workflows.bold.reference import init_validation_and_dummies_wf
+            from fmriprep.workflows.pet.reference import init_validation_and_dummies_wf
             wf = init_validation_and_dummies_wf()
 
     Parameters

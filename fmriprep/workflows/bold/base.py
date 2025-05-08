@@ -21,12 +21,12 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """
-Orchestrating the BOLD-preprocessing workflow
+Orchestrating the PET-preprocessing workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: init_bold_wf
-.. autofunction:: init_bold_fit_wf
-.. autofunction:: init_bold_native_wf
+.. autofunction:: init_pet_wf
+.. autofunction:: init_pet_fit_wf
+.. autofunction:: init_pet_native_wf
 
 """
 
@@ -36,18 +36,18 @@ from niworkflows.utils.connections import listify
 
 from ... import config
 from ...interfaces import DerivativesDataSink
-from ...utils.misc import estimate_bold_mem_usage
+from ...utils.misc import estimate_pet_mem_usage
 
-# BOLD workflows
-from .apply import init_bold_volumetric_resample_wf
-from .confounds import init_bold_confs_wf, init_carpetplot_wf
-from .fit import init_bold_fit_wf, init_bold_native_wf
+# PET workflows
+from .apply import init_pet_volumetric_resample_wf
+from .confounds import init_pet_confs_wf, init_carpetplot_wf
+from .fit import init_pet_fit_wf, init_pet_native_wf
 from .outputs import (
-    init_ds_bold_native_wf,
+    init_ds_pet_native_wf,
     init_ds_volumes_wf,
     prepare_timing_parameters,
 )
-from .resampling import init_bold_surf_wf
+from .resampling import init_pet_surf_wf
 
 
 def init_pet_wf(
@@ -56,7 +56,7 @@ def init_pet_wf(
     precomputed: dict = None,
 ) -> pe.Workflow:
     """
-    This workflow controls the functional preprocessing stages of *fMRIPrep*.
+    This workflow controls the PET preprocessing stages of *PETPrep*.
 
     Workflow Graph
         .. workflow::
@@ -65,17 +65,17 @@ def init_pet_wf(
 
             from fmriprep.workflows.tests import mock_config
             from fmriprep import config
-            from fmriprep.workflows.bold.base import init_bold_wf
+            from fmriprep.workflows.pet.base import init_pet_wf
             with mock_config():
-                bold_file = config.execution.bids_dir / "sub-01" / "func" \
-                    / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
-                wf = init_bold_wf(
-                    bold_series=[str(bold_file)],
+                pet_file = config.execution.bids_dir / "sub-01" / "pet" \
+                    / "sub-01_task-mixedgamblestask_run-01_pet.nii.gz"
+                wf = init_pet_wf(
+                    pet_file=str(pet_file),
                 )
 
     Parameters
     ----------
-    bold_series
+    pet_file
         List of paths to NIfTI files.
     precomputed
         Dictionary containing precomputed derivatives to reuse, if possible.
@@ -134,16 +134,16 @@ def init_pet_wf(
     See Also
     --------
 
-    * :func:`~fmriprep.workflows.bold.fit.init_bold_fit_wf`
-    * :func:`~fmriprep.workflows.bold.fit.init_bold_native_wf`
-    * :func:`~fmriprep.workflows.bold.apply.init_bold_volumetric_resample_wf`
-    * :func:`~fmriprep.workflows.bold.outputs.init_ds_bold_native_wf`
-    * :func:`~fmriprep.workflows.bold.outputs.init_ds_volumes_wf`
-    * :func:`~fmriprep.workflows.bold.resampling.init_bold_surf_wf`
-    * :func:`~fmriprep.workflows.bold.resampling.init_bold_fsLR_resampling_wf`
-    * :func:`~fmriprep.workflows.bold.resampling.init_bold_grayords_wf`
-    * :func:`~fmriprep.workflows.bold.confounds.init_bold_confs_wf`
-    * :func:`~fmriprep.workflows.bold.confounds.init_carpetplot_wf`
+    * :func:`~fmriprep.workflows.pet.fit.init_pet_fit_wf`
+    * :func:`~fmriprep.workflows.pet.fit.init_pet_native_wf`
+    * :func:`~fmriprep.workflows.pet.apply.init_pet_volumetric_resample_wf`
+    * :func:`~fmriprep.workflows.pet.outputs.init_ds_pet_native_wf`
+    * :func:`~fmriprep.workflows.pet.outputs.init_ds_volumes_wf`
+    * :func:`~fmriprep.workflows.pet.resampling.init_pet_surf_wf`
+    * :func:`~fmriprep.workflows.pet.resampling.init_pet_fsLR_resampling_wf`
+    * :func:`~fmriprep.workflows.pet.resampling.init_pet_grayords_wf`
+    * :func:`~fmriprep.workflows.pet.confounds.init_pet_confs_wf`
+    * :func:`~fmriprep.workflows.pet.confounds.init_carpetplot_wf`
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
@@ -156,15 +156,15 @@ def init_pet_wf(
     omp_nthreads = config.nipype.omp_nthreads
     all_metadata = [config.execution.layout.get_metadata(file) for file in pet_series]
 
-    nvols, mem_gb = estimate_bold_mem_usage(pet_file)
+    nvols, mem_gb = estimate_pet_mem_usage(pet_file)
     if nvols <= 5 - config.execution.sloppy:
         config.loggers.workflow.warning(
-            f'Too short BOLD series (<= 5 timepoints). Skipping processing of <{pet_file}>.'
+            f'Too short PET series (<= 5 timepoints). Skipping processing of <{pet_file}>.'
         )
         return
 
     config.loggers.workflow.debug(
-        'Creating bold processing workflow for <%s> (%.2f GB / %d TRs). '
+        'Creating pet processing workflow for <%s> (%.2f GB / %d TRs). '
         'Memory resampled/largemem=%.2f/%.2f GB.',
         pet_file,
         mem_gb['filesize'],
@@ -173,7 +173,7 @@ def init_pet_wf(
         mem_gb['largemem'],
     )
 
-    workflow = Workflow(name=_get_wf_name(bold_file, 'bold'))
+    workflow = Workflow(name=_get_wf_name(pet_file, 'pet'))
     workflow.__postdesc__ = """\
 All resamplings can be performed with *a single interpolation
 step* by composing all the pertinent transformations (i.e. head-motion
@@ -223,14 +223,14 @@ configured with cubic B-spline interpolation.
     # Minimal workflow
     #
 
-    bold_fit_wf = init_bold_fit_wf(
-        bold_series=bold_series,
+    pet_fit_wf = init_pet_fit_wf(
+        pet_file=pet_file,
         precomputed=precomputed,
         omp_nthreads=omp_nthreads,
     )
 
     workflow.connect([
-        (inputnode, bold_fit_wf, [
+        (inputnode, pet_fit_wf, [
             ('t1w_preproc', 'inputnode.t1w_preproc'),
             ('t1w_mask', 'inputnode.t1w_mask'),
             ('t1w_dseg', 'inputnode.t1w_dseg'),
@@ -253,35 +253,34 @@ configured with cubic B-spline interpolation.
     #   - Save native outputs only if requested
     #
 
-    bold_native_wf = init_bold_native_wf(
-        bold_series=bold_series,
+    pet_native_wf = init_pet_native_wf(
+        pet_file=pet_file,
         omp_nthreads=omp_nthreads,
     )
 
     workflow.connect([
-        (bold_fit_wf, bold_native_wf, [
-            ('outputnode.coreg_boldref', 'inputnode.boldref'),
-            ('outputnode.bold_mask', 'inputnode.bold_mask'),
+        (pet_fit_wf, pet_native_wf, [
+            ('outputnode.petref', 'inputnode.petref'),
+            ('outputnode.pet_mask', 'inputnode.pet_mask'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
         ]),
     ])  # fmt:skip
 
-    boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref')))
-    boldref_out &= config.workflow.level == 'full'
+    petref_out = bool(nonstd_spaces.intersection(('pet', 'run', 'petref')))
+    petref_out &= config.workflow.level == 'full'
 
-    if boldref_out:
-        ds_bold_native_wf = init_ds_bold_native_wf(
+    if petref_out:
+        ds_pet_native_wf = init_ds_pet_native_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
-            bold_output=boldref_out,
+            pet_output=petref_out,
             all_metadata=all_metadata,
         )
-        ds_bold_native_wf.inputs.inputnode.source_files = bold_series
+        ds_pet_native_wf.inputs.inputnode.source_files = pet_file
 
         workflow.connect([
-            (bold_native_wf, ds_bold_native_wf, [
-                ('outputnode.bold_native', 'inputnode.bold'),
+            (pet_native_wf, ds_pet_native_wf, [
+                ('outputnode.pet_native', 'inputnode.pet'),
             ]),
         ])  # fmt:skip
 
@@ -290,105 +289,105 @@ configured with cubic B-spline interpolation.
         for node in workflow.list_node_names():
             if node.split('.')[-1].startswith('ds_report'):
                 workflow.get_node(node).inputs.base_directory = fmriprep_dir
-                workflow.get_node(node).inputs.source_file = bold_file
+                workflow.get_node(node).inputs.source_file = pet_file
         return workflow
 
     # Resample to anatomical space
-    bold_anat_wf = init_bold_volumetric_resample_wf(
+    pet_anat_wf = init_pet_volumetric_resample_wf(
         metadata=all_metadata[0],
         omp_nthreads=omp_nthreads,
         mem_gb=mem_gb,
-        name='bold_anat_wf',
+        name='pet_anat_wf',
     )
-    bold_anat_wf.inputs.inputnode.resolution = 'native'
+    pet_anat_wf.inputs.inputnode.resolution = 'native'
 
     workflow.connect([
-        (inputnode, bold_anat_wf, [
+        (inputnode, pet_anat_wf, [
             ('t1w_preproc', 'inputnode.target_ref_file'),
             ('t1w_mask', 'inputnode.target_mask'),
         ]),
-        (bold_fit_wf, bold_anat_wf, [
-            ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-            ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+        (pet_fit_wf, pet_anat_wf, [
+            ('outputnode.petref', 'inputnode.pet_ref_file'),
+            ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
         ]),
-        (bold_native_wf, bold_anat_wf, [
-            ('outputnode.bold_minimal', 'inputnode.bold_file'),
+        (pet_native_wf, pet_anat_wf, [
+            ('outputnode.pet_minimal', 'inputnode.pet_file'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
         ]),
     ])  # fmt:skip
 
-    # Full derivatives, including resampled BOLD series
+    # Full derivatives, including resampled PET series
     if nonstd_spaces.intersection(('anat', 'T1w')):
-        ds_bold_t1_wf = init_ds_volumes_wf(
+        ds_pet_t1_wf = init_ds_volumes_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
             metadata=all_metadata[0],
-            name='ds_bold_t1_wf',
+            name='ds_pet_t1_wf',
         )
-        ds_bold_t1_wf.inputs.inputnode.source_files = bold_series
-        ds_bold_t1_wf.inputs.inputnode.space = 'T1w'
+        ds_pet_t1_wf.inputs.inputnode.source_files = pet_file
+        ds_pet_t1_wf.inputs.inputnode.space = 'T1w'
 
         workflow.connect([
-            (bold_fit_wf, ds_bold_t1_wf, [
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            (pet_fit_wf, ds_pet_t1_wf, [
+                ('outputnode.pet_mask', 'inputnode.pet_mask'),
+                ('outputnode.petref', 'inputnode.pet_ref'),
+                ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            (bold_anat_wf, ds_bold_t1_wf, [
-                ('outputnode.bold_file', 'inputnode.bold'),
+            (pet_anat_wf, ds_pet_t1_wf, [
+                ('outputnode.pet_file', 'inputnode.pet'),
                 ('outputnode.resampling_reference', 'inputnode.ref_file'),
             ]),
         ])  # fmt:skip
 
     if spaces.cached.get_spaces(nonstandard=False, dim=(3,)):
         # Missing:
-        #  * Clipping BOLD after resampling
+        #  * Clipping PET after resampling
         #  * Resampling parcellations
-        bold_std_wf = init_bold_volumetric_resample_wf(
+        pet_std_wf = init_pet_volumetric_resample_wf(
             metadata=all_metadata[0],
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
-            name='bold_std_wf',
+            name='pet_std_wf',
         )
-        ds_bold_std_wf = init_ds_volumes_wf(
+        ds_pet_std_wf = init_ds_volumes_wf(
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
             metadata=all_metadata[0],
-            name='ds_bold_std_wf',
+            name='ds_pet_std_wf',
         )
-        ds_bold_std_wf.inputs.inputnode.source_files = bold_series
+        ds_pet_std_wf.inputs.inputnode.source_files = pet_file
 
         workflow.connect([
-            (inputnode, bold_std_wf, [
+            (inputnode, pet_std_wf, [
                 ('std_t1w', 'inputnode.target_ref_file'),
                 ('std_mask', 'inputnode.target_mask'),
                 ('anat2std_xfm', 'inputnode.anat2std_xfm'),
                 ('std_resolution', 'inputnode.resolution'),
             ]),
-            (bold_fit_wf, bold_std_wf, [
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            (pet_fit_wf, pet_std_wf, [
+                ('outputnode.petref', 'inputnode.pet_ref_file'),
+                ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
             ]),
-            (bold_native_wf, bold_std_wf, [
-                ('outputnode.bold_minimal', 'inputnode.bold_file'),
+            (pet_native_wf, pet_std_wf, [
+                ('outputnode.pet_minimal', 'inputnode.pet_file'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            (inputnode, ds_bold_std_wf, [
+            (inputnode, ds_pet_std_wf, [
                 ('anat2std_xfm', 'inputnode.anat2std_xfm'),
                 ('std_t1w', 'inputnode.template'),
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
                 ('std_cohort', 'inputnode.cohort'),
             ]),
-            (bold_fit_wf, ds_bold_std_wf, [
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            (pet_fit_wf, ds_pet_std_wf, [
+                ('outputnode.pet_mask', 'inputnode.pet_mask'),
+                ('outputnode.petref', 'inputnode.pet_ref'),
+                ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            (bold_std_wf, ds_bold_std_wf, [
-                ('outputnode.bold_file', 'inputnode.bold'),
+            (pet_std_wf, ds_pet_std_wf, [
+                ('outputnode.pet_file', 'inputnode.pet'),
                 ('outputnode.resampling_reference', 'inputnode.ref_file'),
             ]),
         ])  # fmt:skip
@@ -398,120 +397,120 @@ configured with cubic B-spline interpolation.
 Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 (FreeSurfer).
 """
-        config.loggers.workflow.debug('Creating BOLD surface-sampling workflow.')
-        bold_surf_wf = init_bold_surf_wf(
+        config.loggers.workflow.debug('Creating PET surface-sampling workflow.')
+        pet_surf_wf = init_pet_surf_wf(
             mem_gb=mem_gb['resampled'],
             surface_spaces=freesurfer_spaces,
             medial_surface_nan=config.workflow.medial_surface_nan,
             metadata=all_metadata[0],
             output_dir=fmriprep_dir,
-            name='bold_surf_wf',
+            name='pet_surf_wf',
         )
-        bold_surf_wf.inputs.inputnode.source_file = bold_file
+        pet_surf_wf.inputs.inputnode.source_file = pet_file
         workflow.connect([
-            (inputnode, bold_surf_wf, [
+            (inputnode, pet_surf_wf, [
                 ('subjects_dir', 'inputnode.subjects_dir'),
                 ('subject_id', 'inputnode.subject_id'),
                 ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ]),
-            (bold_anat_wf, bold_surf_wf, [('outputnode.bold_file', 'inputnode.bold_t1w')]),
+            (pet_anat_wf, pet_surf_wf, [('outputnode.pet_file', 'inputnode.pet_t1w')]),
         ])  # fmt:skip
 
-        # sources are bold_file, motion_xfm, boldref2anat_xfm, fsnative2t1w_xfm
+        # sources are pet_file, motion_xfm, petref2anat_xfm, fsnative2t1w_xfm
         merge_surface_sources = pe.Node(
             niu.Merge(4),
             name='merge_surface_sources',
             run_without_submitting=True,
         )
-        merge_surface_sources.inputs.in1 = bold_file
+        merge_surface_sources.inputs.in1 = pet_file
         workflow.connect([
-            (bold_fit_wf, merge_surface_sources, [
+            (pet_fit_wf, merge_surface_sources, [
                 ('outputnode.motion_xfm', 'in2'),
-                ('outputnode.boldref2anat_xfm', 'in3'),
+                ('outputnode.petref2anat_xfm', 'in3'),
             ]),
             (inputnode, merge_surface_sources, [
                 ('fsnative2t1w_xfm', 'in4'),
             ]),
         ])  # fmt:skip
 
-        workflow.connect([(merge_surface_sources, bold_surf_wf, [('out', 'inputnode.sources')])])
+        workflow.connect([(merge_surface_sources, pet_surf_wf, [('out', 'inputnode.sources')])])
 
     if config.workflow.cifti_output:
         from .resampling import (
-            init_bold_fsLR_resampling_wf,
-            init_bold_grayords_wf,
-            init_goodvoxels_bold_mask_wf,
+            init_pet_fsLR_resampling_wf,
+            init_pet_grayords_wf,
+            init_goodvoxels_pet_mask_wf,
         )
 
-        bold_MNI6_wf = init_bold_volumetric_resample_wf(
+        pet_MNI6_wf = init_pet_volumetric_resample_wf(
             metadata=all_metadata[0],
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
-            name='bold_MNI6_wf',
+            name='pet_MNI6_wf',
         )
 
-        bold_fsLR_resampling_wf = init_bold_fsLR_resampling_wf(
+        pet_fsLR_resampling_wf = init_pet_fsLR_resampling_wf(
             grayord_density=config.workflow.cifti_output,
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb['resampled'],
         )
 
         if config.workflow.project_goodvoxels:
-            goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
+            goodvoxels_pet_mask_wf = init_goodvoxels_pet_mask_wf(mem_gb['resampled'])
 
             workflow.connect([
-                (inputnode, goodvoxels_bold_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
-                (bold_anat_wf, goodvoxels_bold_mask_wf, [
-                    ('outputnode.bold_file', 'inputnode.bold_file'),
+                (inputnode, goodvoxels_pet_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
+                (pet_anat_wf, goodvoxels_pet_mask_wf, [
+                    ('outputnode.pet_file', 'inputnode.pet_file'),
                 ]),
-                (goodvoxels_bold_mask_wf, bold_fsLR_resampling_wf, [
+                (goodvoxels_pet_mask_wf, pet_fsLR_resampling_wf, [
                     ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
                 ]),
             ])  # fmt:skip
 
-            bold_fsLR_resampling_wf.__desc__ += """\
+            pet_fsLR_resampling_wf.__desc__ += """\
 A "goodvoxels" mask was applied during volume-to-surface sampling in fsLR space,
 excluding voxels whose time-series have a locally high coefficient of variation.
 """
 
-        bold_grayords_wf = init_bold_grayords_wf(
+        pet_grayords_wf = init_pet_grayords_wf(
             grayord_density=config.workflow.cifti_output,
             mem_gb=1,
             repetition_time=all_metadata[0]['RepetitionTime'],
         )
 
-        ds_bold_cifti = pe.Node(
+        ds_pet_cifti = pe.Node(
             DerivativesDataSink(
                 base_directory=fmriprep_dir,
                 space='fsLR',
                 density=config.workflow.cifti_output,
-                suffix='bold',
+                suffix='pet',
                 compress=False,
                 TaskName=all_metadata[0].get('TaskName'),
                 **prepare_timing_parameters(all_metadata[0]),
             ),
-            name='ds_bold_cifti',
+            name='ds_pet_cifti',
             run_without_submitting=True,
         )
-        ds_bold_cifti.inputs.source_file = bold_file
+        ds_pet_cifti.inputs.source_file = pet_file
 
         workflow.connect([
-            # Resample BOLD to MNI152NLin6Asym, may duplicate bold_std_wf above
-            (inputnode, bold_MNI6_wf, [
+            # Resample PET to MNI152NLin6Asym, may duplicate pet_std_wf above
+            (inputnode, pet_MNI6_wf, [
                 ('mni6_mask', 'inputnode.target_ref_file'),
                 ('mni6_mask', 'inputnode.target_mask'),
                 ('anat2mni6_xfm', 'inputnode.anat2std_xfm'),
             ]),
-            (bold_fit_wf, bold_MNI6_wf, [
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            (pet_fit_wf, pet_MNI6_wf, [
+                ('outputnode.petref', 'inputnode.pet_ref_file'),
+                ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
             ]),
-            (bold_native_wf, bold_MNI6_wf, [
-                ('outputnode.bold_minimal', 'inputnode.bold_file'),
+            (pet_native_wf, pet_MNI6_wf, [
+                ('outputnode.pet_minimal', 'inputnode.pet_file'),
                 ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ]),
-            # Resample T1w-space BOLD to fsLR surfaces
-            (inputnode, bold_fsLR_resampling_wf, [
+            # Resample T1w-space PET to fsLR surfaces
+            (inputnode, pet_fsLR_resampling_wf, [
                 ('white', 'inputnode.white'),
                 ('pial', 'inputnode.pial'),
                 ('midthickness', 'inputnode.midthickness'),
@@ -519,29 +518,29 @@ excluding voxels whose time-series have a locally high coefficient of variation.
                 ('sphere_reg_fsLR', 'inputnode.sphere_reg_fsLR'),
                 ('cortex_mask', 'inputnode.cortex_mask'),
             ]),
-            (bold_anat_wf, bold_fsLR_resampling_wf, [
-                ('outputnode.bold_file', 'inputnode.bold_file'),
+            (pet_anat_wf, pet_fsLR_resampling_wf, [
+                ('outputnode.pet_file', 'inputnode.pet_file'),
             ]),
-            (bold_MNI6_wf, bold_grayords_wf, [
-                ('outputnode.bold_file', 'inputnode.bold_std'),
+            (pet_MNI6_wf, pet_grayords_wf, [
+                ('outputnode.pet_file', 'inputnode.pet_std'),
             ]),
-            (bold_fsLR_resampling_wf, bold_grayords_wf, [
-                ('outputnode.bold_fsLR', 'inputnode.bold_fsLR'),
+            (pet_fsLR_resampling_wf, pet_grayords_wf, [
+                ('outputnode.pet_fsLR', 'inputnode.pet_fsLR'),
             ]),
-            (bold_grayords_wf, ds_bold_cifti, [
-                ('outputnode.cifti_bold', 'in_file'),
+            (pet_grayords_wf, ds_pet_cifti, [
+                ('outputnode.cifti_pet', 'in_file'),
                 (('outputnode.cifti_metadata', _read_json), 'meta_dict'),
             ]),
         ])  # fmt:skip
 
-    bold_confounds_wf = init_bold_confs_wf(
+    pet_confounds_wf = init_pet_confs_wf(
         mem_gb=mem_gb['largemem'],
         metadata=all_metadata[0],
         freesurfer=config.workflow.run_reconall,
         regressors_all_comps=config.workflow.regressors_all_comps,
         regressors_fd_th=config.workflow.regressors_fd_th,
         regressors_dvars_th=config.workflow.regressors_dvars_th,
-        name='bold_confounds_wf',
+        name='pet_confounds_wf',
     )
 
     ds_confounds = pe.Node(
@@ -554,24 +553,24 @@ excluding voxels whose time-series have a locally high coefficient of variation.
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
-    ds_confounds.inputs.source_file = bold_file
+    ds_confounds.inputs.source_file = pet_file
 
     workflow.connect([
-        (inputnode, bold_confounds_wf, [
+        (inputnode, pet_confounds_wf, [
             ('t1w_tpms', 'inputnode.t1w_tpms'),
             ('t1w_mask', 'inputnode.t1w_mask'),
         ]),
-        (bold_fit_wf, bold_confounds_wf, [
-            ('outputnode.bold_mask', 'inputnode.bold_mask'),
-            ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
+        (pet_fit_wf, pet_confounds_wf, [
+            ('outputnode.pet_mask', 'inputnode.pet_mask'),
+            ('outputnode.petref', 'inputnode.petref'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
             ('outputnode.dummy_scans', 'inputnode.skip_vols'),
         ]),
-        (bold_native_wf, bold_confounds_wf, [
-            ('outputnode.bold_native', 'inputnode.bold'),
+        (pet_native_wf, pet_confounds_wf, [
+            ('outputnode.pet_native', 'inputnode.pet'),
         ]),
-        (bold_confounds_wf, ds_confounds, [
+        (pet_confounds_wf, ds_confounds, [
             ('outputnode.confounds_file', 'in_file'),
             ('outputnode.confounds_metadata', 'meta_dict'),
         ]),
@@ -587,7 +586,7 @@ excluding voxels whose time-series have a locally high coefficient of variation.
 
         if config.workflow.cifti_output:
             workflow.connect(
-                bold_grayords_wf, 'outputnode.cifti_bold', carpetplot_wf, 'inputnode.cifti_bold',
+                pet_grayords_wf, 'outputnode.cifti_pet', carpetplot_wf, 'inputnode.cifti_pet',
             )  # fmt:skip
 
         def _last(inlist):
@@ -597,15 +596,15 @@ excluding voxels whose time-series have a locally high coefficient of variation.
             (inputnode, carpetplot_wf, [
                 ('mni2009c2anat_xfm', 'inputnode.std2anat_xfm'),
             ]),
-            (bold_fit_wf, carpetplot_wf, [
+            (pet_fit_wf, carpetplot_wf, [
                 ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('outputnode.pet_mask', 'inputnode.pet_mask'),
+                ('outputnode.petref2anat_xfm', 'inputnode.petref2anat_xfm'),
             ]),
-            (bold_native_wf, carpetplot_wf, [
-                ('outputnode.bold_native', 'inputnode.bold'),
+            (pet_native_wf, carpetplot_wf, [
+                ('outputnode.pet_native', 'inputnode.pet'),
             ]),
-            (bold_confounds_wf, carpetplot_wf, [
+            (pet_confounds_wf, carpetplot_wf, [
                 ('outputnode.confounds_file', 'inputnode.confounds_file'),
                 ('outputnode.crown_mask', 'inputnode.crown_mask'),
                 (('outputnode.acompcor_masks', _last), 'inputnode.acompcor_mask'),
@@ -616,19 +615,19 @@ excluding voxels whose time-series have a locally high coefficient of variation.
     for node in workflow.list_node_names():
         if node.split('.')[-1].startswith('ds_report'):
             workflow.get_node(node).inputs.base_directory = fmriprep_dir
-            workflow.get_node(node).inputs.source_file = bold_file
+            workflow.get_node(node).inputs.source_file = pet_file
 
     return workflow
 
 
-def _get_wf_name(bold_fname, prefix):
+def _get_wf_name(pet_fname, prefix):
     """
-    Derive the workflow name for supplied BOLD file.
+    Derive the workflow name for supplied PET file.
 
-    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz", "bold")
-    'bold_task_nback_wf'
+    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_pet.nii.gz", "pet")
+    'pet_task_nback_wf'
     >>> _get_wf_name(
-    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz",
+    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_pet.nii.gz",
     ...     "preproc",
     ... )
     'preproc_task_nback_run_01_echo_1_wf'
@@ -636,7 +635,7 @@ def _get_wf_name(bold_fname, prefix):
     """
     from nipype.utils.filemanip import split_filename
 
-    fname = split_filename(bold_fname)[1]
+    fname = split_filename(pet_fname)[1]
     fname_nosub = '_'.join(fname.split('_')[1:-1])
     return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
 
