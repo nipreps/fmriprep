@@ -402,7 +402,7 @@ rdflib==6.3.2
     # via
     #   nipype
     #   prov
-requests==2.32.3
+requests==2.32.4
     # via
     #   fmriprep (pyproject.toml)
     #   codecarbon
