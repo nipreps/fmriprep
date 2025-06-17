@@ -60,12 +60,12 @@ BASE_LAYOUT = {
             {'suffix': 'magnitude1', 'metadata': {'EchoTime': 0.005}},
             {
                 'suffix': 'epi',
-                'direction': 'PA',
+                'dir': 'PA',
                 'metadata': {'PhaseEncodingDirection': 'j', 'TotalReadoutTime': 0.6},
             },
             {
                 'suffix': 'epi',
-                'direction': 'AP',
+                'dir': 'AP',
                 'metadata': {'PhaseEncodingDirection': 'j-', 'TotalReadoutTime': 0.6},
             },
         ],
@@ -227,6 +227,25 @@ def test_init_fmriprep_wf(
         with patch.dict('fmriprep.config.execution.bids_filters', bids_filters):
             wf = init_fmriprep_wf()
 
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_init_fmriprep_wf_sanitize_fmaps(tmp_path):
+    bids_dir = tmp_path / 'bids'
+
+    spec = deepcopy(BASE_LAYOUT)
+    spec['01']['func'][0]['metadata']['B0FieldSource'] = 'epi<<run1>>'
+    spec['01']['fmap'][2]['metadata']['B0FieldIdentifier'] = 'epi<<run1>>'
+    spec['01']['fmap'][3]['metadata']['B0FieldIdentifier'] = 'epi<<run1>>'
+    del spec['01']['func'][4:]
+
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    with mock_config(bids_dir=bids_dir):
+        wf = init_fmriprep_wf()
     generate_expanded_graph(wf._create_flat_graph())
 
 
