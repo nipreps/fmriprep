@@ -727,7 +727,7 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                         ('outputnode.epi_ref', f'in_{estimator.sanitized_id}.epi_ref'),
                         ('outputnode.epi_mask', f'in_{estimator.sanitized_id}.epi_mask'),
                         ('outputnode.anat_ref', f'in_{estimator.sanitized_id}.anat_ref'),
-                        ('outputnode.anat_mask', f'in_{estimator.sanitized}.anat_mask'),
+                        ('outputnode.anat_mask', f'in_{estimator.sanitized_id}.anat_mask'),
                         ('outputnode.sd_prior', f'in_{estimator.sanitized_id}.sd_prior'),
                     ]),
                 ])  # fmt:skip
