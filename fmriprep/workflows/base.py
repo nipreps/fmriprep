@@ -692,7 +692,7 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 if len(set(suffices)) == 1 or (
                     len(suffices) == 2 and all(suf in ('epi', 'bold', 'sbref') for suf in suffices)
                 ):
-                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.bids_id}')
+                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.sanitized_id}')
                     wf_inputs.in_data = [str(s.path) for s in estimator.sources]
                     wf_inputs.metadata = [s.metadata for s in estimator.sources]
                 else:
@@ -710,7 +710,7 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                     debug=config.execution.sloppy,
                     auto_bold_nss=True,
                     t1w_inversion=False,
-                    name=f'syn_preprocessing_{estimator.bids_id}',
+                    name=f'syn_preprocessing_{estimator.sanitized_id}',
                 )
                 syn_preprocessing_wf.inputs.inputnode.in_epis = sources
                 syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
@@ -724,11 +724,11 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                         ('std2anat_xfm', 'inputnode.std2anat_xfm'),
                     ]),
                     (syn_preprocessing_wf, fmap_wf, [
-                        ('outputnode.epi_ref', f'in_{estimator.bids_id}.epi_ref'),
-                        ('outputnode.epi_mask', f'in_{estimator.bids_id}.epi_mask'),
-                        ('outputnode.anat_ref', f'in_{estimator.bids_id}.anat_ref'),
-                        ('outputnode.anat_mask', f'in_{estimator.bids_id}.anat_mask'),
-                        ('outputnode.sd_prior', f'in_{estimator.bids_id}.sd_prior'),
+                        ('outputnode.epi_ref', f'in_{estimator.sanitized_id}.epi_ref'),
+                        ('outputnode.epi_mask', f'in_{estimator.sanitized_id}.epi_mask'),
+                        ('outputnode.anat_ref', f'in_{estimator.sanitized_id}.anat_ref'),
+                        ('outputnode.anat_mask', f'in_{estimator.sanitized}.anat_mask'),
+                        ('outputnode.sd_prior', f'in_{estimator.sanitized_id}.sd_prior'),
                     ]),
                 ])  # fmt:skip
 
