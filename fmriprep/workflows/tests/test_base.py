@@ -284,6 +284,25 @@ def test_get_estimator_b0field_and_intendedfor(tmp_path):
     )
 
     assert get_estimator(layout, bold_files[0]) == ('epi',)
+    # if B0FieldIdentifiers are found, IntendedFor will not be used
+    assert get_estimator(layout, bold_files[1]) == ()
+
+
+def test_get_estimator_intendedfor(tmp_path):
+    bids_dir = tmp_path / 'bids'
+
+    # Set B0FieldSource for run 1
+    spec = deepcopy(BASE_LAYOUT)
+    spec['01']['fmap'][0]['metadata']['IntendedFor'] = 'func/sub-01_task-rest_run-2_bold.nii.gz'
+
+    generate_bids_skeleton(bids_dir, spec)
+    layout = bids.BIDSLayout(bids_dir)
+    _ = find_estimators(layout=layout, subject='01')
+
+    bold_files = sorted(
+        layout.get(suffix='bold', task='rest', extension='.nii.gz', return_type='file')
+    )
+
     assert get_estimator(layout, bold_files[1]) == ('auto_00000',)
 
 
