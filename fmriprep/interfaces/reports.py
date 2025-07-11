@@ -131,12 +131,12 @@ class SubjectSummary(SummaryInterface):
     def _generate_segment(self):
         BIDS_NAME = re.compile(
             r'^(.*\/)?'
-            '(?P<subject_id>sub-[a-zA-Z0-9]+)'
-            '(_(?P<session_id>ses-[a-zA-Z0-9]+))?'
-            '(_(?P<task_id>task-[a-zA-Z0-9]+))?'
-            '(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
-            '(_(?P<rec_id>rec-[a-zA-Z0-9]+))?'
-            '(_(?P<run_id>run-[a-zA-Z0-9]+))?'
+            r'(?P<subject_id>sub-[a-zA-Z0-9]+)'
+            r'(_(?P<session_id>ses-[a-zA-Z0-9]+))?'
+            r'(_(?P<task_id>task-[a-zA-Z0-9]+))?'
+            r'(_(?P<acq_id>acq-[a-zA-Z0-9]+))?'
+            r'(_(?P<rec_id>rec-[a-zA-Z0-9]+))?'
+            r'(_(?P<run_id>run-[a-zA-Z0-9]+))?'
         )
 
         if not isdefined(self.inputs.subjects_dir):
@@ -261,20 +261,15 @@ class FunctionalSummary(SummaryInterface):
 
         pedir = get_world_pedir(self.inputs.orientation, self.inputs.pe_direction)
 
-        dummy_scan_tmp = '{n_dum}'
         if self.inputs.dummy_scans == self.inputs.algo_dummy_scans:
-            dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, '(Confirmed: {n_alg} automatically detected)']
-            ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
+            dummy_scan_msg = f'{self.inputs.dummy_scans} (Confirmed: {self.inputs.algo_dummy_scans} automatically detected)'
         # the number of dummy scans was specified by the user and
         # it is not equal to the number detected by the algorithm
         elif self.inputs.dummy_scans is not None:
-            dummy_scan_msg = ' '.join(
-                [dummy_scan_tmp, '(Warning: {n_alg} automatically detected)']
-            ).format(n_dum=self.inputs.dummy_scans, n_alg=self.inputs.algo_dummy_scans)
+            dummy_scan_msg = f'{self.inputs.dummy_scans} (Warning: {self.inputs.algo_dummy_scans} automatically detected)'
         # the number of dummy scans was not specified by the user
         else:
-            dummy_scan_msg = dummy_scan_tmp.format(n_dum=self.inputs.algo_dummy_scans)
+            dummy_scan_msg = f'{self.inputs.algo_dummy_scans}'
 
         multiecho = 'Single-echo EPI sequence.'
         n_echos = len(self.inputs.echo_idx)
@@ -372,7 +367,8 @@ def get_world_pedir(ornt, pe_direction):
                 if flip[not inv].startswith(axcode):
                     return '-'.join(flip)
     LOGGER.warning(
-        'Cannot determine world direction of phase encoding. '
-        f'Orientation: {ornt}; PE dir: {pe_direction}'
+        'Cannot determine world direction of phase encoding. Orientation: %s; PE dir: %s',
+        ornt,
+        pe_direction,
     )
     return 'Could not be determined - assuming Anterior-Posterior'
