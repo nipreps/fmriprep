@@ -72,7 +72,7 @@ def check_latest():
             versions = [Version(rel) for rel in response.json()['releases'].keys()]
             versions = [rel for rel in versions if not rel.is_prerelease]
             if versions:
-                latest = sorted(versions)[-1]
+                latest = max(versions)
         else:
             latest = None
 

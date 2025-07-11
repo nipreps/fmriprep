@@ -22,7 +22,7 @@ from sphinx import __version__ as sphinxversion
 sys.path.append(os.path.abspath('sphinxext'))
 sys.path.insert(0, os.path.abspath('../wrapper'))
 
-from github_link import make_linkcode_resolve  # noqa: E402
+from github_link import make_linkcode_resolve
 
 # -- General configuration ------------------------------------------------
 
