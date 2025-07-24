@@ -270,3 +270,19 @@ def test_derivatives(tmp_path):
         parser.parse_args(temp_args)
 
     _reset_config()
+
+
+@pytest.mark.parametrize(
+    ('supp_args', 'opt', 'expected'),
+    [
+        (['--no-submm-recon'], 'hires', False),
+        (['--submm-recon'], 'hires', True),
+        ([], 'hires', True),
+        (['--no-msm'], 'run_msmsulc', False),
+    ],
+)
+def test_optional_booleans(tmp_path, supp_args, opt, expected):
+    out_path = str(tmp_path / 'out')
+    args = [str(tmp_path), out_path, 'participant'] + supp_args
+    pargs = _build_parser().parse_args(args)
+    assert getattr(pargs, opt) == expected

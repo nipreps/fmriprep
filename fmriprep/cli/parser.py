@@ -23,6 +23,7 @@
 """Parser."""
 
 import sys
+from pathlib import Path
 
 from .. import config
 
@@ -32,9 +33,13 @@ def _build_parser(**kwargs):
 
     ``kwargs`` are passed to ``argparse.ArgumentParser`` (mainly useful for debugging).
     """
-    from argparse import Action, ArgumentDefaultsHelpFormatter, ArgumentParser
+    from argparse import (
+        Action,
+        ArgumentDefaultsHelpFormatter,
+        ArgumentParser,
+        BooleanOptionalAction,
+    )
     from functools import partial
-    from pathlib import Path
 
     from niworkflows.utils.spaces import OutputReferencesAction, Reference
     from packaging.version import Version
@@ -413,7 +418,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         '--slice-time-ref',
         required=False,
         action='store',
-        default=None,
+        default=0.5,
         type=SliceTimeRef,
         help='The time of the reference slice to correct BOLD values to, as a fraction '
         'acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end '
@@ -496,7 +501,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     )
     g_conf.add_argument(
         '--project-goodvoxels',
-        required=False,
         action='store_true',
         default=False,
         help='Exclude voxels whose timeseries have locally high coefficient of variation '
@@ -521,10 +525,11 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         '(default is 91k, which equates to 2mm resolution)',
     )
     g_outputs.add_argument(
-        '--no-msm',
-        action='store_false',
+        '--msm',
+        action=BooleanOptionalAction,
+        default=True,
         dest='run_msmsulc',
-        help='Disable Multimodal Surface Matching surface registration.',
+        help='Enable or disable Multimodal Surface Matching surface registration.',
     )
 
     g_confounds = parser.add_argument_group('Options relating to confounds')
@@ -634,10 +639,11 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         '(default: OUTPUT_DIR/freesurfer)',
     )
     g_fs.add_argument(
-        '--no-submm-recon',
-        action='store_false',
+        '--submm-recon',
+        action=BooleanOptionalAction,
+        default=True,
         dest='hires',
-        help='Disable sub-millimeter (hires) reconstruction',
+        help='Enable or disable sub-millimeter (hi-res) reconstruction.',
     )
     g_fs.add_argument(
         '--fs-no-reconall',
@@ -656,6 +662,7 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     g_carbon = parser.add_argument_group('Options for carbon usage tracking')
     g_carbon.add_argument(
         '--track-carbon',
+        default=False,
         action='store_true',
         help='Tracks power draws using CodeCarbon package',
     )
@@ -682,7 +689,6 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
         '--work-dir',
         action='store',
         type=Path,
-        default=Path('work').absolute(),
         help='Path where intermediate results should be stored',
     )
     g_other.add_argument(
@@ -775,6 +781,9 @@ def parse_args(args=None, namespace=None):
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
+
+    if config.execution.work_dir is None:
+        config.execution.work_dir = Path('work').absolute()
 
     # Consistency checks
     force_set = set(config.workflow.force)
