@@ -13,6 +13,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Bellec            | Pierre       |  | 0000-0002-9111-0699 | SIMEXP Lab, CRIUGM, University of Montréal, Montréal, Canada                                                                                 |
 | Benson            | Noah C.      |  | 0000-0002-2365-8265 | Department of Psychology, New York University                                                                                                |
 | Bhagwat           | Nikhil       |  | 0000-0001-6073-7141 | Montreal Neurological Institute, McGill University                                                                                           |
+| Camacho           | Milton       |  | 0000-0002-5379-5076 | Department of Pediadrics, University of Calgary                                                                                           |
 | Callenberg        | Keith        |  | 0000-0001-7786-9300 | Department of Psychiatry, University of Pittsburgh                                                                                           |
 | Cieslak           | Matthew      |  | 0000-0002-1931-4734 | Perelman School of Medicine, University of Pennsylvania, PA, USA                                                                             |
 | de la Vega        | Alejandro    |  | 0000-0001-9062-3778 | University of Texas at Austin                                                                                                                |
