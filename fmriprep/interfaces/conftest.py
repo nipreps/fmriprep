@@ -10,7 +10,7 @@ except ImportError:  # PY310
     import os
     from contextlib import contextmanager
 
-    @contextmanager  # type: ignore
+    @contextmanager
     def _chdir(path):
         cwd = os.getcwd()
         os.chdir(path)
