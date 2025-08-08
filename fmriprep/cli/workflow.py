@@ -31,6 +31,11 @@ a hard-limited memory-scope.
 
 """
 
+import typing as ty
+
+if ty.TYPE_CHECKING:
+    from bids.layout import BIDSLayout
+
 
 def build_workflow(config_file, retval):
     """Create the Nipype Workflow that supports the whole execution graph."""
@@ -38,12 +43,11 @@ def build_workflow(config_file, retval):
     from niworkflows.utils.bids import collect_participants
     from niworkflows.utils.misc import check_valid_fs_license
 
+    from fmriprep import config, data
     from fmriprep.reports.core import generate_reports
     from fmriprep.utils.bids import check_pipeline_version
-
-    from .. import config, data
-    from ..utils.misc import check_deps
-    from ..workflows.base import init_fmriprep_wf
+    from fmriprep.utils.misc import check_deps, fmt_subjects_sessions
+    from fmriprep.workflows.base import init_fmriprep_wf
 
     config.load(config_file)
     build_log = config.loggers.workflow
@@ -81,15 +85,26 @@ def build_workflow(config_file, retval):
     subject_list = collect_participants(
         config.execution.layout, participant_label=config.execution.participant_label
     )
+    session_list = config.execution.session_label or []
+    subject_session_list = create_processing_groups(
+        config.execution.layout,
+        subject_list,
+        session_list,
+        config.workflow.subject_anatomical_reference,
+    )
+    config.execution.processing_groups = subject_session_list
 
     # Called with reports only
     if config.execution.reports_only:
-        build_log.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
-        session_list = (
-            config.execution.bids_filters.get('bold', {}).get('session')
-            if config.execution.bids_filters
-            else None
+        build_log.log(
+            25, 'Running --reports-only on %s', fmt_subjects_sessions(subject_session_list)
         )
+        if not session_list:
+            session_list = (
+                config.execution.bids_filters.get('bold', {}).get('session')
+                if config.execution.bids_filters
+                else None
+            )
 
         failed_reports = generate_reports(
             config.execution.participant_label,
@@ -110,7 +125,7 @@ def build_workflow(config_file, retval):
     init_msg = [
         "Building fMRIPrep's workflow:",
         f'BIDS dataset path: {config.execution.bids_dir}.',
-        f'Participant list: {subject_list}.',
+        f'Participants and sessions: {fmt_subjects_sessions(subject_session_list)}.',
         f'Run identifier: {config.execution.run_uuid}.',
         f'Output spaces: {config.execution.output_spaces}.',
     ]
@@ -233,3 +248,40 @@ def build_boilerplate(config_file, workflow):
             check_call(cmd, timeout=10)
         except (FileNotFoundError, CalledProcessError, TimeoutExpired):
             config.loggers.cli.warning('Could not generate CITATION.tex file:\n%s', ' '.join(cmd))
+
+
+def create_processing_groups(
+    layout: 'BIDSLayout',
+    subject_list: list,
+    session_list: list | str | None,
+    subject_anatomical_reference: str,
+) -> list[tuple[str]]:
+    """Generate a list of subject-session pairs to be processed."""
+    from bids.layout import Query
+
+    subject_session_list = []
+
+    for subject in subject_list:
+        sessions = (
+            layout.get_sessions(
+                scope='raw',
+                subject=subject,
+                session=session_list or Query.OPTIONAL,
+            )
+            or None
+        )
+
+        if subject_anatomical_reference == 'sessionwise':
+            if not sessions:
+                raise RuntimeError(
+                    '`--subject-anatomical-reference sessionwise` was requested, but no sessions '
+                    f'found for subject {subject}.'
+                )
+            for session in sessions:
+                if len(session) == 1:
+                    session = session[0]
+                subject_session_list.append((subject, session))
+        else:
+            subject_session_list.append((subject, sessions))
+
+    return subject_session_list

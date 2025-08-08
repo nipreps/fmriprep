@@ -51,6 +51,7 @@ def _build_parser(**kwargs):
         'force_bbr': ('--force bbr', '26.0.0'),
         'force_no_bbr': ('--force no-bbr', '26.0.0'),
         'force_syn': ('--force syn-sdc', '26.0.0'),
+        'longitudinal': ('--subject-anatomical-reference unbiased', '26.1.0'),
     }
 
     class DeprecatedAction(Action):
@@ -220,9 +221,14 @@ def _build_parser(**kwargs):
         help='A space delimited list of participant identifiers or a single '
         'identifier (the sub- prefix can be removed)',
     )
-    # Re-enable when option is actually implemented
-    # g_bids.add_argument('-s', '--session-id', action='store', default='single_session',
-    #                     help='Select a specific session to be processed')
+
+    g_bids.add_argument(
+        '--session-label',
+        nargs='+',
+        type=lambda label: label.removeprefix('ses-'),
+        help='A space delimited list of session identifiers or a single '
+        'identifier (the ses- prefix can be removed)',
+    )
     # Re-enable when option is actually implemented
     # g_bids.add_argument('-r', '--run-id', action='store', default='single_run',
     #                     help='Select a specific run to be processed')
@@ -234,6 +240,17 @@ def _build_parser(**kwargs):
         action='store',
         type=int,
         help='Select a specific echo to be processed in a multiecho series',
+    )
+    g_bids.add_argument(
+        '--subject-anatomical-reference',
+        choices=['first-lex', 'unbiased', 'sessionwise'],
+        default='first-lex',
+        help='Method to produce the reference anatomical space:\n'
+        '\t"first-lex" will use the first image in lexicographical order\n'
+        '\t"unbiased" will construct an unbiased template from all images '
+        '(previously "--longitudinal")\n'
+        '\t"sessionwise" will independently process each session. If multiple runs are '
+        'found, the behavior will be similar to "first-lex" for each session.',
     )
     g_bids.add_argument(
         '--bids-filter-file',
@@ -384,8 +401,8 @@ https://fmriprep.readthedocs.io/en/%s/spaces.html"""
     )
     g_conf.add_argument(
         '--longitudinal',
-        action='store_true',
-        help='Treat dataset as longitudinal - may increase runtime',
+        action=DeprecatedAction,
+        help='Deprecated - use `--subject-anatomical-reference unbiased` instead',
     )
     g_conf.add_argument(
         '--bold2anat-init',
@@ -778,6 +795,14 @@ def parse_args(args=None, namespace=None):
         skip = {} if opts.reports_only else {'execution': ('run_uuid',)}
         config.load(opts.config_file, skip=skip, init=False)
         config.loggers.cli.info(f'Loaded previous configuration file {opts.config_file}')
+
+    if opts.longitudinal:
+        opts.subject_anatomical_reference = 'unbiased'
+        msg = (
+            'The `--longitudinal` flag is deprecated - use '
+            '`--subject-anatomical-reference unbiased` instead.'
+        )
+        config.loggers.cli.warning(msg)
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
