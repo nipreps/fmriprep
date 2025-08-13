@@ -66,3 +66,28 @@ def estimate_bold_mem_usage(bold_fname: str) -> tuple[int, dict]:
     }
 
     return bold_tlen, mem_gb
+
+
+def fmt_subjects_sessions(subses: list[tuple[str]], concat_limit: int = 1):
+    """
+    Format a list of subjects and sessions to be printed.
+
+    Example
+    -------
+    >>> fmt_subjects_sessions([('01', 'A'), ('02', ['A', 'B']), ('03', None), ('04', ['A'])])
+    'sub-01 ses-A, sub-02 (2 sessions), sub-03, sub-04 ses-A'
+    """
+    output = []
+    for subject, session in subses:
+        if isinstance(session, list):
+            if len(session) > concat_limit:
+                output.append(f'sub-{subject} ({len(session)} sessions)')
+                continue
+            session = session[0]
+
+        if session is None:
+            output.append(f'sub-{subject}')
+        else:
+            output.append(f'sub-{subject} ses-{session}')
+
+    return ', '.join(output)

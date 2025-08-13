@@ -35,15 +35,13 @@ a hard-limited memory-scope.
 def build_workflow(config_file, retval):
     """Create the Nipype Workflow that supports the whole execution graph."""
 
-    from niworkflows.utils.bids import collect_participants
     from niworkflows.utils.misc import check_valid_fs_license
 
+    from fmriprep import config, data
     from fmriprep.reports.core import generate_reports
     from fmriprep.utils.bids import check_pipeline_version
-
-    from .. import config, data
-    from ..utils.misc import check_deps
-    from ..workflows.base import init_fmriprep_wf
+    from fmriprep.utils.misc import check_deps, fmt_subjects_sessions
+    from fmriprep.workflows.base import init_fmriprep_wf
 
     config.load(config_file)
     build_log = config.loggers.workflow
@@ -69,27 +67,20 @@ def build_workflow(config_file, retval):
     if msg is not None:
         build_log.warning(msg)
 
-    # Please note this is the input folder's dataset_description.json
-    dset_desc_path = config.execution.bids_dir / 'dataset_description.json'
-    if dset_desc_path.exists():
-        from hashlib import sha256
-
-        desc_content = dset_desc_path.read_bytes()
-        config.execution.bids_description_hash = sha256(desc_content).hexdigest()
-
-    # First check that bids_dir looks like a BIDS folder
-    subject_list = collect_participants(
-        config.execution.layout, participant_label=config.execution.participant_label
-    )
-
     # Called with reports only
     if config.execution.reports_only:
-        build_log.log(25, 'Running --reports-only on participants %s', ', '.join(subject_list))
-        session_list = (
-            config.execution.bids_filters.get('bold', {}).get('session')
-            if config.execution.bids_filters
-            else None
+        build_log.log(
+            25,
+            'Running --reports-only on %s',
+            fmt_subjects_sessions(config.execution.processing_groups),
         )
+        session_list = config.execution.session_label
+        if not session_list:
+            session_list = (
+                config.execution.bids_filters.get('bold', {}).get('session')
+                if config.execution.bids_filters
+                else None
+            )
 
         failed_reports = generate_reports(
             config.execution.participant_label,
@@ -110,7 +101,7 @@ def build_workflow(config_file, retval):
     init_msg = [
         "Building fMRIPrep's workflow:",
         f'BIDS dataset path: {config.execution.bids_dir}.',
-        f'Participant list: {subject_list}.',
+        f'Participants and sessions: {fmt_subjects_sessions(config.execution.processing_groups)}.',
         f'Run identifier: {config.execution.run_uuid}.',
         f'Output spaces: {config.execution.output_spaces}.',
     ]

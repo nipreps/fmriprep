@@ -117,6 +117,7 @@ def _make_params(
     freesurfer: bool = True,
     ignore: list[str] = None,
     force: list[str] = None,
+    subject_anatomical_reference: str = 'first-lex',
     bids_filters: dict = None,
 ):
     if ignore is None:
@@ -138,6 +139,7 @@ def _make_params(
         freesurfer,
         ignore,
         force,
+        subject_anatomical_reference,
         bids_filters,
     )
 
@@ -158,6 +160,7 @@ def _make_params(
         'freesurfer',
         'ignore',
         'force',
+        'subject_anatomical_reference',
         'bids_filters',
     ),
     [
@@ -189,6 +192,8 @@ def _make_params(
         # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
+        _make_params(subject_anatomical_reference='unbiased'),
+        _make_params(subject_anatomical_reference='sessionwise'),
     ],
 )
 def test_init_fmriprep_wf(
@@ -208,6 +213,7 @@ def test_init_fmriprep_wf(
     freesurfer: bool,
     ignore: list[str],
     force: list[str],
+    subject_anatomical_reference: str,
     bids_filters: dict,
 ):
     with mock_config(bids_dir=bids_root):
