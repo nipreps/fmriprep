@@ -23,6 +23,8 @@ sub-01/anat/sub-01_from-MNI152NLin6Asym_to-T1w_mode-image_xfm.h5
 sub-01/anat/sub-01_from-T1w_to-fsnative_mode-image_xfm.txt
 sub-01/anat/sub-01_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5
 sub-01/anat/sub-01_from-T1w_to-MNI152NLin6Asym_mode-image_xfm.h5
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.json
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.label.gii
 sub-01/anat/sub-01_hemi-L_midthickness.surf.gii
 sub-01/anat/sub-01_hemi-L_pial.surf.gii
 sub-01/anat/sub-01_hemi-L_space-fsLR_den-32k_midthickness.surf.gii
@@ -35,6 +37,8 @@ sub-01/anat/sub-01_hemi-L_sphere.surf.gii
 sub-01/anat/sub-01_hemi-L_sulc.shape.gii
 sub-01/anat/sub-01_hemi-L_thickness.shape.gii
 sub-01/anat/sub-01_hemi-L_white.surf.gii
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.json
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.label.gii
 sub-01/anat/sub-01_hemi-R_midthickness.surf.gii
 sub-01/anat/sub-01_hemi-R_pial.surf.gii
 sub-01/anat/sub-01_hemi-R_space-fsLR_den-32k_midthickness.surf.gii

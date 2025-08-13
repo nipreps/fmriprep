@@ -503,12 +503,12 @@ It is released under the [CC0]\
                         f'outputnode.sphere_reg_{"msm" if msm_sulc else "fsLR"}',
                         'inputnode.sphere_reg_fsLR',
                     ),
+                    ('outputnode.cortex_mask', 'inputnode.roi'),
                 ]),
                 (hcp_morphometrics_wf, morph_grayords_wf, [
                     ('outputnode.curv', 'inputnode.curv'),
                     ('outputnode.thickness', 'inputnode.thickness'),
                     ('outputnode.sulc', 'inputnode.sulc'),
-                    ('outputnode.roi', 'inputnode.roi'),
                 ]),
                 (resample_surfaces_wf, morph_grayords_wf, [
                     ('outputnode.midthickness_fsLR', 'inputnode.midthickness_fsLR'),
@@ -614,13 +614,27 @@ It is released under the [CC0]\
         from sdcflows import fieldmaps as fm
         from sdcflows.workflows.base import init_fmap_preproc_wf
 
-        fmap_wf = init_fmap_preproc_wf(
-            debug='fieldmaps' in config.execution.debug,
-            estimators=fmap_estimators,
-            omp_nthreads=omp_nthreads,
-            output_dir=fmriprep_dir,
-            subject=subject_id,
-        )
+        fallback_trt = config.workflow.fallback_total_readout_time
+        try:
+            fmap_wf = init_fmap_preproc_wf(
+                use_metadata_estimates=fallback_trt == 'estimated',
+                fallback_total_readout_time=fallback_trt
+                if isinstance(fallback_trt, float)
+                else None,
+                debug='fieldmaps' in config.execution.debug,
+                estimators=fmap_estimators,
+                omp_nthreads=omp_nthreads,
+                output_dir=fmriprep_dir,
+                subject=subject_id,
+            )
+        except RuntimeError:
+            message = (
+                'Missing readout time information. '
+                'See documentation for `--fallback-total-readout-time`.'
+            )
+            config.loggers.workflow.critical(message, exc_info=True)
+            sys.exit(os.EX_DATAERR)
+
         fmap_wf.__desc__ = f"""
 
 Preprocessing of B<sub>0</sub> inhomogeneity mappings
@@ -678,7 +692,7 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                 if len(set(suffices)) == 1 or (
                     len(suffices) == 2 and all(suf in ('epi', 'bold', 'sbref') for suf in suffices)
                 ):
-                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.bids_id}')
+                    wf_inputs = getattr(fmap_wf.inputs, f'in_{estimator.sanitized_id}')
                     wf_inputs.in_data = [str(s.path) for s in estimator.sources]
                     wf_inputs.metadata = [s.metadata for s in estimator.sources]
                 else:
@@ -696,7 +710,7 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                     debug=config.execution.sloppy,
                     auto_bold_nss=True,
                     t1w_inversion=False,
-                    name=f'syn_preprocessing_{estimator.bids_id}',
+                    name=f'syn_preprocessing_{estimator.sanitized_id}',
                 )
                 syn_preprocessing_wf.inputs.inputnode.in_epis = sources
                 syn_preprocessing_wf.inputs.inputnode.in_meta = source_meta
@@ -710,11 +724,11 @@ Setting up fieldmap "{estimator.bids_id}" ({estimator.method}) with \
                         ('std2anat_xfm', 'inputnode.std2anat_xfm'),
                     ]),
                     (syn_preprocessing_wf, fmap_wf, [
-                        ('outputnode.epi_ref', f'in_{estimator.bids_id}.epi_ref'),
-                        ('outputnode.epi_mask', f'in_{estimator.bids_id}.epi_mask'),
-                        ('outputnode.anat_ref', f'in_{estimator.bids_id}.anat_ref'),
-                        ('outputnode.anat_mask', f'in_{estimator.bids_id}.anat_mask'),
-                        ('outputnode.sd_prior', f'in_{estimator.bids_id}.sd_prior'),
+                        ('outputnode.epi_ref', f'in_{estimator.sanitized_id}.epi_ref'),
+                        ('outputnode.epi_mask', f'in_{estimator.sanitized_id}.epi_mask'),
+                        ('outputnode.anat_ref', f'in_{estimator.sanitized_id}.anat_ref'),
+                        ('outputnode.anat_mask', f'in_{estimator.sanitized_id}.anat_mask'),
+                        ('outputnode.sd_prior', f'in_{estimator.sanitized_id}.sd_prior'),
                     ]),
                 ])  # fmt:skip
 
@@ -828,9 +842,7 @@ tasks and sessions), the following preprocessing was performed.
                 workflow.connect([
                     (select_MNI6_xfm, bold_wf, [('anat2std_xfm', 'inputnode.anat2mni6_xfm')]),
                     (select_MNI6_tpl, bold_wf, [('brain_mask', 'inputnode.mni6_mask')]),
-                    (hcp_morphometrics_wf, bold_wf, [
-                        ('outputnode.roi', 'inputnode.cortex_mask'),
-                    ]),
+                    (anat_fit_wf, bold_wf, [('outputnode.cortex_mask', 'inputnode.cortex_mask')]),
                     (resample_surfaces_wf, bold_wf, [
                         ('outputnode.midthickness_fsLR', 'inputnode.midthickness_fsLR'),
                     ]),

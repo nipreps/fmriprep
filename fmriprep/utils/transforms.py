@@ -20,7 +20,7 @@ def load_transforms(xfm_paths: list[Path], inverse: list[bool]) -> nt.base.Trans
         path = Path(path)
         if path.suffix == '.h5':
             # Load as a TransformChain
-            xfm = nt.manip.load(path)
+            xfm = nt.manip.load(path, fmt='h5')
         else:
             xfm = nt.linear.load(path)
         if inv:

@@ -30,7 +30,6 @@ class ResampleSeriesInputSpec(TraitedSpec):
     ref_file = File(exists=True, mandatory=True, desc='File to resample in_file to')
     transforms = InputMultiObject(
         File(exists=True),
-        mandatory=True,
         desc='Transform files, from in_file to ref_file (image mode)',
     )
     inverse = InputMultiObject(
@@ -54,8 +53,15 @@ class ResampleSeriesInputSpec(TraitedSpec):
     num_threads = traits.Int(1, usedefault=True, desc='Number of threads to use for resampling')
     output_data_type = traits.Str('float32', usedefault=True, desc='Data type of output image')
     order = traits.Int(3, usedefault=True, desc='Order of interpolation (0=nearest, 3=cubic)')
-    mode = traits.Str(
+    mode = traits.Enum(
+        'nearest',
         'constant',
+        'mirror',
+        'reflect',
+        'wrap',
+        'grid-constant',
+        'grid-mirror',
+        'grid-wrap',
         usedefault=True,
         desc='How data is extended beyond its boundaries. '
         'See scipy.ndimage.map_coordinates for more details.',
@@ -85,7 +91,8 @@ class ResampleSeries(SimpleInterface):
 
         nvols = source.shape[3] if source.ndim > 3 else 1
 
-        transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
+        # No transforms appear Undefined, pass as empty list
+        transforms = load_transforms(self.inputs.transforms or [], self.inputs.inverse)
 
         pe_dir = self.inputs.pe_dir
         ro_time = self.inputs.ro_time
@@ -184,6 +191,13 @@ class ReconstructFieldmap(SimpleInterface):
 class DistortionParametersInputSpec(TraitedSpec):
     in_file = File(exists=True, desc='EPI image corresponding to the metadata')
     metadata = traits.Dict(mandatory=True, desc='metadata corresponding to the inputs')
+    fallback = traits.Either(
+        None,
+        'estimated',
+        traits.Float,
+        usedefault=True,
+        desc='Fallback value for missing metadata',
+    )
 
 
 class DistortionParametersOutputSpec(TraitedSpec):
@@ -208,6 +222,8 @@ class DistortionParameters(SimpleInterface):
             self._results['readout_time'] = get_trt(
                 self.inputs.metadata,
                 self.inputs.in_file or None,
+                use_estimate=self.inputs.fallback == 'estimated',
+                fallback=self.inputs.fallback if isinstance(self.inputs.fallback, float) else None,
             )
             self._results['pe_direction'] = self.inputs.metadata['PhaseEncodingDirection']
         except (KeyError, ValueError):

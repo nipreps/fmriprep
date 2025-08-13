@@ -137,6 +137,7 @@ If FreeSurfer reconstructions are used, the following surface files are generate
       sub-<subject_label>_hemi-[LR]_desc-reg_sphere.surf.gii
       sub-<subject_label>_hemi-[LR]_space-fsLR_desc-reg_sphere.surf.gii
       sub-<subject_label>_hemi-[LR]_space-fsLR_desc-msmsulc_sphere.surf.gii
+      sub-<subject_label>_hemi-[LR]_desc-cortex_mask.label.gii
 
 The registration spheres target ``fsaverage`` and ``fsLR`` spaces. If MSM
 is enabled (i.e., the ``--no-msm`` flag is not passed), then the ``msmsulc``

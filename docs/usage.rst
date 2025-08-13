@@ -35,8 +35,6 @@ Command-Line Arguments
 .. argparse::
    :ref: fmriprep.cli.parser._build_parser
    :prog: fmriprep
-   :nodefault:
-   :nodefaultconst:
 
 
 The command-line interface of the docker wrapper

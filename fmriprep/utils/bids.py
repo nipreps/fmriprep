@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from functools import cache
@@ -85,8 +86,8 @@ def collect_derivatives(
         #   whereas relevant src file will be "bold".
         query = {**entities, **q}
         if xfm == 'boldref2fmap' and fieldmap_id:
-            # fieldmaps have ids like auto_00000
-            query['to'] = fieldmap_id.replace('_', '')
+            # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
+            query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
         if not item:
             continue

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs", "nipreps-versions"]
+requires = ["hatchling>=1.27", "hatch-vcs", "nipreps-versions"]
 build-backend = "hatchling.build"
 
 [project]
@@ -11,13 +11,13 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Image Recognition",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "acres >= 0.2.0",
@@ -27,16 +27,16 @@ dependencies = [
     "nireports >= 24.1.0",
     "nitime >= 0.9",
     "nitransforms >= 24.1.1",
-    "niworkflows >= 1.12.2",
+    "niworkflows @ git+https://github.com/nipreps/niworkflows.git@master",
     "numpy >= 1.24",
     "packaging >= 24",
     "pandas >= 1.2",
     "psutil >= 5.4",
     "pybids >= 0.16",
     "requests >= 2.27",
-    "sdcflows >= 2.11.0",
-    "smriprep >= 0.17.0",
-    "tedana >= 23.0.2",
+    "sdcflows >= 2.13.1",
+    "smriprep @ git+https://github.com/nipreps/smriprep.git@master",
+    "tedana >= 25.0.0",
     "templateflow >= 24.2.2",
     "transforms3d >= 0.4",
     "toml >= 0.10",

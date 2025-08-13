@@ -21,7 +21,7 @@
       },
       "magnitude": {
         "datatype": "fmap",
-        "desc": "magnitude",
+        "desc": ["magnitude", "epi"],
         "suffix": "fieldmap",
         "extension": [
           ".nii.gz",

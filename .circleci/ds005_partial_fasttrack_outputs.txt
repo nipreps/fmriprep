@@ -12,6 +12,8 @@ sub-01
 sub-01/anat
 sub-01/anat/sub-01_desc-ribbon_mask.json
 sub-01/anat/sub-01_desc-ribbon_mask.nii.gz
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.json
+sub-01/anat/sub-01_hemi-L_desc-cortex_mask.label.gii
 sub-01/anat/sub-01_hemi-L_desc-preproc_sphere.surf.gii
 sub-01/anat/sub-01_hemi-L_desc-preproc_white.surf.gii
 sub-01/anat/sub-01_hemi-L_space-fsLR_den-32k_desc-preproc_midthickness.surf.gii
@@ -20,6 +22,8 @@ sub-01/anat/sub-01_hemi-L_space-fsLR_den-32k_desc-preproc_white.surf.gii
 sub-01/anat/sub-01_hemi-L_space-fsLR_desc-msmsulc_sphere.surf.gii
 sub-01/anat/sub-01_hemi-L_space-fsLR_desc-reg_sphere.surf.gii
 sub-01/anat/sub-01_hemi-L_space-fsaverage_desc-reg_sphere.surf.gii
+sub-01/anat/sub-01_hemi-R_desc-cortex_mask.json
+sub-01/anat/sub-01_hemi-R_desc-cortex_mask.label.gii
 sub-01/anat/sub-01_hemi-R_desc-preproc_sphere.surf.gii
 sub-01/anat/sub-01_hemi-R_desc-preproc_white.surf.gii
 sub-01/anat/sub-01_hemi-R_space-fsLR_den-32k_desc-preproc_midthickness.surf.gii

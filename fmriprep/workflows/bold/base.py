@@ -383,6 +383,7 @@ configured with cubic B-spline interpolation.
     # Resample to anatomical space
     bold_anat_wf = init_bold_volumetric_resample_wf(
         metadata=all_metadata[0],
+        fallback_total_readout_time=config.workflow.fallback_total_readout_time,
         fieldmap_id=fieldmap_id if not multiecho else None,
         omp_nthreads=omp_nthreads,
         mem_gb=mem_gb,

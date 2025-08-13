@@ -88,7 +88,6 @@ the ``fmriprep`` package:
 - FSL_ (version 6.0.7.7)
 - ANTs_ (version 2.5.1)
 - AFNI_ (version 24.0.05)
-- `C3D <https://sourceforge.net/projects/c3d/>`_ (version 1.4.0)
 - FreeSurfer_ (version 7.3.2)
 - `bids-validator <https://github.com/bids-standard/bids-validator>`_ (version 1.14.0)
 - `connectome-workbench <https://www.humanconnectome.org/software/connectome-workbench>`_ (version 1.5.0)

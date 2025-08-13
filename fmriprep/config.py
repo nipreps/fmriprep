@@ -575,6 +575,9 @@ class workflow(_Config):
     """Remove the mean from fieldmaps."""
     force_syn = None
     """Run *fieldmap-less* susceptibility-derived distortions estimation."""
+    fallback_total_readout_time = None
+    """Infer the total readout time if unavailable from authoritative metadata.
+    This may be a number or the string "estimated"."""
     hires = None
     """Run FreeSurfer ``recon-all`` with the ``-hires`` flag."""
     fs_no_resume = None

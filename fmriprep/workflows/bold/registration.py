@@ -34,11 +34,12 @@ import os
 import os.path as op
 import typing as ty
 
-from nipype.interfaces import c3, fsl
+from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 from ... import config, data
+from ...interfaces.nitransforms import ConvertAffine
 
 DEFAULT_MEMORY_MIN_GB = config.DEFAULT_MEMORY_MIN_GB
 LOGGER = config.loggers.workflow
@@ -558,52 +559,37 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         mem_gb=5,
     )
 
-    lta_to_fsl = pe.Node(LTAConvert(out_fsl=True), name='lta_to_fsl', mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    invt_bbr = pe.Node(
-        fsl.ConvertXFM(invert_xfm=True), name='invt_bbr', mem_gb=DEFAULT_MEMORY_MIN_GB
-    )
-
-    # BOLD to T1 transform matrix is from fsl, using c3 tools to convert to
-    # something ANTs will like.
-    fsl2itk_fwd = pe.Node(
-        c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
-        name='fsl2itk_fwd',
+    xfm2itk = pe.Node(
+        ConvertAffine(in_fmt='fsl', out_fmt='itk', inverse=True),
+        name='xfm2itk',
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
-    fsl2itk_inv = pe.Node(
-        c3.C3dAffineTool(fsl2ras=True, itk_transform=True),
-        name='fsl2itk_inv',
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-    # fmt:off
+
     workflow.connect([
-        (inputnode, mask_t1w_brain, [('t1w_preproc', 'in_file'),
-                                     ('t1w_mask', 'in_mask')]),
+        (inputnode, mask_t1w_brain, [
+            ('t1w_preproc', 'in_file'),
+            ('t1w_mask', 'in_mask'),
+        ]),
         (inputnode, mri_coreg, [('in_file', 'source_file')]),
-        (inputnode, fsl2itk_fwd, [('in_file', 'source_file')]),
-        (inputnode, fsl2itk_inv, [('in_file', 'reference_file')]),
+        (inputnode, xfm2itk, [('in_file', 'moving')]),
         (mask_t1w_brain, mri_coreg, [('out_file', 'reference_file')]),
-        (mask_t1w_brain, fsl2itk_fwd, [('out_file', 'reference_file')]),
-        (mask_t1w_brain, fsl2itk_inv, [('out_file', 'source_file')]),
-        (mri_coreg, lta_to_fsl, [('out_lta_file', 'in_lta')]),
-        (invt_bbr, fsl2itk_inv, [('out_file', 'transform_file')]),
-        (fsl2itk_fwd, outputnode, [('itk_transform', 'itk_bold_to_t1')]),
-        (fsl2itk_inv, outputnode, [('itk_transform', 'itk_t1_to_bold')]),
-    ])
-    # fmt:on
+        (mask_t1w_brain, xfm2itk, [('out_file', 'reference')]),
+        (xfm2itk, outputnode, [
+            ('out_xfm', 'itk_bold_to_t1'),
+            ('out_inv', 'itk_t1_to_bold'),
+        ]),
+    ])  # fmt:skip
 
     # Short-circuit workflow building, use rigid registration
     if use_bbr is False:
-        # fmt:off
-        workflow.connect([
-            (lta_to_fsl, invt_bbr, [('out_fsl', 'in_file')]),
-            (lta_to_fsl, fsl2itk_fwd, [('out_fsl', 'transform_file')]),
-        ])
-        # fmt:on
+        xfm2itk.inputs.in_fmt = 'fs'  # Override
+        workflow.connect(mri_coreg, 'out_lta_file', xfm2itk, 'in_xfm')
+
         outputnode.inputs.fallback = True
 
         return workflow
+
+    lta_to_fsl = pe.Node(LTAConvert(out_fsl=True), name='lta_to_fsl', mem_gb=DEFAULT_MEMORY_MIN_GB)
 
     flt_bbr = pe.Node(
         fsl.FLIRT(cost_func='bbr', dof=bold2anat_dof, args='-basescale 1'),
@@ -617,13 +603,14 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         # Should mostly be hit while building docs
         LOGGER.warning('FSLDIR unset - using packaged BBR schedule')
         flt_bbr.inputs.schedule = data.load('flirtsch/bbr.sch')
-    # fmt:off
+
     workflow.connect([
         (inputnode, wm_mask, [('t1w_dseg', 'in_seg')]),
         (inputnode, flt_bbr, [('in_file', 'in_file')]),
+        (mri_coreg, lta_to_fsl, [('out_lta_file', 'in_lta')]),
         (lta_to_fsl, flt_bbr, [('out_fsl', 'in_matrix_file')]),
-    ])
-    # fmt:on
+    ])  # fmt:skip
+
     if sloppy is True:
         downsample = pe.Node(
             niu.Function(
@@ -631,30 +618,21 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             ),
             name='downsample',
         )
-        # fmt:off
         workflow.connect([
             (mask_t1w_brain, downsample, [('out_file', 'in_file')]),
             (wm_mask, downsample, [('out', 'in_mask')]),
             (downsample, flt_bbr, [('out_file', 'reference'),
                                    ('out_mask', 'wm_seg')]),
-        ])
-        # fmt:on
+        ])  # fmt:skip
     else:
-        # fmt:off
         workflow.connect([
             (mask_t1w_brain, flt_bbr, [('out_file', 'reference')]),
             (wm_mask, flt_bbr, [('out', 'wm_seg')]),
-        ])
-        # fmt:on
+        ])  # fmt:skip
 
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
-        # fmt:off
-        workflow.connect([
-            (flt_bbr, invt_bbr, [('out_matrix_file', 'in_file')]),
-            (flt_bbr, fsl2itk_fwd, [('out_matrix_file', 'transform_file')]),
-        ])
-        # fmt:on
+        workflow.connect(flt_bbr, 'out_matrix_file', xfm2itk, 'in_xfm')
         outputnode.inputs.fallback = False
 
         return workflow
@@ -666,7 +644,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     select_transform = pe.Node(niu.Select(), run_without_submitting=True, name='select_transform')
 
     fsl_to_lta = pe.MapNode(LTAConvert(out_lta=True), iterfield=['in_fsl'], name='fsl_to_lta')
-    # fmt:off
+
     workflow.connect([
         (flt_bbr, transforms, [('out_matrix_file', 'in1')]),
         (lta_to_fsl, transforms, [('out_fsl', 'in2')]),
@@ -679,10 +657,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         # Select output transform
         (transforms, select_transform, [('out', 'inlist')]),
         (compare_transforms, select_transform, [('out', 'index')]),
-        (select_transform, invt_bbr, [('out', 'in_file')]),
-        (select_transform, fsl2itk_fwd, [('out', 'transform_file')]),
-    ])
-    # fmt:on
+        (select_transform, xfm2itk, [('out', 'in_xfm')]),
+    ])  # fmt:skip
 
     return workflow
 

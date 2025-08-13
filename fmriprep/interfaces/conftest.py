@@ -1,7 +1,8 @@
-from pathlib import Path
 from shutil import copytree
 
 import pytest
+
+from .tests.data import load
 
 try:
     from contextlib import chdir as _chdir
@@ -19,9 +20,10 @@ except ImportError:  # PY310
             os.chdir(cwd)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def data_dir():
-    return Path(__file__).parent / 'tests' / 'data'
+    with load.as_path() as data_dir:
+        yield data_dir
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +31,8 @@ def _docdir(request, tmp_path):
     # Trigger ONLY for the doctests.
     doctest_plugin = request.config.pluginmanager.getplugin('doctest')
     if isinstance(request.node, doctest_plugin.DoctestItem):
-        copytree(Path(__file__).parent / 'tests' / 'data', tmp_path, dirs_exist_ok=True)
+        with load.as_path() as data_dir:
+            copytree(data_dir, tmp_path, dirs_exist_ok=True)
 
         # Chdir only for the duration of the test.
         with _chdir(tmp_path):

@@ -1,3 +1,91 @@
+25.1.4 (July 31, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This includes additional fixes for non-unicode ``B0FieldIdentifier`` keys.
+
+  * FIX: Allow warning kwargs (#3483)
+  * FIX: Remove non-alphanumeric characters from fmapid in fmapreg transform (#3490)
+
+
+25.1.3 (June 19, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This resolves a bug introduced in a dependency between 25.1.1 and 25.1.2.
+
+25.1.2 (June 17, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This fixes crashes encountered processing a BIDS dataset with one or more
+``B0FieldIdentifier`` keys with non-unicode word characters.
+
+  * FIX: Use sanitized fieldmap naming (#3471)
+
+25.1.1 (May 23, 2025)
+=====================
+Patch release in the 25.1.x series.
+
+This includes small fixes for working with precomputed fieldmaps,
+including adding fieldmap correction sections to the reports,
+which were previously omitted if the fieldmap was not calculated
+during the fMRIPrep run.
+
+* FIX: Improve retrieval of precomputed pepolar fieldmaps (#3466)
+* RF: Separate fieldmap registration from coreg ref generation (#3467)
+
+
+25.1.0 (May 21, 2025)
+=====================
+New feature release in the 25.1.x series.
+
+This release includes a small fix related to interpolations on the bounds
+of the image field-of-view. This improves consistency with prior versions
+of fMRIPrep for data with limited fields-of-view or small bounding boxes.
+
+This release also adds support for providing fallback values for
+``TotalReadoutTime`` metadata.
+For Philips datasets, if ``EstimatedTotalReadoutTime`` or
+``EstimatedEffectiveEchoSpacing`` are available, you can use these
+by passing ``--fallback-total-readout-time estimated``.
+For datasets with no readout time information, a numeric value can be passed,
+for example, ``--fallback-total-readout-time 0.05``.
+If the readout time information is known, it is preferable to encode directly
+in the dataset, but there are cases where it is better to explicitly pass the
+value to the software than inject uncertain metadata into the dataset.
+In particular, the true readout time is not necessary for SyN-SDC, but a value
+is nonetheless needed in order to estimate the inhomogeneity field.
+
+This release is a long-term-support *candidate*. We will be performing
+extensive tests and monitoring bug reports over the next couple of months
+to determine whether issues can be addressed without making breaking changes.
+
+Structural processing changes
+-----------------------------
+
+This release pins a version of sMRIPrep (0.18) that correctly handles precomputed
+tissue probability maps.
+The FAST segmentation also now skips an internal bias field correction step
+that is redundant with ANTs N4 correction,
+and may be inappropriate for non-human populations.
+
+Fieldmap processing changes
+---------------------------
+
+This release pins a version of SDCFlows (2.13) that includes several improvements to
+the SyN-SDC method.
+In particular, the fieldmap prior that constrained the scope of displacements
+was reintroduced and refined.
+
+All merged pull requests
+------------------------
+
+* FIX: Use nearest mode for extrapolating data outside image boundaries (#3453)
+* ENH: Replace c3d_affine_tool with a ConvertAffine interface (#3464)
+* ENH: Add flag to fallback to Estimated* metadata or a passed value for TotalReadoutTime (#3423)
+
+
 25.0.0 (March 25, 2025)
 =======================
 New feature release in the 25.0.x series.

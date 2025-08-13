@@ -58,7 +58,7 @@ jobs:
           sudo apt update
           sudo apt install -y --no-install-recommends graphviz
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -89,7 +89,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
       - name: Install tox
         run: uv tool install tox --with=tox-uv
       - name: Show tox config
