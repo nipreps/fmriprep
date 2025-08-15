@@ -128,6 +128,8 @@ def init_bold_reg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    metadata
+        Output metadata from the registration workflow
 
     See Also
     --------
@@ -154,7 +156,7 @@ def init_bold_reg_wf(
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(fields=['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'metadata']),
         name='outputnode',
     )
 
@@ -188,6 +190,7 @@ def init_bold_reg_wf(
             ('outputnode.itk_bold_to_t1', 'itk_bold_to_t1'),
             ('outputnode.itk_t1_to_bold', 'itk_t1_to_bold'),
             ('outputnode.fallback', 'fallback'),
+            ('outputnode.metadata', 'metadata'),
         ]),
     ])  # fmt:skip
 
@@ -268,11 +271,14 @@ def init_bbreg_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (mri_coreg registration returned)
+    metadata
+        Output metadata from the registration workflow
 
     """
     from nipype.interfaces.freesurfer import BBRegister
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+    from niworkflows.interfaces.utility import DictMerge
 
     from fmriprep.interfaces.patches import FreeSurferSource, MRICoreg
 
@@ -309,7 +315,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'metadata']),
         name='outputnode',
     )
 
@@ -341,6 +347,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             dof=bold2anat_dof,
             contrast_type='t2',
             out_lta_file=True,
+            # Bug in nipype prevents using init_cost_file=True
+            init_cost_file='bbregister.initcost',
         ),
         name='bbregister',
         mem_gb=12,
@@ -357,6 +365,12 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
     merge_ltas = pe.Node(niu.Merge(2), name='merge_ltas', run_without_submitting=True)
     concat_xfm = pe.Node(ConcatenateXFMs(inverse=True), name='concat_xfm')
 
+    # Set up GeneratedBy metadata and add a merge node for cost, if available
+    gen_by = pe.Node(niu.Merge(2), run_without_submitting=True, name='gen_by')
+    select_gen = pe.Node(niu.Select(index=0), run_without_submitting=True, name='select_gen')
+    metadata = pe.Node(niu.Merge(2), run_without_submitting=True, name='metadata')
+    merge_meta = pe.Node(DictMerge(), run_without_submitting=True, name='merge_meta')
+
     workflow.connect([
         (inputnode, merge_ltas, [('fsnative2t1w_xfm', 'in2')]),
         # Wire up the co-registration alternatives
@@ -365,10 +379,20 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (merge_ltas, concat_xfm, [('out', 'in_xfms')]),
         (concat_xfm, outputnode, [('out_xfm', 'itk_bold_to_t1')]),
         (concat_xfm, outputnode, [('out_inv', 'itk_t1_to_bold')]),
+        # Wire up the metadata alternatives
+        (gen_by, select_gen, [('out', 'inlist')]),
+        (select_gen, metadata, [('out', 'in1')]),
+        (metadata, merge_meta, [('out', 'in_dicts')]),
+        (merge_meta, outputnode, [('out_dict', 'metadata')]),
     ])  # fmt:skip
 
     # Do not initialize with header, use mri_coreg
     if bold2anat_init != 'header':
+        gen_by.inputs.in2 = {
+            'GeneratedBy': [
+                {'Name': 'mri_coreg', 'Version': mri_coreg.interface.version or '<unknown>'}
+            ]
+        }
         workflow.connect([
             (inputnode, mri_coreg, [('subjects_dir', 'subjects_dir'),
                                     ('subject_id', 'subject_id'),
@@ -400,6 +424,26 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (bbregister, transforms, [('out_lta_file', 'in1')]),
     ])  # fmt:skip
 
+    gen_by.inputs.in1 = {
+        'GeneratedBy': [
+            {'Name': 'bbregister', 'Version': bbregister.interface.version or '<unknown>'}
+        ]
+    }
+
+    costs = pe.Node(niu.Merge(2), run_without_submitting=True, name='cost')
+    select_cost = pe.Node(niu.Select(index=0), run_without_submitting=True, name='select_cost')
+    read_cost = pe.Node(niu.Function(function=_read_cost), name='read_cost')
+
+    workflow.connect([
+        (bbregister, costs, [
+            ('min_cost_file', 'in1'),
+            ('init_cost_file', 'in2'),
+        ]),
+        (costs, select_cost, [('out', 'inlist')]),
+        (select_cost, read_cost, [('out', 'cost_file')]),
+        (read_cost, metadata, [('out', 'in2')]),
+    ])  # fmt:skip
+
     # Short-circuit workflow building, use boundary-based registration
     if use_bbr is True:
         outputnode.inputs.fallback = False
@@ -413,6 +457,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (transforms, compare_transforms, [('out', 'lta_list')]),
         (compare_transforms, outputnode, [('out', 'fallback')]),
         (compare_transforms, select_transform, [('out', 'index')]),
+        (compare_transforms, select_gen, [('out', 'index')]),
+        (compare_transforms, select_cost, [('out', 'index')]),
     ])  # fmt:skip
 
     return workflow
@@ -493,6 +539,8 @@ def init_fsl_bbr_wf(
         Affine transform from T1 space to BOLD space (ITK format)
     fallback
         Boolean indicating whether BBR was rejected (rigid FLIRT registration returned)
+    metadata
+        Output metadata from the registration workflow
 
     """
     from nipype.interfaces.freesurfer import MRICoreg
@@ -532,7 +580,7 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         name='inputnode',
     )
     outputnode = pe.Node(
-        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback']),
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'metadata']),
         name='outputnode',
     )
 
@@ -548,6 +596,9 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         LOGGER.warning(
             'T2w intermediate for FSL is not implemented, registering with T1w instead.'
         )
+
+    metadata = pe.Node(niu.Merge(2), run_without_submitting=True, name='metadata')
+    select_meta = pe.Node(niu.Select(index=0), run_without_submitting=True, name='select_meta')
 
     # Mask T1w_preproc with T1w_mask to make T1w_brain
     mask_t1w_brain = pe.Node(ApplyMask(), name='mask_t1w_brain')
@@ -565,6 +616,12 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         mem_gb=DEFAULT_MEMORY_MIN_GB,
     )
 
+    metadata.inputs.in2 = {
+        'GeneratedBy': [
+            {'Name': 'mri_coreg', 'Version': mri_coreg.interface.version or '<unknown>'}
+        ]
+    }
+
     workflow.connect([
         (inputnode, mask_t1w_brain, [
             ('t1w_preproc', 'in_file'),
@@ -578,6 +635,9 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
             ('out_xfm', 'itk_bold_to_t1'),
             ('out_inv', 'itk_t1_to_bold'),
         ]),
+        # Wire up the metadata alternatives
+        (metadata, select_meta, [('out', 'inlist')]),
+        (select_meta, outputnode, [('out', 'metadata')]),
     ])  # fmt:skip
 
     # Short-circuit workflow building, use rigid registration
@@ -603,6 +663,10 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         # Should mostly be hit while building docs
         LOGGER.warning('FSLDIR unset - using packaged BBR schedule')
         flt_bbr.inputs.schedule = data.load('flirtsch/bbr.sch')
+
+    metadata.inputs.in1 = {
+        'GeneratedBy': [{'Name': 'flirt', 'Version': flt_bbr.interface.version or '<unknown>'}]
+    }
 
     workflow.connect([
         (inputnode, wm_mask, [('t1w_dseg', 'in_seg')]),
@@ -658,6 +722,8 @@ Co-registration was configured with {dof} degrees of freedom{reason}.
         (transforms, select_transform, [('out', 'inlist')]),
         (compare_transforms, select_transform, [('out', 'index')]),
         (select_transform, xfm2itk, [('out', 'in_xfm')]),
+        # Select metadata
+        (compare_transforms, select_meta, [('out', 'index')]),
     ])  # fmt:skip
 
     return workflow
@@ -749,3 +815,10 @@ def _conditional_downsampling(in_file, in_mask, zoom_th=4.0):
     nb.Nifti1Image(newmaskdata, newmask.affine, hdr).to_filename(out_mask)
 
     return str(out_file), str(out_mask)
+
+
+def _read_cost(cost_file) -> dict[str, float]:
+    """Read a cost from a file."""
+    # Cost file contains mincost, WM intensity, Ctx intensity, Pct Contrast
+    with open(cost_file) as fobj:
+        return {'FinalCost': float(fobj.read().split()[0])}
