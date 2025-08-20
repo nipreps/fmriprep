@@ -32,6 +32,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Jacoby            | Nir          |  | 0000-0001-7936-9991 | Department of Psychology, Columbia University                                                                                                |
 | Jamison           | Keith W.     |  | 0000-0001-7139-6661 | Department of Radiology, Weill Cornell Medicine                                                                                              |
 | Kruper            | John         |  | 0000-0003-0081-391X | Department of Psychology, University of Washington                                                                                           |
+| Legarreta Gorroño | Jon Haitz    | @jhlegarreta | 0000-0002-9661-1396 | Brigham and Women's Hospital, Mass General Brigham, Harvard Medical School, MA, USA |
 | Liem              | Franz        |  | 0000-0003-0646-4810 | URPP Dynamics of Healthy Aging, University of Zurich                                                                                         |
 | Lurie             | Daniel J.    |  | 0000-0001-8012-6399 | Department of Psychology, University of California, Berkeley                                                                                 |
 | Ma                | Feilong      |  | 0000-0002-6838-3971 | Dartmouth College: Hanover, NH, United States                                                                                                |
