@@ -23,15 +23,42 @@
 # SOFTWARE.
 
 # Ubuntu 22.04 LTS - Jammy
-ARG BASE_IMAGE=ubuntu:jammy-20240125
+ARG BASE_IMAGE=ubuntu:jammy-20250730
 
 #
-# Build wheel
+# Build pixi environment
+# The Pixi environment includes:
+#   - Python
+#     - Scientific Python stack (via conda-forge)
+#     - General Python dependencies (via PyPI)
+#   - NodeJS
+#     - bids-validator
+#     - svgo
+#   - FSL (via fslconda)
+#   - ants (via conda-forge)
+#   - connectome-workbench (via conda-forge)
+#   - ...
 #
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS src
-RUN apk add git
-COPY . /src
-RUN uvx --from build pyproject-build --installer uv -w /src
+FROM ghcr.io/prefix-dev/pixi:0.53.0 AS build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    ca-certificates \
+                    git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Run post-link scripts during install, but use global to keep out of source tree
+RUN pixi config set --global run-post-link-scripts insecure
+
+# Install dependencies before the package itself to leverage caching
+RUN mkdir /app
+COPY pixi.lock pyproject.toml /app
+WORKDIR /app
+RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep --frozen --skip fmriprep
+RUN --mount=type=cache,target=/root/.npm pixi run --as-is -e fmriprep npm install -g svgo@^3.2.0 bids-validator@1.14.10
+RUN pixi shell-hook -e fmriprep --as-is > /shell-hook.sh
+
+# Finally, install the package
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep --frozen
 
 #
 # Download stages
@@ -39,8 +66,12 @@ RUN uvx --from build pyproject-build --installer uv -w /src
 
 # Utilities for downloading packages
 FROM ${BASE_IMAGE} AS downloader
+ENV DEBIAN_FRONTEND="noninteractive" \
+    LANG="en_US.UTF-8" \
+    LC_ALL="en_US.UTF-8"
+
 # Bump the date to current to refresh curl/certificates/etc
-RUN echo "2023.07.20"
+RUN echo "2025.08.20"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     binutils \
@@ -76,34 +107,6 @@ RUN mkdir -p /opt/afni-latest \
         -name "3dUnifize" -or \
         -name "3dAutomask" -or \
         -name "3dvolreg" \) -delete
-
-# Micromamba
-FROM downloader AS micromamba
-
-# Install a C compiler to build extensions when needed.
-# traits<6.4 wheels are not available for Python 3.11+, but build easily.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-WORKDIR /
-# Bump the date to current to force update micromamba
-RUN echo "2024.02.06"
-RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
-
-ENV MAMBA_ROOT_PREFIX="/opt/conda"
-COPY env.yml /tmp/env.yml
-COPY requirements.txt /tmp/requirements.txt
-WORKDIR /tmp
-RUN micromamba create -y -f /tmp/env.yml && \
-    micromamba clean -y -a
-
-# UV_USE_IO_URING for apparent race-condition (https://github.com/nodejs/node/issues/48444)
-# Check if this is still necessary when updating the base image.
-ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH" \
-    UV_USE_IO_URING=0
-RUN npm install -g svgo@^3.2.0 bids-validator@1.14.10 && \
-    rm -r ~/.npm
 
 #
 # Main stage
@@ -197,12 +200,11 @@ ENV HOME="/home/fmriprep" \
 COPY --from=micromamba /bin/micromamba /bin/micromamba
 COPY --from=micromamba /opt/conda/envs/fmriprep /opt/conda/envs/fmriprep
 
-ENV MAMBA_ROOT_PREFIX="/opt/conda"
-RUN micromamba shell init -s bash && \
-    echo "micromamba activate fmriprep" >> $HOME/.bashrc
-ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH" \
-    CPATH="/opt/conda/envs/fmriprep/include:$CPATH" \
-    LD_LIBRARY_PATH="/opt/conda/envs/fmriprep/lib:$LD_LIBRARY_PATH"
+# Keep synced with wrapper's PKG_PATH
+COPY --link --from=build /app/.pixi/envs/fmriprep /app/.pixi/envs/fmriprep
+COPY --link --from=build /shell-hook.sh /shell-hook.sh
+RUN cat /shell-hook.sh >> $HOME/.bashrc
+ENV PATH="/app/.pixi/envs/fmriprep/bin:$PATH"
 
 # Precaching atlases
 COPY scripts/fetch_templates.py fetch_templates.py
@@ -215,7 +217,7 @@ RUN python fetch_templates.py && \
 ENV LANG="C.UTF-8" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1 \
-    FSLDIR="/opt/conda/envs/fmriprep" \
+    FSLDIR="/app/.pixi/envs/fmriprep" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLLOCKDIR="" \
@@ -231,21 +233,12 @@ ENV MKL_NUM_THREADS=1 \
 # MSM HOCR (Nov 19, 2019 release)
 RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/ecr05/MSM_HOCR/releases/assets/16253707 -o /usr/local/bin/msm \
     && chmod +x /usr/local/bin/msm
-
-# Installing FMRIPREP
-COPY --from=src /src/dist/*.whl .
-RUN pip install --no-cache-dir $( ls *.whl )[container,test]
-
-RUN find $HOME -type d -exec chmod go=u {} + && \
-    find $HOME -type f -exec chmod go=u {} + && \
-    rm -rf $HOME/.npm $HOME/.conda $HOME/.empty
-
 # For detecting the container
 ENV IS_DOCKER_8395080871=1
 
 RUN ldconfig
 WORKDIR /tmp
-ENTRYPOINT ["/opt/conda/envs/fmriprep/bin/fmriprep"]
+ENTRYPOINT ["/app/.pixi/envs/fmriprep/bin/fmriprep"]
 
 ARG BUILD_DATE
 ARG VCS_REF
