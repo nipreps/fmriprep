@@ -142,6 +142,9 @@ tests = { features = ["tests", "test"], solve-group = "default" }
 
 [tool.pixi.tasks]
 
+[tool.pixi.pypi-options.dependency-overrides]
+numpy = ">=2.2"
+
 [tool.pixi.dependencies]
 python = "3.12.*"
 nodejs = "20.*"
