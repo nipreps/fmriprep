@@ -105,8 +105,6 @@ def init_bold_confs_wf(
         the FoV
     metadata : :obj:`dict`
         BIDS metadata for BOLD file
-    name : :obj:`str`
-        Name of workflow (default: ``bold_confs_wf``)
     regressors_all_comps : :obj:`bool`
         Indicates whether CompCor decompositions should return all
         components instead of the minimal number of components necessary
@@ -115,6 +113,11 @@ def init_bold_confs_wf(
         Criterion for flagging DVARS outliers
     regressors_fd_th : :obj:`float`
         Criterion for flagging framewise displacement outliers
+    freesurfer : :obj:`bool`
+        Set to ``True`` if the input volume fractions for the anatomical
+        component-based noise correction maps come from FreeSurfer's ``aseg``.
+    name : :obj:`str`
+        Name of workflow (default: ``bold_confs_wf``)
 
     Inputs
     ------
