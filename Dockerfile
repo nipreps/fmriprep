@@ -73,27 +73,6 @@ COPY docker/files/freesurfer7.3.2-exclude.txt /usr/local/etc/freesurfer7.3.2-exc
 RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer-linux-ubuntu22_amd64-7.3.2.tar.gz \
      | tar zxv --no-same-owner -C /opt --exclude-from=/usr/local/etc/freesurfer7.3.2-exclude.txt
 
-# AFNI
-FROM downloader AS afni
-# Bump the date to current to update AFNI
-RUN echo "2023.07.20"
-RUN mkdir -p /opt/afni-latest \
-    && curl -fsSL --retry 5 https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz \
-    | tar -xz -C /opt/afni-latest --strip-components 1 \
-    --exclude "linux_openmp_64/*.gz" \
-    --exclude "linux_openmp_64/funstuff" \
-    --exclude "linux_openmp_64/shiny" \
-    --exclude "linux_openmp_64/afnipy" \
-    --exclude "linux_openmp_64/lib/RetroTS" \
-    --exclude "linux_openmp_64/lib_RetroTS" \
-    --exclude "linux_openmp_64/meica.libs" \
-    # Keep only what we use
-    && find /opt/afni-latest -type f -not \( \
-        -name "3dTshift" -or \
-        -name "3dUnifize" -or \
-        -name "3dAutomask" -or \
-        -name "3dvolreg" \) -delete
-
 #
 # Main stage
 #
@@ -117,43 +96,27 @@ RUN apt-get update && \
                     xvfb && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Configure PPAs for libpng12 and libxp6
-RUN GNUPGHOME=/tmp gpg --keyserver hkps://keyserver.ubuntu.com --no-default-keyring --keyring /usr/share/keyrings/linuxuprising.gpg --recv 0xEA8CACC073C3DB2A \
-    && GNUPGHOME=/tmp gpg --keyserver hkps://keyserver.ubuntu.com --no-default-keyring --keyring /usr/share/keyrings/zeehio.gpg --recv 0xA1301338A3A48C4A \
-    && echo "deb [signed-by=/usr/share/keyrings/linuxuprising.gpg] https://ppa.launchpadcontent.net/linuxuprising/libpng12/ubuntu jammy main" > /etc/apt/sources.list.d/linuxuprising.list \
-    && echo "deb [signed-by=/usr/share/keyrings/zeehio.gpg] https://ppa.launchpadcontent.net/zeehio/libxp/ubuntu jammy main" > /etc/apt/sources.list.d/zeehio.list
-
-# Dependencies for AFNI; requires a discontinued multiarch-support package from bionic (18.04)
-RUN apt-get update -qq \
-    && apt-get install -y -q --no-install-recommends \
-           ed \
-           gsl-bin \
-           libglib2.0-0 \
-           libglu1-mesa-dev \
-           libglw1-mesa \
-           libgomp1 \
-           libjpeg62 \
-           libpng12-0 \
-           libxm4 \
-           libxp6 \
-           netpbm \
-           tcsh \
-           xfonts-base \
-           xvfb \
-    && curl -sSL --retry 5 -o /tmp/multiarch.deb http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/multiarch-support_2.27-3ubuntu1.5_amd64.deb \
-    && dpkg -i /tmp/multiarch.deb \
-    && rm /tmp/multiarch.deb \
-    && apt-get install -f \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && gsl2_path="$(find / -name 'libgsl.so.19' || printf '')" \
-    && if [ -n "$gsl2_path" ]; then \
-         ln -sfv "$gsl2_path" "$(dirname $gsl2_path)/libgsl.so.0"; \
-    fi \
-    && ldconfig
-
 # Install files from stages
 COPY --from=freesurfer /opt/freesurfer /opt/freesurfer
-COPY --from=afni /opt/afni-latest /opt/afni-latest
+
+# Install AFNI from Docker container
+# Find libraries with `ldd $BINARIES | grep afni`
+COPY --from=afni/afni_cmake_build:AFNI_25.2.08 \
+    /opt/afni/install/usr/local/lib/lib3DEdge.so  \
+    /opt/afni/install/usr/local/lib/libeispack.so  \
+    /opt/afni/install/usr/local/lib/libf2c.so  \
+    /opt/afni/install/usr/local/lib/libgiftiio.so.0  \
+    /opt/afni/install/usr/local/lib/libmri.so  \
+    /opt/afni/install/usr/local/lib/libnifti2.so.2  \
+    /opt/afni/install/usr/local/lib/libnifticdf.so.2  \
+    /opt/afni/install/usr/local/lib/libznz.so.3 \
+    /usr/local/lib
+COPY --from=afni/afni_cmake_build:AFNI_25.2.08 \
+    /opt/afni/install/usr/local/bin/3dAutomask \
+    /opt/afni/install/usr/local/bin/3dTshift \
+    /opt/afni/install/usr/local/bin/3dUnifize \
+    /opt/afni/install/usr/local/bin/3dvolreg \
+    /usr/local/bin
 
 # MSM HOCR (Nov 19, 2019 release)
 RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/ecr05/MSM_HOCR/releases/assets/16253707 -o /usr/local/bin/msm \
