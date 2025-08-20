@@ -119,6 +119,58 @@ raw-options = { version_scheme = "nipreps-calver" }
 [tool.hatch.build.hooks.vcs]
 version-file = "fmriprep/_version.py"
 
+[tool.pixi.workspace]
+channels = ["https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public", "conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+fmriprep = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+all = { features = ["all", "doc", "maint", "telemetry", "test"], solve-group = "default" }
+container = { features = ["container", "telemetry"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+doc = { features = ["doc"], solve-group = "default" }
+docs = { features = ["docs", "doc"], solve-group = "default" }
+duecredit = { features = ["duecredit"], solve-group = "default" }
+maint = { features = ["maint"], solve-group = "default" }
+resmon = { features = ["resmon"], solve-group = "default" }
+telemetry = { features = ["telemetry"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+tests = { features = ["tests", "test"], solve-group = "default" }
+
+[tool.pixi.tasks]
+
+[tool.pixi.pypi-options.dependency-overrides]
+numpy = ">=2.2"
+
+[tool.pixi.dependencies]
+python = "3.12.*"
+nodejs = "20.*"
+mkl = "2024.2.2.*"
+mkl-service = "2.4.2.*"
+git-annex = { version = "*", build = "alldep*" }
+numpy = "2.2.*"
+scipy = "1.15.*"
+matplotlib = "3.10.*"
+pandas = "2.2.*"
+h5py = "3.13.*"
+nitime = "0.11.*"
+scikit-image = "0.25.*"
+scikit-learn = "1.6.*"
+graphviz = "12.2.*"
+pandoc = "3.7.*"
+ants = "2.6.*"
+connectome-workbench-cli = "2.0.*"
+fsl-bet2 = "2111.8.*"
+fsl-flirt = "2111.4.*"
+fsl-fast4 = "2111.3.*"
+fsl-fugue = "2201.5.*"
+fsl-mcflirt = "2111.0.*"
+fsl-miscmaths = "2412.4.*"
+fsl-topup = "2203.5.*"
+
 #
 # Developer tool configurations
 #

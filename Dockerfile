@@ -26,12 +26,29 @@
 ARG BASE_IMAGE=ubuntu:jammy-20240125
 
 #
-# Build wheel
+# Build pixi environment
 #
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS src
-RUN apk add git
+FROM ghcr.io/prefix-dev/pixi:0.53.0 AS build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    ca-certificates \
+                    git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 COPY . /src
-RUN uvx --from build pyproject-build --installer uv -w /src
+WORKDIR /src
+RUN pixi config set --local run-post-link-scripts insecure
+RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e container --frozen
+RUN pixi shell-hook -e container --frozen > /shell-hook.sh
+RUN --mount=type=cache,target=/root/.npm pixi run -e container npm install -g svgo@^3.2.0 bids-validator@1.14.10
+
+#
+# Pre-fetch templates
+#
+FROM ghcr.io/astral-sh/uv:python3.12-alpine AS templates
+ENV TEMPLATEFLOW_HOME="/templateflow"
+RUN uv pip install --system templateflow
+COPY scripts/fetch_templates.py fetch_templates.py
+RUN python fetch_templates.py
 
 #
 # Download stages
@@ -56,55 +73,6 @@ COPY docker/files/freesurfer7.3.2-exclude.txt /usr/local/etc/freesurfer7.3.2-exc
 RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.3.2/freesurfer-linux-ubuntu22_amd64-7.3.2.tar.gz \
      | tar zxv --no-same-owner -C /opt --exclude-from=/usr/local/etc/freesurfer7.3.2-exclude.txt
 
-# AFNI
-FROM downloader AS afni
-# Bump the date to current to update AFNI
-RUN echo "2023.07.20"
-RUN mkdir -p /opt/afni-latest \
-    && curl -fsSL --retry 5 https://afni.nimh.nih.gov/pub/dist/tgz/linux_openmp_64.tgz \
-    | tar -xz -C /opt/afni-latest --strip-components 1 \
-    --exclude "linux_openmp_64/*.gz" \
-    --exclude "linux_openmp_64/funstuff" \
-    --exclude "linux_openmp_64/shiny" \
-    --exclude "linux_openmp_64/afnipy" \
-    --exclude "linux_openmp_64/lib/RetroTS" \
-    --exclude "linux_openmp_64/lib_RetroTS" \
-    --exclude "linux_openmp_64/meica.libs" \
-    # Keep only what we use
-    && find /opt/afni-latest -type f -not \( \
-        -name "3dTshift" -or \
-        -name "3dUnifize" -or \
-        -name "3dAutomask" -or \
-        -name "3dvolreg" \) -delete
-
-# Micromamba
-FROM downloader AS micromamba
-
-# Install a C compiler to build extensions when needed.
-# traits<6.4 wheels are not available for Python 3.11+, but build easily.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-WORKDIR /
-# Bump the date to current to force update micromamba
-RUN echo "2024.02.06"
-RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
-
-ENV MAMBA_ROOT_PREFIX="/opt/conda"
-COPY env.yml /tmp/env.yml
-COPY requirements.txt /tmp/requirements.txt
-WORKDIR /tmp
-RUN micromamba create -y -f /tmp/env.yml && \
-    micromamba clean -y -a
-
-# UV_USE_IO_URING for apparent race-condition (https://github.com/nodejs/node/issues/48444)
-# Check if this is still necessary when updating the base image.
-ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH" \
-    UV_USE_IO_URING=0
-RUN npm install -g svgo@^3.2.0 bids-validator@1.14.10 && \
-    rm -r ~/.npm
-
 #
 # Main stage
 #
@@ -128,43 +96,31 @@ RUN apt-get update && \
                     xvfb && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Configure PPAs for libpng12 and libxp6
-RUN GNUPGHOME=/tmp gpg --keyserver hkps://keyserver.ubuntu.com --no-default-keyring --keyring /usr/share/keyrings/linuxuprising.gpg --recv 0xEA8CACC073C3DB2A \
-    && GNUPGHOME=/tmp gpg --keyserver hkps://keyserver.ubuntu.com --no-default-keyring --keyring /usr/share/keyrings/zeehio.gpg --recv 0xA1301338A3A48C4A \
-    && echo "deb [signed-by=/usr/share/keyrings/linuxuprising.gpg] https://ppa.launchpadcontent.net/linuxuprising/libpng12/ubuntu jammy main" > /etc/apt/sources.list.d/linuxuprising.list \
-    && echo "deb [signed-by=/usr/share/keyrings/zeehio.gpg] https://ppa.launchpadcontent.net/zeehio/libxp/ubuntu jammy main" > /etc/apt/sources.list.d/zeehio.list
-
-# Dependencies for AFNI; requires a discontinued multiarch-support package from bionic (18.04)
-RUN apt-get update -qq \
-    && apt-get install -y -q --no-install-recommends \
-           ed \
-           gsl-bin \
-           libglib2.0-0 \
-           libglu1-mesa-dev \
-           libglw1-mesa \
-           libgomp1 \
-           libjpeg62 \
-           libpng12-0 \
-           libxm4 \
-           libxp6 \
-           netpbm \
-           tcsh \
-           xfonts-base \
-           xvfb \
-    && curl -sSL --retry 5 -o /tmp/multiarch.deb http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/multiarch-support_2.27-3ubuntu1.5_amd64.deb \
-    && dpkg -i /tmp/multiarch.deb \
-    && rm /tmp/multiarch.deb \
-    && apt-get install -f \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && gsl2_path="$(find / -name 'libgsl.so.19' || printf '')" \
-    && if [ -n "$gsl2_path" ]; then \
-         ln -sfv "$gsl2_path" "$(dirname $gsl2_path)/libgsl.so.0"; \
-    fi \
-    && ldconfig
-
 # Install files from stages
 COPY --from=freesurfer /opt/freesurfer /opt/freesurfer
-COPY --from=afni /opt/afni-latest /opt/afni-latest
+
+# Install AFNI from Docker container
+# Find libraries with `ldd $BINARIES | grep afni`
+COPY --from=afni/afni_cmake_build:AFNI_25.2.08 \
+    /opt/afni/install/usr/local/lib/lib3DEdge.so  \
+    /opt/afni/install/usr/local/lib/libeispack.so  \
+    /opt/afni/install/usr/local/lib/libf2c.so  \
+    /opt/afni/install/usr/local/lib/libgiftiio.so.0  \
+    /opt/afni/install/usr/local/lib/libmri.so  \
+    /opt/afni/install/usr/local/lib/libnifti2.so.2  \
+    /opt/afni/install/usr/local/lib/libnifticdf.so.2  \
+    /opt/afni/install/usr/local/lib/libznz.so.3 \
+    /usr/local/lib
+COPY --from=afni/afni_cmake_build:AFNI_25.2.08 \
+    /opt/afni/install/usr/local/bin/3dAutomask \
+    /opt/afni/install/usr/local/bin/3dTshift \
+    /opt/afni/install/usr/local/bin/3dUnifize \
+    /opt/afni/install/usr/local/bin/3dvolreg \
+    /usr/local/bin
+
+# MSM HOCR (Nov 19, 2019 release)
+RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/ecr05/MSM_HOCR/releases/assets/16253707 -o /usr/local/bin/msm \
+    && chmod +x /usr/local/bin/msm
 
 # Simulate SetUpFreeSurfer.sh
 ENV OS="Linux" \
@@ -191,31 +147,20 @@ ENV PATH="/opt/afni-latest:$PATH" \
 # Create a shared $HOME directory
 RUN useradd -m -s /bin/bash -G users fmriprep
 WORKDIR /home/fmriprep
-ENV HOME="/home/fmriprep" \
-    LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+ENV HOME="/home/fmriprep"
 
-COPY --from=micromamba /bin/micromamba /bin/micromamba
-COPY --from=micromamba /opt/conda/envs/fmriprep /opt/conda/envs/fmriprep
+COPY --from=templates /templateflow /home/fmriprep/.cache/templateflow
 
-ENV MAMBA_ROOT_PREFIX="/opt/conda"
-RUN micromamba shell init -s bash && \
-    echo "micromamba activate fmriprep" >> $HOME/.bashrc
-ENV PATH="/opt/conda/envs/fmriprep/bin:$PATH" \
-    CPATH="/opt/conda/envs/fmriprep/include:$CPATH" \
-    LD_LIBRARY_PATH="/opt/conda/envs/fmriprep/lib:$LD_LIBRARY_PATH"
-
-# Precaching atlases
-COPY scripts/fetch_templates.py fetch_templates.py
-RUN python fetch_templates.py && \
-    rm fetch_templates.py && \
-    find $HOME/.cache/templateflow -type d -exec chmod go=u {} + && \
-    find $HOME/.cache/templateflow -type f -exec chmod go=u {} +
+COPY --from=build /src/.pixi/envs/container /opt/pixi/envs/fmriprep
+COPY --from=build /shell-hook.sh /shell-hook.sh
+RUN cat /shell-hook.sh >> $HOME/.bashrc
+ENV PATH="/opt/pixi/envs/fmriprep/bin:$PATH"
 
 # FSL environment
 ENV LANG="C.UTF-8" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1 \
-    FSLDIR="/opt/conda/envs/fmriprep" \
+    FSLDIR="/opt/pixi/envs/fmriprep" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLLOCKDIR="" \
@@ -227,18 +172,6 @@ ENV LANG="C.UTF-8" \
 # will handle parallelization
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
-
-# MSM HOCR (Nov 19, 2019 release)
-RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/ecr05/MSM_HOCR/releases/assets/16253707 -o /usr/local/bin/msm \
-    && chmod +x /usr/local/bin/msm
-
-# Installing FMRIPREP
-COPY --from=src /src/dist/*.whl .
-RUN pip install --no-cache-dir $( ls *.whl )[container,test]
-
-RUN find $HOME -type d -exec chmod go=u {} + && \
-    find $HOME -type f -exec chmod go=u {} + && \
-    rm -rf $HOME/.npm $HOME/.conda $HOME/.empty
 
 # For detecting the container
 ENV IS_DOCKER_8395080871=1
