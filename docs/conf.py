@@ -69,8 +69,8 @@ templates_path = ['_templates']
 # https://github.com/sphinx-contrib/napoleon/pull/10 is merged.
 napoleon_use_param = False
 napoleon_custom_sections = [
-    ('Inputs', 'Parameters'),
-    ('Outputs', 'Parameters'),
+    ('Inputs', 'params_style'),
+    ('Outputs', 'returns_style'),
 ]
 
 # The suffix(es) of source filenames.
