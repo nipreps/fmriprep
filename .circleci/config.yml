@@ -199,6 +199,8 @@ jobs:
       - run:
           name: Check Docker image
           command: |
+            hatch version
+            docker run --rm nipreps/fmriprep:latest --version
             # Get version, update files.
             THISVERSION=$( hatch version )
             BUILT_VERSION=$( docker run --rm nipreps/fmriprep:latest --version )
