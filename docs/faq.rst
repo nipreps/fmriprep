@@ -290,8 +290,8 @@ Some examples follow:
 
 * Surgery: use only pre-operation sessions for the anatomical data. This will typically be done
   by omitting post-operation sessions from the inputs to *fMRIPrep*.
-* Developing and elderly populations: there is currently no standard way of processing these.
-  However, `as suggested by U. Tooley at NeuroStars.org
+* Developing and elderly populations: ``--subject-anatomical-reference sessionwise`` will process each session independently.
+  Additionally, `as suggested by U. Tooley at NeuroStars.org
   <https://neurostars.org/t/fmriprep-how-to-reuse-longitudinal-and-pre-run-freesurfer/4585/15>`__,
   it is theoretically possible to leverage the *anatomical fast-track* along with the
   ``--bids-filters`` option to process sessions fully independently, or grouped by some study-design

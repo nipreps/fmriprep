@@ -174,15 +174,22 @@ Your ``.bidsignore`` file should include the following line::
 
 Longitudinal processing
 ~~~~~~~~~~~~~~~~~~~~~~~
-In the case of multiple T1w images (across sessions and/or runs), T1w images are
-merged into a single template image using FreeSurfer's `mri_robust_template`_.
-This template may be *unbiased*, or equidistant from all source images, or
-aligned to the first image (determined lexicographically by session label).
+In the case of multiple T1w images (across sessions and/or runs), *fMRIPrep* provides
+a few choices on how to generate the reference anatomical space.
+
+If ``--subject-anatomical-reference first-lex`` is used, all T1w images are
+merged into a single template image using FreeSurfer's `mri_robust_template`_,
+aligned to the first image (determined lexicographically by session label). This is
+the default behavior.
+
+If ``--subject-anatomical-reference unbiased`` is used, all T1w images are merged into
+an *unbiased* template, equidistant from all source images.
 For two images, the additional cost of estimating an unbiased template is trivial,
 but aligning three or more images is too expensive to justify being the default behavior.
-For consistency, in the case of multiple images, *fMRIPrep* constructs
-templates aligned to the first image, unless passed the ``--longitudinal``
-flag, which forces the estimation of an unbiased template.
+
+If ``--subject-anatomical-reference sessionwise`` is used, a reference template will be
+generated for each session independently. If multiple T1w images are found within a session,
+the images will be aligned to the first image, sorted lexicographically, from that session.
 
 .. note::
 

@@ -67,7 +67,13 @@ def run_reports(
 
 
 def generate_reports(
-    subject_list, output_dir, run_uuid, session_list=None, bootstrap_file=None, work_dir=None
+    subject_list: list[str] | str,
+    output_dir: Path | str,
+    run_uuid: str,
+    session_list: list[str] | str | None = None,
+    bootstrap_file: Path | str | None = None,
+    work_dir: Path | str | None = None,
+    sessionwise: bool = False,
 ):
     """Generate reports for a list of subjects."""
     reportlets_dir = None
@@ -100,21 +106,22 @@ def generate_reports(
             bootstrap_file = data.load('reports-spec-anat.yml')
             html_report = f'sub-{subject_label}_anat.html'
 
-        report_error = run_reports(
-            output_dir,
-            subject_label,
-            run_uuid,
-            bootstrap_file=bootstrap_file,
-            out_filename=html_report,
-            reportlets_dir=reportlets_dir,
-            errorname=f'report-{run_uuid}-{subject_label}.err',
-            subject=subject_label,
-        )
-        # If the report generation failed, append the subject label for which it failed
-        if report_error is not None:
-            errors.append(report_error)
+        if not sessionwise:
+            report_error = run_reports(
+                output_dir,
+                subject_label,
+                run_uuid,
+                bootstrap_file=bootstrap_file,
+                out_filename=html_report,
+                reportlets_dir=reportlets_dir,
+                errorname=f'report-{run_uuid}-{subject_label}.err',
+                subject=subject_label,
+            )
+            # If the report generation failed, append the subject label for which it failed
+            if report_error is not None:
+                errors.append(report_error)
 
-        if n_ses > config.execution.aggr_ses_reports:
+        if (n_ses > config.execution.aggr_ses_reports) or sessionwise:
             # Beyond a certain number of sessions per subject,
             # we separate the functional reports per session
             if session_list is None:
@@ -124,11 +131,15 @@ def generate_reports(
                     subject=subject_label, **filters
                 )
 
-            session_list = [ses.removeprefix('ses-') for ses in session_list]
-
             for session_label in session_list:
-                bootstrap_file = data.load('reports-spec-func.yml')
-                html_report = f'sub-{subject_label}_ses-{session_label}_func.html'
+                session_label = session_label.removeprefix('ses-')
+                if sessionwise:
+                    # Include the anatomical as well
+                    bootstrap_file = data.load('reports-spec.yml')
+                    html_report = f'sub-{subject_label}_ses-{session_label}.html'
+                else:
+                    bootstrap_file = data.load('reports-spec-func.yml')
+                    html_report = f'sub-{subject_label}_ses-{session_label}_func.html'
 
                 report_error = run_reports(
                     output_dir,
