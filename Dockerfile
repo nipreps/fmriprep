@@ -52,13 +52,14 @@ RUN pixi config set --global run-post-link-scripts insecure
 RUN mkdir /app
 COPY pixi.lock pyproject.toml /app
 WORKDIR /app
-RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep --frozen --skip fmriprep
+RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep -e test --frozen --skip fmriprep
 RUN --mount=type=cache,target=/root/.npm pixi run --as-is -e fmriprep npm install -g svgo@^3.2.0 bids-validator@1.14.10
 RUN pixi shell-hook -e fmriprep --as-is > /shell-hook.sh
+RUN pixi shell-hook -e test --as-is > /test-shell-hook.sh
 
 # Finally, install the package
 COPY . /app
-RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep --frozen
+RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep -e test --frozen
 
 #
 # Pre-fetch templates
@@ -104,7 +105,7 @@ RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/e
 #
 # Main stage
 #
-FROM ${BASE_IMAGE} AS fmriprep
+FROM ${BASE_IMAGE} AS base
 
 # Configure apt
 ENV DEBIAN_FRONTEND="noninteractive" \
@@ -173,17 +174,10 @@ ENV HOME="/home/fmriprep"
 
 COPY --link --from=templates /templateflow /home/fmriprep/.cache/templateflow
 
-# Keep synced with wrapper's PKG_PATH
-COPY --link --from=build /app/.pixi/envs/fmriprep /app/.pixi/envs/fmriprep
-COPY --link --from=build /shell-hook.sh /shell-hook.sh
-RUN cat /shell-hook.sh >> $HOME/.bashrc
-ENV PATH="/app/.pixi/envs/fmriprep/bin:$PATH"
-
 # FSL environment
 ENV LANG="C.UTF-8" \
     LC_ALL="C.UTF-8" \
     PYTHONNOUSERSITE=1 \
-    FSLDIR="/app/.pixi/envs/fmriprep" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLLOCKDIR="" \
@@ -196,11 +190,30 @@ ENV LANG="C.UTF-8" \
 ENV MKL_NUM_THREADS=1 \
     OMP_NUM_THREADS=1
 
+WORKDIR /tmp
+
+FROM base AS test
+
+COPY --link --from=build /app/.pixi/envs/test /app/.pixi/envs/test
+COPY --link --from=build /test-shell-hook.sh /shell-hook.sh
+RUN cat /shell-hook.sh >> $HOME/.bashrc
+ENV PATH="/app/.pixi/envs/test/bin:$PATH"
+
+ENV FSLDIR="/app/.pixi/envs/test"
+
+FROM base AS fmriprep
+
+# Keep synced with wrapper's PKG_PATH
+COPY --link --from=build /app/.pixi/envs/fmriprep /app/.pixi/envs/fmriprep
+COPY --link --from=build /shell-hook.sh /shell-hook.sh
+RUN cat /shell-hook.sh >> $HOME/.bashrc
+ENV PATH="/app/.pixi/envs/fmriprep/bin:$PATH"
+
+ENV FSLDIR="/app/.pixi/envs/fmriprep"
+
 # For detecting the container
 ENV IS_DOCKER_8395080871=1
 
-RUN ldconfig
-WORKDIR /tmp
 ENTRYPOINT ["/app/.pixi/envs/fmriprep/bin/fmriprep"]
 
 ARG BUILD_DATE
