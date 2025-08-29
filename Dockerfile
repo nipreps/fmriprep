@@ -54,8 +54,9 @@ COPY pixi.lock pyproject.toml /app
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep -e test --frozen --skip fmriprep
 RUN --mount=type=cache,target=/root/.npm pixi run --as-is -e fmriprep npm install -g svgo@^3.2.0 bids-validator@1.14.10
-RUN pixi shell-hook -e fmriprep --as-is > /shell-hook.sh
-RUN pixi shell-hook -e test --as-is > /test-shell-hook.sh
+# Note that PATH gets hard-coded. Remove it and re-apply in final image
+RUN pixi shell-hook -e fmriprep --as-is | grep -v PATH > /shell-hook.sh
+RUN pixi shell-hook -e test --as-is | grep -v PATH > /test-shell-hook.sh
 
 # Finally, install the package
 COPY . /app
@@ -118,6 +119,8 @@ RUN apt-get update && \
                     bc \
                     ca-certificates \
                     curl \
+                    libgomp1 \
+                    libopenblas0-openmp \
                     lsb-release \
                     netbase \
                     xvfb && \
