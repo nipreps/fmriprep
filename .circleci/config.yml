@@ -40,6 +40,12 @@ _pull_from_registry: &pull_from_registry
     docker pull localhost:5000/fmriprep
     docker tag localhost:5000/fmriprep nipreps/fmriprep:latest
 
+_pull_test_image_from_registry: &pull_test_image_from_registry
+  name: Pull and tag image from local registry
+  command: |
+    docker pull localhost:5000/fmriprep-test
+    docker tag localhost:5000/fmriprep-test nipreps/fmriprep:test
+
 _check_skip_job: &check_skip_job
   name: Check commit message and determine if job should be skipped
   command: |
@@ -172,7 +178,7 @@ jobs:
           name: Create named builder
           command: docker buildx create --use --name=builder --driver=docker-container
       - run:
-          name: Build Docker image
+          name: Build Docker image (production environment)
           no_output_timeout: 60m
           command: |
             pyenv local 3
@@ -195,9 +201,19 @@ jobs:
                 --build-arg VCS_REF=`git rev-parse --short HEAD` \
                 --build-arg VERSION="${CIRCLE_TAG:-$THISVERSION}" .
       - run:
+          name: Build Docker image (test environment)
+          no_output_timeout: 60m
+          command: |
+            docker buildx build --load --builder builder \
+                --cache-from localhost:5000/fmriprep \
+                --cache-from nipreps/fmriprep:latest \
+                -t nipreps/fmriprep:test \
+                --platform linux/amd64 \
+                --target test .
+      - run:
           command: docker images
       - run:
-          name: Check Docker image
+          name: Check Docker image (production)
           command: |
             # Get version, update files.
             THISVERSION=$( hatch version )
@@ -209,11 +225,18 @@ jobs:
             set -e
             test "$BUILT_VERSION" = "$THISVERSION"
       - run:
+          name: Check Docker image (test)
+          command: |
+            docker run --rm nipreps/fmriprep:test fmriprep --version
+            docker run --rm nipreps/fmriprep:test pytest --version
+      - run:
           name: Docker push to local registry
           no_output_timeout: 40m
           command: |
             docker tag nipreps/fmriprep:latest localhost:5000/fmriprep
+            docker tag nipreps/fmriprep:test localhost:5000/fmriprep-test
             docker push localhost:5000/fmriprep
+            docker push localhost:5000/fmriprep-test
       - run:
           name: Docker registry garbage collection
           command: |
@@ -368,14 +391,14 @@ jobs:
       - docker/install-docker-credential-helper
       - run: *docker_auth
       - run: *setup_docker_registry
-      - run: *pull_from_registry
+      - run: *pull_test_image_from_registry
       - run:
           name: Run fMRIPrep tests
           no_output_timeout: 2h
           command: |
             docker run -ti --rm=false \
               -e TEST_READONLY_FILESYSTEM=1 -v $HOME:/home/readonly:ro \
-              --entrypoint="pytest" nipreps/fmriprep:latest \
+              --entrypoint="pytest" nipreps/fmriprep:test \
               --pyargs fmriprep -svx --doctest-modules
 
       - run:

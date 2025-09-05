@@ -81,3 +81,6 @@ local_settings.py
 *.swp
 
 _version.py
+# pixi environments
+.pixi/*
+!.pixi/config.toml
