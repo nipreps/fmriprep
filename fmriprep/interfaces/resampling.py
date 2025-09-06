@@ -54,12 +54,12 @@ class ResampleSeriesInputSpec(TraitedSpec):
     output_data_type = traits.Str('float32', usedefault=True, desc='Data type of output image')
     order = traits.Int(3, usedefault=True, desc='Order of interpolation (0=nearest, 3=cubic)')
     mode = traits.Enum(
+        'grid-constant',
         'nearest',
         'constant',
         'mirror',
         'reflect',
         'wrap',
-        'grid-constant',
         'grid-mirror',
         'grid-wrap',
         usedefault=True,
