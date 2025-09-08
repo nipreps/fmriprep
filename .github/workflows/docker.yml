@@ -67,6 +67,7 @@ jobs:
           platforms: linux/amd64
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:gha-docker-build
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_BRANCH }}
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags[0] }}
           cache-to: type=inline
