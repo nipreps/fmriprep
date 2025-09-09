@@ -47,15 +47,22 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Clear up space
-        run: |
-          df -h
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          echo "$AGENT_TOOLSDIRECTORY"
-          ls -ld "$AGENT_TOOLSDIRECTORY"
-          # sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          df -h
+      - run: df -h
+
+      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
+          tool-cache: true
+
+          # All of these default to true, but feel free to set to "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - run: df -h
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
