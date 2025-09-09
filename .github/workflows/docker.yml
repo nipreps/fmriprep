@@ -49,20 +49,20 @@ jobs:
 
       - run: df -h
 
-      - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
-          tool-cache: true
+      # - name: Free Up GitHub Actions Ubuntu Runner Disk Space 🔧
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     # This might remove tools that are actually needed, if set to "true" but frees about 6 GB
+      #     tool-cache: true
 
-          # All of these default to true, but feel free to set to "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
+      #     # All of these default to true, but feel free to set to "false" if necessary for your workflow
+      #     android: true
+      #     dotnet: true
+      #     haskell: true
+      #     large-packages: true
+      #     swap-storage: true
 
-      - run: df -h
+      # - run: df -h
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -72,10 +72,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          # cache-from: |
-          #   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:gha-docker-build
-          #   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_BRANCH }}
-          #   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags[0] }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:gha-docker
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_BRANCH }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags[0] }}
           cache-to: type=inline
         env:
           TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
