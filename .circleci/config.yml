@@ -175,9 +175,6 @@ jobs:
       - run: *docker_auth
       - run: *setup_docker_registry
       - run:
-          name: Create named builder
-          command: docker buildx create --use --name=builder --driver=docker-container
-      - run:
           name: Build Docker image (production environment)
           no_output_timeout: 60m
           command: |
@@ -192,7 +189,7 @@ jobs:
               echo "them to your fork with ``git push origin --tags``"
             fi
             # Build docker image
-            docker buildx build --load --builder builder \
+            docker buildx build --load \
                 --cache-from localhost:5000/fmriprep \
                 --cache-from nipreps/fmriprep:latest \
                 -t nipreps/fmriprep:latest \
@@ -204,8 +201,7 @@ jobs:
           name: Build Docker image (test environment)
           no_output_timeout: 60m
           command: |
-            docker buildx build --load --builder builder \
-                --cache-from localhost:5000/fmriprep \
+            docker buildx build --load \
                 --cache-from nipreps/fmriprep:latest \
                 -t nipreps/fmriprep:test \
                 --platform linux/amd64 \
