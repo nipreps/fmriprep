@@ -534,7 +534,7 @@ It is released under the [CC0]\
             )
             resample_surfaces_wf = init_resample_surfaces_wf(
                 surfaces=['white', 'pial', 'midthickness'],
-                grayord_density=config.workflow.cifti_output,
+                density=config.workflow.cifti_output,
             )
             ds_grayord_metrics_wf = init_ds_grayord_metrics_wf(
                 bids_root=bids_root,

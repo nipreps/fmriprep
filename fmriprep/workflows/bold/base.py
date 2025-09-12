@@ -184,8 +184,9 @@ def init_bold_wf(
         return
 
     config.loggers.workflow.debug(
-        f'Creating bold processing workflow for <{bold_file}> ({mem_gb["filesize"]:.2f} GB / {nvols} TRs). '
-        f'Memory resampled/largemem={mem_gb["resampled"]:.2f}/{mem_gb["largemem"]:.2f} GB.'
+        f'Creating bold processing workflow for <{bold_file}> ({mem_gb["filesize"]:.2f} GB / '
+        f'{nvols} TRs). Memory resampled/largemem={mem_gb["resampled"]:.2f}/'
+        f'{mem_gb["largemem"]:.2f} GB.'
     )
 
     workflow = Workflow(name=_get_wf_name(bold_file, 'bold'))
@@ -503,23 +504,54 @@ configured with cubic B-spline interpolation.
             (merge_bold_sources, ds_bold_std_wf, [('out', 'inputnode.source_files')]),
         ])  # fmt:skip
 
-    surf_std = spaces.get_standard(dim=(2,))
-    if surf_std:  # Probably ensure reconall and msmsulc are run
+    # Goodvoxels mask might be needed in any surface resampling
+    if config.workflow.project_goodvoxels:
+        from .resampling import init_goodvoxels_bold_mask_wf
+
+        goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
+        ds_goodvoxels_mask = pe.Node(
+            DerivativesDataSink(
+                base_directory=fmriprep_dir,
+                dismiss_entities=dismiss_echo(),
+                compress=True,
+                space='T1w',
+                desc='goodvoxels',
+                suffix='mask',
+            ),
+            name='ds_goodvoxels_mask',
+            run_without_submitting=True,
+        )
+        ds_goodvoxels_mask.inputs.source_file = bold_file
+
+        workflow.__desc__ += """\
+A "goodvoxels" mask was applied during volume-to-surface sampling, excluding
+voxels whose time-series have a locally high coefficient of variation.
+"""
+        workflow.connect([
+            (inputnode, goodvoxels_bold_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
+            (bold_anat_wf, goodvoxels_bold_mask_wf, [
+                ('outputnode.bold_file', 'inputnode.bold_file'),
+            ]),
+            (goodvoxels_bold_mask_wf, ds_goodvoxels_mask, [
+                    ('outputnode.goodvoxels_mask', 'in_file'),
+                ]),
+        ])  # fmt:skip
+
+    surf_std = spaces.get_nonstandard(dim=(2,))
+    if surf_std and config.workflow.run_reconall and config.workflow.cifti_output:
         workflow.__postdesc__ += """\
 Non-gridded (surface) resamplings were performed using the Connectome
 Workbench.
 """
         config.loggers.workflow.debug('Creating BOLD surface workbench resampling workflow.')
-        from smriprep.workflows.surfaces import init_resample_surfaces_wb_wf
+        from smriprep.workflows.surfaces import init_resample_surfaces_wf
 
         from .resampling import (
-            init_goodvoxels_bold_mask_wf,
             init_wb_surf_surf_wf,
             init_wb_vol_surf_wf,
         )
 
         wb_vol_surf_wf = init_wb_vol_surf_wf(
-            name='wb_vol_surf_wf',
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb['resampled'],
             dilate=True,
@@ -539,33 +571,28 @@ Workbench.
             goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
 
             workflow.connect([
-                (inputnode, goodvoxels_bold_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
-                (bold_anat_wf, goodvoxels_bold_mask_wf, [
-                    ('outputnode.bold_file', 'inputnode.bold_file'),
-                ]),
                 (goodvoxels_bold_mask_wf, wb_vol_surf_wf, [
                     ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
                 ]),
             ])  # fmt:skip
-            workflow.__desc__ += """\
-A "goodvoxels" mask was applied during volume-to-surface sampling, excluding
-voxels whose time-series have a locally high coefficient of variation.
-"""
 
         for ref_ in surf_std:
-            space, den = ref_.space, ref_.spec['den']
+            template = ref_.space
+            density = ref_.spec.get('density') or ref_.spec.get('den') or None
+            if density is None:
+                config.loggers.warning(f'Cannot resample {ref_} without density specified.')
+                continue
 
-            resample_surfaces_wb_wf = init_resample_surfaces_wb_wf(
-                name=f'resample_surfaces_wb_wf_{space}_{den}',
+            resample_surfaces_wb_wf = init_resample_surfaces_wf(
+                name=f'resample_surfaces_wb_wf_{template}_{density}',
                 surfaces=['midthickness'],
-                space=space,
-                density=den,
+                template=template,
+                density=density,
             )
 
             wb_surf_surf_wf = init_wb_surf_surf_wf(
-                space=space,
-                density=den,
-                name=f'wb_surf_surf_wf_{space}_{den}',
+                template=template,
+                density=density,
                 omp_nthreads=omp_nthreads,
                 mem_gb=mem_gb['resampled'],
             )
@@ -575,16 +602,15 @@ voxels whose time-series have a locally high coefficient of variation.
                     base_directory=fmriprep_dir,
                     hemi=['L', 'R'],
                     dismiss_entities=dismiss_echo(),
-                    space=space,
-                    density=den,
+                    space=template,
+                    density=density,
                     suffix='bold',
-                    # compress=False, # not sure if needed for gii.
                     TaskName=all_metadata[0].get('TaskName'),
                     extension='.func.gii',
                     **prepare_timing_parameters(all_metadata[0]),
                 ),
                 iterfield=('in_file', 'hemi'),
-                name=f'ds_bold_surf_wb_{space}_{den}',
+                name=f'ds_bold_surf_wb_{template}_{density}',
                 run_without_submitting=True,
             )
             ds_bold_surf_wb.inputs.source_file = bold_file
@@ -599,12 +625,10 @@ voxels whose time-series have a locally high coefficient of variation.
                 ]),
                 (inputnode, wb_surf_surf_wf, [
                     ('midthickness', 'inputnode.midthickness'),
-                    # # TODO: check inputnode.midthickness_resampled
-                    # ('midthickness_resampled', 'inputnode.midthickness_resampled'),
                     ('sphere_reg_fsLR', 'inputnode.sphere_reg_fsLR'),
                 ]),
                 (resample_surfaces_wb_wf, wb_surf_surf_wf, [
-                    ('outputnode.midthickness_resampled', 'inputnode.midthickness_resampled'),
+                    ('outputnode.midthickness', 'inputnode.midthickness_resampled'),
                 ]),
                 (wb_surf_surf_wf, ds_bold_surf_wb, [
                     ('outputnode.bold_resampled', 'in_file'),
@@ -659,7 +683,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         from .resampling import (
             init_bold_fsLR_resampling_wf,
             init_bold_grayords_wf,
-            init_goodvoxels_bold_mask_wf,
         )
 
         bold_MNI6_wf = init_bold_volumetric_resample_wf(
@@ -678,41 +701,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         )
 
         if config.workflow.project_goodvoxels:
-            goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
-
             workflow.connect([
-                (inputnode, goodvoxels_bold_mask_wf, [('anat_ribbon', 'inputnode.anat_ribbon')]),
-                (bold_anat_wf, goodvoxels_bold_mask_wf, [
-                    ('outputnode.bold_file', 'inputnode.bold_file'),
-                ]),
-            ])  # fmt:skip
-
-            ds_goodvoxels_mask = pe.Node(
-                DerivativesDataSink(
-                    base_directory=fmriprep_dir,
-                    dismiss_entities=dismiss_echo(),
-                    compress=True,
-                    space='T1w',
-                    desc='goodvoxels',
-                    suffix='mask',
-                ),
-                name='ds_goodvoxels_mask',
-                run_without_submitting=True,
-            )
-            ds_goodvoxels_mask.inputs.source_file = bold_file
-            workflow.connect([
-                (goodvoxels_bold_mask_wf, ds_goodvoxels_mask, [
-                    ('outputnode.goodvoxels_mask', 'in_file'),
-                ]),
                 (goodvoxels_bold_mask_wf, bold_fsLR_resampling_wf, [
                     ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
                 ]),
             ])  # fmt:skip
-
-            bold_fsLR_resampling_wf.__desc__ += """\
-A "goodvoxels" mask was applied during volume-to-surface sampling in fsLR space,
-excluding voxels whose time-series have a locally high coefficient of variation.
-"""
 
         bold_grayords_wf = init_bold_grayords_wf(
             grayord_density=config.workflow.cifti_output,

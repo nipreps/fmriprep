@@ -629,13 +629,13 @@ using the "ribbon-constrained" method
         mem_gb=mem_gb * 3,
         n_procs=omp_nthreads,
     )
-    if dilate:
-        metric_dilate = pe.Node(
-            MetricDilate(distance=10, nearest=True),
-            name='metric_dilate',
-            mem_gb=1,
-            n_procs=omp_nthreads,
-        )
+
+    metric_dilate = pe.Node(
+        MetricDilate(distance=10, nearest=True),
+        name='metric_dilate',
+        mem_gb=1,
+        n_procs=omp_nthreads,
+    )
 
     workflow.connect([
         (inputnode, select_surfaces, [
@@ -653,41 +653,29 @@ using the "ribbon-constrained" method
             ('white', 'inner_surface'),
             ('pial', 'outer_surface'),
         ]),
+        (joinnode, outputnode, [('bold_fsnative', 'bold_fsnative')]),
     ])  # fmt:skip
+
     if dilate:
         workflow.connect([
-            (select_surfaces, metric_dilate, [
-                ('midthickness', 'surf_file'),
-            ]),
-            (volume_to_surface, metric_dilate, [
-                ('out_file', 'in_file'),
-            ]),
-            (metric_dilate, joinnode, [
-                ('out_file', 'bold_fsnative'),
-            ]),
-            (joinnode, outputnode, [
-                ('bold_fsnative', 'bold_fsnative'),
-            ]),
+            (select_surfaces, metric_dilate, [('midthickness', 'surf_file')]),
+            (volume_to_surface, metric_dilate, [('out_file', 'in_file')]),
+            (metric_dilate, joinnode, [('out_file', 'bold_fsnative')]),
         ])  # fmt:skip
     else:
-        workflow.connect([
-            (volume_to_surface, joinnode, [
-                ('out_file', 'bold_fsnative'),
-            ]),
-            (joinnode, outputnode, [
-                ('bold_fsnative', 'bold_fsnative'),
-            ]),
-        ])  # fmt:skip
+        workflow.connect(volume_to_surface, 'out_file', joinnode, 'bold_fsnative')
 
     return workflow
 
 
 def init_wb_surf_surf_wf(
-    space: str,
-    density: ty.Literal['10k', '32k', '41k'],
+    *,
+    space: str | None = 'fsLR',
+    template: str,
+    density: str,
     omp_nthreads: int,
     mem_gb: float,
-    name: str = 'wb_surf_surf_wf',
+    name: str | None = None,
 ):
     """Resample BOLD time series from native surface to template surface.
 
@@ -710,7 +698,11 @@ def init_wb_surf_surf_wf(
 
     Parameters
     ----------
-    space : :class:`str`
+    space : :class:`str` or :obj:`None`
+        The registration space for which there are both subject and template
+        registration spheres.
+        If ``None``, the template space is used.
+    template : :class:`str`
         Surface template space, such as ``"onavg"`` or ``"fsLR"``.
     density : :class:`str`
         Either ``"10k"``, ``"32k"``, or ``"41k"``, representing the number of
@@ -746,6 +738,8 @@ def init_wb_surf_surf_wf(
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.utility import KeySelect
 
+    if name is None:
+        name = f'wb_surf_native_{template}_{density}_wf'
     workflow = Workflow(name=name)
 
     inputnode = pe.Node(
@@ -760,16 +754,17 @@ def init_wb_surf_surf_wf(
         name='inputnode',
     )
 
+    # Iterables / JoinNode should be unique to avoid overloading
     hemisource = pe.Node(
         niu.IdentityInterface(fields=['hemi']),
-        name=name + '_hemisource_surf_surf',
+        name=f'hemisource_surf_surf_{template}_{density}',
         iterables=[('hemi', ['L', 'R'])],
     )
 
     joinnode = pe.JoinNode(
         niu.IdentityInterface(fields=['bold_resampled']),
-        name=name + '_joinnode_surf_surf',
-        joinsource=name + '_hemisource_surf_surf',
+        name=f'joinnode_surf_surf_{template}_{density}',
+        joinsource=f'hemisource_surf_surf_{template}_{density}',
     )
 
     outputnode = pe.Node(
@@ -788,14 +783,14 @@ def init_wb_surf_surf_wf(
             ],
             keys=['L', 'R'],
         ),
-        name=name + '_select_surfaces',
+        name='select_surfaces',
         run_without_submitting=True,
     )
     select_surfaces.inputs.template_sphere = [
         str(sphere)
         for sphere in tf.get(
-            template=space,
-            space=('fsLR' if space != 'fsLR' else None),
+            template=template,
+            space=space if space != template else None,
             density=density,
             suffix='sphere',
             extension='.surf.gii',
@@ -804,7 +799,7 @@ def init_wb_surf_surf_wf(
 
     resample_to_template = pe.Node(
         MetricResample(method='ADAP_BARY_AREA', area_surfs=True),
-        name=name + '_resample_to_template',
+        name='resample_to_template',
         mem_gb=1,
         n_procs=omp_nthreads,
     )
