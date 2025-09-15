@@ -523,7 +523,7 @@ configured with cubic B-spline interpolation.
         )
         ds_goodvoxels_mask.inputs.source_file = bold_file
 
-        workflow.__desc__ += """\
+        workflow.__postdesc__ += """\
 A "goodvoxels" mask was applied during volume-to-surface sampling, excluding
 voxels whose time-series have a locally high coefficient of variation.
 """
