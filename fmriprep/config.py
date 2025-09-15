@@ -848,13 +848,13 @@ def init_spaces(checkpoint=True):
     workflow.spaces = spaces
 
 
-def _serialize_pg(value: list[tuple[str, list[str] | None]]) -> list[str]:
+def _serialize_pg(value: list[tuple[str, str | list[str] | None]]) -> list[str]:
     """
     Serialize a list of participant-session tuples to be TOML-compatible.
 
     Examples
     --------
-    >>> _serialize_pg([('01', ['pre']), ('01', ['post'])])
+    >>> _serialize_pg([('01', 'pre'), ('01', ['post'])])
     ['sub-01_ses-pre', 'sub-01_ses-post']
     >>> _serialize_pg([('01', ['pre', 'post']), ('02', ['post'])])
     ['sub-01_ses-pre,post', 'sub-02_ses-post']
@@ -862,13 +862,13 @@ def _serialize_pg(value: list[tuple[str, list[str] | None]]) -> list[str]:
     ['sub-01', 'sub-02_ses-pre']
     """
     serial = []
-    for val in value:
-        if val[1] is None:
-            serial.append(f'sub-{val[0]}')
-        else:
-            if not isinstance(val[1], list):
-                val[1] = [val[1]]
-            serial.append(f'sub-{val[0]}_ses-{",".join(val[1])}')
+    for sub, ses in value:
+        if ses is None:
+            serial.append(f'sub-{sub}')
+            continue
+        if isinstance(ses, str):
+            ses = [ses]
+        serial.append(f'sub-{sub}_ses-{",".join(ses)}')
     return serial
 
 
@@ -887,12 +887,9 @@ def _deserialize_pg(value: list[str]) -> list[tuple[str, list[str] | None]]:
     """
     deserial = []
     for val in value:
-        vals = val.split('_', 1)
-        vals[0] = vals[0].removeprefix('sub-')
-        if len(vals) == 1:
-            vals.append(None)
-        else:
-            vals[1] = vals[1].removeprefix('ses-')
-            vals[1] = vals[1].split(',')
-        deserial.append(tuple(vals))
+        sub, _, ses = val.partition('_')
+        sub = sub.removeprefix('sub-')
+        if ses:
+            ses = ses.removeprefix('ses-').split(',')
+        deserial.append((sub, ses or None))
     return deserial
