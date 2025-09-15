@@ -296,9 +296,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a8/01/824fff6789ce92a53242d24b6f5f3a982df2f610c51020f934bf878d2a99/narwhals-2.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a4/c8fbd097440fdb4fb1ef86bbd5789cfc7b2545bf626ac54cbd0e93399e19/nitransforms-25.0.1-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+      - pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/24/552ebea28f0570b9e65e62b50287a273804c9f997cc1c2dcd4e2d64b9e7d/nvidia_ml_py-12.575.51-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/ae/ec06af4fe3ee72d16973474f122541746196aaa16cea6f66d18b963c6177/prometheus_client-0.22.1-py3-none-any.whl
@@ -326,7 +326,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/bd/400b0bd372a5666addf2540c7358bfc3841b9ce5cdbc5cc4ad2f61627ad8/simplejson-3.20.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+      - pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
@@ -647,9 +647,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a8/01/824fff6789ce92a53242d24b6f5f3a982df2f610c51020f934bf878d2a99/narwhals-2.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a4/c8fbd097440fdb4fb1ef86bbd5789cfc7b2545bf626ac54cbd0e93399e19/nitransforms-25.0.1-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+      - pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/1d/1b658dbd2b9fa9c4c9f32accbfc0205d532c8c6194dc0f2a4c0428e7128a/nodeenv-1.9.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/24/552ebea28f0570b9e65e62b50287a273804c9f997cc1c2dcd4e2d64b9e7d/nvidia_ml_py-12.575.51-py3-none-any.whl
@@ -681,7 +681,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/bd/400b0bd372a5666addf2540c7358bfc3841b9ce5cdbc5cc4ad2f61627ad8/simplejson-3.20.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+      - pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
@@ -1003,9 +1003,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a8/01/824fff6789ce92a53242d24b6f5f3a982df2f610c51020f934bf878d2a99/narwhals-2.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a4/c8fbd097440fdb4fb1ef86bbd5789cfc7b2545bf626ac54cbd0e93399e19/nitransforms-25.0.1-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+      - pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/24/552ebea28f0570b9e65e62b50287a273804c9f997cc1c2dcd4e2d64b9e7d/nvidia_ml_py-12.575.51-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/ae/ec06af4fe3ee72d16973474f122541746196aaa16cea6f66d18b963c6177/prometheus_client-0.22.1-py3-none-any.whl
@@ -1034,7 +1034,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/bd/400b0bd372a5666addf2540c7358bfc3841b9ce5cdbc5cc4ad2f61627ad8/simplejson-3.20.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+      - pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c8/78/3565d011c61f5a43488987ee32b6f3f656e7f107ac2782dd57bdd7d91d9a/snowballstemmer-3.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/53/136e9eca6e0b9dc0e1962e2c908fbea2e5ac000c2a2fbd9a35797958c48b/sphinx-8.2.3-py3-none-any.whl
@@ -1385,9 +1385,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a8/01/824fff6789ce92a53242d24b6f5f3a982df2f610c51020f934bf878d2a99/narwhals-2.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a4/c8fbd097440fdb4fb1ef86bbd5789cfc7b2545bf626ac54cbd0e93399e19/nitransforms-25.0.1-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+      - pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/24/552ebea28f0570b9e65e62b50287a273804c9f997cc1c2dcd4e2d64b9e7d/nvidia_ml_py-12.575.51-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a8/7a/8d6fe30d424329ced46a738faaea4150efb8eee656599b88a791cf7ad07e/osfclient-0.0.5-py2.py3-none-any.whl
@@ -1423,7 +1423,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/36/3d/742617a7c644deb0c1628dcf6bb2d2165ab7c6aab56fe5222758994007f8/sentry_sdk-2.35.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/bd/400b0bd372a5666addf2540c7358bfc3841b9ce5cdbc5cc4ad2f61627ad8/simplejson-3.20.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+      - pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
@@ -1744,9 +1744,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a8/01/824fff6789ce92a53242d24b6f5f3a982df2f610c51020f934bf878d2a99/narwhals-2.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a4/c8fbd097440fdb4fb1ef86bbd5789cfc7b2545bf626ac54cbd0e93399e19/nitransforms-25.0.1-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+      - pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/24/552ebea28f0570b9e65e62b50287a273804c9f997cc1c2dcd4e2d64b9e7d/nvidia_ml_py-12.575.51-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
@@ -1779,7 +1779,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/bd/400b0bd372a5666addf2540c7358bfc3841b9ce5cdbc5cc4ad2f61627ad8/simplejson-3.20.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+      - pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
@@ -2868,8 +2868,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: fmriprep
-  version: 25.2.0.dev71+gdf375bd75
-  sha256: 515664f203fbbe054d5f5ffd17e9da55019aa530c892b9c879062698b653593a
+  version: 25.2.0.dev119+g00c1a7c7b
+  sha256: ae9cc51d0b9a34f6549e4aeb444d4fc27783804242ef31ee9285f8d72fa558e4
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2877,18 +2877,18 @@ packages:
   - looseversion>=1.3
   - nibabel>=5.1.1
   - nipype>=1.9.0
-  - nireports>=24.1.0
+  - nireports>=25.3.0
   - nitime>=0.9
   - nitransforms>=25.0.1
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@master
+  - niworkflows>=1.14.0
   - numpy>=2.0
   - packaging>=24
   - pandas>=2.2
   - psutil>=5.4
   - pybids>=0.16
   - requests>=2.27
-  - sdcflows>=2.13.1
-  - smriprep @ git+https://github.com/nipreps/smriprep.git@master
+  - sdcflows>=2.13.2
+  - smriprep>=0.19.1
   - tedana>=25.0.0
   - templateflow>=24.2.2
   - toml>=0.10
@@ -2939,8 +2939,8 @@ packages:
   editable: true
 - pypi: ./
   name: fmriprep
-  version: 25.2.0.dev71+gdf375bd75
-  sha256: 515664f203fbbe054d5f5ffd17e9da55019aa530c892b9c879062698b653593a
+  version: 25.2.0.dev119+g00c1a7c7b
+  sha256: ae9cc51d0b9a34f6549e4aeb444d4fc27783804242ef31ee9285f8d72fa558e4
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2948,18 +2948,18 @@ packages:
   - looseversion>=1.3
   - nibabel>=5.1.1
   - nipype>=1.9.0
-  - nireports>=24.1.0
+  - nireports>=25.3.0
   - nitime>=0.9
   - nitransforms>=25.0.1
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@master
+  - niworkflows>=1.14.0
   - numpy>=2.0
   - packaging>=24
   - pandas>=2.2
   - psutil>=5.4
   - pybids>=0.16
   - requests>=2.27
-  - sdcflows>=2.13.1
-  - smriprep @ git+https://github.com/nipreps/smriprep.git@master
+  - sdcflows>=2.13.2
+  - smriprep>=0.19.1
   - tedana>=25.0.0
   - templateflow>=24.2.2
   - toml>=0.10
@@ -5668,36 +5668,36 @@ packages:
   - sphinx>=2.1.2 ; extra == 'dev'
   - sphinx>=7 ; extra == 'dev'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/1a/9a/a9ff45f75d442df24c3a1b8ecac0448275854304963ac40bac5966bf21ce/nireports-25.2.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
   name: nireports
-  version: 25.2.0
-  sha256: 9d29c67c88782ae5cfe29442c1e86123c00e9c84f7bc348537c7e8a83976fa7e
+  version: 25.3.0
+  sha256: 2626149f718aaf9287cc2e08f4b221737ed77052a333957f0958e630ba851a2e
   requires_dist:
   - acres>=0.2
-  - lxml>=4.6
-  - matplotlib>=3.5
-  - nibabel>=3.0.1
-  - nilearn>=0.8
+  - lxml>=4.7
+  - matplotlib>=3.6
+  - nibabel>=5.0
+  - nilearn>=0.10.1
   - nipype>=1.8.5
-  - numpy>=1.20
-  - pandas>=1.2
+  - numpy>=1.24
+  - pandas>=1.5
   - pybids>=0.15.1
-  - pyyaml>=5.4
+  - pyyaml>=6.0
   - seaborn>=0.13
   - templateflow>=23.1
-  - coverage[toml]>=5.2.1 ; extra == 'all'
+  - coverage[toml]>=7.10 ; extra == 'all'
   - furo ; extra == 'all'
-  - packaging ; extra == 'all'
+  - packaging>=25.0 ; extra == 'all'
   - pre-commit ; extra == 'all'
   - pydot>=1.2.3 ; extra == 'all'
   - pydotplus ; extra == 'all'
-  - pytest-cov>=2.11 ; extra == 'all'
-  - pytest-env ; extra == 'all'
-  - pytest-xdist>=2.5 ; extra == 'all'
-  - pytest>=6 ; extra == 'all'
+  - pytest-cov>=6.2 ; extra == 'all'
+  - pytest-env>=1.1 ; extra == 'all'
+  - pytest-xdist>=3.7 ; extra == 'all'
+  - pytest>=8.4 ; extra == 'all'
   - ruff ; extra == 'all'
   - sphinx ; extra == 'all'
-  - sphinx>=6 ; extra == 'all'
+  - sphinx>=8.0 ; extra == 'all'
   - sphinxcontrib-apidoc ; extra == 'all'
   - sphinxcontrib-napoleon ; extra == 'all'
   - pre-commit ; extra == 'dev'
@@ -5714,20 +5714,20 @@ packages:
   - sphinx ; extra == 'docs'
   - sphinxcontrib-apidoc ; extra == 'docs'
   - sphinxcontrib-napoleon ; extra == 'docs'
-  - coverage[toml]>=5.2.1 ; extra == 'test'
-  - packaging ; extra == 'test'
-  - pytest-cov>=2.11 ; extra == 'test'
-  - pytest-env ; extra == 'test'
-  - pytest-xdist>=2.5 ; extra == 'test'
-  - pytest>=6 ; extra == 'test'
-  - sphinx>=6 ; extra == 'test'
-  - coverage[toml]>=5.2.1 ; extra == 'tests'
-  - packaging ; extra == 'tests'
-  - pytest-cov>=2.11 ; extra == 'tests'
-  - pytest-env ; extra == 'tests'
-  - pytest-xdist>=2.5 ; extra == 'tests'
-  - pytest>=6 ; extra == 'tests'
-  - sphinx>=6 ; extra == 'tests'
+  - coverage[toml]>=7.10 ; extra == 'test'
+  - packaging>=25.0 ; extra == 'test'
+  - pytest-cov>=6.2 ; extra == 'test'
+  - pytest-env>=1.1 ; extra == 'test'
+  - pytest-xdist>=3.7 ; extra == 'test'
+  - pytest>=8.4 ; extra == 'test'
+  - sphinx>=8.0 ; extra == 'test'
+  - coverage[toml]>=7.10 ; extra == 'tests'
+  - packaging>=25.0 ; extra == 'tests'
+  - pytest-cov>=6.2 ; extra == 'tests'
+  - pytest-env>=1.1 ; extra == 'tests'
+  - pytest-xdist>=3.7 ; extra == 'tests'
+  - pytest>=8.4 ; extra == 'tests'
+  - sphinx>=8.0 ; extra == 'tests'
   - lxml-stubs ; extra == 'types'
   - pandas-stubs ; extra == 'types'
   - pytest ; extra == 'types'
@@ -5774,9 +5774,10 @@ packages:
   - nitransforms[test] ; extra == 'tests'
   - nitransforms[test] ; extra == 'all'
   requires_python: '>=3.10'
-- pypi: git+https://github.com/nipreps/niworkflows.git?rev=master#7651f27e5f4a9cf32b3f904741b97f0cfa5ed98b
+- pypi: https://files.pythonhosted.org/packages/a6/a4/a7f07e629ea46fb757920d9fdfc645c6d846f9a83ee3ef35ad634ff95f57/niworkflows-1.14.0-py3-none-any.whl
   name: niworkflows
   version: 1.14.0
+  sha256: ad827a31d985a466047f811d1f59bd92aab274724a54aff1c910a5fc5d528d0d
   requires_dist:
   - acres
   - attrs>=20.1
@@ -7028,9 +7029,10 @@ packages:
   - pkg:pypi/six?source=compressed-mapping
   size: 18455
   timestamp: 1753199211006
-- pypi: git+https://github.com/nipreps/smriprep.git?rev=master#afde296604ca4d8b8557bb7fdb1541fb4c23a834
+- pypi: https://files.pythonhosted.org/packages/5c/75/7bf2dd6dffdce22ef1f098a10648a5a01e4ff74dac4ce574bf21d1057e3f/smriprep-0.19.1-py3-none-any.whl
   name: smriprep
-  version: 0.18.1.dev78+gafde29660
+  version: 0.19.1
+  sha256: 1420adc0b579b2b0f38a0054ee2436eec3a4bad997bb5c89eed5d5f3cd8780c1
   requires_dist:
   - acres>=0.2
   - indexed-gzip>=1.7
@@ -7039,8 +7041,9 @@ packages:
   - matplotlib>=3.5
   - nibabel>=4.0.1
   - nipype>=1.8.5
-  - nireports>=25.2.0
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@master
+  - nireports>=25.3.0
+  - nitransforms>=24.1.1
+  - niworkflows>=1.14.0
   - numpy>=1.24
   - packaging>=24
   - pybids>=0.16
