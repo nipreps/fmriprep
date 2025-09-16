@@ -1,3 +1,19 @@
+# 2025-08-15 10:33:40 -0400 - markiewicz@stanford.edu - sty: Use fmt:skip in workflows.bold.outputs [ignore-rev]
+f97f3439a3897346e961bb0039fc01ac9df3c2ea
+# 2024-11-03 09:52:44 -0500 - effigies@gmail.com - STY: ruff [ignore-rev]
+729b5b923599bc80d9d2de6d8fe0e957d4337cab
+# 2024-02-05 12:06:27 -0500 - effigies@gmail.com - STY: ruff --fix + 1 ignore [git-blame-ignore-rev]
+e7dc59fbc7df88dfabbff154f4cc3d24721b6b4f
+# 2024-01-16 13:47:18 -0500 - effigies@gmail.com - STY: ruff --fix --unsafe-fixes (with cleanup) [git-blame-ignore-rev]
+66734bd0164d1dae3cf299fa9d9d682c22eeda66
+# 2024-01-16 13:33:25 -0500 - effigies@gmail.com - STY: ruff format and ruff --fix [git-blame-ignore-rev]
+311686eb329d3594732429f7c3d50d212b8dc519
+# 2023-02-02 10:57:19 -0500 - effigies@gmail.com - STY: black [git-blame-ignore-rev]
+d3f380701b3953087475a18cf23c0fb388f7aed6
+# 2022-09-22 - mathiasg@stanford.edu - STY: black/isort the docker wrapper
+9976458388f369cba4b7d81359acc40b52f6621c
+# 2022-09-22 - mathiasg@stanford.edu - STY: Apply black/isort to codebase
+7eedab8b29497cee1d8dd540c2266e740f484a86
 # 2021-11-05 - markiewicz@stanford.edu - STY: Update black config
 d2ad20301306f283d504ec7b5a1bd73ce58c2b11
 # 2021-09-22 - code@oscaresteban.es - sty: run black

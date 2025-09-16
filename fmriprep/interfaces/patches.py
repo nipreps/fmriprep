@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,8 +29,11 @@ Temporary patches
 from random import randint
 from time import sleep
 
-from numpy.linalg.linalg import LinAlgError
+import nipype.interfaces.freesurfer as fs
+import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
+from nipype.interfaces.base import File, traits
+from numpy.linalg.linalg import LinAlgError
 
 
 class RobustACompCor(nac.ACompCor):
@@ -44,7 +47,7 @@ class RobustACompCor(nac.ACompCor):
         failures = 0
         while True:
             try:
-                runtime = super(RobustACompCor, self)._run_interface(runtime)
+                runtime = super()._run_interface(runtime)
                 break
             except LinAlgError:
                 failures += 1
@@ -67,7 +70,7 @@ class RobustTCompCor(nac.TCompCor):
         failures = 0
         while True:
             try:
-                runtime = super(RobustTCompCor, self)._run_interface(runtime)
+                runtime = super()._run_interface(runtime)
                 break
             except LinAlgError:
                 failures += 1
@@ -77,3 +80,38 @@ class RobustTCompCor(nac.TCompCor):
                 sleep(randint(start + 4, start + 10))
 
         return runtime
+
+
+class _MRICoregInputSpec(fs.registration.MRICoregInputSpec):
+    reference_file = File(
+        argstr='--ref %s',
+        desc='reference (target) file',
+        copyfile=False,
+    )
+    subject_id = traits.Str(
+        argstr='--s %s',
+        position=1,
+        requires=['subjects_dir'],
+        desc='freesurfer subject ID (implies ``reference_mask == '
+        'aparc+aseg.mgz`` unless otherwise specified)',
+    )
+
+
+class MRICoreg(fs.MRICoreg):
+    """
+    Patched that allows setting both a reference file and the subjects dir.
+    """
+
+    input_spec = _MRICoregInputSpec
+
+
+class _FSSourceOutputSpec(nio.FSSourceOutputSpec):
+    T2 = File(desc='Intensity normalized whole-head volume', loc='mri')
+
+
+class FreeSurferSource(nio.FreeSurferSource):
+    """
+    Patch to allow grabbing the T2 volume, if available
+    """
+
+    output_spec = _FSSourceOutputSpec

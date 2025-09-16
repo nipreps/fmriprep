@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,112 +21,139 @@
 #     https://www.nipreps.org/community/licensing/
 #
 from pathlib import Path
-from niworkflows.reports.core import Report as _Report
 
-# This patch is intended to permit fMRIPrep 20.2.0 LTS to use the YODA-style
-# derivatives directory. Ideally, we will remove this in 20.3.x and use an
-# updated niworkflows.
+from nireports.assembler.report import Report
 
+from .. import config, data
 
-class Report(_Report):
-    def _load_config(self, config):
-        from yaml import safe_load as load
-
-        settings = load(config.read_text())
-        self.packagename = self.packagename or settings.get("package", None)
-
-        # Removed from here: Appending self.packagename to self.root and self.out_dir
-        # In this version, pass reportlets_dir and out_dir with fmriprep in the path.
-
-        if self.subject_id is not None:
-            self.root = self.root / "sub-{}".format(self.subject_id)
-
-        if "template_path" in settings:
-            self.template_path = config.parent / settings["template_path"]
-
-        self.index(settings["sections"])
-
-
-#
-# The following are the interface used directly by fMRIPrep
-#
 
 def run_reports(
-    out_dir,
+    output_dir,
     subject_label,
     run_uuid,
-    config=None,
+    bootstrap_file=None,
+    out_filename='report.html',
     reportlets_dir=None,
-    packagename=None,
+    errorname='report.err',
+    **entities,
 ):
     """
     Run the reports.
-
-    .. testsetup::
-
-    >>> cwd = os.getcwd()
-    >>> os.chdir(tmpdir)
-
-    >>> from pkg_resources import resource_filename
-    >>> from shutil import copytree
-    >>> test_data_path = resource_filename('fmriprep', 'data/tests/work')
-    >>> testdir = Path(tmpdir)
-    >>> data_dir = copytree(test_data_path, str(testdir / 'work'))
-    >>> (testdir / 'fmriprep').mkdir(parents=True, exist_ok=True)
-
-    .. doctest::
-
-    >>> run_reports(testdir / 'out', '01', 'madeoutuuid', packagename='fmriprep',
-    ...             reportlets_dir=testdir / 'work' / 'reportlets' / 'fmriprep')
-    0
-
-    .. testcleanup::
-
-    >>> os.chdir(cwd)
-
     """
-    return Report(
-        out_dir,
+    robj = Report(
+        output_dir,
         run_uuid,
-        config=config,
-        subject_id=subject_label,
-        packagename=packagename,
+        bootstrap_file=bootstrap_file,
+        out_filename=out_filename,
         reportlets_dir=reportlets_dir,
-    ).generate_report()
+        plugins=None,
+        plugin_meta=None,
+        metadata=None,
+        **entities,
+    )
+
+    # Count nbr of subject for which report generation failed
+    try:
+        robj.generate_report()
+    except:  # noqa: E722
+        import sys
+        import traceback
+
+        # Store the list of subjects for which report generation failed
+        traceback.print_exception(*sys.exc_info(), file=str(Path(output_dir) / 'logs' / errorname))
+        return subject_label
+
+    return None
 
 
 def generate_reports(
-    subject_list, output_dir, run_uuid, config=None, work_dir=None, packagename=None
+    subject_list: list[str] | str,
+    output_dir: Path | str,
+    run_uuid: str,
+    session_list: list[str] | str | None = None,
+    bootstrap_file: Path | str | None = None,
+    work_dir: Path | str | None = None,
+    sessionwise: bool = False,
 ):
-    """Execute run_reports on a list of subjects."""
+    """Generate reports for a list of subjects."""
     reportlets_dir = None
     if work_dir is not None:
-        reportlets_dir = Path(work_dir) / "reportlets"
-    report_errors = [
-        run_reports(
-            output_dir,
-            subject_label,
-            run_uuid,
-            config=config,
-            packagename=packagename,
-            reportlets_dir=reportlets_dir,
-        )
-        for subject_label in subject_list
-    ]
+        reportlets_dir = Path(work_dir) / 'reportlets'
 
-    errno = sum(report_errors)
-    if errno:
-        import logging
+    if isinstance(subject_list, str):
+        subject_list = [subject_list]
+    if isinstance(session_list, str):
+        session_list = [session_list]
 
-        logger = logging.getLogger("cli")
-        error_list = ", ".join(
-            "%s (%d)" % (subid, err)
-            for subid, err in zip(subject_list, report_errors)
-            if err
-        )
-        logger.error(
-            "Preprocessing did not finish successfully. Errors occurred while processing "
-            "data from participants: %s. Check the HTML reports for details.",
-            error_list,
-        )
-    return errno
+    errors = []
+    for subject_label in subject_list:
+        subject_label = subject_label.removeprefix('sub-')
+        # The number of sessions is intentionally not based on session_list but
+        # on the total number of sessions, because I want the final derivatives
+        # folder to be the same whether sessions were run one at a time or all-together.
+        n_ses = len(config.execution.layout.get_sessions(subject=subject_label))
+
+        if bootstrap_file is not None:
+            # If a config file is precised, we do not override it
+            html_report = 'report.html'
+        elif n_ses <= config.execution.aggr_ses_reports:
+            # If there are only a few session for this subject,
+            # we aggregate them in a single visual report.
+            bootstrap_file = data.load('reports-spec.yml')
+            html_report = 'report.html'
+        else:
+            # Beyond a threshold, we separate the anatomical report from the functional.
+            bootstrap_file = data.load('reports-spec-anat.yml')
+            html_report = f'sub-{subject_label}_anat.html'
+
+        if not sessionwise:
+            report_error = run_reports(
+                output_dir,
+                subject_label,
+                run_uuid,
+                bootstrap_file=bootstrap_file,
+                out_filename=html_report,
+                reportlets_dir=reportlets_dir,
+                errorname=f'report-{run_uuid}-{subject_label}.err',
+                subject=subject_label,
+            )
+            # If the report generation failed, append the subject label for which it failed
+            if report_error is not None:
+                errors.append(report_error)
+
+        if (n_ses > config.execution.aggr_ses_reports) or sessionwise:
+            # Beyond a certain number of sessions per subject,
+            # we separate the functional reports per session
+            if session_list is None:
+                all_filters = config.execution.bids_filters or {}
+                filters = all_filters.get('bold', {})
+                session_list = config.execution.layout.get_sessions(
+                    subject=subject_label, **filters
+                )
+
+            for session_label in session_list:
+                session_label = session_label.removeprefix('ses-')
+                if sessionwise:
+                    # Include the anatomical as well
+                    bootstrap_file = data.load('reports-spec.yml')
+                    html_report = f'sub-{subject_label}_ses-{session_label}.html'
+                else:
+                    bootstrap_file = data.load('reports-spec-func.yml')
+                    html_report = f'sub-{subject_label}_ses-{session_label}_func.html'
+
+                report_error = run_reports(
+                    output_dir,
+                    subject_label,
+                    run_uuid,
+                    bootstrap_file=bootstrap_file,
+                    out_filename=html_report,
+                    reportlets_dir=reportlets_dir,
+                    errorname=f'report-{run_uuid}-{subject_label}-func.err',
+                    subject=subject_label,
+                    session=session_label,
+                )
+                # If the report generation failed, append the subject label for which it failed
+                if report_error is not None:
+                    errors.append(report_error)
+
+    return errors

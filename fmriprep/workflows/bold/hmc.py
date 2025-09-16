@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,13 +28,12 @@ Head-Motion Estimation and Correction (HMC) of BOLD images
 
 """
 
+from nipype.interfaces import fsl
+from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
-from nipype.interfaces import utility as niu, fsl
-
-from ...config import DEFAULT_MEMORY_MIN_GB
 
 
-def init_bold_hmc_wf(mem_gb, omp_nthreads, name='bold_hmc_wf'):
+def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
     """
     Build a workflow to estimate head-motion parameters.
 
@@ -72,46 +71,28 @@ def init_bold_hmc_wf(mem_gb, omp_nthreads, name='bold_hmc_wf'):
     -------
     xforms
         ITKTransform file aligning each volume to ``ref_image``
-    movpar_file
-        MCFLIRT motion parameters, normalized to SPM format (X, Y, Z, Rx, Ry, Rz)
-    rms_file
-        Framewise displacement as measured by ``fsl_motion_outliers`` [Jenkinson2002]_.
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-    from niworkflows.interfaces.confounds import NormalizeMotionParams
     from niworkflows.interfaces.itk import MCFLIRT2ITK
 
     workflow = Workflow(name=name)
-    workflow.__desc__ = """\
+    workflow.__desc__ = f"""\
 Head-motion parameters with respect to the BOLD reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
-`mcflirt` [FSL {fsl_ver}, @mcflirt].
-""".format(fsl_ver=fsl.Info().version() or '<ver>')
+`mcflirt` [FSL {fsl.Info().version() or '<ver>'}, @mcflirt].
+"""
 
     inputnode = pe.Node(
-        niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']),
-        name='inputnode')
-    outputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['xforms', 'movpar_file', 'rmsd_file']),
-        name='outputnode')
+        niu.IdentityInterface(fields=['bold_file', 'raw_ref_image']), name='inputnode'
+    )
+    outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
     # Head motion correction (hmc)
-    mcflirt = pe.Node(
-        fsl.MCFLIRT(save_mats=True, save_plots=True, save_rms=True),
-        name='mcflirt', mem_gb=mem_gb * 3)
+    mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True), name='mcflirt', mem_gb=mem_gb * 3)
 
-    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk',
-                      mem_gb=0.05, n_procs=omp_nthreads)
-
-    normalize_motion = pe.Node(NormalizeMotionParams(format='FSL'),
-                               name="normalize_motion",
-                               mem_gb=DEFAULT_MEMORY_MIN_GB)
-
-    def _pick_rel(rms_files):
-        return rms_files[-1]
+    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
 
     workflow.connect([
         (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
@@ -119,10 +100,7 @@ parameters) are estimated before any spatiotemporal filtering using
         (inputnode, fsl2itk, [('raw_ref_image', 'in_source'),
                               ('raw_ref_image', 'in_reference')]),
         (mcflirt, fsl2itk, [('mat_file', 'in_files')]),
-        (mcflirt, normalize_motion, [('par_file', 'in_file')]),
-        (mcflirt, outputnode, [(('rms_files', _pick_rel), 'rmsd_file')]),
         (fsl2itk, outputnode, [('out_file', 'xforms')]),
-        (normalize_motion, outputnode, [('out_file', 'movpar_file')]),
-    ])
+    ])  # fmt:skip
 
     return workflow

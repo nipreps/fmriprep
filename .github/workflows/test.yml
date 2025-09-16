@@ -1,0 +1,98 @@
+name: Stable tests
+
+on:
+  push:
+    branches:
+      - master
+      - maint/*
+      - next
+  pull_request:
+    branches:
+      - master
+      - maint/*
+      - next
+
+defaults:
+  run:
+    shell: bash
+
+# Force tox and pytest to use color
+env:
+  FORCE_COLOR: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Check each OS, all supported Python, minimum versions and latest releases
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-latest']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        dependencies: ['latest', 'pre']
+        include:
+          - os: ubuntu-latest
+            python-version: '3.10'
+            dependencies: 'min'
+
+    env:
+      DEPENDS: ${{ matrix.dependencies }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/templateflow
+          key: templateflow-v1
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends graphviz
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Install tox
+        run: |
+          uv tool install --with=tox-uv --with=tox-gh-actions tox
+      - name: Show tox config
+        run: tox c
+      - name: Run tox
+        run: tox -v --exit-and-dump-after 1200
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+        if: ${{ always() }}
+
+  checks:
+    runs-on: "ubuntu-latest"
+    continue-on-error: true
+    strategy:
+      matrix:
+        check: ["style", "spellcheck"]
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install tox
+        run: uv tool install tox --with=tox-uv
+      - name: Show tox config
+        run: tox c -e ${{ matrix.check }}
+      - name: Run check
+        run: tox -e ${{ matrix.check }}

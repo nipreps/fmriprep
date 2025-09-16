@@ -1,11 +1,9 @@
 {
-    "python.linting.flake8Enabled": true,
     "python.pythonPath": "/usr/local/miniconda/bin/python",
     "restructuredtext.confPath": "${workspaceFolder}/docs",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
-    "python.linting.enabled": true,
     "python.testing.pytestArgs": [],
-    "python.linting.pylintEnabled": false
+    "editor.defaultFormatter": "charliermarsh.ruff",
 }

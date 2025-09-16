@@ -1,8 +1,0 @@
-#Misc
-include CHANGES.rst
-include LICENSE
-include NOTICE
-
-# versioneer
-include versioneer.py
-include fmriprep/_version.py

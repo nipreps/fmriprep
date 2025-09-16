@@ -4,7 +4,7 @@ from niworkflows.interfaces.bids import DerivativesDataSink as _DDSink
 
 
 class DerivativesDataSink(_DDSink):
-    out_path_base = ""
+    out_path_base = ''
 
 
-__all__ = ("DerivativesDataSink",)
+__all__ = ('DerivativesDataSink',)

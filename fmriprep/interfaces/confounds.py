@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,35 +29,48 @@ Handling confounds.
     >>> import pandas as pd
 
 """
+
 import os
 import re
-import shutil
-import numpy as np
+
 import nibabel as nb
+import nitransforms as nt
+import numpy as np
 import pandas as pd
 from nipype import logging
-from nipype.utils.filemanip import fname_presuffix
 from nipype.interfaces.base import (
-    traits, TraitedSpec, BaseInterfaceInputSpec, File, Directory, isdefined,
-    SimpleInterface, InputMultiObject, OutputMultiObject
+    BaseInterfaceInputSpec,
+    File,
+    InputMultiObject,
+    OutputMultiObject,
+    SimpleInterface,
+    TraitedSpec,
+    isdefined,
+    traits,
 )
-from niworkflows.viz.plots import fMRIPlot
+from nipype.utils.filemanip import fname_presuffix
+from nireports.reportlets.modality.func import fMRIPlot
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
+from scipy import ndimage as ndi
+from scipy.spatial import transform as sst
 
 LOGGER = logging.getLogger('nipype.interface')
 
 
 class _aCompCorMasksInputSpec(BaseInterfaceInputSpec):
-    in_vfs = InputMultiObject(File(exists=True), desc="Input volume fractions.")
-    is_aseg = traits.Bool(False, usedefault=True,
-                          desc="Whether the input volume fractions come from FS' aseg.")
-    bold_zooms = traits.Tuple(traits.Float, traits.Float, traits.Float, mandatory=True,
-                              desc="BOLD series zooms")
+    in_vfs = InputMultiObject(File(exists=True), desc='Input volume fractions.')
+    is_aseg = traits.Bool(
+        False, usedefault=True, desc="Whether the input volume fractions come from FS' aseg."
+    )
+    bold_zooms = traits.Tuple(
+        traits.Float, traits.Float, traits.Float, mandatory=True, desc='BOLD series zooms'
+    )
 
 
 class _aCompCorMasksOutputSpec(TraitedSpec):
-    out_masks = OutputMultiObject(File(exists=True),
-                                  desc="CSF, WM and combined masks, respectively")
+    out_masks = OutputMultiObject(
+        File(exists=True), desc='CSF, WM and combined masks, respectively'
+    )
 
 
 class aCompCorMasks(SimpleInterface):
@@ -68,11 +81,151 @@ class aCompCorMasks(SimpleInterface):
 
     def _run_interface(self, runtime):
         from ..utils.confounds import acompcor_masks
-        self._results["out_masks"] = acompcor_masks(
+
+        self._results['out_masks'] = acompcor_masks(
             self.inputs.in_vfs,
             self.inputs.is_aseg,
             self.inputs.bold_zooms,
         )
+        return runtime
+
+
+class _FSLRMSDeviationInputSpec(BaseInterfaceInputSpec):
+    xfm_file = File(exists=True, mandatory=True, desc='Head motion transform file')
+    boldref_file = File(exists=True, mandatory=True, desc='BOLD reference file')
+
+
+class _FSLRMSDeviationOutputSpec(TraitedSpec):
+    out_file = File(desc='Output motion parameters file')
+
+
+class FSLRMSDeviation(SimpleInterface):
+    """Reconstruct FSL root mean square deviation from affine transforms."""
+
+    input_spec = _FSLRMSDeviationInputSpec
+    output_spec = _FSLRMSDeviationOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
+        )
+
+        boldref = nb.load(self.inputs.boldref_file)
+        hmc = nt.linear.load(self.inputs.xfm_file)
+
+        center = 0.5 * (np.array(boldref.shape[:3]) - 1) * boldref.header.get_zooms()[:3]
+
+        # Revert to vox2vox transforms
+        fsl_hmc = nt.io.fsl.FSLLinearTransformArray.from_ras(
+            hmc.matrix, reference=boldref, moving=boldref
+        )
+        fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
+
+        diff = fsl_matrix[1:] @ np.linalg.inv(fsl_matrix[:-1]) - np.eye(4)
+        M = diff[:, :3, :3]
+        t = diff[:, :3, 3] + M @ center
+        Rmax = 80.0
+
+        rmsd = np.concatenate(
+            [
+                [np.nan],
+                np.sqrt(
+                    np.diag(t @ t.T)
+                    + np.trace(M.transpose(0, 2, 1) @ M, axis1=1, axis2=2) * Rmax**2 / 5
+                ),
+            ]
+        )
+
+        params = pd.DataFrame(data=rmsd, columns=['rmsd'])
+        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
+
+        return runtime
+
+
+class _FSLMotionParamsInputSpec(BaseInterfaceInputSpec):
+    xfm_file = File(exists=True, desc='Head motion transform file')
+    boldref_file = File(exists=True, desc='BOLD reference file')
+
+
+class _FSLMotionParamsOutputSpec(TraitedSpec):
+    out_file = File(desc='Output motion parameters file')
+
+
+class FSLMotionParams(SimpleInterface):
+    """Reconstruct FSL motion parameters from affine transforms."""
+
+    input_spec = _FSLMotionParamsInputSpec
+    output_spec = _FSLMotionParamsOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
+        )
+
+        boldref = nb.load(self.inputs.boldref_file)
+        hmc = nt.linear.load(self.inputs.xfm_file)
+
+        # FSL's "center of gravity" is the center of mass scaled by zooms
+        # No rotation is applied.
+        center_of_gravity = np.matmul(
+            np.diag(boldref.header.get_zooms()),
+            ndi.center_of_mass(np.asanyarray(boldref.dataobj)),
+        )
+
+        # Revert to vox2vox transforms
+        fsl_hmc = nt.io.fsl.FSLLinearTransformArray.from_ras(
+            hmc.matrix, reference=boldref, moving=boldref
+        )
+        fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
+
+        # FSL uses left-handed rotation conventions, so transpose
+        mats = fsl_matrix[:, :3, :3].transpose(0, 2, 1)
+
+        # Rotations are recovered directly
+        rot_xyz = sst.Rotation.from_matrix(mats).as_euler('XYZ')
+        # Translations are recovered by applying the rotation to the center of gravity
+        trans_xyz = fsl_matrix[:, :3, 3] - mats @ center_of_gravity + center_of_gravity
+
+        params = pd.DataFrame(
+            data=np.hstack((trans_xyz, rot_xyz)),
+            columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
+        )
+
+        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
+
+        return runtime
+
+
+class _FramewiseDisplacementInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, desc='Head motion transform file')
+    radius = traits.Float(50, usedefault=True, desc='Radius of the head in mm')
+
+
+class _FramewiseDisplacementOutputSpec(TraitedSpec):
+    out_file = File(desc='Output framewise displacement file')
+
+
+class FramewiseDisplacement(SimpleInterface):
+    """Calculate framewise displacement estimates."""
+
+    input_spec = _FramewiseDisplacementInputSpec
+    output_spec = _FramewiseDisplacementOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_file, suffix='_fd.tsv', newpath=runtime.cwd
+        )
+
+        motion = pd.read_csv(self.inputs.in_file, delimiter='\t')
+
+        # Filter and ensure we have all parameters
+        diff = motion[['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']].diff()
+        diff[['rot_x', 'rot_y', 'rot_z']] *= self.inputs.radius
+
+        fd = pd.DataFrame(diff.abs().sum(axis=1, skipna=False), columns=['FramewiseDisplacement'])
+
+        fd.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
+
         return runtime
 
 
@@ -89,18 +242,19 @@ class FilterDropped(SimpleInterface):
 
     Uses the boolean ``retained`` column to identify rows to keep or filter.
     """
+
     input_spec = _FilterDroppedInputSpec
     output_spec = _FilterDroppedOutputSpec
 
     def _run_interface(self, runtime):
-        self._results["out_file"] = fname_presuffix(
-            self.inputs.in_file,
-            suffix='_filtered',
-            use_ext=True,
-            newpath=runtime.cwd)
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_file, suffix='_filtered', use_ext=True, newpath=runtime.cwd
+        )
 
         metadata = pd.read_csv(self.inputs.in_file, sep='\t')
-        metadata[metadata.retained].to_csv(self._results["out_file"], sep='\t', index=False)
+        metadata[metadata.retained].to_csv(
+            self._results['out_file'], sep='\t', index=False, na_rep='n/a'
+        )
 
         return runtime
 
@@ -124,48 +278,54 @@ class RenameACompCor(SimpleInterface):
 
     Each set of components is renumbered to start at ``?_comp_cor_00``.
     """
+
     input_spec = _RenameACompCorInputSpec
     output_spec = _RenameACompCorOutputSpec
 
     def _run_interface(self, runtime):
-        self._results["components_file"] = fname_presuffix(
-            self.inputs.components_file,
-            suffix='_renamed',
-            use_ext=True,
-            newpath=runtime.cwd)
-        self._results["metadata_file"] = fname_presuffix(
-            self.inputs.metadata_file,
-            suffix='_renamed',
-            use_ext=True,
-            newpath=runtime.cwd)
+        try:
+            components = pd.read_csv(self.inputs.components_file, sep='\t')
+            metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
+        except pd.errors.EmptyDataError:
+            # Can occur when testing on short datasets; otherwise rare
+            self._results['components_file'] = self.inputs.components_file
+            self._results['metadata_file'] = self.inputs.metadata_file
+            return runtime
 
-        components = pd.read_csv(self.inputs.components_file, sep='\t')
-        metadata = pd.read_csv(self.inputs.metadata_file, sep='\t')
-        all_comp_cor = metadata[metadata["retained"]]
+        self._results['components_file'] = fname_presuffix(
+            self.inputs.components_file, suffix='_renamed', use_ext=True, newpath=runtime.cwd
+        )
+        self._results['metadata_file'] = fname_presuffix(
+            self.inputs.metadata_file, suffix='_renamed', use_ext=True, newpath=runtime.cwd
+        )
 
-        c_comp_cor = all_comp_cor[all_comp_cor["mask"] == "CSF"]
-        w_comp_cor = all_comp_cor[all_comp_cor["mask"] == "WM"]
-        a_comp_cor = all_comp_cor[all_comp_cor["mask"] == "combined"]
+        all_comp_cor = metadata[metadata['retained']]
 
-        c_orig = c_comp_cor["component"]
-        c_new = [f"c_comp_cor_{i:02d}" for i in range(len(c_orig))]
+        c_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'CSF']
+        w_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'WM']
+        a_comp_cor = all_comp_cor[all_comp_cor['mask'] == 'combined']
 
-        w_orig = w_comp_cor["component"]
-        w_new = [f"w_comp_cor_{i:02d}" for i in range(len(w_orig))]
+        c_orig = c_comp_cor['component']
+        c_new = [f'c_comp_cor_{i:02d}' for i in range(len(c_orig))]
 
-        a_orig = a_comp_cor["component"]
-        a_new = [f"a_comp_cor_{i:02d}" for i in range(len(a_orig))]
+        w_orig = w_comp_cor['component']
+        w_new = [f'w_comp_cor_{i:02d}' for i in range(len(w_orig))]
 
-        (components.rename(columns=dict(zip(c_orig, c_new)))
-                   .rename(columns=dict(zip(w_orig, w_new)))
-                   .rename(columns=dict(zip(a_orig, a_new)))
-         ).to_csv(self._results["components_file"], sep='\t', index=False)
+        a_orig = a_comp_cor['component']
+        a_new = [f'a_comp_cor_{i:02d}' for i in range(len(a_orig))]
 
-        metadata.loc[c_comp_cor.index, "component"] = c_new
-        metadata.loc[w_comp_cor.index, "component"] = w_new
-        metadata.loc[a_comp_cor.index, "component"] = a_new
+        final_components = components.rename(columns=dict(zip(c_orig, c_new, strict=False)))
+        final_components.rename(columns=dict(zip(w_orig, w_new, strict=False)), inplace=True)
+        final_components.rename(columns=dict(zip(a_orig, a_new, strict=False)), inplace=True)
+        final_components.to_csv(
+            self._results['components_file'], sep='\t', index=False, na_rep='n/a'
+        )
 
-        metadata.to_csv(self._results["metadata_file"], sep='\t', index=False)
+        metadata.loc[c_comp_cor.index, 'component'] = c_new
+        metadata.loc[w_comp_cor.index, 'component'] = w_new
+        metadata.loc[a_comp_cor.index, 'component'] = a_new
+
+        metadata.to_csv(self._results['metadata_file'], sep='\t', index=False, na_rep='n/a')
 
         return runtime
 
@@ -181,7 +341,6 @@ class GatherConfoundsInputSpec(BaseInterfaceInputSpec):
     crowncompcor = File(exists=True, desc='input crown-based regressors')
     cos_basis = File(exists=True, desc='input cosine basis')
     motion = File(exists=True, desc='input motion parameters')
-    aroma = File(exists=True, desc='input ICA-AROMA')
 
 
 class GatherConfoundsOutputSpec(TraitedSpec):
@@ -192,14 +351,6 @@ class GatherConfoundsOutputSpec(TraitedSpec):
 class GatherConfounds(SimpleInterface):
     r"""
     Combine various sources of confounds in one TSV file
-
-    .. testsetup::
-
-    >>> from tempfile import TemporaryDirectory
-    >>> tmpdir = TemporaryDirectory()
-    >>> os.chdir(tmpdir.name)
-
-    .. doctest::
 
     >>> pd.DataFrame({'a': [0.1]}).to_csv('signals.tsv', index=False, na_rep='n/a')
     >>> pd.DataFrame({'b': [0.2]}).to_csv('dvars.tsv', index=False, na_rep='n/a')
@@ -216,11 +367,8 @@ class GatherConfounds(SimpleInterface):
          a    b
     0  0.1  0.2
 
-    .. testcleanup::
-
-    >>> tmpdir.cleanup()
-
     """
+
     input_spec = GatherConfoundsInputSpec
     output_spec = GatherConfoundsOutputSpec
 
@@ -236,7 +384,6 @@ class GatherConfounds(SimpleInterface):
             crowncompcor=self.inputs.crowncompcor,
             cos_basis=self.inputs.cos_basis,
             motion=self.inputs.motion,
-            aroma=self.inputs.aroma,
             newpath=runtime.cwd,
         )
         self._results['confounds_file'] = combined_out
@@ -244,56 +391,23 @@ class GatherConfounds(SimpleInterface):
         return runtime
 
 
-class ICAConfoundsInputSpec(BaseInterfaceInputSpec):
-    in_directory = Directory(mandatory=True, desc='directory where ICA derivatives are found')
-    skip_vols = traits.Int(desc='number of non steady state volumes identified')
-    err_on_aroma_warn = traits.Bool(False, usedefault=True, desc='raise error if aroma fails')
-
-
-class ICAConfoundsOutputSpec(TraitedSpec):
-    aroma_confounds = traits.Either(
-        None,
-        File(exists=True, desc='output confounds file extracted from ICA-AROMA'))
-    aroma_noise_ics = File(exists=True, desc='ICA-AROMA noise components')
-    melodic_mix = File(exists=True, desc='melodic mix file')
-    aroma_metadata = File(exists=True, desc='tabulated ICA-AROMA metadata')
-
-
-class ICAConfounds(SimpleInterface):
-    """Extract confounds from ICA-AROMA result directory
-    """
-    input_spec = ICAConfoundsInputSpec
-    output_spec = ICAConfoundsOutputSpec
-
-    def _run_interface(self, runtime):
-        (aroma_confounds,
-         motion_ics_out,
-         melodic_mix_out,
-         aroma_metadata) = _get_ica_confounds(self.inputs.in_directory,
-                                              self.inputs.skip_vols,
-                                              newpath=runtime.cwd)
-
-        if self.inputs.err_on_aroma_warn and aroma_confounds is None:
-            raise RuntimeError('ICA-AROMA failed')
-
-        aroma_confounds = self._results['aroma_confounds'] = aroma_confounds
-
-        self._results['aroma_noise_ics'] = motion_ics_out
-        self._results['melodic_mix'] = melodic_mix_out
-        self._results['aroma_metadata'] = aroma_metadata
-        return runtime
-
-
-def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
-                      rmsd=None, tcompcor=None, acompcor=None, crowncompcor=None,
-                      cos_basis=None, motion=None, aroma=None, newpath=None):
+def _gather_confounds(
+    signals=None,
+    dvars=None,
+    std_dvars=None,
+    fdisp=None,
+    rmsd=None,
+    tcompcor=None,
+    acompcor=None,
+    crowncompcor=None,
+    cos_basis=None,
+    motion=None,
+    newpath=None,
+):
     r"""
     Load confounds from the filenames, concatenate together horizontally
     and save new file.
 
-    >>> from tempfile import TemporaryDirectory
-    >>> tmpdir = TemporaryDirectory()
-    >>> os.chdir(tmpdir.name)
     >>> pd.DataFrame({'Global Signal': [0.1]}).to_csv('signals.tsv', index=False, na_rep='n/a')
     >>> pd.DataFrame({'stdDVARS': [0.2]}).to_csv('dvars.tsv', index=False, na_rep='n/a')
     >>> out_file, confound_list = _gather_confounds('signals.tsv', 'dvars.tsv')
@@ -304,13 +418,12 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
     ...             engine='python')  # doctest: +NORMALIZE_WHITESPACE
        global_signal  std_dvars
     0            0.1        0.2
-    >>> tmpdir.cleanup()
 
 
     """
 
     def less_breakable(a_string):
-        ''' hardens the string to different envs (i.e., case insensitive, no whitespace, '#' '''
+        """hardens the string to different envs (i.e., case insensitive, no whitespace, '#'"""
         return ''.join(a_string.split()).strip('#')
 
     # Taken from https://stackoverflow.com/questions/1175208/
@@ -320,30 +433,28 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
     def _adjust_indices(left_df, right_df):
-        # This forces missing values to appear at the beggining of the DataFrame
+        # This forces missing values to appear at the beginning of the DataFrame
         # instead of the end
         index_diff = len(left_df.index) - len(right_df.index)
         if index_diff > 0:
-            right_df.index = range(index_diff,
-                                   len(right_df.index) + index_diff)
+            right_df.index = range(index_diff, len(right_df.index) + index_diff)
         elif index_diff < 0:
-            left_df.index = range(-index_diff,
-                                  len(left_df.index) - index_diff)
+            left_df.index = range(-index_diff, len(left_df.index) - index_diff)
 
     all_files = []
     confounds_list = []
-    for confound, name in ((signals, 'Global signals'),
-                           (std_dvars, 'Standardized DVARS'),
-                           (dvars, 'DVARS'),
-                           (fdisp, 'Framewise displacement'),
-                           (rmsd, 'Framewise displacement (RMS)'),
-                           (tcompcor, 'tCompCor'),
-                           (acompcor, 'aCompCor'),
-                           (crowncompcor, 'crownCompCor'),
-                           (cos_basis, 'Cosine basis'),
-                           (motion, 'Motion parameters'),
-                           (aroma, 'ICA-AROMA')
-                           ):
+    for confound, name in (
+        (signals, 'Global signals'),
+        (std_dvars, 'Standardized DVARS'),
+        (dvars, 'DVARS'),
+        (fdisp, 'Framewise displacement'),
+        (rmsd, 'Framewise displacement (RMS)'),
+        (tcompcor, 'tCompCor'),
+        (acompcor, 'aCompCor'),
+        (crowncompcor, 'crownCompCor'),
+        (cos_basis, 'Cosine basis'),
+        (motion, 'Motion parameters'),
+    ):
         if confound is not None and isdefined(confound):
             confounds_list.append(name)
             if os.path.exists(confound) and os.stat(confound).st_size > 0:
@@ -351,10 +462,15 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
 
     confounds_data = pd.DataFrame()
     for file_name in all_files:  # assumes they all have headings already
-        new = pd.read_csv(file_name, sep="\t")
+        try:
+            new = pd.read_csv(file_name, sep='\t')
+        except pd.errors.EmptyDataError:
+            # No data, nothing to concat
+            continue
         for column_name in new.columns:
-            new.rename(columns={column_name: camel_to_snake(less_breakable(column_name))},
-                       inplace=True)
+            new.rename(
+                columns={column_name: camel_to_snake(less_breakable(column_name))}, inplace=True
+            )
 
         _adjust_indices(confounds_data, new)
         confounds_data = pd.concat((confounds_data, new), axis=1)
@@ -363,100 +479,27 @@ def _gather_confounds(signals=None, dvars=None, std_dvars=None, fdisp=None,
         newpath = os.getcwd()
 
     combined_out = os.path.join(newpath, 'confounds.tsv')
-    confounds_data.to_csv(combined_out, sep='\t', index=False,
-                          na_rep='n/a')
+    confounds_data.to_csv(combined_out, sep='\t', index=False, na_rep='n/a')
 
     return combined_out, confounds_list
 
 
-def _get_ica_confounds(ica_out_dir, skip_vols, newpath=None):
-    if newpath is None:
-        newpath = os.getcwd()
-
-    # load the txt files from ICA-AROMA
-    melodic_mix = os.path.join(ica_out_dir, 'melodic.ica/melodic_mix')
-    motion_ics = os.path.join(ica_out_dir, 'classified_motion_ICs.txt')
-    aroma_metadata = os.path.join(ica_out_dir, 'classification_overview.txt')
-    aroma_icstats = os.path.join(ica_out_dir, 'melodic.ica/melodic_ICstats')
-
-    # Change names of motion_ics and melodic_mix for output
-    melodic_mix_out = os.path.join(newpath, 'MELODICmix.tsv')
-    motion_ics_out = os.path.join(newpath, 'AROMAnoiseICs.csv')
-    aroma_metadata_out = os.path.join(newpath, 'classification_overview.tsv')
-
-    # copy metion_ics file to derivatives name
-    shutil.copyfile(motion_ics, motion_ics_out)
-
-    # -1 since python lists start at index 0
-    motion_ic_indices = np.loadtxt(motion_ics, dtype=int, delimiter=',', ndmin=1) - 1
-    melodic_mix_arr = np.loadtxt(melodic_mix, ndmin=2)
-
-    # pad melodic_mix_arr with rows of zeros corresponding to number non steadystate volumes
-    if skip_vols > 0:
-        zeros = np.zeros([skip_vols, melodic_mix_arr.shape[1]])
-        melodic_mix_arr = np.vstack([zeros, melodic_mix_arr])
-
-    # save melodic_mix_arr
-    np.savetxt(melodic_mix_out, melodic_mix_arr, delimiter='\t')
-
-    # process the metadata so that the IC column entries match the BIDS name of
-    # the regressor
-    aroma_metadata = pd.read_csv(aroma_metadata, sep='\t')
-    aroma_metadata['IC'] = [
-        'aroma_motion_{}'.format(name) for name in aroma_metadata['IC']]
-    aroma_metadata.columns = [
-        re.sub(r'[ |\-|\/]', '_', c) for c in aroma_metadata.columns]
-
-    # Add variance statistics to metadata
-    aroma_icstats = pd.read_csv(
-        aroma_icstats, header=None, sep='  ')[[0, 1]] / 100
-    aroma_icstats.columns = [
-        'model_variance_explained', 'total_variance_explained']
-    aroma_metadata = pd.concat([aroma_metadata, aroma_icstats], axis=1)
-
-    aroma_metadata.to_csv(aroma_metadata_out, sep='\t', index=False)
-
-    # Return dummy list of ones if no noise components were found
-    if motion_ic_indices.size == 0:
-        LOGGER.warning('No noise components were classified')
-        return None, motion_ics_out, melodic_mix_out, aroma_metadata_out
-
-    # the "good" ics, (e.g., not motion related)
-    good_ic_arr = np.delete(melodic_mix_arr, motion_ic_indices, 1).T
-
-    # return dummy lists of zeros if no signal components were found
-    if good_ic_arr.size == 0:
-        LOGGER.warning('No signal components were classified')
-        return None, motion_ics_out, melodic_mix_out, aroma_metadata_out
-
-    # transpose melodic_mix_arr so x refers to the correct dimension
-    aggr_confounds = np.asarray([melodic_mix_arr.T[x] for x in motion_ic_indices])
-
-    # add one to motion_ic_indices to match melodic report.
-    aroma_confounds = os.path.join(newpath, "AROMAAggrCompAROMAConfounds.tsv")
-    pd.DataFrame(aggr_confounds.T,
-                 columns=['aroma_motion_%02d' % (x + 1) for x in motion_ic_indices]).to_csv(
-        aroma_confounds, sep="\t", index=None)
-
-    return aroma_confounds, motion_ics_out, melodic_mix_out, aroma_metadata_out
-
-
 class _FMRISummaryInputSpec(BaseInterfaceInputSpec):
-    in_nifti = File(exists=True, mandatory=True, desc="input BOLD (4D NIfTI file)")
-    in_cifti = File(exists=True, desc="input BOLD (CIFTI dense timeseries)")
-    in_segm = File(exists=True, desc="volumetric segmentation corresponding to in_nifti")
+    in_nifti = File(exists=True, mandatory=True, desc='input BOLD (4D NIfTI file)')
+    in_cifti = File(exists=True, desc='input BOLD (CIFTI dense timeseries)')
+    in_segm = File(exists=True, desc='volumetric segmentation corresponding to in_nifti')
     confounds_file = File(exists=True, desc="BIDS' _confounds.tsv file")
 
     str_or_tuple = traits.Either(
         traits.Str,
         traits.Tuple(traits.Str, traits.Either(None, traits.Str)),
-        traits.Tuple(traits.Str, traits.Either(None, traits.Str), traits.Either(None, traits.Str)))
+        traits.Tuple(traits.Str, traits.Either(None, traits.Str), traits.Either(None, traits.Str)),
+    )
     confounds_list = traits.List(
-        str_or_tuple, minlen=1,
-        desc='list of headers to extract from the confounds_file')
-    tr = traits.Either(None, traits.Float, usedefault=True,
-                       desc='the repetition time')
-    drop_trs = traits.Int(0, usedefault=True, desc="dummy scans")
+        str_or_tuple, minlen=1, desc='list of headers to extract from the confounds_file'
+    )
+    tr = traits.Either(None, traits.Float, usedefault=True, desc='the repetition time')
+    drop_trs = traits.Int(0, usedefault=True, desc='dummy scans')
 
 
 class _FMRISummaryOutputSpec(TraitedSpec):
@@ -467,15 +510,14 @@ class FMRISummary(SimpleInterface):
     """
     Copy the x-form matrices from `hdr_file` to `out_file`.
     """
+
     input_spec = _FMRISummaryInputSpec
     output_spec = _FMRISummaryOutputSpec
 
     def _run_interface(self, runtime):
         self._results['out_file'] = fname_presuffix(
-            self.inputs.in_nifti,
-            suffix='_fmriplot.svg',
-            use_ext=False,
-            newpath=runtime.cwd)
+            self.inputs.in_nifti, suffix='_fmriplot.svg', use_ext=False, newpath=runtime.cwd
+        )
 
         has_cifti = isdefined(self.inputs.in_cifti)
 
@@ -486,25 +528,21 @@ class FMRISummary(SimpleInterface):
             nb.load(seg_file),
             remap_rois=False,
             labels=(
-                ("WM+CSF", "Edge") if has_cifti else
-                ("Ctx GM", "dGM", "WM+CSF", "Cb", "Edge")
+                ('WM+CSF', 'Edge')
+                if has_cifti
+                else ('Ctx GM', 'dGM', 'sWM+sCSF', 'dWM+dCSF', 'Cb', 'Edge')
             ),
         )
 
         # Process CIFTI
         if has_cifti:
-            cifti_data, cifti_segments = _cifti_timeseries(
-                nb.load(self.inputs.in_cifti)
-            )
+            cifti_data, cifti_segments = _cifti_timeseries(nb.load(self.inputs.in_cifti))
 
             if seg_file is not None:
                 # Append WM+CSF and Edge masks
                 cifti_length = cifti_data.shape[0]
                 dataset = np.vstack((cifti_data, dataset))
-                segments = {
-                    k: np.array(v) + cifti_length
-                    for k, v in segments.items()
-                }
+                segments = {k: np.array(v) + cifti_length for k, v in segments.items()}
                 cifti_segments.update(segments)
                 segments = cifti_segments
             else:
@@ -512,15 +550,19 @@ class FMRISummary(SimpleInterface):
 
         dataframe = pd.read_csv(
             self.inputs.confounds_file,
-            sep="\t", index_col=None, dtype='float32',
-            na_filter=True, na_values='n/a')
+            sep='\t',
+            index_col=None,
+            dtype='float32',
+            na_filter=True,
+            na_values='n/a',
+        )
 
         headers = []
         units = {}
         names = {}
 
         for conf_el in self.inputs.confounds_list:
-            if isinstance(conf_el, (list, tuple)):
+            if isinstance(conf_el, list | tuple):
                 headers.append(conf_el[0])
                 if conf_el[1] is not None:
                     units[conf_el[0]] = conf_el[1]
@@ -536,12 +578,7 @@ class FMRISummary(SimpleInterface):
         else:
             data = dataframe[headers]
 
-        colnames = data.columns.ravel().tolist()
-
-        for name, newname in list(names.items()):
-            colnames[colnames.index(name)] = newname
-
-        data.columns = colnames
+        data = data.rename(columns=names)
 
         fig = fMRIPlot(
             dataset,
@@ -552,5 +589,5 @@ class FMRISummary(SimpleInterface):
             nskip=self.inputs.drop_trs,
             paired_carpet=has_cifti,
         ).plot()
-        fig.savefig(self._results["out_file"], bbox_inches="tight")
+        fig.savefig(self._results['out_file'], bbox_inches='tight')
         return runtime

@@ -1,3 +1,707 @@
+25.1.4 (July 31, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This includes additional fixes for non-unicode ``B0FieldIdentifier`` keys.
+
+  * FIX: Allow warning kwargs (#3483)
+  * FIX: Remove non-alphanumeric characters from fmapid in fmapreg transform (#3490)
+
+
+25.1.3 (June 19, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This resolves a bug introduced in a dependency between 25.1.1 and 25.1.2.
+
+25.1.2 (June 17, 2025)
+======================
+Patch release in the 25.1.x series.
+
+This fixes crashes encountered processing a BIDS dataset with one or more
+``B0FieldIdentifier`` keys with non-unicode word characters.
+
+  * FIX: Use sanitized fieldmap naming (#3471)
+
+25.1.1 (May 23, 2025)
+=====================
+Patch release in the 25.1.x series.
+
+This includes small fixes for working with precomputed fieldmaps,
+including adding fieldmap correction sections to the reports,
+which were previously omitted if the fieldmap was not calculated
+during the fMRIPrep run.
+
+* FIX: Improve retrieval of precomputed pepolar fieldmaps (#3466)
+* RF: Separate fieldmap registration from coreg ref generation (#3467)
+
+
+25.1.0 (May 21, 2025)
+=====================
+New feature release in the 25.1.x series.
+
+This release includes a small fix related to interpolations on the bounds
+of the image field-of-view. This improves consistency with prior versions
+of fMRIPrep for data with limited fields-of-view or small bounding boxes.
+
+This release also adds support for providing fallback values for
+``TotalReadoutTime`` metadata.
+For Philips datasets, if ``EstimatedTotalReadoutTime`` or
+``EstimatedEffectiveEchoSpacing`` are available, you can use these
+by passing ``--fallback-total-readout-time estimated``.
+For datasets with no readout time information, a numeric value can be passed,
+for example, ``--fallback-total-readout-time 0.05``.
+If the readout time information is known, it is preferable to encode directly
+in the dataset, but there are cases where it is better to explicitly pass the
+value to the software than inject uncertain metadata into the dataset.
+In particular, the true readout time is not necessary for SyN-SDC, but a value
+is nonetheless needed in order to estimate the inhomogeneity field.
+
+This release is a long-term-support *candidate*. We will be performing
+extensive tests and monitoring bug reports over the next couple of months
+to determine whether issues can be addressed without making breaking changes.
+
+Structural processing changes
+-----------------------------
+
+This release pins a version of sMRIPrep (0.18) that correctly handles precomputed
+tissue probability maps.
+The FAST segmentation also now skips an internal bias field correction step
+that is redundant with ANTs N4 correction,
+and may be inappropriate for non-human populations.
+
+Fieldmap processing changes
+---------------------------
+
+This release pins a version of SDCFlows (2.13) that includes several improvements to
+the SyN-SDC method.
+In particular, the fieldmap prior that constrained the scope of displacements
+was reintroduced and refined.
+
+All merged pull requests
+------------------------
+
+* FIX: Use nearest mode for extrapolating data outside image boundaries (#3453)
+* ENH: Replace c3d_affine_tool with a ConvertAffine interface (#3464)
+* ENH: Add flag to fallback to Estimated* metadata or a passed value for TotalReadoutTime (#3423)
+
+
+25.0.0 (March 25, 2025)
+=======================
+New feature release in the 25.0.x series.
+
+This release substantially improves support for pre-computed derivatives.
+Previous releases would miss some derivatives and rerun the computations.
+Note that derivatives from previous versions will be accepted,
+so it should not be necessary to recompute derivatives from previous versions.
+The recommended command line is::
+
+    fmriprep BIDS_DIR OUT_DIR participant --derivatives fmriprep=PRECOMP_DIR
+
+Note that multiple derivatives can be specified, for example::
+
+    fmriprep BIDS_DIR OUT_DIR participant \
+      anat=PRECOMPUTED_ANATOMICAL_DIR \
+      func=PRECOMPUTED_FUNCTIONAL_DIR
+
+When the same file is found in multiple derivatives, the last one found takes precedence.
+
+Additionally, `--force-*` flags have been consolidated into a single
+`--force` flag that can take multiple, space-separated arguments.
+
+Structural processing changes
+-----------------------------
+We now output white, pial and midthickness fsLR meshes on the subject surface.
+Look for `sub-<subject>_hemi-<L|R>_space-fsLR_*_<surf>.surf.gii` files.
+
+Brain extraction has been modified slightly to more closely match the
+`antsBrainExtraction.sh` workflow distributed by ANTs.
+The impact should be minimal, but in rare cases this fixes a crash.
+
+Fieldmap processing changes
+---------------------------
+SyN-SDC fieldmap filtering is now single-level, following the improvements
+for gradient-echo fieldmaps in 24.1.
+
+Jacobian-weighting during fieldmap unwarping is now on by default *only*
+for PEPolar fieldmaps.
+To enable for other fieldmap types, use `--force fieldmap-jacobian`.
+
+All merged pull requests
+------------------------
+
+* FIX: Detect and apply precomputed fieldmaps (#3439)
+* FIX: Calculate bold mask and dummy scans in transform-only runs (#3428)
+* FIX: Use consistent skull-stripping pre- and post- SDC (#3415)
+* FIX: Use removeprefix instead of lstrip or ternary operator (#3409)
+* FIX: Listify sessions when generating reports (#3408)
+* FIX: Ensure fieldmap is resampled correctly in report (#3387)
+* FIX: Stop excluding FS minc_modify_header used during fallback registration (#3372)
+* FIX: Repair and test query for precalculated baseline/boldref files (#3370)
+* FIX: Repair search for precomputed transforms (#3369)
+* ENH: Enable Jacobians only for PEPOLAR by default, allow forcing (#3443)
+* ENH: Create `--force` flag that accepts a list, replacing individual `--force-*` flags (#3442)
+* ENH: Output fsLR meshes on subject surfaces (#3411)
+* ENH: Flexibilize "sophisticated" pepolar to allow monomodal execution (#3393)
+* ENH: Update FSL packages for reported bug fixes (#3374)
+* RF: Calculate RMSD from motion transforms (#3427)
+* RF: Reconstruct motion confounds from minimal derivatives (#3424)
+* RF: Replace deprecated pkgutil.find_loader (#3384)
+* RF: Upgrade nitransforms and remove workarounds (#3378)
+* DOC: Fix xfm extension in the outputs docs (#3435)
+* DOC: Mention fMRIPost-AROMA in parser documentation (#3356)
+* MNT: Remove CLI flags with expired deprecation periods (#3445)
+* MNT: Update pinned environment (#3440)
+* MNT: Bump pins, update RTD config (#3425)
+* MNT: Declare linux/amd64 platform during Docker build (#3422)
+* MNT: Bump astral-sh/setup-uv from 4 to 5 (#3417)
+* MNT: Test support for Python 3.13 (#3416)
+* MNT: Install Workbench CLI via conda (#3410)
+* MNT: Update minimum dependencies, test with tox-uv (#3412)
+* MNT: Install c3d through conda (#3382)
+* CI: Fetch tags and 200 commits to support describe (#3381)
+* CI: Build docker images in GHA, store cache inline and push to GHCR (#3380)
+
+
+24.1.1 (October 10, 2024)
+=========================
+Bug fix release in the 24.1.x series.
+
+Precomputed functional derivatives were not being correctly detected,
+and a couple fixes for rare issues.
+
+* FIX: Remove checks for unit zooms and symmetric rotations in template warp (#3376)
+* FIX: Stop excluding FS minc_modify_header used during fallback registration (#3372)
+* FIX: Repair search for precomputed bold references (#3370)
+* FIX: Repair search for precomputed transforms (#3369)
+
+
+24.1.0 (September 16, 2024)
+===========================
+New feature release in the 24.1.x series.
+
+Handling of gradient echo fieldmaps is improved.
+
+* FIX: Select volumetric dseg.tsv from recent TemplateFlow releases (#3257)
+* RF: Adapt to less T1w-centric smriprep (#3333)
+* RF: Use acres over vendored data loader (#3323)
+* DOC: Add benchmark page (#3312)
+* MAINT: Move to tox to simplify test/CI setup (#3326)
+* CI: Fix expected outputs for fieldmaps (#3321)
+
+
+24.0.1 (July 16, 2024)
+======================
+Bug fix release in the 24.0.x series.
+
+This release resolves a bug with multi-volume single-band references.
+If multiple volumes are found, they are processed in the same way as
+the BOLD series is processed to produce a motion-correction reference.
+
+* FIX: Validate and summarize multi-volume sbrefs (#3320)
+* DOC: Address errors/warnings in RTD builds (#3325)
+* DOC: Read html_baseurl from RTD environment, if available (#3324)
+
+
+24.0.0 (June 17, 2024)
+======================
+New feature release in the 24.0.x series.
+
+This release is an incremental improvement on 23.2.x, with some
+fixes for bugs discovered in the updated workflow.
+
+New features include separation of HTML reports by session for subjects
+with many BOLD runs, a new ``--fs-no-resume`` option to improve interoperability
+with less typical FreeSurfer directories, such as those generated by longitudinal
+FreeSurfer or FastSurfer, and adoption of DatasetLinks and BIDS-URIs, to follow
+the recommendations of recent versions of BIDS.
+
+With thanks to Dimitri Papadopoulos, Basile Pinsard, Celine Provins, Taylor Salo
+and Wang Hao-Ting for their contributions!
+
+* FIX: Add "double" type to allowed DisplacementFieldTransform (#3287)
+* FIX: Require recent templateflow, select correct aparc dseg.tsv (#3256)
+* FIX: Ensure proper templates are retrieved with sloppy (#3251)
+* FIX: Delete summary from functional report when separated by sessions (#3223)
+* FIX: Support lists in bids filter file containing ``null`` or ``*`` (#3215)
+* FIX: Re-enable anat fasttrack for dataset without t1w (#3202)
+* ENH: Use BIDSURI in init_ds_boldmask_wf (#3297)
+* ENH: Add templateflow to DatasetLinks (#3267)
+* ENH: Track proximal sources of functional GIFTIs (#3263)
+* ENH: Support named derivative paths (#3264)
+* ENH: Track Sources for standard-space outputs (#3262)
+* ENH: Add --fs-no-resume option to reuse existing FreeSurfer outputs without resuming (#3142)
+* ENH: Use BIDS URIs to track Sources in sidecars (#3255)
+* ENH: Ignore unselected subjects in BIDSLayoutIndexer (#3236)
+* ENH: Add metadata for motion parameters (#3245)
+* ENH: Separate anatomical and functional reports per session for densely sampled dataset (#3191)
+* ENH: Leverage T2w if available for BOLD -> anat coregistration (#3208)
+* RF: Fix ITK warp conversion to nitransforms format (#3300)
+* RF: Load report assembler from nireports (#3177)
+* DOC: Clarify ``--dvars-spike-threshold`` uses standardized DVARS (#3205)
+* TST: Update test to reflect new report generation behavior (#3210)
+* STY: Manual conversions to f-strings (#3241)
+* STY: Apply ruff/pyupgrade rule UP031 (#3280)
+* STY: Lint and style check full repository (#3221)
+* STY: Adopt ruff for linting and formatting (#3206)
+* MNT: Pin libitk 5.3 and note dependencies (#3298)
+* MNT: Upgrade ruff pre-commit, add fixing checks (#3283)
+* MNT: Complete transition from flake8/black to ruff (#3279)
+* MNT: Apply Repo-Review suggestions (#3194)
+* MNT: Verbatim copy of Apache license 2.0 (#3259)
+* MNT: Bump cryptography from 41.0.7 to 42.0.4 (#3234)
+* MNT: Drop copyright year, unused dunder fields (#3247)
+* MNT: Update environment pins (#3226)
+* MNT: Bump codecov/codecov-action from 3 to 4 (#3219)
+* DOCKER: Restore mincinfo binary (#3249)
+* CI: Move to new circle machine tags (#3248)
+* CI: Avoid ruff warning (#3244)
+* CI: Pass ruff tests (#3243)
+
+
+23.2.3 (May 20, 2024)
+=====================
+Bug fix release in the 23.2.x series.
+
+Writes brain masks in ``space-boldref`` with ``--level minimal``,
+bringing behavior in line with documentation.
+
+* FIX: Write out boldref-space brain mask with minimal level (#3292)
+
+
+23.2.2 (May 06, 2024)
+=====================
+Bug fix release in the 23.2.x series.
+
+Fixes an issue with broken connections, which only affects ``--level resampling``.
+
+* FIX: Add datasink fill-in step to resampling level (#3254)
+
+
+23.2.1 (March 06, 2024)
+=======================
+Bug fix release in the 23.2.x series.
+
+Masks, BOLD references and T2\* maps resampled into template spaces had
+their order of transforms inverted. BOLD files were unaffected.
+
+This release also preserves the TR in the NIfTI header of BOLD series.
+
+* FIX: Preserve pixdim4+ of resampled images (#3239)
+* FIX: Flip order of transforms in ``init_ds_volumes_wf`` (#3238)
+* DOCKER: restore mincinfo binary (#3249)
+* CI: Move to new CircleCI machine tags (#3247)
+
+
+23.2.0 (January 10, 2024)
+=========================
+New feature release in the 23.2.x series.
+
+This release wraps up a significant refactor of fMRIPrep. The main new features
+can be used with the ``--level`` and ``--derivatives`` flags.
+
+The ``--level`` flag can take the arguments ``minimal``, ``resampling`` or
+``full``. The default is ``full``, which should produce nearly the same results
+as previous versions. ``minimal`` will produce only the minimum necessary to
+deterministically generate the remaining derivatives. ``resampling`` will produce
+some additional derivatives, intended to simplify resampling with other tools.
+
+The ``--derivatives`` flag takes arguments of the form ``name=/path/to/dir``,
+for example ``--derivatives anat=$SMRIPREP_DIR``.  If provided, fMRIPrep will
+read the specified directories for pre-computed derivatives. If a derivative is
+found, it will be used instead of computing it from scratch. If a derivative is
+not found, fMRIPrep will compute it and proceed as usual.
+
+Taken together, these features can allow a dataset provider to run a minimal
+fMRIPrep run, targeting many output spaces, while a user can then run a
+``--derivatives`` run to generate additional derivatives in only the output
+spaces they need. Another use case is to provide an precomputed derivative
+to override the default fMRIPrep behavior, enabling easier workarounds for
+bugs or experimentation with alternatives.
+
+Additionally, this release includes a number of bug fixes and improvements.
+This release adds support for MSM-Sulc, improving the alignment of subject
+surfaces to the fsLR template. This process is enabled by default, but may
+be disabled with the ``--no-msm`` flag.
+
+This release resolves a number of issues with fieldmaps inducing distortions
+during correction. Phase difference and direct fieldmaps are now masked correctly,
+preventing the overestimation of distortions outside the brain. Additionally,
+we now implement Jacobian weighting during unwarping, which corrects for compression
+and expansion effects on signal intensity. To disable Jacobian weighting, use
+``--ignore fmap-jacobian``.
+
+Finally, a new resampling method has been added, to better account for
+susceptibility distortion and motion in a single shot resampling to a volumetric
+target space. We anticipate extending this to surface targets in the future.
+
+* FIX: Restore --ignore sbref functionality (#3180)
+* FIX: Retrieve atlas ROIs at requested density (#3179)
+* FIX: Keep minctracc executable in FreeSurfer installation (#3175)
+* FIX: Exclude echo entity from optimally combined derivatives (#3166)
+* FIX: Disable boldref-space outputs unless requested (#3159)
+* FIX: Tag memory estimates in resamplers (#3150)
+* FIX: Final revisions for next branch (#3134)
+* FIX: Minor fixes to work with MSMSulc-enabled smriprep-next (#3098)
+* FIX: Connect EPI-to-fieldmap transform (#3099)
+* FIX: Use Py2-compatible version file template for fmriprep-docker (#3101)
+* FIX: Update connections to unwarp_wf, convert ITK transforms to text (#3077)
+* ENH: Allow --ignore fmap-jacobian to disable Jacobian determinant modulation during fieldmap correction (#3186)
+* ENH: Exclude non-steady-state volumes from confound correlation plot (#3171)
+* ENH: Pass FLAIR images to anatomical workflow builder to include in boilerplate (#3146)
+* ENH: Restore carpetplot and other final adjustments (#3131)
+* ENH: Restore CIFTI-2 generation (#3129)
+* ENH: Restore resampling to surface GIFTIs (#3126)
+* ENH: Restore confound generation (#3120)
+* ENH: Restore resampling BOLD to volumetric templates (#3121)
+* ENH: Restore resampling to T1w target (#3116)
+* ENH: Add MSMSulc (#3085)
+* ENH: Add reporting workflow for BOLD fit (#3082)
+* ENH: Generate anatomical derivatives useful for resampling (#3081)
+* RF: Load reportlets interfaces from nireports rather than niworkflows (#3176, #3184)
+* RF: Separate goodvoxels mask creation from fsLR resampling (#3170)
+* RF: Write out anatomical template derivatives (#3136)
+* RF: Update primary bold workflow to incorporate single shot resampling (#3114)
+* RF: Update derivative cache spec, calculate per-BOLD, reuse boldref2fmap (#3078)
+* RF: Split fMRIPrep into fit and derivatives workflows (#2913)
+* RPT: Rename CSF/WM confounds in fMRIPlot (#3172)
+* TST: Add smoke tests for full workflow and most branching flags (#3155)
+* TST: Add smoke-tests for bold_fit_wf (#3152)
+* DOC: Fix documentation and description for init_bold_grayords_wf (#3051)
+* DOC: Minor updates in outputs.rst (#3148)
+* STY: Apply a couple refurb suggestions (#3151)
+* STY: Fix flake8 warnings (#3044)
+* STY: Apply pyupgrade suggestions (#3043)
+* MNT: Restore mritotal subcommands to Dockerfile (#3149)
+* MNT: Update smriprep to 0.13.1 (#3153)
+* MNT: optimise size of PNG files (#3145)
+* MNT: update vendored docs script ``github_link.py`` (#3144)
+* MNT: Update tedana pin, test on Python 3.12 (#3141)
+* MNT: Bump environment (#3132)
+* MNT: Bump version requirements (#3107)
+* MNT: http:// → https:// (#3097)
+* MNT: Remove mritotal and dependencies from FreeSurfer ignore file (#3090)
+* MNT: Update environment (#3073)
+* MNT: Depend on newer sphinx (#3067)
+* MNT: Install ANTs from conda-forge (#3061)
+* MNT: Drop Python 3.8 and numpy 1.21 support (NEP29) (#3052)
+* MNT: update update_zenodo.py script (#3042)
+* MNT: Fix welcome message formatting and instructions (#3039)
+* MNT: Python 3.11 should be supported (#3038)
+* CI: Bump actions/setup-python from 4 to 5 (#3181)
+* CI: Stop testing legacy layout (#3079)
+* CI: Improve tag detection for docker builds (#3066)
+* CI: Clean up pre-release builds (#3040)
+
+23.1.4 (August 1, 2023)
+=======================
+Patch release in the 23.1.x series.
+
+This release prioritizes single-band reference BOLD images during SyN-SDC schemes.
+Additionally, an indices inconsistency was fixed for CIFTI volumetric data.
+
+* FIX: Pass sbref files to SyN workflow (#3060)
+* FIX: Generate CIFTI volume structure indices in column-major order (nipreps/niworkflows#815)
+
+
+23.1.3 (June 24, 2023)
+======================
+
+Bug fix release in the 23.1.x series.
+
+In rare cases where Freesurfer is unable to align to its default atlas in
+Talairach registration, it was unable to fall back to the Schwartz atlas
+because we were not including it in the Docker image. This release exists
+to provide an updated Docker image, and no upgrade is needed for users not
+encountering this issue.
+
+* DOCKER: Include 3T18yoSchwartzReactN32 FreeSurfer atlas in image (#3049)
+
+
+23.1.2 (June 16, 2023)
+======================
+
+Bug fix release in the 23.1.x series.
+
+This release correctly generates ``*_space-fsLR_desc-reg_sphere.surf.gii``,
+which was previously a copy of the standard ``*_desc-reg_sphere.surf.gii``.
+Additionally, warnings are now correctly emitted when AROMA-related CLI
+options are used.
+
+* CI: Clean up pre-release builds (#3040)
+
+
+23.1.1 (June 14, 2023)
+======================
+
+Bug fix release in the 23.1.x series.
+
+This release corrects a small error that prevented the "goodvoxels" mask from
+being placed in the output directory if no FreeSurfer output spaces were specified.
+
+* FIX: Remove bad metadata input from ds_goodvoxels_mask (#3037)
+
+
+23.1.0 (June 12, 2023)
+======================
+New feature release in the 23.1.x series.
+
+This release substantially reworks the resampling to fsLR grayordinate space,
+better accounting for partial volumes and high variance voxels. If you are
+resampling using ``--project-goodvoxels``, we strongly recommend upgrading.
+
+Fieldmap handling is improved, with better preference given to single-band
+references in both PEPolar and SyN-SDC schemes. Additionally, fMRIPrep will
+no longer estimate fieldmaps that are not intended to be used to correct BOLD
+series, reducing unneeded processing.
+
+This release removes ICA-AROMA from the fMRIPrep workflow. To use ICA-AROMA,
+set ``MNI152NLin6Asym:res-2`` as a target output space. MELODIC and ICA-AROMA
+can be run on the resulting images in a separate pipeline. For further
+information on the reasoning behind this change, see
+`GitHub issue #2936 <https://github.com/nipreps/fmriprep/issues/2936>`__.
+
+This release increments the versions of ANTs and FSL bundled in the Docker
+image.
+
+With thanks to Eilidh MacNicol, Basille Pinsard and Taylor Salo for contributions
+in fMRIPrep and SDCflows.
+
+* FIX: Raise RuntimeError at build if echos have mismatched shapes (#3028)
+* FIX: Inconsistent fmapless estimation when ignoring fieldmaps (#2994)
+* FIX: Dilate BOLD mask by 2 voxels to prevent over-aggressive masking degrading T2* map estimation (#2986)
+* FIX: Estimate free memory with "available", not "free" (#2985)
+* ENH: Add ``--me-t2s-fit-method`` parameter (#3030)
+* ENH: Resample BOLD to fsLR directly, dropping fsaverage intermediate (#3011)
+* ENH: Allow SBref+EPI PEPolar fieldmaps to correct BOLD series (#3008)
+* ENH: Remove ICA-AROMA from workflow and docs (#2966)
+* RF: Filter fieldmaps based on whether they will be used to correct a BOLD series (#3025)
+* MNT: Update ANTs pin in Docker image (#3016)
+* MNT: Update governance docs (#2992)
+* MNT: Refactor Docker build process (#2982)
+* MNT: Pin conda environment more strictly (#2853)
+* MNT: Require niworkflows ~1.3.6 (#2740)
+* CI: Use registry for layer caching (#3012)
+* CI: Upgrade docker orb (#2865)
+
+
+23.0.2 (April 24, 2023)
+=======================
+Bug fix release in the 23.0.x series.
+
+This release fixes issues with `_phase1+2`, `_phasediff` and `_fieldmap`
+fieldmap files that are found with an orientation other than RAS.
+
+
+23.0.1 (March 24, 2023)
+=======================
+Bug fix release in the 23.0.x series.
+
+This release fixes issues with detecting partial fieldmaps, emitting a warning instead
+of an error. A small change in sMRIPrep fixes the name of a workflow, which may cause a
+duplication in a reused work directory from 23.0.0, but should not break any workflows
+or produce a change in derivatives.
+
+
+23.0.0 (March 13, 2023)
+=======================
+New feature release in the 23.0.x series.
+
+This release adds improvements for workflows targeting the fsLR grayordinate space.
+Namely, morphometric (curvature, sulcal depth and cortical thickness) measures are
+output as ``.dscalar.nii`` files and high-variance voxels can be excluded from the
+resampling step using ``--project-goodvoxels``.
+
+Additionally, T2w images are now resampled to the T1w-defined subject space if FreeSurfer
+reconstruction is used. If multiple T2w images are provided, they are merged into a single
+image first.
+
+PEPolar fieldmaps with R/L phase-encoding directions or in non-standard orientations
+are now better supported. We continue to work toward better support for more SDC
+configurations.
+
+23.0.0 supports FreeSurfer 7.3.2, which is now bundled in the Docker image.
+
+ICA-AROMA support will be removed in 23.1.0.
+
+With thanks to Thomas Madison, Greg Conan, Celine Provins, Robert Smith and Yaroslav
+Halchenko for contributions.
+Thanks also to Steve Giavasis and colleagues at the Child Mind Institute
+for feedback on SDC processing.
+
+* FIX: Pass reference image to unwarp_wf, use reference fieldwarp for single shot (#2945)
+* FIX: Pass fmap filters to sdcflows (#2932)
+* ENH: Resample morphometrics to fsLR dscalar CIFTI-2 files if ``--cifti-output`` is used (#2959)
+* ENH: Add option to exclude projecting high variance voxels to surface (update of #2855) (#2956)
+* ENH: Separate deep from shallow WM+CSF in the carpetplot (#2744)
+* ENH: Merge T2w images and coregister to T1w template (#2941)
+* RF: Use DataFrame.rename instead of ad hoc process (#2937)
+* DOC: Update the description of the carpetplot in the sample report (#2950)
+* DOC: Altered CLI option grouping (#2944)
+* DOC: Update lesion ROI documentation, warn in docs and app about upcoming changes (#2943)
+* DOC: Update docs following read-through (#2930)
+* DOC: Update carpetplot in "Outputs of fMRIPrep" (#2923)
+* MNT: Codespell config, action + some typo fixups (#2958)
+* MNT: Warn that AROMA support will be removed in a future version (#2940)
+* MNT: Update Ubuntu, FreeSurfer, AFNI and Convert3D (#2931)
+* MNT: Switch to hatch build backend and update package metadata (#2914 + #2939)
+* MNT: Rotate CircleCI secrets and setup up org-level context (#2928)
+* CI: Minor updates to CircleCI config to improve resilience (#2957)
+* CI: Weekly docker build from scratch (#2938)
+
+
+22.1.1 (January 04, 2023)
+=========================
+Bug fix release in the 22.1.x series.
+
+This release fixes the reported version in the distributed Docker image,
+and depends on SDCFlows 2.2.2, which fixes a bug affecting SDC estimation
+in some oblique datasets.
+
+  * FIX: Ensure version installed in Docker file is clean (#2922)
+
+
+22.1.0 (December 12, 2022)
+==========================
+New feature release in the 22.1.x series.
+
+This is an incremental improvement on the 22.0.x series, including features and fixes that
+are backwards incompatible with the 22.0.x work tree.
+
+Several significant issues with susceptibility distortion correction (SDC) have been fixed
+in `SDCFlows 2.2.0`_, in addition to the changes listed below.
+If you have been seeing issues with SDC in 21.0.x or 22.0.x, please test out this version
+and submit issues.
+
+Additionally, this version includes improvements to structural preprocessing, generating
+morphometric ``.shape.gii`` files from FreeSurfer derivatives.
+
+Finally, this release introduces a method for estimating the carbon footprint of using
+fMRIPrep. Add ``--track-carbon`` to your command to try this out. Note that it does not work
+in Docker containers, but should work for Singularity containers.
+
+With thanks to Nikhil Bhagwat for contributions.
+
+
+  * FIX: Conform --reports-only to match post-run report generation (#2900)
+  * FIX: Remove cortex masking during vol2surf sampling (#2879)
+  * FIX: Do not attempt to calculate TA if SliceTiming is degenerate (#2901)
+  * FIX: Pass CrownCompCor components to GatherConfounds (#2897)
+  * FIX: Output brain mask and boldref in BOLD space if individual echos requested (#2852)
+  * FIX: Check for empty ACompCor results before trying to rename (#2851)
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+  * ENH: Provide free memory estimate to unwarp_wf for better resources allocation (#2910)
+  * ENH: Add migas telemetry in addition to sentry (#2817)
+  * ENH: Tag memory based on data shape, annotate T2SMap (#2898)
+  * ENH: Add of carbon tracker to estimate workflow emissions (#2834)
+  * ENH: Output BOLD HMC transforms and reference volume (#2860)
+  * RF: CIFTI generation (#2884)
+  * DOC: Correct description of --longitudinal behavior (#2905)
+  * MNT: Update fast track outputs, use latest smriprep (#2894)
+  * MNT: Deprecate ``--topup-max-vols`` (#2881)
+  * MNT: Add a ``--debug pdb`` to allow easier line-by-line debugging (#2871)
+  * MNT: Generate more verbose reports (here, showing fieldmaps) if running in debug mode (#2872)
+  * DOCKER: Build wheel and install in two-stage build (#2859)
+  * CI: Various updates (#2899)
+  * CI: Test on Python 3.10, bump actions versions (#2895)
+  * CI: Fix non-fasttrack outputs for maint/21.0.x (#2866)
+
+.. _`SDCFlows 2.2.0`: https://github.com/nipreps/sdcflows/releases/2.2.0
+
+22.0.2 (September 27, 2022)
+===========================
+A patch release in the 22.0.x series.
+
+This release increases the minimum Nipype version to include better error messages on failures.
+Additionally, this includes a fix to allow SyN distortion correction in combination with the
+``--ignore fieldmaps`` option.
+
+  * MAINT: Add ``pre-commit``, dev installation for consistent styling (#2857)
+  * CI: Upgrade docker orb (#2858)
+
+22.0.1 (September 13, 2022)
+===========================
+Patch release in the 22.0.x series.
+
+This release includes relaxed tolerance in the case where fieldmap affines slightly differed,
+and a fix for running FreeSurfer 7 with an outdated fsaverage folder.
+
+  * ENH: Add check to ensure latest fsaverage folder is used (#2847)
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+  * FIX: Avoid crashing on empty ACompCor results (#2850)
+
+22.0.0 (July 28, 2022)
+======================
+New feature release in the 22.0.x series.
+
+This release has been tested to work with Python 3.9 and FreeSurfer 7.2,
+which are now bundled in the Docker image.
+
+This release also features improvements to T2\* and carpetplot reporting.
+
+For the next release, we are investigating issues with susceptibility
+distortion correction (SDC). Please check your results carefully and report
+any issues you find.
+
+  * FIX: Update wrapper python path (#2783)
+  * FIX: Preserve ``collect_data`` behavior by using named args (#2754)
+  * FIX: Update *fMRIPrep* version in bibliography at run time (#2738)
+  * FIX: Plot carpetplot with CIFTI-specific colorbar (#2737)
+  * FIX: Two minor typos in report spec (#2708)
+  * ENH: Clip T2\* values at 100ms to keep consistent histogram axes (#2781)
+  * ENH: Plot histogram of T2\* values in gray-matter mask (#2778)
+  * ENH: Save T2starmap files in all requested output spaces, if calculated (#2776)
+  * ENH: Compare T2\* map to BOLD reference (#2751)
+  * ENH: Add edge-regressors to confounds & crown to carpetplot (#2621)
+  * ENH: Add major/minor versions to base workflow name (#2716)
+  * DOC: Fix JSON typo in config in FAQ (#2771)
+  * DOC: Clarify calculation of confounding signals (#2724)
+  * MNT: Build on Python 3.9 environment (#2782)
+  * MNT: Seed ignore-revs file and script to tag new hashes with log entries (#2748)
+  * MNT: Require PyBIDS 0.15+ to allow fMRIPrep to preserve zero-padding in run entity (#2745)
+  * MNT: Upload artifacts after each step of Circle's workflow (#2736)
+  * MNT: Normalize code style of ``workflows.confounds`` (#2729)
+  * MNT: Ask for fmriprep-docker RUNNING line (#2670)
+  * DOCKER: Bundle FreeSurfer 7 (#2779)
+  * CI: Touch up CircleCI configuration (#2764)
+  * CI: Update package builds to use python -m build (#2746)
+
+21.0.4 (September 29, 2022)
+===========================
+Bug-fix release in the 21.0.x series.
+
+  * FIX: Output brain mask and boldref in BOLD space if individual echos requested (#2852)
+  * FIX: Check for empty ACompCor results before trying to rename (#2851)
+  * CI: Fix non-fasttrack outputs for maint/21.0.x (#2866)
+
+21.0.3 (September 6, 2022)
+==========================
+Bug-fix release in the 21.0.x series.
+
+This release includes a fix for `--bids-filter-file` not respecting `sbref` filtering.
+
+  * FIX: Filter sbrefs by BIDS filters if available (#2843)
+
+21.0.2 (April 21, 2022)
+=======================
+Bug-fix release in the 21.0.x series.
+
+This release includes a few bug-fixes for susceptibility distortion correction (SDC) and multi-echo (ME).
+A few notable fixes include:
+- Added tolerance for affine precision differences when using EPI fieldmaps.
+- Removed hang-ups when reusing anatomical derivatives with ME data.
+- Increased BOLD masking workflow robustness.
+
+A full list of changes can be found below:
+
+  * DOCKER: Update multiarch deb package link (#2758)
+  * ENH: Add affine_tolerance flag to MergeSeries (nipreps/niworkflows#706)
+  * FIX: Initialize BIDS layout after cleaning working directory (#2741)
+  * FIX: Avoid double unwarping during resampling of processed multi-echo data (#2730)
+  * FIX: Account for potential lists of lists in multi-echo cases (nipreps/niworkflows#719)
+  * FIX: Improve reliability of BOLD masking workflow (nipreps/niworkflows#712)
+  * FIX: Relax tolerance for different affines when concatenating blips (nipreps/sdcflows#265)
+
 21.0.1 (January 24, 2022)
 =========================
 Bug-fix release in the 21.0.x series.
@@ -121,6 +825,30 @@ A full list of changes can be found below.
 * MAINT: Ease CI packaging tests (#2472)
 * RF/FIX: Iterate over echo indices, not filenames, simplifying iteration logic (#2651)
 
+20.2.8 (July 18, 2024)
+======================
+Bug-fix release in the 20.2.x LTS series.
+
+We anticipate this being the final release in the 20.2.x LTS series.
+
+* FIX: Select volumetric dseg.tsv from recent TemplateFlow releases (#3257)
+* FIX: LTS package build (#3328)
+* DOC: Read html_baseurl from RTD environment, if available (#3324)
+* DOCKER: Pin conda environment more strictly (#2853)
+* MNT: Require niworkflows ~1.3.6 (#2740)
+* CI: Upgrade docker orb (#2865)
+
+This release includes a number of fixes that have accumulated in niworkflows,
+including the following fixes that affect fMRIPrep:
+
+* FIX: Remove unused ANTs parameter that was removed in 2.4.1 (nipreps/sdcflows#431)
+* FIX: Limit 3dQwarp to maximum 4 CPUs for stability reasons (nipreps/sdcflows#128)
+* MAINT: Make call to scipy.stats.mode compatible with scipy 1.11.0 (nipreps/sdcflows#371)
+* FIX: TSV2JSON should convert empty TSV files to empty JSON files (nipreps/niworkflows#747)
+* FIX: Use copy function that does not preserve mtime when creating fsaverage
+  directories (nipreps/niworkflows#703)
+* FIX: Set pixdim[4] to match RepetitionTime (nipreps/niworkflows#679)
+
 20.2.7 (January 24, 2022)
 =========================
 Bug-fix release in the 20.2.x LTS series.
@@ -243,7 +971,7 @@ repeatability problems of the CompCor implementation.
     <https://www.nipreps.org/devs/releases/#long-term-support-series>`__.
     This LTS version will be kindly steered and maintained by
     the group of Dr. Basile Pinsard and Prof. Pierre Bellec at
-    `CRIUGM <http://www.criugm.qc.ca/>`__, (Université de Montréal).
+    `CRIUGM <https://criugm.qc.ca/>`__, (Université de Montréal).
     The LTS is planned for a window of 4 years of support (i.e., until
     September 2024).
 
@@ -354,7 +1082,7 @@ This release also includes some maintenance changes handling old versions of sof
 Bug-fix release in the 20.1.x series.
 
 * FIX: Dependency conflict between *NiWorkflows* and *TemplateFlow* (#2269)
-* FIX: More targetted *TemplateFlow* queries to work with all later releases (#2268)
+* FIX: More targeted *TemplateFlow* queries to work with all later releases (#2268)
 * MAINT: Update dependency pinnings including ``niworkflows~=1.2.9`` and three minimal bug-fixes.
 
 20.1.2 (September 04, 2020)
@@ -1346,7 +2074,7 @@ With thanks to @mgxd and @naveau for contributions.
 ---------------------------
 * FIX: Pin niworkflows-0.2.4 to fix (#868).
 * FIX: Roll back run/task groupings after BIDS query (#918).
-  Groupings for the multi-echo extension will be reenabled soon.
+  Groupings for the multi-echo extension will be re-enabled soon.
 
 1.0.2 (2nd of January 2018)
 ---------------------------

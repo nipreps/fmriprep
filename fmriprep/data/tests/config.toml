@@ -24,29 +24,29 @@ output_spaces = "MNI152NLin2009cAsym:res-2 MNI152NLin2009cAsym:res-native fsaver
 reports_only = false
 run_uuid = "20200306-105302_d365772b-fd60-4741-a722-372c2f558b50"
 participant_label = [ "01",]
+processing_groups = [ "sub-01",]
 templateflow_home = "~/.cache/templateflow"
 work_dir = "work/"
 write_graph = false
 
 [workflow]
 anat_only = false
-aroma_err_on_warn = false
-aroma_melodic_dim = -200
-bold2t1w_dof = 6
+bold2anat_dof = 6
 fmap_bspline = false
+force = []
 force_syn = false
 hires = true
 ignore = []
-longitudinal = false
 medial_surface_nan = false
+project_goodvoxels = false
 regressors_all_comps = false
 regressors_dvars_th = 1.5
 regressors_fd_th = 0.5
 run_reconall = true
 skull_strip_fixed_seed = false
 skull_strip_template = "OASIS30ANTs"
+subject_anatomical_reference = "first-lex"
 t2s_coreg = false
-use_aroma = false
 
 [nipype]
 crashfile_format = "txt"

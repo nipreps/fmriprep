@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,15 @@
 #     https://www.nipreps.org/community/licensing/
 #
 """Parser."""
+
 import sys
+import typing as ty
+from pathlib import Path
+
 from .. import config
+
+if ty.TYPE_CHECKING:
+    from bids import BIDSLayout
 
 
 def _build_parser(**kwargs):
@@ -30,27 +37,67 @@ def _build_parser(**kwargs):
 
     ``kwargs`` are passed to ``argparse.ArgumentParser`` (mainly useful for debugging).
     """
-    from functools import partial
-    from pathlib import Path
     from argparse import (
-        ArgumentParser,
+        Action,
         ArgumentDefaultsHelpFormatter,
+        ArgumentParser,
+        BooleanOptionalAction,
     )
+    from functools import partial
+
+    from niworkflows.utils.spaces import OutputReferencesAction, Reference
     from packaging.version import Version
+
     from .version import check_latest, is_flagged
-    from niworkflows.utils.spaces import Reference, OutputReferencesAction
+
+    deprecations = {
+        # parser attribute name: (replacement flag, version slated to be removed in)
+        'force_bbr': ('--force bbr', '26.0.0'),
+        'force_no_bbr': ('--force no-bbr', '26.0.0'),
+        'force_syn': ('--force syn-sdc', '26.0.0'),
+        'longitudinal': ('--subject-anatomical-reference unbiased', '26.1.0'),
+    }
+
+    class DeprecatedAction(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            new_opt, rem_vers = deprecations.get(self.dest, (None, None))
+            msg = (
+                f'{self.option_strings} has been deprecated and will be removed in '
+                f'{rem_vers or "a later version"}.'
+            )
+            if new_opt:
+                msg += f' Please use `{new_opt}` instead.'
+            print(msg, file=sys.stderr)
+            delattr(namespace, self.dest)
+
+    class ToDict(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            d = {}
+            for spec in values:
+                try:
+                    name, loc = spec.split('=')
+                    loc = Path(loc)
+                except ValueError:
+                    loc = Path(spec)
+                    name = loc.name
+
+                if name in d:
+                    raise ValueError(f'Received duplicate derivative name: {name}')
+
+                d[name] = loc
+            setattr(namespace, self.dest, d)
 
     def _path_exists(path, parser):
         """Ensure a given path exists."""
         if path is None or not Path(path).exists():
-            raise parser.error(f"Path does not exist: <{path}>.")
+            raise parser.error(f'Path does not exist: <{path}>.')
         return Path(path).absolute()
 
     def _is_file(path, parser):
         """Ensure a given path exists and it is a file."""
         path = _path_exists(path, parser)
         if not path.is_file():
-            raise parser.error(f"Path should point to a file (or symlink of file): <{path}>.")
+            raise parser.error(f'Path should point to a file (or symlink of file): <{path}>.')
         return path
 
     def _min_one(value, parser):
@@ -61,59 +108,73 @@ def _build_parser(**kwargs):
         return value
 
     def _to_gb(value):
-        scale = {"G": 1, "T": 10 ** 3, "M": 1e-3, "K": 1e-6, "B": 1e-9}
-        digits = "".join([c for c in value if c.isdigit()])
-        units = value[len(digits):] or "M"
+        scale = {'G': 1, 'T': 10**3, 'M': 1e-3, 'K': 1e-6, 'B': 1e-9}
+        digits = ''.join([c for c in value if c.isdigit()])
+        units = value[len(digits) :] or 'M'
         return int(digits) * scale[units[0]]
 
-    def _drop_sub(value):
-        return value[4:] if value.startswith("sub-") else value
+    def _process_value(value):
+        import bids
+
+        if value is None:
+            return bids.layout.Query.NONE
+        elif value == '*':
+            return bids.layout.Query.ANY
+        else:
+            return value
 
     def _filter_pybids_none_any(dct):
-        import bids
-        return {
-            k: bids.layout.Query.NONE
-            if v is None
-            else (bids.layout.Query.ANY if v == "*" else v)
-            for k, v in dct.items()
-        }
+        d = {}
+        for k, v in dct.items():
+            if isinstance(v, list):
+                d[k] = [_process_value(val) for val in v]
+            else:
+                d[k] = _process_value(v)
+        return d
 
     def _bids_filter(value, parser):
-        from json import loads, JSONDecodeError
+        from json import JSONDecodeError, loads
 
         if value:
             if Path(value).exists():
                 try:
                     return loads(Path(value).read_text(), object_hook=_filter_pybids_none_any)
-                except JSONDecodeError:
-                    raise parser.error(f"JSON syntax error in: <{value}>.")
+                except JSONDecodeError as e:
+                    raise parser.error(f'JSON syntax error in: <{value}>.') from e
             else:
-                raise parser.error(f"Path does not exist: <{value}>.")
+                raise parser.error(f'Path does not exist: <{value}>.')
 
     def _slice_time_ref(value, parser):
-        if value == "start":
+        if value == 'start':
             value = 0
-        elif value == "middle":
+        elif value == 'middle':
             value = 0.5
         try:
             value = float(value)
         except ValueError:
-            raise parser.error("Slice time reference must be number, 'start', or 'middle'. "
-                               f"Received {value}.")
+            raise parser.error(
+                f"Slice time reference must be number, 'start', or 'middle'. Received {value}."
+            ) from None
         if not 0 <= value <= 1:
-            raise parser.error(f"Slice time reference must be in range 0-1. Received {value}.")
+            raise parser.error(f'Slice time reference must be in range 0-1. Received {value}.')
         return value
 
-    verstr = f"fMRIPrep v{config.environment.version}"
+    def _fallback_trt(value, parser):
+        if value == 'estimated':
+            return value
+        try:
+            return float(value)
+        except ValueError:
+            raise parser.error(
+                f'Falling back to TRT must be a number or "estimated". Received {value}.'
+            ) from None
+
+    verstr = f'fMRIPrep v{config.environment.version}'
     currentv = Version(config.environment.version)
-    is_release = not any(
-        (currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease)
-    )
+    is_release = not any((currentv.is_devrelease, currentv.is_prerelease, currentv.is_postrelease))
 
     parser = ArgumentParser(
-        description="fMRIPrep: fMRI PREProcessing workflows v{}".format(
-            config.environment.version
-        ),
+        description=f'fMRIPrep: fMRI PREProcessing workflows v{config.environment.version}',
         formatter_class=ArgumentDefaultsHelpFormatter,
         **kwargs,
     )
@@ -122,187 +183,213 @@ def _build_parser(**kwargs):
     PositiveInt = partial(_min_one, parser=parser)
     BIDSFilter = partial(_bids_filter, parser=parser)
     SliceTimeRef = partial(_slice_time_ref, parser=parser)
+    FallbackTRT = partial(_fallback_trt, parser=parser)
 
     # Arguments as specified by BIDS-Apps
     # required, positional arguments
     # IMPORTANT: they must go directly with the parser object
     parser.add_argument(
-        "bids_dir",
-        action="store",
+        'bids_dir',
+        action='store',
         type=PathExists,
-        help="the root folder of a BIDS valid dataset (sub-XXXXX folders should "
-        "be found at the top level in this folder).",
+        help='The root folder of a BIDS valid dataset (sub-XXXXX folders should '
+        'be found at the top level in this folder).',
     )
     parser.add_argument(
-        "output_dir",
-        action="store",
+        'output_dir',
+        action='store',
         type=Path,
-        help="the output path for the outcomes of preprocessing and visual " "reports",
+        help='The output path for the outcomes of preprocessing and visual reports',
     )
     parser.add_argument(
-        "analysis_level",
-        choices=["participant"],
-        help='processing stage to be run, only "participant" in the case of '
-        "fMRIPrep (see BIDS-Apps specification).",
+        'analysis_level',
+        choices=['participant'],
+        help='Processing stage to be run, only "participant" in the case of '
+        'fMRIPrep (see BIDS-Apps specification).',
     )
 
-    # optional arguments
-    parser.add_argument("--version", action="version", version=verstr)
-
-    g_bids = parser.add_argument_group("Options for filtering BIDS queries")
+    g_bids = parser.add_argument_group('Options for filtering BIDS queries')
     g_bids.add_argument(
-        "--skip_bids_validation",
-        "--skip-bids-validation",
-        action="store_true",
+        '--skip_bids_validation',
+        '--skip-bids-validation',
+        action='store_true',
         default=False,
-        help="assume the input dataset is BIDS compliant and skip the validation",
+        help='Assume the input dataset is BIDS compliant and skip the validation',
     )
     g_bids.add_argument(
-        "--participant-label",
-        "--participant_label",
-        action="store",
-        nargs="+",
-        type=_drop_sub,
-        help="a space delimited list of participant identifiers or a single "
-        "identifier (the sub- prefix can be removed)",
+        '--participant-label',
+        '--participant_label',
+        action='store',
+        nargs='+',
+        type=lambda label: label.removeprefix('sub-'),
+        help='A space delimited list of participant identifiers or a single '
+        'identifier (the sub- prefix can be removed)',
     )
-    # Re-enable when option is actually implemented
-    # g_bids.add_argument('-s', '--session-id', action='store', default='single_session',
-    #                     help='select a specific session to be processed')
+
+    g_bids.add_argument(
+        '--session-label',
+        nargs='+',
+        type=lambda label: label.removeprefix('ses-'),
+        help='A space delimited list of session identifiers or a single '
+        'identifier (the ses- prefix can be removed)',
+    )
     # Re-enable when option is actually implemented
     # g_bids.add_argument('-r', '--run-id', action='store', default='single_run',
-    #                     help='select a specific run to be processed')
+    #                     help='Select a specific run to be processed')
     g_bids.add_argument(
-        "-t", "--task-id", action="store", help="select a specific task to be processed"
+        '-t', '--task-id', action='store', help='Select a specific task to be processed'
     )
     g_bids.add_argument(
-        "--echo-idx",
-        action="store",
+        '--echo-idx',
+        action='store',
         type=int,
-        help="select a specific echo to be processed in a multiecho series",
+        help='Select a specific echo to be processed in a multiecho series',
     )
     g_bids.add_argument(
-        "--bids-filter-file",
-        dest="bids_filters",
-        action="store",
+        '--subject-anatomical-reference',
+        choices=['first-lex', 'unbiased', 'sessionwise'],
+        default='first-lex',
+        help='Method to produce the reference anatomical space:\n'
+        '\t"first-lex" will use the first image in lexicographical order\n'
+        '\t"unbiased" will construct an unbiased template from all images '
+        '(previously "--longitudinal")\n'
+        '\t"sessionwise" will independently process each session. If multiple runs are '
+        'found, the behavior will be similar to "first-lex" for each session.',
+    )
+    g_bids.add_argument(
+        '--bids-filter-file',
+        dest='bids_filters',
+        action='store',
         type=BIDSFilter,
-        metavar="FILE",
-        help="a JSON file describing custom BIDS input filters using PyBIDS. "
-        "For further details, please check out "
-        "https://fmriprep.readthedocs.io/en/%s/faq.html#"
-        "how-do-I-select-only-certain-files-to-be-input-to-fMRIPrep"
-        % (currentv.base_version if is_release else "latest"),
+        metavar='FILE',
+        help='A JSON file describing custom BIDS input filters using PyBIDS. '
+        'For further details, please check out '
+        f'https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else "latest"}/faq.html#'
+        'how-do-I-select-only-certain-files-to-be-input-to-fMRIPrep',
     )
     g_bids.add_argument(
-        "--anat-derivatives",
-        action="store",
-        metavar="PATH",
-        type=PathExists,
-        help="Reuse the anatomical derivatives from another fMRIPrep run or calculated "
-        "with an alternative processing tool (NOT RECOMMENDED).",
+        '-d',
+        '--derivatives',
+        action=ToDict,
+        metavar='PACKAGE=PATH',
+        type=str,
+        nargs='+',
+        help=(
+            'Search PATH(s) for pre-computed derivatives. '
+            'These may be provided as named folders '
+            '(e.g., `--derivatives smriprep=/path/to/smriprep`).'
+        ),
     )
     g_bids.add_argument(
-        "--bids-database-dir",
-        metavar="PATH",
+        '--bids-database-dir',
+        metavar='PATH',
         type=Path,
-        help="Path to a PyBIDS database folder, for faster indexing (especially "
-             "useful for large datasets). Will be created if not present."
+        help='Path to a PyBIDS database folder, for faster indexing (especially '
+        'useful for large datasets). Will be created if not present.',
     )
 
-    g_perfm = parser.add_argument_group("Options to handle performance")
+    g_perfm = parser.add_argument_group('Options to handle performance')
     g_perfm.add_argument(
-        "--nprocs",
-        "--nthreads",
-        "--n_cpus",
-        "--n-cpus",
+        '--nprocs',
+        '--nthreads',
+        '--n_cpus',
+        '--n-cpus',
         dest='nprocs',
-        action="store",
+        action='store',
         type=PositiveInt,
-        help="maximum number of threads across all processes",
+        help='Maximum number of threads across all processes',
     )
     g_perfm.add_argument(
-        "--omp-nthreads",
-        action="store",
+        '--omp-nthreads',
+        action='store',
         type=PositiveInt,
-        help="maximum number of threads per-process",
+        help='Maximum number of threads per-process',
     )
     g_perfm.add_argument(
-        "--mem",
-        "--mem_mb",
-        "--mem-mb",
-        dest="memory_gb",
-        action="store",
+        '--mem',
+        '--mem_mb',
+        '--mem-mb',
+        dest='memory_gb',
+        action='store',
         type=_to_gb,
-        metavar="MEMORY_MB",
-        help="upper bound memory limit for fMRIPrep processes",
+        metavar='MEMORY_MB',
+        help='Upper bound memory limit for fMRIPrep processes',
     )
     g_perfm.add_argument(
-        "--low-mem",
-        action="store_true",
-        help="attempt to reduce memory usage (will increase disk usage "
-        "in working directory)",
+        '--low-mem',
+        action='store_true',
+        help='Attempt to reduce memory usage (will increase disk usage in working directory)',
     )
     g_perfm.add_argument(
-        "--use-plugin",
-        "--nipype-plugin-file",
-        action="store",
-        metavar="FILE",
+        '--use-plugin',
+        '--nipype-plugin-file',
+        action='store',
+        metavar='FILE',
         type=IsFile,
-        help="nipype plugin configuration file",
+        help='Nipype plugin configuration file',
     )
     g_perfm.add_argument(
-        "--anat-only", action="store_true", help="run anatomical workflows only"
-    )
-    g_perfm.add_argument(
-        "--boilerplate_only",
-        action="store_true",
+        '--sloppy',
+        action='store_true',
         default=False,
-        help="generate boilerplate only",
-    )
-    g_perfm.add_argument(
-        "--md-only-boilerplate",
-        action="store_true",
-        default=False,
-        help="skip generation of HTML and LaTeX formatted citation with pandoc",
-    )
-    g_perfm.add_argument(
-        "--error-on-aroma-warnings",
-        action="store_true",
-        dest="aroma_err_on_warn",
-        default=False,
-        help="Raise an error if ICA_AROMA does not produce sensible output "
-        "(e.g., if all the components are classified as signal or noise)",
-    )
-    g_perfm.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose_count",
-        action="count",
-        default=0,
-        help="increases log verbosity for each occurence, debug level is -vvv",
+        help='Use low-quality tools for speed - TESTING ONLY',
     )
 
-    g_conf = parser.add_argument_group("Workflow configuration")
+    g_subset = parser.add_argument_group('Options for performing only a subset of the workflow')
+    g_subset.add_argument('--anat-only', action='store_true', help='Run anatomical workflows only')
+    g_subset.add_argument(
+        '--level',
+        action='store',
+        default='full',
+        choices=['minimal', 'resampling', 'full'],
+        help="Processing level; may be 'minimal' (nothing that can be recomputed), "
+        "'resampling' (recomputable targets that aid in resampling) "
+        "or 'full' (all target outputs).",
+    )
+    g_subset.add_argument(
+        '--boilerplate-only',
+        '--boilerplate_only',
+        action='store_true',
+        default=False,
+        help='Generate boilerplate only',
+    )
+    g_subset.add_argument(
+        '--reports-only',
+        action='store_true',
+        default=False,
+        help="Only generate reports, don't run workflows. This will only rerun report "
+        'aggregation, not reportlet generation for specific nodes.',
+    )
+
+    g_conf = parser.add_argument_group('Workflow configuration')
     g_conf.add_argument(
-        "--ignore",
+        '--ignore',
         required=False,
-        action="store",
-        nargs="+",
+        action='store',
+        nargs='+',
         default=[],
-        choices=["fieldmaps", "slicetiming", "sbref", "t2w", "flair"],
-        help="ignore selected aspects of the input dataset to disable corresponding "
-        "parts of the workflow (a space delimited list)",
+        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian'],
+        help='Ignore selected aspects of the input dataset to disable corresponding '
+        'parts of the workflow (a space delimited list)',
     )
     g_conf.add_argument(
-        "--longitudinal",
-        action="store_true",
-        help="treat dataset as longitudinal - may increase runtime",
+        '--force',
+        required=False,
+        action='store',
+        nargs='+',
+        default=[],
+        choices=['bbr', 'no-bbr', 'syn-sdc', 'fmap-jacobian'],
+        help='Force selected processing choices, overriding automatic selections '
+        '(a space delimited list).\n'
+        ' * [no-]bbr: Use/disable boundary-based registration for BOLD-to-T1w coregistration\n'
+        '             (No goodness-of-fit checks)\n'
+        ' * syn-sdc: Calculate SyN-SDC correction *in addition* to other fieldmaps\n',
     )
     g_conf.add_argument(
-        "--output-spaces",
-        nargs="*",
+        '--output-spaces',
+        nargs='*',
         action=OutputReferencesAction,
-        help="""\
+        help=f"""\
 Standard and non-standard spaces to resample anatomical and functional images to. \
 Standard spaces may be specified by the form \
 ``<SPACE>[:cohort-<label>][:res-<resolution>][...]``, where ``<SPACE>`` is \
@@ -312,350 +399,385 @@ Non-standard spaces imply specific orientations and sampling grids. \
 Important to note, the ``res-*`` modifier does not define the resolution used for \
 the spatial normalization. To generate no BOLD outputs, use this option without specifying \
 any spatial references. For further details, please check out \
-https://fmriprep.readthedocs.io/en/%s/spaces.html"""
-        % (currentv.base_version if is_release else "latest"),
+https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'latest'}/spaces.html""",
     )
     g_conf.add_argument(
-        "--me-output-echos",
-        action="store_true",
-        default=False,
-        help="""\
-Output individual echo time series with slice, motion and susceptibility correction. \
-Useful for further Tedana processing post-fMRIPrep."""
-    )
-
-    g_conf.add_argument(
-        "--bold2t1w-init",
-        action="store",
-        default="register",
-        choices=["register", "header"],
-        help='Either "register" (the default) to initialize volumes at center or "header"'
-        " to use the header information when coregistering BOLD to T1w images.",
+        '--longitudinal',
+        action=DeprecatedAction,
+        help='Deprecated - use `--subject-anatomical-reference unbiased` instead',
     )
     g_conf.add_argument(
-        "--bold2t1w-dof",
-        action="store",
+        '--bold2anat-init',
+        choices=['auto', 't1w', 't2w', 'header'],
+        default='auto',
+        help='Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used '
+        'if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of '
+        'the T2w, and `header` uses the BOLD header information without an initial registration.',
+    )
+    g_conf.add_argument(
+        '--bold2anat-dof',
+        action='store',
         default=6,
         choices=[6, 9, 12],
         type=int,
-        help="Degrees of freedom when registering BOLD to T1w images. "
-        "6 degrees (rotation and translation) are used by default.",
+        help='Degrees of freedom when registering BOLD to anatomical images. '
+        '6 degrees (rotation and translation) are used by default.',
     )
     g_conf.add_argument(
-        "--force-bbr",
-        action="store_true",
-        dest="use_bbr",
-        default=None,
-        help="Always use boundary-based registration (no goodness-of-fit checks)",
+        '--force-bbr',
+        action=DeprecatedAction,
+        help='Deprecated - use `--force bbr` instead.',
     )
     g_conf.add_argument(
-        "--force-no-bbr",
-        action="store_false",
-        dest="use_bbr",
-        default=None,
-        help="Do not use boundary-based registration (no goodness-of-fit checks)",
+        '--force-no-bbr',
+        action=DeprecatedAction,
+        help='Deprecated - use `--force no-bbr` instead.',
     )
     g_conf.add_argument(
-        "--medial-surface-nan",
+        '--slice-time-ref',
         required=False,
-        action="store_true",
-        default=False,
-        help="Replace medial wall values with NaNs on functional GIFTI files. Only "
-        "performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).",
-    )
-    g_conf.add_argument(
-        "--slice-time-ref",
-        required=False,
-        action="store",
-        default=None,
+        action='store',
+        default=0.5,
         type=SliceTimeRef,
-        help="The time of the reference slice to correct BOLD values to, as a fraction "
-             "acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end "
-             "of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. "
-             "The default value is 0.5.",
+        help='The time of the reference slice to correct BOLD values to, as a fraction '
+        'acquisition time. 0 indicates the start, 0.5 the midpoint, and 1 the end '
+        'of acquisition. The alias `start` corresponds to 0, and `middle` to 0.5. '
+        'The default value is 0.5.',
     )
     g_conf.add_argument(
-        "--dummy-scans",
+        '--dummy-scans',
         required=False,
-        action="store",
+        action='store',
         default=None,
         type=int,
-        help="Number of nonsteady-state volumes.",
+        help='Number of nonsteady-state volumes. Overrides automatic detection.',
     )
     g_conf.add_argument(
-        "--random-seed",
-        dest="_random_seed",
-        action="store",
+        '--fallback-total-readout-time',
+        required=False,
+        action='store',
+        default=None,
+        type=FallbackTRT,
+        help='Fallback value for Total Readout Time (TRT) calculation. '
+        'May be a number or "estimated".',
+    )
+    g_conf.add_argument(
+        '--random-seed',
+        dest='_random_seed',
+        action='store',
         type=int,
         default=None,
-        help="Initialize the random seed for the workflow",
+        help='Initialize the random seed for the workflow',
+    )
+    g_conf.add_argument(
+        '--me-t2s-fit-method',
+        action='store',
+        default='curvefit',
+        choices=['curvefit', 'loglin'],
+        help=(
+            'The method by which to estimate T2* and S0 for multi-echo data. '
+            "'curvefit' uses nonlinear regression. "
+            "It is more memory intensive, but also may be more accurate, than 'loglin'. "
+            "'loglin' uses log-linear regression. "
+            'It is faster and less memory intensive, but may be less accurate.'
+        ),
     )
 
-    # ICA_AROMA options
-    g_aroma = parser.add_argument_group("Specific options for running ICA_AROMA")
-    g_aroma.add_argument(
-        "--use-aroma",
-        action="store_true",
-        default=False,
-        help="add ICA_AROMA to your preprocessing stream",
+    g_outputs = parser.add_argument_group('Options for modulating outputs')
+    g_outputs.add_argument(
+        '--output-layout',
+        action='store',
+        default='bids',
+        choices=('bids', 'legacy'),
+        help='Organization of outputs. "bids" (default) places fMRIPrep derivatives '
+        'directly in the output directory, and defaults to placing FreeSurfer '
+        'derivatives in <output-dir>/sourcedata/freesurfer. "legacy" creates '
+        'derivative datasets as subdirectories of outputs.',
     )
-    g_aroma.add_argument(
-        "--aroma-melodic-dimensionality",
-        dest="aroma_melodic_dim",
-        action="store",
-        default=-200,
-        type=int,
-        help="Exact or maximum number of MELODIC components to estimate "
-        "(positive = exact, negative = maximum)",
+    g_outputs.add_argument(
+        '--me-output-echos',
+        action='store_true',
+        default=False,
+        help='Output individual echo time series with slice, motion and susceptibility '
+        'correction. Useful for further Tedana processing post-fMRIPrep.',
+    )
+    g_outputs.add_argument(
+        '--aggregate-session-reports',
+        dest='aggr_ses_reports',
+        action='store',
+        type=PositiveInt,
+        default=4,
+        help="Maximum number of sessions aggregated in one subject's visual report. "
+        'If exceeded, visual reports are split by session.',
+    )
+    g_outputs.add_argument(
+        '--medial-surface-nan',
+        required=False,
+        action='store_true',
+        default=False,
+        help='Replace medial wall values with NaNs on functional GIFTI files. Only '
+        'performed for GIFTI files mapped to a freesurfer subject (fsaverage or fsnative).',
+    )
+    g_conf.add_argument(
+        '--project-goodvoxels',
+        action='store_true',
+        default=False,
+        help='Exclude voxels whose timeseries have locally high coefficient of variation '
+        'from surface resampling. Only performed for GIFTI files mapped to a freesurfer subject '
+        '(fsaverage or fsnative).',
+    )
+    g_outputs.add_argument(
+        '--md-only-boilerplate',
+        action='store_true',
+        default=False,
+        help='Skip generation of HTML and LaTeX formatted citation with pandoc',
+    )
+    g_outputs.add_argument(
+        '--cifti-output',
+        nargs='?',
+        const='91k',
+        default=False,
+        choices=('91k', '170k'),
+        type=str,
+        help='Output preprocessed BOLD as a CIFTI dense timeseries. '
+        'Optionally, the number of grayordinate can be specified '
+        '(default is 91k, which equates to 2mm resolution)',
+    )
+    g_outputs.add_argument(
+        '--msm',
+        action=BooleanOptionalAction,
+        default=True,
+        dest='run_msmsulc',
+        help='Enable or disable Multimodal Surface Matching surface registration.',
     )
 
-    # Confounds options
-    g_confounds = parser.add_argument_group("Specific options for estimating confounds")
+    g_confounds = parser.add_argument_group('Options relating to confounds')
     g_confounds.add_argument(
-        "--return-all-components",
-        dest="regressors_all_comps",
+        '--return-all-components',
+        dest='regressors_all_comps',
         required=False,
-        action="store_true",
+        action='store_true',
         default=False,
-        help="Include all components estimated in CompCor decomposition in the confounds "
-        "file instead of only the components sufficient to explain 50 percent of "
-        "BOLD variance in each CompCor mask",
+        help='Include all components estimated in CompCor decomposition in the confounds '
+        'file instead of only the components sufficient to explain 50 percent of '
+        'BOLD variance in each CompCor mask',
     )
     g_confounds.add_argument(
-        "--fd-spike-threshold",
-        dest="regressors_fd_th",
+        '--fd-spike-threshold',
+        dest='regressors_fd_th',
         required=False,
-        action="store",
+        action='store',
         default=0.5,
         type=float,
-        help="Threshold for flagging a frame as an outlier on the basis of framewise "
-        "displacement",
+        help='Threshold for flagging a frame as an outlier on the basis of framewise displacement',
     )
     g_confounds.add_argument(
-        "--dvars-spike-threshold",
-        dest="regressors_dvars_th",
+        '--dvars-spike-threshold',
+        dest='regressors_dvars_th',
         required=False,
-        action="store",
+        action='store',
         default=1.5,
         type=float,
-        help="Threshold for flagging a frame as an outlier on the basis of standardised "
-        "DVARS",
+        help='Threshold for flagging a frame as an outlier on the basis of standardised DVARS',
     )
 
-    #  ANTs options
-    g_ants = parser.add_argument_group("Specific options for ANTs registrations")
+    # ANTs options
+    g_ants = parser.add_argument_group('Specific options for ANTs registrations')
     g_ants.add_argument(
-        "--skull-strip-template",
-        default="OASIS30ANTs",
+        '--skull-strip-template',
+        default='OASIS30ANTs',
         type=Reference.from_string,
-        help="select a template for skull-stripping with antsBrainExtraction",
+        help='Select a template for skull-stripping with antsBrainExtraction '
+        '(OASIS30ANTs, by default)',
     )
     g_ants.add_argument(
-        "--skull-strip-fixed-seed",
-        action="store_true",
-        help="do not use a random seed for skull-stripping - will ensure "
-        "run-to-run replicability when used with --omp-nthreads 1 and "
-        "matching --random-seed <int>",
+        '--skull-strip-fixed-seed',
+        action='store_true',
+        help='Do not use a random seed for skull-stripping - will ensure '
+        'run-to-run replicability when used with --omp-nthreads 1 and '
+        'matching --random-seed <int>',
     )
     g_ants.add_argument(
-        "--skull-strip-t1w",
-        action="store",
-        choices=("auto", "skip", "force"),
-        default="force",
-        help="determiner for T1-weighted skull stripping ('force' ensures skull "
+        '--skull-strip-t1w',
+        action='store',
+        choices=('auto', 'skip', 'force'),
+        default='force',
+        help="Perform T1-weighted skull stripping ('force' ensures skull "
         "stripping, 'skip' ignores skull stripping, and 'auto' applies brain extraction "
-        "based on the outcome of a heuristic to check whether the brain is already masked).",
+        'based on the outcome of a heuristic to check whether the brain is already masked).',
     )
 
     # Fieldmap options
-    g_fmap = parser.add_argument_group("Specific options for handling fieldmaps")
+    g_fmap = parser.add_argument_group('Specific options for handling fieldmaps')
     g_fmap.add_argument(
-        "--fmap-bspline",
-        action="store_true",
+        '--fmap-bspline',
+        action='store_true',
         default=False,
-        help="fit a B-Spline field using least-squares (experimental)",
+        help='Fit a B-Spline field using least-squares (experimental)',
     )
     g_fmap.add_argument(
-        "--fmap-no-demean",
-        action="store_false",
+        '--fmap-no-demean',
+        action='store_false',
         default=True,
-        help="do not remove median (within mask) from fieldmap",
-    )
-    g_fmap.add_argument(
-        "--topup-max-vols",
-        action="store",
-        default=5,
-        type=int,
-        help="maximum number of volumes to use with TOPUP, per-series (EPI or BOLD)",
+        help='Do not remove median (within mask) from fieldmap',
     )
 
     # SyN-unwarp options
-    g_syn = parser.add_argument_group("Specific options for SyN distortion correction")
+    g_syn = parser.add_argument_group('Specific options for SyN distortion correction')
     g_syn.add_argument(
-        "--use-syn-sdc",
-        nargs="?",
-        choices=["warn", "error"],
-        action="store",
-        const="error",
+        '--use-syn-sdc',
+        nargs='?',
+        choices=['warn', 'error'],
+        action='store',
+        const='error',
         default=False,
-        help="EXPERIMENTAL: Use fieldmap-free distortion correction; "
-             "if unable, error (default) or warn based on optional argument.",
+        help='Use fieldmap-less distortion correction based on anatomical image; '
+        'if unable, error (default) or warn based on optional argument.',
     )
     g_syn.add_argument(
-        "--force-syn",
-        action="store_true",
+        '--force-syn',
+        action=DeprecatedAction,
         default=False,
-        help="EXPERIMENTAL/TEMPORARY: Use SyN correction in addition to "
-        "fieldmap correction, if available",
+        help='Deprecated - use `--force syn-sdc` instead.',
     )
 
     # FreeSurfer options
-    g_fs = parser.add_argument_group("Specific options for FreeSurfer preprocessing")
+    g_fs = parser.add_argument_group('Specific options for FreeSurfer preprocessing')
     g_fs.add_argument(
-        "--fs-license-file",
-        metavar="FILE",
+        '--fs-license-file',
+        metavar='FILE',
         type=IsFile,
-        help="Path to FreeSurfer license key file. Get it (for free) by registering"
-        " at https://surfer.nmr.mgh.harvard.edu/registration.html",
+        help='Path to FreeSurfer license key file. Get it (for free) by registering'
+        ' at https://surfer.nmr.mgh.harvard.edu/registration.html',
     )
     g_fs.add_argument(
-        "--fs-subjects-dir",
-        metavar="PATH",
+        '--fs-subjects-dir',
+        metavar='PATH',
         type=Path,
-        help="Path to existing FreeSurfer subjects directory to reuse. "
-        "(default: OUTPUT_DIR/freesurfer)",
+        help='Path to existing FreeSurfer subjects directory to reuse. '
+        '(default: OUTPUT_DIR/freesurfer)',
+    )
+    g_fs.add_argument(
+        '--submm-recon',
+        action=BooleanOptionalAction,
+        default=True,
+        dest='hires',
+        help='Enable or disable sub-millimeter (hi-res) reconstruction.',
+    )
+    g_fs.add_argument(
+        '--fs-no-reconall',
+        action='store_false',
+        dest='run_reconall',
+        help='Disable FreeSurfer surface preprocessing.',
+    )
+    g_fs.add_argument(
+        '--fs-no-resume',
+        action='store_true',
+        dest='fs_no_resume',
+        help='EXPERT: Import pre-computed FreeSurfer reconstruction without resuming. '
+        'The user is responsible for ensuring that all necessary files are present.',
     )
 
-    # Surface generation xor
-    g_surfs = parser.add_argument_group("Surface preprocessing options")
-    g_surfs.add_argument(
-        "--no-submm-recon",
-        action="store_false",
-        dest="hires",
-        help="disable sub-millimeter (hires) reconstruction",
-    )
-    g_surfs_xor = g_surfs.add_mutually_exclusive_group()
-    g_surfs_xor.add_argument(
-        "--cifti-output",
-        nargs="?",
-        const="91k",
+    g_carbon = parser.add_argument_group('Options for carbon usage tracking')
+    g_carbon.add_argument(
+        '--track-carbon',
         default=False,
-        choices=("91k", "170k"),
+        action='store_true',
+        help='Tracks power draws using CodeCarbon package',
+    )
+    g_carbon.add_argument(
+        '--country-code',
+        action='store',
+        default='CAN',
         type=str,
-        help="output preprocessed BOLD as a CIFTI dense timeseries. "
-        "Optionally, the number of grayordinate can be specified "
-        "(default is 91k, which equates to 2mm resolution)",
-    )
-    g_surfs_xor.add_argument(
-        "--fs-no-reconall",
-        action="store_false",
-        dest="run_reconall",
-        help="disable FreeSurfer surface preprocessing.",
+        help='Country ISO code used by carbon trackers',
     )
 
-    g_other = parser.add_argument_group("Other options")
+    g_other = parser.add_argument_group('Other options')
+    g_other.add_argument('--version', action='version', version=verstr)
     g_other.add_argument(
-        "--output-layout",
-        action="store",
-        default="bids",
-        choices=("bids", "legacy"),
-        help="Organization of outputs. bids (default) places fMRIPrep derivatives "
-        "directly in the output directory, and defaults to placing FreeSurfer "
-        "derivatives in <output-dir>/sourcedata/freesurfer. legacy creates "
-        "derivative datasets as subdirectories of outputs."
+        '-v',
+        '--verbose',
+        dest='verbose_count',
+        action='count',
+        default=0,
+        help='Increases log verbosity for each occurrence, debug level is -vvv',
     )
     g_other.add_argument(
-        "-w",
-        "--work-dir",
-        action="store",
+        '-w',
+        '--work-dir',
+        action='store',
         type=Path,
-        default=Path("work").absolute(),
-        help="path where intermediate results should be stored",
+        help='Path where intermediate results should be stored',
     )
     g_other.add_argument(
-        "--clean-workdir",
-        action="store_true",
+        '--clean-workdir',
+        action='store_true',
         default=False,
-        help="Clears working directory of contents. Use of this flag is not"
-        "recommended when running concurrent processes of fMRIPrep.",
+        help='Clears working directory of contents. Use of this flag is not '
+        'recommended when running concurrent processes of fMRIPrep.',
     )
     g_other.add_argument(
-        "--resource-monitor",
-        action="store_true",
+        '--resource-monitor',
+        action='store_true',
         default=False,
-        help="enable Nipype's resource monitoring to keep track of memory and CPU usage",
+        help="Enable Nipype's resource monitoring to keep track of memory and CPU usage",
     )
     g_other.add_argument(
-        "--reports-only",
-        action="store_true",
+        '--config-file',
+        action='store',
+        metavar='FILE',
+        help='Use pre-generated configuration file. Values in file will be overridden '
+        'by command-line arguments.',
+    )
+    g_other.add_argument(
+        '--write-graph',
+        action='store_true',
         default=False,
-        help="only generate reports, don't run workflows. This will only rerun report "
-        "aggregation, not reportlet generation for specific nodes.",
+        help='Write workflow graph.',
     )
     g_other.add_argument(
-        "--config-file",
-        action="store",
-        metavar="FILE",
-        help="Use pre-generated configuration file. Values in file will be overridden "
-             "by command-line arguments.")
-    g_other.add_argument(
-        "--write-graph",
-        action="store_true",
+        '--stop-on-first-crash',
+        action='store_true',
         default=False,
-        help="Write workflow graph.",
+        help='Force stopping on first crash, even if a work directory was specified.',
     )
     g_other.add_argument(
-        "--stop-on-first-crash",
-        action="store_true",
+        '--notrack',
+        action='store_true',
         default=False,
-        help="Force stopping on first crash, even if a work directory"
-        " was specified.",
+        help='Opt-out of sending tracking information of this run to '
+        'the FMRIPREP developers. This information helps to '
+        'improve FMRIPREP and provides an indicator of real '
+        'world usage crucial for obtaining funding.',
     )
     g_other.add_argument(
-        "--notrack",
-        action="store_true",
-        default=False,
-        help="Opt-out of sending tracking information of this run to "
-        "the FMRIPREP developers. This information helps to "
-        "improve FMRIPREP and provides an indicator of real "
-        "world usage crucial for obtaining funding.",
-    )
-    g_other.add_argument(
-        "--debug",
-        action="store",
-        nargs="+",
-        choices=config.DEBUG_MODES + ("all",),
+        '--debug',
+        action='store',
+        nargs='+',
+        choices=config.DEBUG_MODES + ('all',),
         help="Debug mode(s) to enable. 'all' is alias for all available modes.",
-    )
-
-    g_other.add_argument(
-        "--sloppy",
-        action="store_true",
-        default=False,
-        help="Use low-quality tools for speed - TESTING ONLY",
     )
 
     latest = check_latest()
     if latest is not None and currentv < latest:
         print(
-            """\
-You are using fMRIPrep-%s, and a newer version of fMRIPrep is available: %s.
+            f"""\
+You are using fMRIPrep-{currentv}, and a newer version of fMRIPrep is available: {latest}.
 Please check out our documentation about how and when to upgrade:
-https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading"""
-            % (currentv, latest),
+https://fmriprep.readthedocs.io/en/latest/faq.html#upgrading""",
             file=sys.stderr,
         )
 
     _blist = is_flagged()
     if _blist[0]:
-        _reason = _blist[1] or "unknown"
+        _reason = _blist[1] or 'unknown'
         print(
-            """\
-WARNING: Version %s of fMRIPrep (current) has been FLAGGED
-(reason: %s).
+            f"""\
+WARNING: Version {config.environment.version} of fMRIPrep (current) has been FLAGGED
+(reason: {_reason}).
 That means some severe flaw was found in it and we strongly
-discourage its usage."""
-            % (config.environment.version, _reason),
+discourage its usage.""",
             file=sys.stderr,
         )
 
@@ -665,34 +787,64 @@ discourage its usage."""
 def parse_args(args=None, namespace=None):
     """Parse args and run further checks on the command line."""
     import logging
+
+    from niworkflows.utils.bids import collect_participants
     from niworkflows.utils.spaces import Reference, SpatialReferences
 
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
 
     if opts.config_file:
-        skip = {} if opts.reports_only else {"execution": ("run_uuid",)}
+        skip = {} if opts.reports_only else {'execution': ('run_uuid',)}
         config.load(opts.config_file, skip=skip, init=False)
-        config.loggers.cli.info(f"Loaded previous configuration file {opts.config_file}")
+        config.loggers.cli.info(f'Loaded previous configuration file {opts.config_file}')
+
+    if opts.longitudinal:
+        opts.subject_anatomical_reference = 'unbiased'
+        msg = (
+            'The `--longitudinal` flag is deprecated - use '
+            '`--subject-anatomical-reference unbiased` instead.'
+        )
+        config.loggers.cli.warning(msg)
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
 
+    if config.execution.work_dir is None:
+        config.execution.work_dir = Path('work').absolute()
+
+    # Consistency checks
+    force_set = set(config.workflow.force)
+    ignore_set = set(config.workflow.ignore)
+    if {'bbr', 'no-bbr'} <= force_set:
+        msg = (
+            'Cannot force and disable boundary-based registration at the same time. '
+            'Remove `bbr` or `no-bbr` from the `--force` options.'
+        )
+        raise ValueError(msg)
+    if 'fmap-jacobian' in force_set & ignore_set:
+        msg = (
+            'Cannot force and ignore fieldmap Jacobian correction. '
+            'Remove `fmap-jacobian` from either the `--force` or the `--ignore` option.'
+        )
+        raise ValueError(msg)
+
     if not config.execution.notrack:
-        import pkgutil
-        if pkgutil.find_loader("sentry_sdk") is None:
+        import importlib.util
+
+        if importlib.util.find_spec('sentry_sdk') is None:
             config.execution.notrack = True
-            config.loggers.cli.warning("Telemetry disabled because sentry_sdk is not installed.")
+            config.loggers.cli.warning('Telemetry disabled because sentry_sdk is not installed.')
         else:
             config.loggers.cli.info(
-                "Telemetry system to collect crashes and errors is enabled "
-                "- thanks for your feedback!. Use option ``--notrack`` to opt out."
+                'Telemetry system to collect crashes and errors is enabled '
+                '- thanks for your feedback!. Use option ``--notrack`` to opt out.'
             )
 
     # Initialize --output-spaces if not defined
     if config.execution.output_spaces is None:
         config.execution.output_spaces = SpatialReferences(
-            [Reference("MNI152NLin2009cAsym", {"res": "native"})]
+            [Reference('MNI152NLin2009cAsym', {'res': 'native'})]
         )
 
     # Retrieve logging level
@@ -703,13 +855,13 @@ def parse_args(args=None, namespace=None):
         import yaml
 
         with open(opts.use_plugin) as f:
-            plugin_settings = yaml.load(f, Loader=yaml.FullLoader)
-        _plugin = plugin_settings.get("plugin")
+            plugin_settings = yaml.safe_load(f)
+        _plugin = plugin_settings.get('plugin')
         if _plugin:
             config.nipype.plugin = _plugin
-            config.nipype.plugin_args = plugin_settings.get("plugin_args", {})
+            config.nipype.plugin_args = plugin_settings.get('plugin_args', {})
             config.nipype.nprocs = opts.nprocs or config.nipype.plugin_args.get(
-                "n_procs", config.nipype.nprocs
+                'n_procs', config.nipype.nprocs
             )
 
     # Resource management options
@@ -717,12 +869,12 @@ def parse_args(args=None, namespace=None):
     # This may need to be revisited if people try to use batch plugins
     if 1 < config.nipype.nprocs < config.nipype.omp_nthreads:
         build_log.warning(
-            f"Per-process threads (--omp-nthreads={config.nipype.omp_nthreads}) exceed "
-            f"total threads (--nthreads/--n_cpus={config.nipype.nprocs})"
+            f'Per-process threads (--omp-nthreads={config.nipype.omp_nthreads}) exceed '
+            f'total threads (--nthreads/--n_cpus={config.nipype.nprocs})'
         )
 
     # Inform the user about the risk of using brain-extracted images
-    if config.workflow.skull_strip_t1w == "auto":
+    if config.workflow.skull_strip_t1w == 'auto':
         build_log.warning(
             """\
 Option ``--skull-strip-t1w`` was set to 'auto'. A heuristic will be \
@@ -743,25 +895,23 @@ applied."""
     output_layout = config.execution.output_layout
 
     if config.execution.fs_subjects_dir is None:
-        if output_layout == "bids":
-            config.execution.fs_subjects_dir = output_dir / "sourcedata" / "freesurfer"
-        elif output_layout == "legacy":
-            config.execution.fs_subjects_dir = output_dir / "freesurfer"
+        if output_layout == 'bids':
+            config.execution.fs_subjects_dir = output_dir / 'sourcedata' / 'freesurfer'
+        elif output_layout == 'legacy':
+            config.execution.fs_subjects_dir = output_dir / 'freesurfer'
     if config.execution.fmriprep_dir is None:
-        if output_layout == "bids":
+        if output_layout == 'bids':
             config.execution.fmriprep_dir = output_dir
-        elif output_layout == "legacy":
-            config.execution.fmriprep_dir = output_dir / "fmriprep"
+        elif output_layout == 'legacy':
+            config.execution.fmriprep_dir = output_dir / 'fmriprep'
 
     # Wipe out existing work_dir
     if opts.clean_workdir and work_dir.exists():
         from niworkflows.utils.misc import clean_directory
 
-        build_log.info(f"Clearing previous fMRIPrep working directory: {work_dir}")
+        build_log.info(f'Clearing previous fMRIPrep working directory: {work_dir}')
         if not clean_directory(work_dir):
-            build_log.warning(
-                f"Could not clear all contents of working directory: {work_dir}"
-            )
+            build_log.warning(f'Could not clear all contents of working directory: {work_dir}')
 
     # Update the config with an empty dict to trigger initialization of all config
     # sections (we used `init=False` above).
@@ -771,18 +921,16 @@ applied."""
 
     # Ensure input and output folders are not the same
     if output_dir == bids_dir:
+        ver = version.split('+')[0]
         parser.error(
-            "The selected output folder is the same as the input BIDS folder. "
-            "Please modify the output path (suggestion: %s)."
-            % bids_dir
-            / "derivatives"
-            / ("fmriprep-%s" % version.split("+")[0])
+            'The selected output folder is the same as the input BIDS folder. '
+            f'Please modify the output path (suggestion: {bids_dir / "derivatives" / f"fmriprep-{ver}"}).'
         )
 
     if bids_dir in work_dir.parents:
         parser.error(
-            "The selected working directory is a subdirectory of the input BIDS folder. "
-            "Please modify the output path."
+            'The selected working directory is a subdirectory of the input BIDS folder. '
+            'Please modify the output path.'
         )
 
     # Validate inputs
@@ -790,32 +938,83 @@ applied."""
         from ..utils.bids import validate_input_dir
 
         build_log.info(
-            "Making sure the input data is BIDS compliant (warnings can be ignored in most "
-            "cases)."
+            'Making sure the input data is BIDS compliant (warnings can be ignored in most cases).'
         )
         validate_input_dir(
-            config.environment.exec_env, opts.bids_dir, opts.participant_label
+            config.environment.exec_env,
+            opts.bids_dir,
+            opts.participant_label,
+            need_T1w=not config.execution.derivatives,
         )
 
     # Setup directories
-    config.execution.log_dir = config.execution.fmriprep_dir / "logs"
+    config.execution.log_dir = config.execution.fmriprep_dir / 'logs'
     # Check and create output and working directories
     config.execution.log_dir.mkdir(exist_ok=True, parents=True)
     work_dir.mkdir(exist_ok=True, parents=True)
 
     # Force initialization of the BIDSLayout
+    config.loggers.cli.debug('Initializing BIDS Layout')
     config.execution.init()
-    all_subjects = config.execution.layout.get_subjects()
-    if config.execution.participant_label is None:
-        config.execution.participant_label = all_subjects
 
-    participant_label = set(config.execution.participant_label)
-    missing_subjects = participant_label - set(all_subjects)
-    if missing_subjects:
-        parser.error(
-            "One or more participant labels were not found in the BIDS directory: "
-            "%s." % ", ".join(missing_subjects)
+    # Please note this is the input folder's dataset_description.json
+    dset_desc_path = config.execution.bids_dir / 'dataset_description.json'
+    if dset_desc_path.exists():
+        from hashlib import sha256
+
+        desc_content = dset_desc_path.read_bytes()
+        config.execution.bids_description_hash = sha256(desc_content).hexdigest()
+
+    # First check that bids_dir looks like a BIDS folder
+    subject_list = collect_participants(
+        config.execution.layout, participant_label=config.execution.participant_label
+    )
+    if config.execution.participant_label is None:
+        config.execution.participant_label = subject_list
+
+    session_list = config.execution.session_label or []
+    subject_session_list = create_processing_groups(
+        config.execution.layout,
+        subject_list,
+        session_list,
+        config.workflow.subject_anatomical_reference,
+    )
+    config.execution.processing_groups = subject_session_list
+    config.execution.participant_label = sorted(subject_list)
+    config.workflow.skull_strip_template = config.workflow.skull_strip_template[0]
+
+
+def create_processing_groups(
+    layout: 'BIDSLayout',
+    subject_list: list,
+    session_list: list | str | None,
+    subject_anatomical_reference: str,
+) -> list[tuple[str]]:
+    """Generate a list of subject-session pairs to be processed."""
+    from bids.layout import Query
+
+    subject_session_list = []
+
+    for subject in subject_list:
+        sessions = (
+            layout.get_sessions(
+                scope='raw',
+                subject=subject,
+                session=session_list or Query.OPTIONAL,
+            )
+            or None
         )
 
-    config.execution.participant_label = sorted(participant_label)
-    config.workflow.skull_strip_template = config.workflow.skull_strip_template[0]
+        if subject_anatomical_reference == 'sessionwise':
+            if sessions is None:
+                config.loggers.cli.warning(
+                    '`--subject-anatomical-reference sessionwise` was requested, but no sessions '
+                    f'found for subject {subject}... treating as single-session.'
+                )
+                subject_session_list.append((subject, None))
+            else:
+                subject_session_list.extend((subject, session) for session in sessions)
+        else:
+            subject_session_list.append((subject, sessions))
+
+    return subject_session_list

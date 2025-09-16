@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ def mask2vf(in_file, zooms=None, out_file=None):
     by the zooms given as argument.
 
     """
-    import numpy as np
     import nibabel as nb
+    import numpy as np
     from scipy.ndimage import gaussian_filter
 
     img = nb.load(in_file)
@@ -107,8 +107,9 @@ def acompcor_masks(in_files, is_aseg=False, zooms=None):
 
     """
     from pathlib import Path
-    import numpy as np
+
     import nibabel as nb
+    import numpy as np
     from scipy.ndimage import binary_dilation
     from skimage.morphology import ball
 
@@ -132,7 +133,7 @@ def acompcor_masks(in_files, is_aseg=False, zooms=None):
         csf_file = mask2vf(
             csf_file,
             zooms=zooms,
-            out_file=str(Path("acompcor_csf.nii.gz").absolute()),
+            out_file=str(Path('acompcor_csf.nii.gz').absolute()),
         )
         csf_data = nb.load(csf_file).get_fdata()
         wm_data = mask2vf(in_files[1], zooms=zooms)
@@ -144,8 +145,8 @@ def acompcor_masks(in_files, is_aseg=False, zooms=None):
     gm_data = binary_dilation(gm_data, structure=ball(3))
 
     # Output filenames
-    wm_file = str(Path("acompcor_wm.nii.gz").absolute())
-    combined_file = str(Path("acompcor_wmcsf.nii.gz").absolute())
+    wm_file = str(Path('acompcor_wm.nii.gz').absolute())
+    combined_file = str(Path('acompcor_wmcsf.nii.gz').absolute())
 
     # Prepare WM mask
     wm_data[gm_data] = 0  # Make sure voxel does not contain GM

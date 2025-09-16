@@ -1,7 +1,7 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 #
-# Copyright 2021 The NiPreps Developers <nipreps@gmail.com>
+# Copyright The NiPreps Developers <nipreps@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,8 +24,10 @@ from .cli.run import main
 
 if __name__ == '__main__':
     import sys
+
     from . import __name__ as module
+
     # `python -m <module>` typically displays the command as __main__.py
     if '__main__.py' in sys.argv[0]:
-        sys.argv[0] = '%s -m %s' % (sys.executable, module)
+        sys.argv[0] = f'{sys.executable} -m {module}'
     main()

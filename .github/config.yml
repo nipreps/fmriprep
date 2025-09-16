@@ -10,18 +10,8 @@ newPRWelcomeComment: >
   please check out the
   [contributing guidelines](https://github.com/nipreps/fmriprep/blob/master/CONTRIBUTING.md#recognizing-contributions).
   If your name is not already on the list, please insert it, in alphabetical order, into the
-  [``contributors.json`` file](https://github.com/nipreps/fmriprep/blob/master/.maint/contributors.json).
-  Example:
-
-  ```JSON
-  {
-     "name": "Contributor, New FMRIPrep",
-     "affiliation": "Department of fMRI prep'ing, Open Science Made-Up University",
-     "orcid": "<your id>"
-  },
-  ```
-
-
+  [``CONTRIBUTORS.md`` file](https://github.com/nipreps/fmriprep/blob/master/.maint/CONTRIBUTORS.md).
+  
   Of course, if you want to opt-out this time there is no
   problem at all with adding your name later.
   You will be always welcome to add it in the future whenever

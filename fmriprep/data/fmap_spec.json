@@ -1,0 +1,33 @@
+{
+  "queries": {
+    "fieldmaps": {
+      "fieldmap": {
+        "datatype": "fmap",
+        "desc": "preproc",
+        "suffix": "fieldmap",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "coeffs": {
+        "datatype": "fmap",
+        "desc": ["coeff", "coeff0", "coeff1"],
+        "suffix": "fieldmap",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "magnitude": {
+        "datatype": "fmap",
+        "desc": ["magnitude", "epi"],
+        "suffix": "fieldmap",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      }
+    }
+  }
+}

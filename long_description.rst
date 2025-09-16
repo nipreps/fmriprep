@@ -15,7 +15,7 @@ fMRIPrep equips neuroscientists with an easy-to-use and transparent preprocessin
 workflow, which can help ensure the validity of inference and the interpretability
 of results.
 
-The workflow is based on `Nipype <https://nipype.readthedocs.io>`_ and encompases a large
+The workflow is based on `Nipype <https://nipype.readthedocs.io>`_ and encompasses a large
 set of tools from well-known neuroimaging packages, including
 `FSL <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_,
 `ANTs <https://stnava.github.io/ANTs/>`_,
@@ -48,13 +48,13 @@ fMRIPrep allows you to easily do the following:
 
 License information
 -------------------
-*fMRIPrep* adheres to the 
+*fMRIPrep* adheres to the
 `general licensing guidelines <https://www.nipreps.org/community/licensing/>`__
 of the *NiPreps framework*.
 
 License
 ~~~~~~~
-Copyright (c) 2021, the *NiPreps* Developers.
+Copyright (c) the *NiPreps* Developers.
 
 As of the 21.0.x pre-release and release series, *fMRIPrep* is
 licensed under the Apache License, Version 2.0 (the "License");

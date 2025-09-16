@@ -4,6 +4,25 @@
 (`www.nipreps.org <https://www.nipreps.org>`__) for the preprocessing of
 task-based and resting-state functional MRI (fMRI).
 
+.. image:: https://img.shields.io/badge/RRID-SCR__016216-blue.svg
+  :target: https://doi.org/10.1038/s41592-018-0235-4
+  :alt: RRID:SCR_016216
+
+.. image:: https://img.shields.io/pypi/v/fmriprep.svg
+  :target: https://pypi.python.org/pypi/fmriprep/
+  :alt: Latest Version
+
+.. image:: https://circleci.com/gh/nipreps/fmriprep/tree/master.svg?style=shield
+  :target: https://circleci.com/gh/nipreps/fmriprep/tree/master
+
+.. image:: https://readthedocs.org/projects/fmriprep/badge/?version=latest
+  :target: https://fmriprep.org/en/latest/?badge=latest
+  :alt: Documentation Status
+
+.. image:: https://img.shields.io/badge/doi-10.1038%2Fs41592--018--0235--4-blue.svg
+  :target: https://doi.org/10.1038/s41592-018-0235-4
+  :alt: Published in Nature Methods
+
 .. image:: https://img.shields.io/badge/docker-nipreps/fmriprep-brightgreen.svg?logo=docker&style=flat
   :target: https://hub.docker.com/r/nipreps/fmriprep/tags/
   :alt: Docker image available!
@@ -12,24 +31,9 @@ task-based and resting-state functional MRI (fMRI).
   :target: https://doi.org/10.24433/CO.ed5ddfef-76a3-4996-b298-e3200f69141b
   :alt: Available in CodeOcean!
 
-.. image:: https://circleci.com/gh/nipreps/fmriprep/tree/master.svg?style=shield
-  :target: https://circleci.com/gh/nipreps/fmriprep/tree/master
-
-.. image:: https://readthedocs.org/projects/fmriprep/badge/?version=latest
-  :target: http://fmriprep.readthedocs.io/en/latest/?badge=latest
-  :alt: Documentation Status
-
-.. image:: https://img.shields.io/pypi/v/fmriprep.svg
-  :target: https://pypi.python.org/pypi/fmriprep/
-  :alt: Latest Version
-
-.. image:: https://img.shields.io/badge/doi-10.1038%2Fs41592--018--0235--4-blue.svg
-  :target: https://doi.org/10.1038/s41592-018-0235-4
-  :alt: Published in Nature Methods
-
-.. image:: https://img.shields.io/badge/RRID-SCR__016216-blue.svg
-  :target: https://doi.org/10.1038/s41592-018-0235-4
-  :alt: RRID:SCR_016216
+.. image:: https://chanzuckerberg.github.io/open-science/badges/CZI-EOSS.svg
+  :target: https://czi.co/EOSS
+  :alt: CZI's Essential Open Source Software for Science
 
 About
 -----
@@ -42,10 +46,10 @@ state-of-the-art interface that is robust to variations in scan acquisition
 protocols and that requires minimal user input, while providing easily
 interpretable and comprehensive error and output reporting.
 It performs basic processing steps (coregistration, normalization, unwarping,
-noise component extraction, segmentation, skullstripping etc.) providing
+noise component extraction, segmentation, skull-stripping, etc.) providing
 outputs that can be easily submitted to a variety of group level analyses,
-including task-based or resting-state fMRI, graph theory measures, surface or
-volume-based statistics, etc.
+including task-based or resting-state fMRI, graph theory measures, and surface
+or volume-based statistics.
 
 .. note::
 
@@ -71,7 +75,7 @@ This tool allows you to easily do the following:
 - Receive verbose output concerning the stage of preprocessing for each
   subject, including meaningful errors.
 - Automate and parallelize processing steps, which provides a significant
-  speed-up from typical linear, manual processing.
+  speed-up from manual processing or shell-scripted pipelines.
 
 More information and documentation can be found at
 https://fmriprep.readthedocs.io/
@@ -140,13 +144,13 @@ and some conference posters:
 
 License information
 -------------------
-*fMRIPrep* adheres to the 
+*fMRIPrep* adheres to the
 `general licensing guidelines <https://www.nipreps.org/community/licensing/>`__
 of the *NiPreps framework*.
 
 License
 ~~~~~~~
-Copyright (c) 2021, the *NiPreps* Developers.
+Copyright (c) the *NiPreps* Developers.
 
 As of the 21.0.x pre-release and release series, *fMRIPrep* is
 licensed under the Apache License, Version 2.0 (the "License");

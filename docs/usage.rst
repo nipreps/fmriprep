@@ -18,7 +18,7 @@ The input dataset is required to be in valid :abbr:`BIDS (Brain Imaging Data
 Structure)` format, and it must include at least one T1w structural image and
 (unless disabled with a flag) a BOLD series.
 We highly recommend that you validate your dataset with the free, online
-`BIDS Validator <http://bids-standard.github.io/bids-validator/>`_.
+`BIDS Validator <https://bids-standard.github.io/bids-validator/>`_.
 
 The exact command to run *fMRIPRep* depends on the Installation_ method.
 The common parts of the command follow the `BIDS-Apps
@@ -35,15 +35,13 @@ Command-Line Arguments
 .. argparse::
    :ref: fmriprep.cli.parser._build_parser
    :prog: fmriprep
-   :nodefault:
-   :nodefaultconst:
 
 
 The command-line interface of the docker wrapper
 ------------------------------------------------
 
 .. argparse::
-   :ref: fmriprep_docker.get_parser
+   :ref: fmriprep_docker.__main__.get_parser
    :prog: fmriprep-docker
    :nodefault:
    :nodefaultconst:
@@ -128,10 +126,13 @@ would be equivalent to the latest example: ::
 
 Reusing precomputed derivatives
 -------------------------------
+
 Reusing a previous, partial execution of *fMRIPrep*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 *fMRIPrep* will pick up where it left off a previous execution, so long as the work directory
 points to the same location, and this directory has not been changed/manipulated.
+Some workflow nodes will rerun unconditionally, so there will always be some amount of
+reprocessing.
 
 Using a previous run of *FreeSurfer*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,72 +144,63 @@ You can use the ``--fs-subjects-dir`` flag to specify a different location to sa
 FreeSurfer outputs.
 If precomputed results are found, they will be reused.
 
-The *anatomical fast-track*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Starting with version 20.1.0, *fMRIPrep* has a command-line argument (``--anat-derivatives <PATH>``)
-to indicate a path from which the preprocessed information derived from the T1w, T2w (if present) and
-FLAIR (if present) images.
-This feature was envisioned to help process very large multi-session datasets where the anatomical
-images can be averaged (i.e., anatomy is not expected to vary substantially across sessions).
-An example where this kind of processing would be useful is
-`My Connectome <https://openneuro.org/datasets/ds000031/>`__, a dataset that contains
-107 sessions for a single-subject.
-Most of these sessions contain anatomical information which, given the design of the dataset, can be averaged
-across sessions as no substantial changes should happen.
-In other words, the anatomical information of the dataset can be considered as *cross-sectional*.
-Before version 20.1.0, preprocessing this dataset would be hard for two limitations:
+BIDS Derivatives reuse
+~~~~~~~~~~~~~~~~~~~~~~
+As of version 23.2.0, *fMRIPrep* can reuse precomputed derivatives that follow BIDS Derivatives
+conventions. To provide derivatives to *fMRIPrep*, use the ``--derivatives`` (``-d``) flag one
+or more times.
 
-  * if the dataset were to be processed in just one enormous job (be it in a commercial Cloud or
-    :abbr:`HPC (high-performance computing)` resources), the amount of data to be processed surely
-    would exceed the time limitations per job (and/or related issues, such as restarting from where
-    it left before); or
-  * if the processing were `split in sessions <https://github.com/nipreps/fmriprep/issues/1175>`__,
-    then *fMRIPrep* would attempt to re-process the anatomical information for every session.
+This mechanism replaces the earlier, more limited ``--anat-derivatives`` flag.
 
-Because processing this emerging type of datasets (*densely sampled neuroimaging*) was impractical with
-*fMRIPrep*, the option ``--anat-derivatives`` will shortcut the whole anatomical processing.
+.. note::
+   Derivatives reuse is considered *experimental*.
 
-.. danger::
-    Using the *anatomical fast-track* (the ``--anat-derivatives`` argument) has important side-effects
-    that risk the reproducibility and reliability of *fMRIPrep*.
-    This flag breaks *fMRIPrep*'s internal tracing of provenance, and it trusts whatever input *fMRIPrep*
-    is given (so long it is BIDS-Derivatives compliant and contains all the necessary files).
+This feature has several intended use-cases:
 
-    When reporting results obtained with ``--anat-derivatives``, please make sure you highlight this
-    particular deviation from *fMRIPrep*, and clearly describe the alternative preprocessing of
-    anatomical data.
+  * To enable fMRIPrep to be run in a "minimal" mode, where only the most essential
+    derivatives are generated. This can be useful for large datasets where disk space
+    is a concern, or for users who only need a subset of the derivatives. Further
+    derivatives may be generated later, or by a different tool.
+  * To enable fMRIPrep to be integrated into a larger processing pipeline, where
+    other tools may generate derivatives that fMRIPrep can use in place of its own
+    steps.
+  * To enable users to substitute their own custom derivatives for those generated
+    by fMRIPrep. For example, a user may wish to use a different brain extraction
+    tool, or a different registration tool, and then use fMRIPrep to generate the
+    remaining derivatives.
+  * To enable complicated meta-workflows, where fMRIPrep is run multiple times
+    with different options, and the results are combined. For example, the
+    `My Connectome <https://openneuro.org/datasets/ds000031/>`__ dataset contains
+    107 sessions for a single-subject. Processing of all sessions simultaneously
+    would be impractical, but the anatomical processing can be done once, and
+    then the functional processing can be done separately for each session.
 
-.. attention::
-    When the intention is to combine the *anatomical fast-track* with some advanced options that involve
-    standard spaces (e.g., ``--use-aroma`` or ``--cifti-output``), please make sure you include the
-    ``MNI152NLin6Asym`` space to the ``--output-spaces`` list in the first invocation of *fMRIPrep*
-    (or *sMRIPrep*) from which the results are to be reused.
-    Otherwise, a warning message indicating that *fMRIPrep*'s expectations were not met will be issued,
-    and the pre-computed anatomical derivatives will not be reused.
+See also the ``--level`` flag, which can be used to control which derivatives are
+generated.
 
 Troubleshooting
 ---------------
-Logs and crashfiles are outputted into the
+Logs and crashfiles are output into the
 ``<output dir>/fmriprep/sub-<participant_label>/log`` directory.
 Information on how to customize and understand these files can be found on the
-`nipype debugging <http://nipype.readthedocs.io/en/latest/users/debug.html>`_
+`Debugging Nipype Workflows <https://miykael.github.io/nipype_tutorial/notebooks/basic_debug.html>`_
 page.
 
 **Support and communication**.
-The documentation of this project is found here: http://fmriprep.readthedocs.org/en/latest/.
+The documentation of this project is found here: https://fmriprep.org/en/latest/.
 
 All bugs, concerns and enhancement requests for this software can be submitted here:
 https://github.com/nipreps/fmriprep/issues.
 
 If you have a problem or would like to ask a question about how to use *fMRIPRep*,
-please submit a question to `NeuroStars.org <http://neurostars.org/tags/fmriprep>`_ with an ``fmriprep`` tag.
+please submit a question to `NeuroStars.org <https://neurostars.org/tag/fmriprep>`_ with an ``fmriprep`` tag.
 NeuroStars.org is a platform similar to StackOverflow but dedicated to neuroinformatics.
 
 Previous questions about *fMRIPRep* are available here:
-http://neurostars.org/tags/fmriprep/
+https://neurostars.org/tag/fmriprep/
 
 To participate in the *fMRIPRep* development-related discussions please use the
-following mailing list: http://mail.python.org/mailman/listinfo/neuroimaging
+following mailing list: https://mail.python.org/mailman/listinfo/neuroimaging
 Please add *[fmriprep]* to the subject line when posting on the mailing list.
 
 

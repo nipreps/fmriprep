@@ -1,9 +1,263 @@
 [build-system]
-# Keep synchronized with the minimum version to install in setup.py
-requires = ["setuptools >= 40.8.0", "wheel"]
+requires = ["hatchling>=1.27", "hatch-vcs", "nipreps-versions"]
+build-backend = "hatchling.build"
 
+[project]
+name = "fmriprep"
+description = "A robust and easy-to-use pipeline for preprocessing of diverse fMRI data"
+readme = "long_description.rst"
+authors = [{name = "The NiPreps Developers", email = "nipreps@gmail.com"}]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = [
+    "acres >= 0.2.0",
+    "looseversion >= 1.3",
+    "nibabel >= 5.1.1",
+    "nipype >= 1.9.0",
+    "nireports >= 24.1.0",
+    "nitime >= 0.9",
+    "nitransforms >= 25.0.1",
+    "niworkflows @ git+https://github.com/nipreps/niworkflows.git@master",
+    "numpy >= 2.0",
+    "packaging >= 24",
+    "pandas >= 2.2",
+    "psutil >= 5.4",
+    "pybids >= 0.16",
+    "requests >= 2.27",
+    "sdcflows >= 2.13.1",
+    "smriprep @ git+https://github.com/nipreps/smriprep.git@master",
+    "tedana >= 25.0.0",
+    "templateflow >= 24.2.2",
+    "transforms3d >= 0.4.2",
+    "toml >= 0.10",
+    "codecarbon >= 2",
+    "APScheduler >= 3.10",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/nipreps/fmriprep"
+Documentation = "https://fmriprep.org"
+Paper = "https://doi.org/10.1038/s41592-018-0235-4"
+"Docker Images" = "https://hub.docker.com/r/nipreps/fmriprep/tags/"
+NiPreps = "https://www.nipreps.org/"
+
+[project.optional-dependencies]
+doc = [
+    "pydot >= 1.2.3",
+    "sphinx >= 5",
+    "sphinx-argparse !=0.5.0",
+    "sphinx_rtd_theme>=0.5.2",
+]
+dev = [
+    "ruff",
+    "pre-commit",
+]
+duecredit = ["duecredit"]
+resmon = []
+container = [
+    "fmriprep[telemetry]",
+    # templateflow extras
+    "datalad",
+    "datalad-osf",
+]
+telemetry = [
+    "migas >= 0.4.0",
+    "sentry-sdk >= 1.3",
+]
+test = [
+    "coverage[toml] >= 5.2.1",
+    "pytest >= 8.1",
+    "pytest-cov >= 2.11",
+    "pytest-env",
+    "pytest-xdist >= 2.5",
+]
+maint = [
+    "fuzzywuzzy",
+    "python-Levenshtein",
+]
+# Aliases
+docs = ["fmriprep[doc]"]
+tests = ["fmriprep[test]"]
+all = ["fmriprep[doc,maint,telemetry,test]"]
+
+[project.scripts]
+fmriprep = "fmriprep.cli.run:main"
+
+#
+# Hatch configurations
+#
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.sdist]
+exclude = [".git_archival.txt"]  # No longer needed in sdist
+
+[tool.hatch.build.targets.wheel]
+packages = ["fmriprep"]
+exclude = [
+    "fmriprep/data/tests/work",  # Large test data directory
+]
+
+##  The following two sections configure setuptools_scm in the hatch way
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "nipreps-calver" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "fmriprep/_version.py"
+
+[tool.pixi.workspace]
+channels = ["https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public", "conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.activation.env]
+FSLDIR = "$CONDA_PREFIX"
+
+[tool.pixi.environments]
+# Local installs will use editable
+default = { features = ["editable"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+doc = { features = ["doc"], solve-group = "default" }
+test = { features = ["editable", "test"], solve-group = "default" }
+# Use "fmriprep" feature for production environment, so it is identifiable
+fmriprep = { features = ["production", "container", "telemetry"], solve-group = "production" }
+
+[tool.pixi.feature.editable.pypi-dependencies]
+fmriprep = { path = ".", editable = true }
+[tool.pixi.feature.production.pypi-dependencies]
+fmriprep = { path = ".", editable = false }
+
+[tool.pixi.tasks]
+
+[tool.pixi.pypi-options.dependency-overrides]
+numpy = ">=2.2"
+
+[tool.pixi.dependencies]
+python = "3.12.*"
+nodejs = "20.*"
+mkl = "2024.2.2.*"
+mkl-service = "2.4.2.*"
+numpy = "2.2.*"
+scipy = "1.15.*"
+matplotlib = "3.10.*"
+pandas = "2.2.*"
+h5py = "3.13.*"
+nitime = "0.11.*"
+scikit-image = "0.25.*"
+scikit-learn = "1.6.*"
+ants = "2.6.*"
+connectome-workbench-cli = "2.0.*"
+fsl-bet2 = "2111.8.*"
+fsl-flirt = "2111.4.*"
+fsl-fast4 = "2111.3.*"
+fsl-fugue = "2201.5.*"
+fsl-mcflirt = "2111.0.*"
+fsl-miscmaths = "2412.4.*"
+fsl-topup = "2203.5.*"
+graphviz = "12.2.*"
+pandoc = "3.7.*"
+
+[tool.pixi.feature.container.dependencies]
+git = "*"
+
+[tool.pixi.feature.container.pypi-dependencies]
+git-annex = ">=10.20250721"
+
+#
+# Developer tool configurations
+#
+
+# Disable black
 [tool.black]
+exclude = ".*"
+
+[tool.pytest.ini_options]
+minversion = "6"
+testpaths = ["fmriprep"]
+log_cli_level = "INFO"
+xfail_strict = true
+norecursedirs = [".git"]
+addopts = [
+  "-svx",
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+  "--doctest-modules",
+  # Config pytest-cov
+  "--cov=fmriprep",
+  "--cov-report=xml",
+  "--cov-config=pyproject.toml",
+]
+doctest_optionflags = "ALLOW_UNICODE NORMALIZE_WHITESPACE ELLIPSIS"
+env = "PYTHONHASHSEED=0"
+filterwarnings = ["ignore::DeprecationWarning"]
+junit_family = "xunit2"
+
+[tool.ruff]
 line-length = 99
-target-version = ['py37']
-skip-string-normalization = true
-extend-exclude = '_version.py|versioneer.py'
+
+[tool.ruff.lint]
+extend-select = [
+  "F",
+  "E",
+  "W",
+  "I",
+  "UP",
+  "YTT",
+  "S",
+  "BLE",
+  "B",
+  "A",
+  # "CPY",
+  "C4",
+  "DTZ",
+  "T10",
+  # "EM",
+  "EXE",
+  "FA",
+  "ISC",
+  "ICN",
+  "PT",
+  "Q",
+]
+ignore = [
+  "S311",  # We are not using random for cryptographic purposes
+  "S603",
+]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"*/test_*.py" = ["S101"]
+"fmriprep/utils/debug.py" = ["A002", "T100"]
+"docs/conf.py" = ["A001"]
+"docs/sphinxext/github_link.py" = ["BLE001"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/_version.py"
+]
+
+[tool.coverage.paths]
+source = [
+  "fmriprep",
+  "**/site-packages/fmriprep"
+]

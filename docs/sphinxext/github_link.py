@@ -1,13 +1,14 @@
 """
-This script comes from scikit-learn:
+This vendored script comes from scikit-learn:
 https://github.com/scikit-learn/scikit-learn/blob/master/doc/sphinxext/github_link.py
 """
-from operator import attrgetter
+
 import inspect
-import subprocess
 import os
+import subprocess
 import sys
 from functools import partial
+from operator import attrgetter
 
 REVISION_CMD = 'git rev-parse --short HEAD'
 
@@ -44,11 +45,12 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
         return
 
     class_name = info['fullname'].split('.')[0]
-    if type(class_name) != str:
-        # Python 2 only
-        class_name = class_name.encode('utf-8')
     module = __import__(info['module'], fromlist=[class_name])
     obj = attrgetter(info['fullname'])(module)
+
+    # Unwrap the object to get the correct source
+    # file in case that is wrapped by a decorator
+    obj = inspect.unwrap(obj)
 
     try:
         fn = inspect.getsourcefile(obj)
@@ -62,14 +64,12 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     if not fn:
         return
 
-    fn = os.path.relpath(fn,
-                         start=os.path.dirname(__import__(package).__file__))
+    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
     try:
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:
         lineno = ''
-    return url_fmt.format(revision=revision, package=package,
-                          path=fn, lineno=lineno)
+    return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
 
 
 def make_linkcode_resolve(package, url_fmt):
@@ -84,5 +84,4 @@ def make_linkcode_resolve(package, url_fmt):
                                    '{path}#L{lineno}')
     """
     revision = _get_git_revision()
-    return partial(_linkcode_resolve, revision=revision, package=package,
-                   url_fmt=url_fmt)
+    return partial(_linkcode_resolve, revision=revision, package=package, url_fmt=url_fmt)

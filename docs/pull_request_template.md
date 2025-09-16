@@ -8,7 +8,7 @@ beginning "Welcome, new contributors!".
 
 <!--
 Please describe here the main features / changes proposed for review and integration in fMRIPrep
-If this PR addresses some existing problem, please use GitHub's citing tools 
+If this PR addresses some existing problem, please use GitHub's citing tools
 (eg. ref #, closes # or fixes #).
 If there is not an existing issue open describing the problem, please consider opening a new
 issue first and then link it from here (so the *fMRIPrep* community has a better understanding
