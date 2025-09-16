@@ -118,9 +118,9 @@ def loads_contributors(s):
     """Reformat contributors read from the Markdown table."""
     return [
         {
-            'affiliation': contributor['Affiliation'],
+            'affiliation': contributor['Affiliation'] if 'Affiliation' in contributor else None,
             'name': f'{contributor["Lastname"]}, {contributor["Name"]}',
-            'orcid': contributor['ORCID'],
+            'orcid': contributor['ORCID'] if 'ORCID' in contributor else None,
         }
         for contributor in loads_table_from_markdown(s)
     ]
@@ -132,18 +132,20 @@ if __name__ == '__main__':
     zenodo_file = Path('.zenodo.json')
     zenodo = json.loads(zenodo_file.read_text())
 
+    former = loads_contributors(Path('.maint/FORMER.md').read_text())
+
     creators = json.loads(Path('.maint/developers.json').read_text())
     zen_creators, miss_creators = sort_contributors(
         creators,
         data,
-        exclude=json.loads(Path('.maint/former.json').read_text()),
+        exclude=former,
         last=CREATORS_LAST,
     )
     contributors = loads_contributors(Path('.maint/CONTRIBUTORS.md').read_text())
     zen_contributors, miss_contributors = sort_contributors(
         contributors,
         data,
-        exclude=json.loads(Path('.maint/former.json').read_text()),
+        exclude=former,
         last=CONTRIBUTORS_LAST,
     )
     zenodo['creators'] = zen_creators
