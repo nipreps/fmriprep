@@ -374,8 +374,8 @@ No action is required by users, as this module is included in *fMRIPrep*.
 Details about the BIDS specification for field maps can be found at
 <https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/01-magnetic-resonance-imaging-data.html#types-of-fieldmaps>
 
-**NOTE** There is a deviation from the BIDS spec, in that all fieldmap image side
-car files must include the `B0Fielsource` key and appropriate value.
+**NOTE** SDCFlows prefers `B0FieldIdentifier`/`B0FieldSource` and will use that
+to the exclusion of `IntendedFor`, if it is present anywhere in the dataset.
 
 For more detailed documentation on
 :abbr:`SDC (susceptibility-derived distortion correction)`
