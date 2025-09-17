@@ -537,7 +537,7 @@ voxels whose time-series have a locally high coefficient of variation.
                 ]),
         ])  # fmt:skip
 
-    surf_std = spaces.get_nonstandard(dim=(2,))
+    surf_std = spaces.get_standard(dim=(2,))
     if surf_std and config.workflow.run_reconall and config.workflow.cifti_output:
         workflow.__postdesc__ += """\
 Non-gridded (surface) resamplings were performed using the Connectome
@@ -568,8 +568,6 @@ Workbench.
         ])  # fmt:skip
 
         if config.workflow.project_goodvoxels:
-            goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
-
             workflow.connect([
                 (goodvoxels_bold_mask_wf, wb_vol_surf_wf, [
                     ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
