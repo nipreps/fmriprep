@@ -17,14 +17,45 @@ def _aslist(inlist):
     return inlist
 
 
+def loads_table_from_markdown(s):
+    """Read the first table from a Markdown text."""
+    table = []
+    header = None
+    for line in s.splitlines():
+        if line.startswith('|'):
+            if not header:
+                # read header and strip bold
+                header = [item.strip('* ') for item in line.split('|')[1:-1]]
+            else:
+                values = [item.strip() for item in line.split('|')[1:-1]]
+                if any(any(c != '-' for c in item) for item in values):
+                    table.append(dict(zip(header, values, strict=False)))
+        elif header:
+            # we have already seen a table, we're past the end of that table
+            break
+    return table
+
+
+def loads_contributors(s):
+    """Reformat contributors read from the Markdown table."""
+    return [
+        {
+            'affiliation': contributor['Affiliation'] if 'Affiliation' in contributor else None,
+            'name': f'{contributor["Lastname"]}, {contributor["Name"]}',
+            'orcid': contributor['ORCID'] if 'ORCID' in contributor else None,
+        }
+        for contributor in loads_table_from_markdown(s)
+    ]
+
+
 if __name__ == '__main__':
     devs = json.loads(Path('.maint/developers.json').read_text())
-    contribs = json.loads(Path('.maint/contributors.json').read_text())
+    contribs = loads_contributors(Path('.maint/CONTRIBUTORS.md').read_text())
 
     author_matches, unmatched = sort_contributors(
         devs + contribs,
         get_git_lines(),
-        exclude=json.loads(Path('.maint/former.json').read_text()),
+        exclude=loads_contributors(Path('.maint/FORMER.md').read_text()),
         last=AUTHORS_LAST,
     )
     # Remove position
