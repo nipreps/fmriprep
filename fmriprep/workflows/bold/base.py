@@ -681,6 +681,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 init_wb_surf_surf_wf,
                 init_wb_vol_surf_wf,
             )
+
             workflow.__postdesc__ += (
                 'Non-gridded (surface) resamplings were performed using the Connectome Workbench.'
             )
