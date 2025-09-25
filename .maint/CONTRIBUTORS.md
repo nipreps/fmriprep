@@ -13,9 +13,12 @@ Before every release, unlisted contributors will be invited again to add their n
 | Bellec            | Pierre       |  | 0000-0002-9111-0699 | SIMEXP Lab, CRIUGM, University of Montréal, Montréal, Canada                                                                                 |
 | Benson            | Noah C.      |  | 0000-0002-2365-8265 | Department of Psychology, New York University                                                                                                |
 | Bhagwat           | Nikhil       |  | 0000-0001-6073-7141 | Montreal Neurological Institute, McGill University                                                                                           |
+| Blair             | Ross W.      |  | 0000-0003-3007-1056 | Department of Psychology, Stanford University                                                                                           |
 | Camacho           | Milton       |  | 0000-0002-5379-5076 | Department of Pediadrics, University of Calgary                                                                                           |
 | Callenberg        | Keith        |  | 0000-0001-7786-9300 | Department of Psychiatry, University of Pittsburgh                                                                                           |
 | Cieslak           | Matthew      |  | 0000-0002-1931-4734 | Perelman School of Medicine, University of Pennsylvania, PA, USA                                                                             |
+| Ciric             | Rastko       |  | 0000-0001-6347-7939 | Department of Psychology, Stanford University                                                                                                |
+| DuPre             | Elizabeth    |  | 0000-0003-1358-196X | Montreal Neurological Institute, McGill University                                                                                           |
 | de la Vega        | Alejandro    |  | 0000-0001-9062-3778 | University of Texas at Austin                                                                                                                |
 | Devenyi           | Grabriel A.  |  | 0000-0002-7766-1187 | Department of Psychiatry, McGill University                                                                                                  |
 | Erramuzpe         | Asier        |  | 0000-0002-9402-2184 | Computational Neuroimaging Lab, BioCruces Health Research Institute                                                                          |
@@ -23,14 +26,16 @@ Before every release, unlisted contributors will be invited again to add their n
 | Finc              | Karolina     |  | 0000-0002-0157-030X | Centre for Modern Interdisciplinary Technologies, Nicolaus Copernicus University in Toruń                                                    |
 | Frederick         | Blaise B.    |  | 0000-0001-5832-5279 | McLean Hospital Brain Imaging Center, MA, USA                                                                                                |
 | Gau               | Rémi        |  | 0000-0002-1535-9767 | Neuro Data Science ORIGAMI Laboratory, McConnell Brain Imaging Centre, Faculty of Medicine, McGill University, Montréal, Canada             |
-| Groen             | Iris I. A.   |  | 0000-0002-5536-6128 | Department of Psychology, New York University, NY, USA                                                                                       |
-| Gomez             | Daniel E. P. |  | 0000-0001-8635-021X | Donders Institute for Brain, Cognition and Behaviour, Radboud University Nijmegen                                                            |
 | Ghosh             | Satrajit S.  |  | 0000-0002-5312-6729 | McGovern Institute for Brain Research, MIT, MA, USA                                                                                          |
+| Gomez             | Daniel E. P. |  | 0000-0001-8635-021X | Donders Institute for Brain, Cognition and Behaviour, Radboud University Nijmegen                                                            |
+| Gorgolewski       | Krzysztof J. |  | 0000-0003-3321-7583 | Department of Psychology, Stanford University                                                                                               |
+| Groen             | Iris I. A.   |  | 0000-0002-5536-6128 | Department of Psychology, New York University, NY, USA                                                                                       |
 | Halchenko         | Yaroslav O.  |  | 0000-0003-3456-2493 | Dartmouth College: Hanover, NH, United States                                                                                                |
 | Heinsfeld         | Anibal S.    |  | 0000-0002-2050-0614 | Child Mind Institute                                                                                                                         |
 | Isik              | Ayse Ilkay   |  | 0000-0002-1652-9297 | Max Planck Institute for Empirical Aesthetics                                                                                                |
 | Jacoby            | Nir          |  | 0000-0001-7936-9991 | Department of Psychology, Columbia University                                                                                                |
 | Jamison           | Keith W.     |  | 0000-0001-7139-6661 | Department of Radiology, Weill Cornell Medicine                                                                                              |
+| Kent              | James D.     |  | 0000-0002-4892-2659 | Neuroscience Program, University of Iowa                                                                                                     |
 | Kruper            | John         |  | 0000-0003-0081-391X | Department of Psychology, University of Washington                                                                                           |
 | Legarreta Gorroño | Jon Haitz    | @jhlegarreta | 0000-0002-9661-1396 | Brigham and Women's Hospital, Mass General Brigham, Harvard Medical School, MA, USA |
 | Liem              | Franz        |  | 0000-0003-0646-4810 | URPP Dynamics of Healthy Aging, University of Zurich                                                                                         |
@@ -47,7 +52,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Provins           | Céline       |  | 0000-0002-1668-9629 | Department of Radiology, Lausanne University Hospital and University of Lausanne                                                             |
 | Rivera-Dompenciel | Adriana      |  | 0000-0002-3339-4857 | Neuroscience Program, University of Iowa                                                                                                     |
 | Sadil             | Patrick      |  | 0000-0003-4141-1343 | Department of Biostatistics, Johns Hopkins Bloomberg School of Public Health, MD, USA                                                        |
-| Satterthwaite     | Theodore D.  |  | 0000-0001-7072-9399 | Perelman School of Medicine, University of Pennsylvania, PA, USA                                                                             |
+| Salo              | Taylor       |  | 0000-0001-9813-3167 | Department of Psychology, Florida International University                                                                                   |
 | Schaefer          | Theo A.J.    |  | 0000-0003-4102-559X | Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany                                                                |
 | Sitek             | Kevin R.     |  | 0000-0002-2172-5786 | Speech & Hearing Bioscience & Technology Program, Harvard University                                                                         |
 | Smith             | Robert E.    |  | 0000-0003-3636-4642 | Florey Institute of Neuroscience and Mental Health                                                                                           |
