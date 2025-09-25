@@ -713,7 +713,7 @@ excluding voxels whose time-series have a locally high coefficient of variation.
             name='carpetplot_wf',
         )
 
-        if config.workflow.cifti_output:
+        if spaces.get_spaces(cifti=(True,)):
             workflow.connect(
                 bold_grayords_wf, 'outputnode.cifti_bold', carpetplot_wf, 'inputnode.cifti_bold',
             )  # fmt:skip
