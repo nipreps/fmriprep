@@ -532,9 +532,10 @@ It is released under the [CC0]\
                 grayord_density=config.workflow.cifti_output,
                 omp_nthreads=omp_nthreads,
             )
+            fslr_density = '32k' if config.workflow.cifti_output == '91k' else '59k'
             resample_surfaces_wf = init_resample_surfaces_wf(
                 surfaces=['white', 'pial', 'midthickness'],
-                grayord_density=config.workflow.cifti_output,
+                density=fslr_density,
             )
             ds_grayord_metrics_wf = init_ds_grayord_metrics_wf(
                 bids_root=bids_root,
@@ -547,7 +548,7 @@ It is released under the [CC0]\
                 surfaces=['white', 'pial', 'midthickness'],
                 entities={
                     'space': 'fsLR',
-                    'density': '32k' if config.workflow.cifti_output == '91k' else '59k',
+                    'density': fslr_density,
                 },
                 name='ds_fsLR_surfaces_wf',
             )
