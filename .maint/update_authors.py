@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "click",
+#     "fuzzywuzzy",
+#     "python-levenshtein",
+# ]
+# ///
 """Update and sort the creators list of the zenodo record."""
 
 import json
@@ -7,6 +15,9 @@ from pathlib import Path
 
 import click
 from fuzzywuzzy import fuzz, process
+
+CREATORS_LAST = ['Poldrack, Russell A.', 'Gorgolewski, Krzysztof J.']
+CONTRIBUTORS_LAST = ['Ghosh, Satrajit S.']
 
 
 def read_md_table(md_text):
@@ -54,48 +65,29 @@ def read_md_table(md_text):
     return retval
 
 
-def sort_contributors(entries, git_lines, exclude=None, last=None):
+def sort_contributors(entries, git_lines, exclude=None):
     """Return a list of author dictionaries, ordered by contribution."""
-    last = last or []
-    sorted_authors = sorted(entries, key=lambda i: i['name'])
+    sorted_authors = sorted(entries)
 
-    first_last = [' '.join(val['name'].split(',')[::-1]).strip() for val in sorted_authors]
-    first_last_excl = [' '.join(val['name'].split(',')[::-1]).strip() for val in exclude or []]
+    # Match on First Last
+    first_last = [' '.join(name.split(',')[::-1]).strip() for name in sorted_authors]
+    first_last_excl = {' '.join(name.split(',')[::-1]).strip() for name in exclude or []}
 
-    unmatched = []
-    author_matches = []
-    for ele in git_lines:
-        matches = process.extract(ele, first_last, scorer=fuzz.token_sort_ratio, limit=2)
-        # matches is a list [('First match', % Match), ('Second match', % Match)]
+    indices = []
+    unmatched = set()
+    for committer in git_lines:
+        matches = process.extract(committer, first_last, scorer=fuzz.token_sort_ratio, limit=2)
         if matches[0][1] > 80:
-            val = sorted_authors[first_last.index(matches[0][0])]
-        else:
-            # skip unmatched names
-            if ele not in first_last_excl:
-                unmatched.append(ele)
-            continue
+            indices.append(first_last.index(matches[0][0]))
+        elif committer not in first_last_excl:
+            unmatched.add(committer)
 
-        if val not in author_matches:
-            author_matches.append(val)
+    # Return Last, First
+    matches = dict.fromkeys([sorted_authors[i] for i in indices])
+    # Add any remaining authors not matched in git_lines
+    matches.update(dict.fromkeys(sorted_authors))
 
-    names = {' '.join(val['name'].split(',')[::-1]).strip() for val in author_matches}
-    for missing_name in first_last:
-        if missing_name not in names:
-            missing = sorted_authors[first_last.index(missing_name)]
-            author_matches.append(missing)
-
-    position_matches = []
-    for i, item in enumerate(author_matches):
-        pos = item.pop('position', None)
-        if pos is not None:
-            position_matches.append((i, int(pos)))
-
-    for i, pos in position_matches:
-        if pos < 0:
-            pos += len(author_matches) + 1
-        author_matches.insert(pos, author_matches.pop(i))
-
-    return author_matches, unmatched
+    return matches, unmatched
 
 
 def get_git_lines(fname='line-contributors.txt'):
@@ -111,29 +103,40 @@ def get_git_lines(fname='line-contributors.txt'):
         lines = contrib_file.read_text().splitlines()
 
     git_line_summary_path = shutil.which('git-line-summary')
+    if not git_line_summary_path:
+        git_line_summary_path = 'git summary --dedup-by-email'.split(' ')
+    else:
+        git_line_summary_path = [git_line_summary_path]
+
     if not lines and git_line_summary_path:
         print('Running git-line-summary on repo')
-        lines = sp.check_output([git_line_summary_path]).decode().splitlines()
+        lines = sp.check_output(git_line_summary_path).decode().splitlines()
         lines = [line for line in lines if 'Not Committed Yet' not in line]
         contrib_file.write_text('\n'.join(lines))
 
     if not lines:
-        raise RuntimeError(
-            f"""\
-Could not find line-contributors from git repository.{
-                ' git-line-summary not found, please install git-extras.'
-                * (git_line_summary_path is None)
-            }"""
+        _msg = ': git-line-summary not found, please install git-extras ' * (
+            git_line_summary_path is None
         )
+        raise RuntimeError(f'Could not find line-contributors from git repository{_msg}.')
     return [' '.join(line.strip().split()[1:-1]) for line in lines if '%' in line]
 
 
 def _namelast(inlist):
     retval = []
     for i in inlist:
-        i['name'] = (f'{i.pop("name", "")} {i.pop("lastname", "")}').strip()
+        i['name'] = (f'{i.pop("lastname", "")}, {i.pop("name", "")}').strip()
+        if not i['name']:
+            i['name'] = i.get('handle', '<Unknown Name>')
         retval.append(i)
     return retval
+
+
+def load(path):
+    return {
+        entry['name']: dict(sorted(entry.items()))
+        for entry in _namelast(read_md_table(Path(path).read_text()))
+    }
 
 
 @click.group()
@@ -158,32 +161,31 @@ def zenodo(
     former_file,
 ):
     """Generate a new Zenodo payload file."""
-    data = get_git_lines()
-
     zenodo = json.loads(Path(zenodo_file).read_text())
 
-    former = _namelast(read_md_table(Path(former_file).read_text()))
-    zen_creators, miss_creators = sort_contributors(
-        _namelast(read_md_table(Path(maintainers).read_text())),
-        data,
+    maint = load(maintainers)
+    contrib = load(contributors)
+    pis = load(pi)
+    former = load(former_file)
+
+    total_order, misses = sort_contributors(
+        maint.keys() | contrib.keys() | pis.keys(),
+        get_git_lines(),
         exclude=former,
     )
 
-    zen_contributors, miss_contributors = sort_contributors(
-        _namelast(read_md_table(Path(contributors).read_text())), data, exclude=former
-    )
+    # Sort
+    creator_names = maint.keys() - set(CREATORS_LAST)
+    creator_names = [name for name in total_order if name in creator_names] + CREATORS_LAST
 
-    zen_pi = _namelast(
-        sorted(
-            read_md_table(Path(pi).read_text()),
-            key=lambda v: (int(v.get('position', -1)), v.get('lastname')),
-        )
-    )
+    skip = set(creator_names) | set(CONTRIBUTORS_LAST)
+    contrib_names = [name for name in total_order if name not in skip] + CONTRIBUTORS_LAST
 
-    zenodo['creators'] = zen_creators
-    zenodo['contributors'] = zen_contributors + zen_pi
+    entries = contrib | maint | pis
 
-    misses = set(miss_creators).intersection(miss_contributors)
+    zenodo['creators'] = [entries[name] for name in creator_names]
+    zenodo['contributors'] = [entries[name] for name in contrib_names]
+
     if misses:
         print(
             f'Some people made commits, but are missing in .maint/ files: {", ".join(misses)}',
@@ -194,7 +196,9 @@ def zenodo(
     for creator in zenodo['creators']:
         creator.pop('position', None)
         creator.pop('handle', None)
-        if isinstance(creator['affiliation'], list):
+        if 'affiliation' not in creator:
+            creator['affiliation'] = 'Unknown affiliation'
+        elif isinstance(creator['affiliation'], list):
             creator['affiliation'] = creator['affiliation'][0]
 
     for creator in zenodo['contributors']:
@@ -202,10 +206,12 @@ def zenodo(
         creator['type'] = 'Researcher'
         creator.pop('position', None)
 
-        if isinstance(creator['affiliation'], list):
+        if 'affiliation' not in creator:
+            creator['affiliation'] = 'Unknown affiliation'
+        elif isinstance(creator['affiliation'], list):
             creator['affiliation'] = creator['affiliation'][0]
 
-    Path(zenodo_file).write_text(f'{json.dumps(zenodo, indent=2)}\n')
+    Path(zenodo_file).write_text(f'{json.dumps(zenodo, indent=2, ensure_ascii=False)}\n')
 
 
 @cli.command()
@@ -222,34 +228,30 @@ def publication(
     former_file,
 ):
     """Generate the list of authors and affiliations for papers."""
-    members = _namelast(read_md_table(Path(maintainers).read_text())) + _namelast(
-        read_md_table(Path(contributors).read_text())
-    )
+    maint = load(maintainers)
+    contrib = load(contributors)
+    former = load(former_file)
 
     hits, misses = sort_contributors(
-        members,
+        maint.keys() | contrib.keys(),
         get_git_lines(),
-        exclude=_namelast(read_md_table(Path(former_file).read_text())),
+        exclude=former,
     )
 
-    pi_hits = _namelast(
-        sorted(
-            read_md_table(Path(pi).read_text()),
-            key=lambda v: (int(v.get('position', -1)), v.get('lastname')),
-        )
-    )
+    pis = load(pi)
+    entries = contrib | maint
 
-    pi_names = [pi['name'] for pi in pi_hits]
-    hits = [hit for hit in hits if hit['name'] not in pi_names] + pi_hits
+    authors = [entries[name] for name in hits.keys() if name not in pis]
+    authors += pis.values()
 
     def _aslist(value):
-        if isinstance(value, list | tuple):
+        if isinstance(value, (list, tuple)):
             return value
         return [value]
 
     # Remove position
     affiliations = []
-    for item in hits:
+    for item in authors:
         item.pop('position', None)
         for a in _aslist(item.get('affiliation', 'Unaffiliated')):
             if a not in affiliations:
@@ -258,11 +260,11 @@ def publication(
     aff_indexes = [
         ', '.join(
             [
-                str(affiliations.index(a) + 1)
+                '%d' % (affiliations.index(a) + 1)
                 for a in _aslist(author.get('affiliation', 'Unaffiliated'))
             ]
         )
-        for author in hits
+        for author in authors
     ]
 
     if misses:
@@ -271,12 +273,16 @@ def publication(
             file=sys.stderr,
         )
 
-    print(f'Authors ({len(hits)}):')
-    authors = f'{"; ".join(rf"{i['name']} \ :sup:`{idx}`\ " for i, idx in zip(hits, aff_indexes, strict=False))}.'
-    print(f'{authors}.')
+    print(f'Authors ({len(authors)}):')
+    print(
+        '; '.join(
+            f'{i["name"]} \\ :sup:`{idx}`\\ ' for i, idx in zip(authors, aff_indexes, strict=False)
+        )
+        + '.'
+    )
 
-    lines = '\n'.join(f'{i + 1: >2}. {a}' for i, a in enumerate(affiliations))
-    print(f'\n\nAffiliations:\n{lines}')
+    print('\n\nAffiliations:')
+    print('\n'.join(f'{i + 1: >2}. {a}' for i, a in enumerate(affiliations)))
 
 
 if __name__ == '__main__':
