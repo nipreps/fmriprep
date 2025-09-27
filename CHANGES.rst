@@ -1,4 +1,4 @@
-25.2.0 (September 26, 2025)
+25.2.0 (September 29, 2025)
 ===========================
 New feature release in the 25.2.x series.
 
@@ -12,6 +12,13 @@ and improvements that do not fit within our
 Importantly, the change in interpolation in 25.1.0 introduced artifacts for some datasets.
 This release changes the default interpolation mode to ``grid-constant``, which
 resolves those problems while not reintroducing the issue the previous release sought to fix.
+
+This release also (finally) introduces per-session processing.
+The ``--session-label`` flag selects the sessions to process,
+and the ``--subject-anatomical-reference`` flag indicates whether and how
+to combine across sessions.
+Existing filters passed via ``--bids-filter-file`` may need to be updated or
+removed in favor of using these flags to achieve the desired behavior.
 
 We would like to thank the AMP-SCZ and ENIGMA consortia for testing out and providing
 feedback on this release.
