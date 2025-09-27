@@ -1,3 +1,51 @@
+25.2.0 (September 29, 2025)
+===========================
+New feature release in the 25.2.x series.
+
+This release is an *fMRIPrep Long-Term Support (LTS)* release.
+The planned support window is 4 years, until September 2029.
+
+This release is an incremental improvement over 25.1.x, but includes some fixes
+and improvements that do not fit within our
+`bug-fix policy <https://www.nipreps.org/devs/releases/#bug-fix-releases>`__.
+
+Importantly, the change in interpolation in 25.1.0 introduced artifacts for some datasets.
+This release changes the default interpolation mode to ``grid-constant``, which
+resolves those problems while not reintroducing the issue the previous release sought to fix.
+
+This release also (finally) introduces per-session processing.
+The ``--session-label`` flag selects the sessions to process,
+and the ``--subject-anatomical-reference`` flag indicates whether and how
+to combine across sessions.
+Existing filters passed via ``--bids-filter-file`` may need to be updated or
+removed in favor of using these flags to achieve the desired behavior.
+
+We would like to thank the AMP-SCZ and ENIGMA consortia for testing out and providing
+feedback on this release.
+
+  * FIX: Clean up output report language (#3529)
+  * FIX: Default to grid-constant interpolation mode (#3516)
+  * FIX: Adapt to transposed ndcoords in nitransforms (#3517)
+  * FIX: Write out Freesurfer-derived outputs (#3512)
+  * FIX: Add kwargs to _warnings.py (#3483)
+  * ENH: Add boldref / sbref to source metadata (#3532)
+  * ENH: Add dedicated session filtering, alternative anatomical template options (#3495)
+  * ENH: Write out goodvoxels mask (#3513)
+  * ENH: Add registration metadata to boldref-to-anat transforms (#3500)
+  * ENH: Write out cortex mask GIFTIs (#3491)
+  * ENH: Update transforms.py according to new transform chain of nitransforms (#3494)
+  * RF/DOC: Improve and document command-line parser defaults (#3487)
+  * DOC: Explain better SDC and B0FieldSource requirement (#2768)
+  * DOC: Document `freesurfer` parameter in BOLD confound workflow init (#3504)
+  * DOC: Add myself to contributor list (#3506)
+  * DOC: Fix non-standard Input/Output docstring section management (#3505)
+  * MNT: Split Dockerfile into base and pixi layers (#3521)
+  * MNT: Replace conda with pixi and lock (#3503)
+  * MNT: Update license metadata using SPDX expression (#3486)
+  * MNT: no need to re-run `ruff check` after `ruff format` (#3480)
+  * MNT: Update pre-commit ruff legacy alias (#3479)
+
+
 25.1.4 (July 31, 2025)
 ======================
 Patch release in the 25.1.x series.

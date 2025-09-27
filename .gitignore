@@ -84,3 +84,5 @@ _version.py
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+line-contributors.txt

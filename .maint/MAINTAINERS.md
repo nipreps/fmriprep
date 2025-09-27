@@ -12,4 +12,3 @@ If you are participating because of your affiliation with another organization (
 | Markiewicz | Christopher J. | @effigies | 0000-0002-6533-164X | Department of Psychology, Stanford University, CA, USA | |
 | Goncalves | Mathias | @mgxd | 0000-0002-7252-7771 | Department of Psychology, Stanford University, CA, USA | |
 | Esteban | Oscar | @oesteban | 0000-0001-8435-6191 | Lausanne University Hospital and University of Lausanne, Lausanne, Switzerland | |
-| Pinsard | Basile | @bpinsard | 0000-0002-4391-3075 | Université de Montréal, Montreal, QC, CA | 20.2.x LTS maintainer |
