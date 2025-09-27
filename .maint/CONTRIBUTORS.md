@@ -42,6 +42,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Lurie             | Daniel J.    |  | 0000-0001-8012-6399 | Department of Psychology, University of California, Berkeley                                                                                 |
 | Ma                | Feilong      |  | 0000-0002-6838-3971 | Dartmouth College: Hanover, NH, United States                                                                                                |
 | Madison           | Thomas       |  | 0000-0003-3030-6580 | Department of Pediatrics, University of Minnesota, MN, USA                                                                                   |
+| Meisler           | Steven       | @smeisler | 0000-0002-8888-1572 |  Department of Psychiatry, University of Pennsylvania |
 | Mentch            | Jeff         |  | 0000-0002-7762-8678 | Speech & Hearing Bioscience & Technology Program, Harvard University                                                                         |
 | Moodie            | Craig A.     |  | 0000-0003-0867-1469 | Department of Psychology, Stanford University                                                                                                |
 | Naveau            | Mikaël       |  | 0000-0001-6948-9068 | Cyceron, UMS 3408 (CNRS - UCBN), France                                                                                                      |
