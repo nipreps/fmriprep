@@ -1,7 +1,5 @@
 on:
-  pull_request_target:
-    paths:
-      - pyproject.toml
+  pull_request_target
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,8 +44,9 @@ jobs:
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v7
       - name: Update lockfile
-        run: |
-          uvx datalad run -i pixi.lock -i pyproject.toml -o pixi.lock -- pixi lock
+        run: >
+          uvx datalad run -i pixi.lock -i pyproject.toml -o pixi.lock --
+          bash -c '(pixi lock --check && git checkout .) || true'
       - name: Push updated lockfile, if needed
         run: |
           git push $REMOTE HEAD:$BRANCH
