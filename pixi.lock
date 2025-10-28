@@ -312,7 +312,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9d/de/04c8c61232f7244aa0a4b9a9fbd63a89d5aeaf94b2fc9d1d16e2faa5cbb0/psutil-7.1.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/a9/023730ba63db1e494a271cb018dcd361bd2c917ba7004c3e49d5daf795a2/py_cpuinfo-9.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f1/af/ab65a2a81abfa8d5430fb4fb109cb17580b40ed272911adbf507252370c0/pybids-0.21.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/25/68/ceb5d6679baa326261f5d3e5113d9cfed6efef2810afd9f18bffb8ed312b/pybtex-0.25.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6c/4d/96c0fea23c2f7fcef2f3a68a4da0464a6f1b86c1f8c900065fb9a448a142/pybtex_apa_style-1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/e3/59cd50310fc9b59512193629e1984c1f95e5c8ae6e5d8c69532ccc65a7fe/pycparser-2.23-py3-none-any.whl
@@ -691,7 +691,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9d/de/04c8c61232f7244aa0a4b9a9fbd63a89d5aeaf94b2fc9d1d16e2faa5cbb0/psutil-7.1.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/a9/023730ba63db1e494a271cb018dcd361bd2c917ba7004c3e49d5daf795a2/py_cpuinfo-9.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f1/af/ab65a2a81abfa8d5430fb4fb109cb17580b40ed272911adbf507252370c0/pybids-0.21.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/25/68/ceb5d6679baa326261f5d3e5113d9cfed6efef2810afd9f18bffb8ed312b/pybtex-0.25.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6c/4d/96c0fea23c2f7fcef2f3a68a4da0464a6f1b86c1f8c900065fb9a448a142/pybtex_apa_style-1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/e3/59cd50310fc9b59512193629e1984c1f95e5c8ae6e5d8c69532ccc65a7fe/pycparser-2.23-py3-none-any.whl
@@ -1053,7 +1053,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9d/de/04c8c61232f7244aa0a4b9a9fbd63a89d5aeaf94b2fc9d1d16e2faa5cbb0/psutil-7.1.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/a9/023730ba63db1e494a271cb018dcd361bd2c917ba7004c3e49d5daf795a2/py_cpuinfo-9.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f1/af/ab65a2a81abfa8d5430fb4fb109cb17580b40ed272911adbf507252370c0/pybids-0.21.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/25/68/ceb5d6679baa326261f5d3e5113d9cfed6efef2810afd9f18bffb8ed312b/pybtex-0.25.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6c/4d/96c0fea23c2f7fcef2f3a68a4da0464a6f1b86c1f8c900065fb9a448a142/pybtex_apa_style-1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/e3/59cd50310fc9b59512193629e1984c1f95e5c8ae6e5d8c69532ccc65a7fe/pycparser-2.23-py3-none-any.whl
@@ -2132,8 +2132,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: fmriprep
-  version: 25.3.0.dev11+gdc6509538
-  sha256: eb5e8869ff7f7c3c3454e11c4248ea8fe432f10ad9e70d2cc2240e0c29e2209a
+  version: 25.3.0.dev24+gbcb950c31
+  sha256: 65266670e4fd42baa10aaa96fb33d68bf7d9853507ae60f86915bcf252051a2a
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2149,7 +2149,7 @@ packages:
   - packaging>=24
   - pandas>=2.2
   - psutil>=5.4
-  - pybids>=0.16
+  - pybids>=0.21
   - requests>=2.27
   - sdcflows>=2.15.0
   - smriprep>=0.19.2
@@ -2203,8 +2203,8 @@ packages:
   editable: true
 - pypi: ./
   name: fmriprep
-  version: 25.3.0.dev11+gdc6509538
-  sha256: eb5e8869ff7f7c3c3454e11c4248ea8fe432f10ad9e70d2cc2240e0c29e2209a
+  version: 25.3.0.dev24+gbcb950c31
+  sha256: 65266670e4fd42baa10aaa96fb33d68bf7d9853507ae60f86915bcf252051a2a
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2220,7 +2220,7 @@ packages:
   - packaging>=24
   - pandas>=2.2
   - psutil>=5.4
-  - pybids>=0.16
+  - pybids>=0.21
   - requests>=2.27
   - sdcflows>=2.15.0
   - smriprep>=0.19.2
@@ -5461,15 +5461,15 @@ packages:
   name: py-cpuinfo
   version: 9.0.0
   sha256: 859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5
-- pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/f1/af/ab65a2a81abfa8d5430fb4fb109cb17580b40ed272911adbf507252370c0/pybids-0.21.0-py3-none-any.whl
   name: pybids
-  version: 0.20.0
-  sha256: d9a50bee0acb9e1bfb033de6764ee577eb1e8caaaa38d416b49ea3045481b1ce
+  version: 0.21.0
+  sha256: 01d2fa611cbce51c03a0e8c48f8b8fd999e7f16ccb66a0bd0050d3cf558c59b0
   requires_dist:
-  - numpy>=1.23
-  - scipy>=1.9
-  - nibabel>=4.0
-  - pandas>=1.5
+  - numpy>=1.24
+  - scipy>=1.10
+  - nibabel>=5.0
+  - pandas>=2.0
   - formulaic>=0.3
   - sqlalchemy>=1.4.31
   - bids-validator>=1.14.7
@@ -5483,13 +5483,13 @@ packages:
   - myst-nb ; extra == 'doc'
   - jupytext ; extra == 'doc'
   - graphviz ; extra == 'plotting'
-  - pytest>=6 ; extra == 'test'
-  - pytest-cov>=2.11 ; extra == 'test'
+  - pytest>=8 ; extra == 'test'
+  - pytest-cov>=7 ; extra == 'test'
   - bsmschema>=0.1 ; extra == 'test'
-  - coverage[toml]>=5.2.1 ; extra == 'test'
+  - coverage[toml]>=7 ; extra == 'test'
   - altair>=5 ; extra == 'test'
-  - pytest-xdist>=2.5 ; extra == 'test'
-  - s3fs>=2024 ; extra == 'test'
+  - pytest-xdist>=3.8 ; extra == 'test'
+  - s3fs>=2025 ; extra == 'test'
   - jinja2 ; extra == 'model-reports'
   - altair ; extra == 'model-reports'
   - nbconvert ; extra == 'tutorial'
@@ -5501,7 +5501,7 @@ packages:
   - pybids[test] ; extra == 'tests'
   - pybids[test] ; extra == 'ci-tests'
   - pybids[doc,plotting,test] ; extra == 'dev'
-  requires_python: '>=3.9'
+  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/25/68/ceb5d6679baa326261f5d3e5113d9cfed6efef2810afd9f18bffb8ed312b/pybtex-0.25.1-py2.py3-none-any.whl
   name: pybtex
   version: 0.25.1
