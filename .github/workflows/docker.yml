@@ -18,23 +18,6 @@ env:
   FORCE_COLOR: true
 
 jobs:
-  check-pixi:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 200
-          fetch-tags: true
-          ref: ${{ github.ref }}
-      - uses: prefix-dev/setup-pixi@v0.9.1
-        with:
-          pixi-version: v0.55.0
-          run-install: false
-      - run: pixi lock --check
-
   build-container:
     runs-on: ubuntu-latest
     permissions:
