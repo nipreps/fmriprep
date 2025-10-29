@@ -80,11 +80,9 @@ extend-select = [
   "BLE",
   "B",
   "A",
-  # "CPY",
   "C4",
   "DTZ",
   "T10",
-  # "EM",
   "EXE",
   "FA",
   "ISC",
@@ -93,16 +91,11 @@ extend-select = [
   "Q",
 ]
 ignore = [
-  "S311",  # We are not using random for cryptographic purposes
+  "B905",  # Python 3-only rule
 ]
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"
-
-[tool.ruff.lint.extend-per-file-ignores]
-"*/test_*.py" = ["S101"]
-"fmriprep/utils/debug.py" = ["A002", "T100"]
-"docs/conf.py" = ["A001"]
 
 [tool.ruff.format]
 quote-style = "single"
