@@ -834,6 +834,16 @@ tasks and sessions), the following preprocessing was performed.
         fieldmap_id = estimator_map.get(bold_file)
         jacobian = False
 
+        if len(bold_series) == 2:
+            # This should only be reached if two-echo data are provided and echo-idx is not.
+            # Raise an error in this case, until we figure out how to support two-echo data.
+            bold_series_str = '\n\t'.join(bold_series)
+            raise RuntimeError(
+                'This BOLD series contains two echoes, which fMRIPrep does not support:\n'
+                f'\t{bold_series_str}\n'
+                'Please set "--echo-idx" to process one echo at a time.'
+            )
+
         if fieldmap_id:
             if 'fmap-jacobian' in config.workflow.force:
                 jacobian = True
