@@ -58,7 +58,7 @@ jobs:
           sudo apt update
           sudo apt install -y --no-install-recommends graphviz
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
@@ -72,6 +72,9 @@ jobs:
         run: tox c
       - name: Run tox
         run: tox -v --exit-and-dump-after 1200
+      - name: Minimize uv cache
+        run: uv cache prune --ci
+        if: ${{ always() }}
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -89,10 +92,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - name: Install tox
         run: uv tool install tox --with=tox-uv
       - name: Show tox config
         run: tox c -e ${{ matrix.check }}
       - name: Run check
         run: tox -e ${{ matrix.check }}
+      - name: Minimize uv cache
+        run: uv cache prune --ci
+        if: ${{ always() }}

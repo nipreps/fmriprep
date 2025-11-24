@@ -68,6 +68,11 @@ class T2SMapInputSpec(CommandLineInputSpec):
             'monoexponential model is fit to the raw data.'
         ),
     )
+    n_exclude = traits.Int(
+        argstr='--exclude 0:%d',
+        position=5,
+        desc='Number of volumes from the beginning of the run to exclude from T2*/S0 estimation.',
+    )
 
 
 class T2SMapOutputSpec(TraitedSpec):

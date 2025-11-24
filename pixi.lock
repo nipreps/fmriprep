@@ -335,7 +335,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/bc/85/1f86720e4fa7ddd4528f8bf2607617edd8a1ba600664c7947a66d0109f49/tedana-25.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/17/de29d90a6811d9b4b27d9dd6d5d9da9aa03ea0706430603766a57ef756df/templateflow-25.0.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
@@ -719,7 +719,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/bc/85/1f86720e4fa7ddd4528f8bf2607617edd8a1ba600664c7947a66d0109f49/tedana-25.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/17/de29d90a6811d9b4b27d9dd6d5d9da9aa03ea0706430603766a57ef756df/templateflow-25.0.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
@@ -1080,7 +1080,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6e/0e/3d155e264d2ed2778484006ef04647bc63f55b3e2d12e6a4f787747b5900/sqlalchemy-2.0.43-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/79/0367ebd8a2edfdc46332b90bce1fd183e25078ed1b0d446c6bf42ea7ba7a/svgutils-0.3.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/bc/85/1f86720e4fa7ddd4528f8bf2607617edd8a1ba600664c7947a66d0109f49/tedana-25.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/17/de29d90a6811d9b4b27d9dd6d5d9da9aa03ea0706430603766a57ef756df/templateflow-25.0.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl
@@ -2132,8 +2132,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: fmriprep
-  version: 25.2.3.dev0+g96b3ecf08.d20251014
-  sha256: d28c31a592813a8c5bcc0eb1c87fbe0b48a74921fd21a6e204a83c4f8b3213f3
+  version: 25.3.0.dev11+gdc6509538
+  sha256: eb5e8869ff7f7c3c3454e11c4248ea8fe432f10ad9e70d2cc2240e0c29e2209a
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2153,7 +2153,7 @@ packages:
   - requests>=2.27
   - sdcflows>=2.15.0
   - smriprep>=0.19.2
-  - tedana>=25.0.0
+  - tedana>=25.1.0
   - templateflow>=24.2.2
   - toml>=0.10
   - transforms3d>=0.4.2
@@ -2203,8 +2203,8 @@ packages:
   editable: true
 - pypi: ./
   name: fmriprep
-  version: 25.2.3.dev0+g96b3ecf08.d20251014
-  sha256: d28c31a592813a8c5bcc0eb1c87fbe0b48a74921fd21a6e204a83c4f8b3213f3
+  version: 25.3.0.dev11+gdc6509538
+  sha256: eb5e8869ff7f7c3c3454e11c4248ea8fe432f10ad9e70d2cc2240e0c29e2209a
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2224,7 +2224,7 @@ packages:
   - requests>=2.27
   - sdcflows>=2.15.0
   - smriprep>=0.19.2
-  - tedana>=25.0.0
+  - tedana>=25.1.0
   - templateflow>=24.2.2
   - toml>=0.10
   - transforms3d>=0.4.2
@@ -6432,10 +6432,10 @@ packages:
   purls: []
   size: 177271
   timestamp: 1755775913224
-- pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/bc/85/1f86720e4fa7ddd4528f8bf2607617edd8a1ba600664c7947a66d0109f49/tedana-25.1.0-py3-none-any.whl
   name: tedana
-  version: 25.0.1
-  sha256: 8d6e9e6f315f1ede67c655ac21424197e3ad557b8d3aec1937f6ec365042c311
+  version: 25.1.0
+  sha256: a0a8fb501f25b12559c98e8e55b0db0e164431fed311b614eff36d96e8b66964
   requires_dist:
   - bokeh>=1.0.0,<=3.6.3
   - mapca>=0.0.4,<=0.0.5
@@ -6443,7 +6443,7 @@ packages:
   - nibabel>=2.5.1,<=5.3.2
   - nilearn>=0.10.3,<=0.11.1
   - numpy>=1.16,<=2.2.4
-  - pandas>=2.0,<=2.2.3
+  - pandas>=2.0,<=2.3.3
   - pybtex
   - pybtex-apa-style
   - robustica<=0.1.4,>=0.1.4

@@ -33,7 +33,7 @@ import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
 from nipype.interfaces.base import File, traits
-from numpy.linalg.linalg import LinAlgError
+from numpy.linalg import LinAlgError
 
 
 class RobustACompCor(nac.ACompCor):

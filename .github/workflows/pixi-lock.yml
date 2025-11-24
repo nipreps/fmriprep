@@ -1,0 +1,55 @@
+on:
+  pull_request_target
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-lockfile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Find submitting repository
+        id: get-source-repo
+        uses: actions/github-script@v8
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.repository }}
+          PULL: ${{ github.event.number }}
+        with:
+          script: |
+            const { data } = await github.rest.pulls.get({
+              owner: process.env.OWNER,
+              repo: process.env.REPO.split('/')[1],
+              pull_number: process.env.PULL,
+            });
+            core.setOutput('remote', data.head.repo.html_url)
+            core.setOutput('branch', data.head.ref)
+      - name: Set git identity
+        run: |
+          git config --global user.name "nipreps[bot]"
+          git config --global user.email "bot@nipreps.org"
+      - uses: prefix-dev/setup-pixi@v0.9.3
+        with:
+          pixi-version: v0.58.0
+          run-install: false
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v7
+      - name: Update lockfile
+        run: >
+          uvx datalad run -i pixi.lock -i pyproject.toml -o pixi.lock --
+          bash -c '! pixi lock --check || git checkout .'
+      - name: Push updated lockfile, if needed
+        run: |
+          git push $REMOTE HEAD:$BRANCH
+        env:
+          REMOTE: ${{ steps.get-source-repo.outputs.remote }}
+          BRANCH: ${{ steps.get-source-repo.outputs.branch }}
