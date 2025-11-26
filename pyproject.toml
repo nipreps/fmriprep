@@ -27,7 +27,7 @@ dependencies = [
     "nireports >= 24.1.0",
     "nitime >= 0.9",
     "nitransforms >= 25.0.1",
-    "niworkflows >= 1.14.2",
+    "niworkflows @ git+https://github.com/nipreps/niworkflows.git@refs/pull/1001/head",
     "numpy >= 2.0",
     "packaging >= 24",
     "pandas >= 2.2",

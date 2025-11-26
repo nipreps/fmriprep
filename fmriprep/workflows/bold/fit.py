@@ -28,7 +28,11 @@ import bids
 import nibabel as nb
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
-from niworkflows.func.util import init_enhance_and_skullstrip_bold_wf, init_skullstrip_bold_wf
+from niworkflows.func.util import (
+    init_bold_premask_wf,
+    init_enhance_and_skullstrip_bold_wf,
+    init_skullstrip_bold_wf,
+)
 from niworkflows.interfaces.header import ValidateImage
 from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 from niworkflows.interfaces.utility import KeySelect
@@ -549,16 +553,28 @@ def init_bold_fit_wf(
     if not coreg_boldref:
         config.loggers.workflow.info('Stage 4: Adding coregistration boldref workflow')
 
-        # If sbref files are available, add them to the list of sources
-        if sbref_files and nb.load(sbref_files[0]).ndim > 3:
-            raw_sbref_wf = init_raw_boldref_wf(
-                name='raw_sbref_wf',
-                bold_file=sbref_files[0],
-                multiecho=len(sbref_files) > 1,
-            )
-            workflow.connect(raw_sbref_wf, 'outputnode.boldref', fmapref_buffer, 'sbref_files')
+        enhance_and_skullstrip_bold_wf = init_enhance_and_skullstrip_bold_wf(
+            omp_nthreads=omp_nthreads,
+            pre_mask=bool(sbref_files),
+        )
 
-        enhance_boldref_wf = init_enhance_and_skullstrip_bold_wf(omp_nthreads=omp_nthreads)
+        if sbref_files:
+            if nb.load(sbref_files[0]).ndim > 3:  # multivolume
+                raw_sbref_wf = init_raw_boldref_wf(
+                    name='raw_sbref_wf',
+                    bold_file=sbref_files[0],
+                    multiecho=len(sbref_files) > 1,
+                )
+                workflow.connect(raw_sbref_wf, 'outputnode.boldref', fmapref_buffer, 'sbref_files')
+
+            bold_premask_wf = init_bold_premask_wf(omp_nthreads=omp_nthreads)
+            workflow.connect([
+                (hmcref_buffer, bold_premask_wf, [('boldref', 'inputnode.in_file')]),
+                (bold_premask_wf, enhance_and_skullstrip_bold_wf, [
+                    ('outputnode.mask_file', 'inputnode.pre_mask'),
+                ]),
+            ])  # fmt:skip
+
         coreg_ref_source_files = pe.Node(
             niu.Merge(3), name='coreg_ref_source_files', run_without_submitting=True
         )
@@ -578,7 +594,7 @@ def init_bold_fit_wf(
         )
 
         workflow.connect([
-            (fmapref_buffer, enhance_boldref_wf, [('out', 'inputnode.in_file')]),
+            (fmapref_buffer, enhance_and_skullstrip_bold_wf, [('out', 'inputnode.in_file')]),
             (fmapref_buffer, coreg_ref_source_files, [('out', 'in1')]),
             (coreg_ref_source_files, ds_coreg_boldref_wf, [('out', 'inputnode.source_files')]),
             (ds_coreg_boldref_wf, regref_buffer, [('outputnode.boldref', 'boldref')]),
@@ -608,7 +624,7 @@ def init_bold_fit_wf(
 
             workflow.connect([
                 (fmapref_buffer, unwarp_boldref, [('out', 'ref_file')]),
-                (enhance_boldref_wf, unwarp_boldref, [
+                (enhance_and_skullstrip_bold_wf, unwarp_boldref, [
                     ('outputnode.bias_corrected_file', 'in_file'),
                 ]),
                 (boldref_fmap, unwarp_boldref, [('out_file', 'fieldmap')]),
@@ -631,17 +647,17 @@ def init_bold_fit_wf(
 
             if not boldref2fmap_xform:
                 workflow.connect([
-                    (enhance_boldref_wf, fmapreg_wf, [
+                    (enhance_and_skullstrip_bold_wf, fmapreg_wf, [
                         ('outputnode.bias_corrected_file', 'inputnode.target_ref'),
                         ('outputnode.mask_file', 'inputnode.target_mask'),
                     ]),
                 ])  # fmt:skip
         else:
             workflow.connect([
-                (enhance_boldref_wf, ds_coreg_boldref_wf, [
+                (enhance_and_skullstrip_bold_wf, ds_coreg_boldref_wf, [
                     ('outputnode.bias_corrected_file', 'inputnode.boldref'),
                 ]),
-                (enhance_boldref_wf, ds_boldmask_wf, [
+                (enhance_and_skullstrip_bold_wf, ds_boldmask_wf, [
                     ('outputnode.mask_file', 'inputnode.boldmask'),
                 ]),
             ])  # fmt:skip
