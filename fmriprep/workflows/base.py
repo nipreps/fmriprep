@@ -295,10 +295,7 @@ It is released under the [CC0]\
     )
 
     src_file = pe.Node(
-        BIDSSourceFile(
-            precomputed=anatomical_cache,
-            sessionwise=config.workflow.subject_anatomical_reference == 'sessionwise',
-        ),
+        BIDSSourceFile(precomputed=anatomical_cache),
         name='source_anatomical',
     )
 

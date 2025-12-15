@@ -69,7 +69,6 @@ class _BIDSSourceFileInputSpec(TraitedSpec):
         desc='BIDS information dictionary',
     )
     precomputed = traits.Dict({}, usedefault=True, desc='Precomputed BIDS information')
-    sessionwise = traits.Bool(False, usedefault=True, desc='Keep session information')
     anat_type = traits.Enum('t1w', 't2w', usedefault=True, desc='Anatomical reference type')
 
 
@@ -89,10 +88,7 @@ class BIDSSourceFile(SimpleInterface):
             self._results['source_file'] = _create_multi_source_file(src)
             return runtime
 
-        self._results['source_file'] = _create_multi_source_file(
-            src,
-            sessionwise=self.inputs.sessionwise,
-        )
+        self._results['source_file'] = _create_multi_source_file(src)
         return runtime
 
 
