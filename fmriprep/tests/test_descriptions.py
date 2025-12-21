@@ -27,7 +27,6 @@ from fmriprep.data import load as load_data
 from fmriprep.utils.bids import write_descriptions_tsv
 
 
-@pytest.mark.ai_generated
 def test_descriptions_json_loads():
     """Test that descriptions.json loads correctly."""
     desc_data = json.loads(load_data.readable('descriptions.json').read_text())
@@ -42,7 +41,6 @@ def test_descriptions_json_loads():
         assert entity in desc_data['entities'], f'Missing required entity: {entity}'
 
 
-@pytest.mark.ai_generated
 def test_descriptions_json_structure():
     """Test that each entity in descriptions.json has correct structure."""
     desc_data = json.loads(load_data.readable('descriptions.json').read_text())
@@ -68,7 +66,6 @@ def test_descriptions_json_structure():
                 assert 'text' in part, f"Entity '{entity_id}' part missing text"
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_basic(tmp_path):
     """Test basic descriptions.tsv generation."""
     tsv_path = write_descriptions_tsv(tmp_path)
@@ -96,7 +93,6 @@ def test_write_descriptions_tsv_basic(tmp_path):
         json.loads(parameters)
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_with_sdc(tmp_path):
     """Test descriptions.tsv with SDC enabled."""
     tsv_path = write_descriptions_tsv(
@@ -131,7 +127,6 @@ def test_write_descriptions_tsv_with_sdc(tmp_path):
         pytest.fail('preproc row not found')
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_without_sdc(tmp_path):
     """Test descriptions.tsv without SDC (SDC not applied)."""
     tsv_path = write_descriptions_tsv(
@@ -163,7 +158,6 @@ def test_write_descriptions_tsv_without_sdc(tmp_path):
         pytest.fail('preproc row not found')
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_freesurfer_mask(tmp_path):
     """Test that FreeSurfer mask source is reflected in description."""
     tsv_path = write_descriptions_tsv(tmp_path, freesurfer=True)
@@ -177,7 +171,6 @@ def test_write_descriptions_tsv_freesurfer_mask(tmp_path):
             break
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_ants_mask(tmp_path):
     """Test that ANTs mask source is reflected in description."""
     tsv_path = write_descriptions_tsv(tmp_path, freesurfer=False)
@@ -191,7 +184,6 @@ def test_write_descriptions_tsv_ants_mask(tmp_path):
             break
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_confounds(tmp_path):
     """Test confounds description includes thresholds when provided."""
     tsv_path = write_descriptions_tsv(
@@ -221,7 +213,6 @@ def test_write_descriptions_tsv_confounds(tmp_path):
             break
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_coreg_bbr(tmp_path):
     """Test coregistration description with BBR."""
     tsv_path = write_descriptions_tsv(
@@ -241,7 +232,6 @@ def test_write_descriptions_tsv_coreg_bbr(tmp_path):
             break
 
 
-@pytest.mark.ai_generated
 def test_write_descriptions_tsv_all_entities_present(tmp_path):
     """Test that all defined entities are present in output."""
     desc_data = json.loads(load_data.readable('descriptions.json').read_text())
