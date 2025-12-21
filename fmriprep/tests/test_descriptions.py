@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -40,7 +39,7 @@ def test_descriptions_json_loads():
     # Check that required entities exist
     required_entities = ['preproc', 'brain', 'hmc', 'coreg', 'confounds']
     for entity in required_entities:
-        assert entity in desc_data['entities'], f"Missing required entity: {entity}"
+        assert entity in desc_data['entities'], f'Missing required entity: {entity}'
 
 
 @pytest.mark.ai_generated
@@ -55,15 +54,15 @@ def test_descriptions_json_structure():
 
         # Parameters must be a list if present
         if 'parameters' in entity_def:
-            assert isinstance(
-                entity_def['parameters'], list
-            ), f"Entity '{entity_id}' parameters must be list"
+            assert isinstance(entity_def['parameters'], list), (
+                f"Entity '{entity_id}' parameters must be list"
+            )
 
         # Conditional parts must have correct structure if present
         if 'conditional_parts' in entity_def:
-            assert isinstance(
-                entity_def['conditional_parts'], list
-            ), f"Entity '{entity_id}' conditional_parts must be list"
+            assert isinstance(entity_def['conditional_parts'], list), (
+                f"Entity '{entity_id}' conditional_parts must be list"
+            )
             for part in entity_def['conditional_parts']:
                 assert 'condition' in part, f"Entity '{entity_id}' part missing condition"
                 assert 'text' in part, f"Entity '{entity_id}' part missing text"
@@ -90,8 +89,8 @@ def test_write_descriptions_tsv_basic(tmp_path):
     # Parse rows
     for line in lines[1:]:
         parts = line.split('\t')
-        assert len(parts) == 3, f"Each row should have 3 columns: {line}"
-        desc_id, description, parameters = parts
+        assert len(parts) == 3, f'Each row should have 3 columns: {line}'
+        _desc_id, _description, parameters = parts
 
         # Check parameters is valid JSON
         json.loads(parameters)
@@ -129,7 +128,7 @@ def test_write_descriptions_tsv_with_sdc(tmp_path):
             assert parameters['sdc_method'] == 'TOPUP'
             break
     else:
-        pytest.fail("preproc row not found")
+        pytest.fail('preproc row not found')
 
 
 @pytest.mark.ai_generated
@@ -161,7 +160,7 @@ def test_write_descriptions_tsv_without_sdc(tmp_path):
             assert parameters['stc_applied'] is False
             break
     else:
-        pytest.fail("preproc row not found")
+        pytest.fail('preproc row not found')
 
 
 @pytest.mark.ai_generated
@@ -237,7 +236,8 @@ def test_write_descriptions_tsv_coreg_bbr(tmp_path):
         if line.startswith('coreg\t'):
             description = line.split('\t')[1]
             assert 'boundary-based registration' in description
-            assert '6' in description and 'degrees of freedom' in description
+            assert '6' in description
+            assert 'degrees of freedom' in description
             break
 
 
@@ -257,6 +257,6 @@ def test_write_descriptions_tsv_all_entities_present(tmp_path):
             found_entities.add(desc_id)
 
     assert found_entities == expected_entities, (
-        f"Missing entities: {expected_entities - found_entities}, "
-        f"Extra entities: {found_entities - expected_entities}"
+        f'Missing entities: {expected_entities - found_entities}, '
+        f'Extra entities: {found_entities - expected_entities}'
     )

@@ -259,16 +259,18 @@ def write_descriptions_tsv(
             params['sdc_applied'] = context['sdc_applied']
             params['stc_applied'] = context['stc_applied']
 
-        rows.append({
-            'desc_id': desc_id,
-            'description': description,
-            'parameters': json.dumps(params) if params else '{}',
-        })
+        rows.append(
+            {
+                'desc_id': desc_id,
+                'description': description,
+                'parameters': json.dumps(params) if params else '{}',
+            }
+        )
 
     # Write TSV file
     tsv_path = deriv_dir / 'descriptions.tsv'
     header = 'desc_id\tdescription\tparameters\n'
-    lines = [f"{row['desc_id']}\t{row['description']}\t{row['parameters']}\n" for row in rows]
+    lines = [f'{row["desc_id"]}\t{row["description"]}\t{row["parameters"]}\n' for row in rows]
     tsv_path.write_text(header + ''.join(lines))
 
     return tsv_path
