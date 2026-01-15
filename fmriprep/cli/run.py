@@ -33,7 +33,11 @@ def main():
     from os import EX_SOFTWARE
     from pathlib import Path
 
-    from ..utils.bids import write_bidsignore, write_derivative_description
+    from ..utils.bids import (
+        write_bidsignore,
+        write_derivative_description,
+        write_descriptions_tsv,
+    )
     from .parser import parse_args
     from .workflow import build_workflow
 
@@ -224,6 +228,18 @@ def main():
             dataset_links=config.execution.dataset_links,
         )
         write_bidsignore(config.execution.fmriprep_dir)
+
+        # Write descriptions.tsv documenting desc- entity procedures
+        write_descriptions_tsv(
+            config.execution.fmriprep_dir,
+            slice_timing_corrected='slicetiming' not in (config.workflow.ignore or []),
+            slice_time_ref=config.workflow.slice_time_ref,
+            fd_threshold=config.workflow.regressors_fd_th,
+            dvars_threshold=config.workflow.regressors_dvars_th,
+            coreg_method='bbr' if config.workflow.use_bbr else 'header',
+            bold2anat_dof=config.workflow.bold2anat_dof or 6,
+            freesurfer=config.workflow.run_reconall,
+        )
 
         if failed_reports:
             msg = (

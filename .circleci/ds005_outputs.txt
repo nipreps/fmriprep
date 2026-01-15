@@ -3,6 +3,7 @@
 dataset_description.json
 desc-aparcaseg_dseg.tsv
 desc-aseg_dseg.tsv
+descriptions.tsv
 logs
 logs/CITATION.bib
 logs/CITATION.html
