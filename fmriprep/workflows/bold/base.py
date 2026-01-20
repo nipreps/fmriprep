@@ -825,7 +825,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             name='carpetplot_wf',
         )
 
-        if config.workflow.cifti_output:
+        if spaces.get_spaces(cifti=(True,)):
             workflow.connect(
                 bold_grayords_wf, 'outputnode.cifti_bold', carpetplot_wf, 'inputnode.cifti_bold',
             )  # fmt:skip
