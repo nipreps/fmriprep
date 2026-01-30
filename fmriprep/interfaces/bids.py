@@ -95,6 +95,7 @@ class BIDSSourceFile(SimpleInterface):
 class _CreateFreeSurferIDInputSpec(TraitedSpec):
     subject_id = traits.Str(mandatory=True, desc='BIDS Subject ID')
     session_id = traits.Str(desc='BIDS session ID')
+    exclude_session = traits.Bool(False, usedefault=True, desc='Do not append session ID')
 
 
 class _CreateFreeSurferIDOutputSpec(TraitedSpec):
@@ -109,6 +110,7 @@ class CreateFreeSurferID(SimpleInterface):
         self._results['subject_id'] = _create_fs_id(
             self.inputs.subject_id,
             self.inputs.session_id or None,
+            exclude_session=self.inputs.exclude_session,
         )
         return runtime
 
@@ -161,7 +163,7 @@ def _create_multi_source_file(in_files, path_pattern=None):
     return str(Path(in_files[0]).parent / out_file)
 
 
-def _create_fs_id(subject_id, session_id=None):
+def _create_fs_id(subject_id, session_id=None, *, exclude_session=False):
     """
     Create FreeSurfer subject ID.
 
@@ -173,12 +175,14 @@ def _create_fs_id(subject_id, session_id=None):
     'sub-01'
     >>> _create_fs_id('01', 'pre')
     'sub-01_ses-pre'
+    >>> _create_fs_id('01', 'pre', exclude_session=True)
+    'sub-01'
     """
 
     if not subject_id.startswith('sub-'):
         subject_id = f'sub-{subject_id}'
 
-    if session_id:
+    if session_id and not exclude_session:
         ses_str = session_id
         if isinstance(session_id, list):
             from smriprep.utils.misc import stringify_sessions
