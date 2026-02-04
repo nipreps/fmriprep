@@ -85,8 +85,6 @@ class BIDSSourceFile(SimpleInterface):
 
         if not src and self.inputs.precomputed.get(f'{self.inputs.anat_type}_preproc'):
             src = _ravel(self.inputs.bids_info['bold'])
-            self._results['source_file'] = _create_multi_source_file(src)
-            return runtime
 
         self._results['source_file'] = _create_multi_source_file(src)
         return runtime
