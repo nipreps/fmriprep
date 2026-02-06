@@ -877,8 +877,10 @@ def _get_wf_name(bold_fname, prefix):
     from nipype.utils.filemanip import split_filename
 
     fname = split_filename(bold_fname)[1]
-    fname_nosub = '_'.join(fname.split('_')[1:-1])
-    return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
+    fname_sanitized = '_'.join(fname.split('_')[1:-1])
+    for char in '-+':
+        fname_sanitized = fname_sanitized.replace(char, '_')
+    return f'{prefix}_{fname_sanitized}_wf'
 
 
 def extract_entities(file_list):

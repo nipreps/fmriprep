@@ -255,6 +255,23 @@ def test_init_fmriprep_wf_sanitize_fmaps(tmp_path):
     generate_expanded_graph(wf._create_flat_graph())
 
 
+def test_init_fmriprep_wf_sanitize_plus(tmp_path):
+    bids_dir = tmp_path / 'bids'
+
+    spec = deepcopy(BASE_LAYOUT)
+    spec['01']['func'][0]['acquisition'] = 'mb4+pf68th'
+    del spec['01']['func'][4:]
+
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    with mock_config(bids_dir=bids_dir):
+        wf = init_fmriprep_wf()
+    generate_expanded_graph(wf._create_flat_graph())
+
+
 def test_get_estimator_none(tmp_path):
     bids_dir = tmp_path / 'bids'
 
