@@ -260,6 +260,10 @@ def test_init_fmriprep_wf_sanitize_plus(tmp_path):
 
     spec = deepcopy(BASE_LAYOUT)
     spec['01']['func'][0]['acquisition'] = 'mb4+pf68th'
+    spec['01']['anat'][0]['acquisition'] = 'memprage+rms'
+    spec['01']['anat'][1]['acquisition'] = 'memprage'
+    spec['01']['fmap'][2]['acquisition'] = 'sbref+pf68th'
+    spec['01']['fmap'][3]['acquisition'] = 'sbref+pf68th'
     del spec['01']['func'][4:]
 
     generate_bids_skeleton(bids_dir, spec)
