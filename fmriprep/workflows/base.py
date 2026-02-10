@@ -410,6 +410,14 @@ It is released under the [CC0]\
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
 
+    if config.workflow.fs_legacy_id:
+        config.loggers.workflow.info(f'Using legacy FreeSurfer subject ID: sub-{subject_id}')
+        if config.workflow.subject_anatomical_reference == 'sessionwise' and session_id is not None:
+            msg = 'Session-wise anatomical reference is incompatible with legacy FreeSurfer subject IDs.'
+            config.loggers.workflow.error(msg)
+            raise RuntimeError(msg)
+        workflow.disconnect(bids_info, create_fs_id, [('session', 'session_id')])
+
     # Set up the template iterator once, if used
     template_iterator_wf = None
     select_MNI2009c_xfm = None
