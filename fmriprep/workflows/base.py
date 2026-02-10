@@ -412,7 +412,10 @@ It is released under the [CC0]\
 
     if config.workflow.fs_legacy_id:
         config.loggers.workflow.info(f'Using legacy FreeSurfer subject ID: sub-{subject_id}')
-        if config.workflow.subject_anatomical_reference == 'sessionwise' and session_id is not None:
+        if (
+            config.workflow.subject_anatomical_reference == 'sessionwise'
+            and session_id is not None
+        ):
             msg = 'Session-wise anatomical reference is incompatible with legacy FreeSurfer subject IDs.'
             config.loggers.workflow.error(msg)
             raise RuntimeError(msg)
