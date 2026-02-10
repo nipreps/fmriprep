@@ -741,7 +741,9 @@ def from_dict(settings, init=True, ignore=None):
 
     # Accept global True/False or container of configs to initialize
     def initialize(x):
-        return init if init in (True, False) else x in init
+        if isinstance(init, bool):
+            return init
+        return x in init
 
     nipype.load(settings, init=initialize('nipype'), ignore=ignore)
     execution.load(settings, init=initialize('execution'), ignore=ignore)
@@ -774,10 +776,11 @@ def load(filename, skip=None, init=True):
     filename = Path(filename)
     settings = loads(filename.read_text())
     for sectionname, configs in settings.items():
-        if sectionname != 'environment':
-            section = getattr(sys.modules[__name__], sectionname)
-            ignore = skip.get(sectionname)
-            section.load(configs, ignore=ignore, init=initialize(sectionname))
+        if sectionname == 'environment':
+            continue
+        section = getattr(sys.modules[__name__], sectionname)
+        ignore = skip.get(sectionname)
+        section.load(configs, ignore=ignore, init=initialize(sectionname))
     init_spaces()
 
 
