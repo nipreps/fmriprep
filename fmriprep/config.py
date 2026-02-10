@@ -591,6 +591,8 @@ class workflow(_Config):
     """Run FreeSurfer ``recon-all`` with the ``-hires`` flag."""
     fs_no_resume = None
     """Adjust pipeline to reuse base template of existing longitudinal freesurfer"""
+    fs_legacy_id = False
+    """Use BIDS subject IDs as FreeSurfer subject IDs."""
     ignore = None
     """Ignore particular steps for *fMRIPrep*."""
     force = None
