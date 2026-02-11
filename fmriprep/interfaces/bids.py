@@ -116,7 +116,7 @@ class CreateFreeSurferID(SimpleInterface):
 DEFAULT_MULTI_SOURCE_FILE_PATTERN = """\
 sub-{subject}[_ses-{session}][_task-{task}][_acq-{acquisition}][_ce-{ceagent}][_rec-{reconstruction}]\
 [_run-{run}][_echo-{echo}][_part-{part}][_desc-{desc}]_{suffix<T[12]w|T1rho|T[12]map|T2star|FLAIR\
-|FLASH|PDmap|PD|PDT2|inplaneT[12]|angio|bold>}{extension<.nii|.nii.gz>|.nii.gz}
+|FLASH|PDmap|PD|PDT2|inplaneT[12]|angio|bold>}{extension<.nii|.nii.gz>|.nii.gz}\
 """
 
 
