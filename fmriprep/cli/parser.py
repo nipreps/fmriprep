@@ -797,11 +797,7 @@ def parse_args(args=None, namespace=None):
     parser = _build_parser()
     opts = parser.parse_args(args, namespace)
 
-    if opts.config_file:
-        skip = {} if opts.reports_only else {'execution': ('run_uuid',)}
-        config.load(opts.config_file, skip=skip, init=False)
-        config.loggers.cli.info(f'Loaded previous configuration file {opts.config_file}')
-
+    # TODO: Deprecate
     if opts.longitudinal:
         opts.subject_anatomical_reference = 'unbiased'
         msg = (
@@ -809,6 +805,14 @@ def parse_args(args=None, namespace=None):
             '`--subject-anatomical-reference unbiased` instead.'
         )
         config.loggers.cli.warning(msg)
+
+    if opts.config_file:
+        reuse_skips = config.default_reuse_skips()
+        if opts.reports_only:
+            reuse_skips['execution'].append('run_uuid')
+
+        config.load(opts.config_file, skip=reuse_skips, init=False)
+        config.loggers.cli.info(f'Loaded previous configuration file {opts.config_file}')
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
@@ -902,6 +906,7 @@ applied."""
             config.execution.fs_subjects_dir = output_dir / 'sourcedata' / 'freesurfer'
         elif output_layout == 'legacy':
             config.execution.fs_subjects_dir = output_dir / 'freesurfer'
+
     if config.execution.fmriprep_dir is None:
         if output_layout == 'bids':
             config.execution.fmriprep_dir = output_dir
@@ -945,8 +950,8 @@ applied."""
         )
         validate_input_dir(
             config.environment.exec_env,
-            opts.bids_dir,
-            opts.participant_label,
+            config.execution.bids_dir,
+            config.execution.participant_label,
             need_T1w=not config.execution.derivatives,
         )
 

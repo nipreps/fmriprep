@@ -753,6 +753,24 @@ def from_dict(settings, init=True, ignore=None):
     loggers.init()
 
 
+# Certain config fields are not directly settable, and should not be copied when reused
+# Additionally, some toggle arguments only can be switched one way
+REUSE_SKIPS = {
+    'execution': [
+        'fmriprep_dir',
+        'notrack',
+        'templateflow_home',
+    ],
+    'workflow': [
+        'anat_only',
+    ],
+    'seeds': [],
+}
+
+def default_reuse_skips():
+    return {k: list(v) for k, v in REUSE_SKIPS.items()}
+
+
 def load(filename, skip=None, init=True):
     """Load settings from file.
 
