@@ -154,7 +154,7 @@ def _create_multi_source_file(in_files, path_pattern=None):
         return in_files[0]
 
     all_entities = [parse_file_entities(f) for f in in_files]
-    shared_entities = dict(reduce(lambda a, b: a.items() & b.items(), all_entities))
+    shared_entities = reduce(lambda a, b: dict(a.items() & b.items()), all_entities)
 
     if path_pattern is None:
         path_pattern = DEFAULT_MULTI_SOURCE_FILE_PATTERN
