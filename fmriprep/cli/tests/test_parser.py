@@ -28,7 +28,7 @@ from contextlib import nullcontext
 import pytest
 from packaging.version import Version
 
-from ... import config
+from ... import config, data
 from ...tests.test_config import _reset_config
 from .. import version as _version
 from ..parser import _build_parser, parse_args
@@ -286,3 +286,25 @@ def test_optional_booleans(tmp_path, supp_args, opt, expected):
     args = [str(tmp_path), out_path, 'participant'] + supp_args
     pargs = _build_parser().parse_args(args)
     assert getattr(pargs, opt) == expected
+    _reset_config()
+
+
+def test_reuse_config(tmp_path):
+    from niworkflows.utils.testing import generate_bids_skeleton
+
+    # Mirror the test config input
+    bids_dir = tmp_path / 'ds000005'
+    generate_bids_skeleton(bids_dir, {'01': {'anat': {'suffix': 'T1w'}}})
+    # Avoid requiring validator installation
+    cli_args = [str(bids_dir), str(tmp_path / 'out'), 'participant', '--skip-bids-validation']
+
+    parse_args(cli_args)
+    default_config = config.get(flat=True)
+    _reset_config()
+
+    config_file = data.load.readable('tests/config.toml')
+    parse_args(cli_args + ['--config-file', str(config_file)])
+    reused_config = config.get(flat=True)
+
+    # TODO: override and verify
+    _reset_config()
