@@ -19,7 +19,7 @@ repos:
       - id: rst-directive-colons
       - id: rst-inline-touching-normal
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.11
+    rev: v0.15.4
     hooks:
       - id: ruff-check
         args: [ --fix, --show-fixes ]
