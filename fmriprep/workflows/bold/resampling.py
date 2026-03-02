@@ -806,8 +806,8 @@ def init_wb_surf_surf_wf(
     ])  # fmt:skip
 
     # Fetch template metadata
-    template_meta = tf.get_metadata(template.split(':')[0])
-    template_refs = ['@{}'.format(template.split(':')[0].lower())]
+    template_meta = tf.get_metadata(template.split(':', maxsplit=1)[0])
+    template_refs = ['@{}'.format(template.split(':', maxsplit=1)[0].lower())]
     if template_meta.get('RRID', None):
         template_refs += [f'RRID:{template_meta["RRID"]}']
 
