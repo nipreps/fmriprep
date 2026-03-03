@@ -108,7 +108,7 @@ bids_infos_func = {
     [
         (bids_info_anat, bids_info_func, precomputed_infos)
         for bids_info_anat, precomputed_infos in bids_infos_anat
-        for func_case, bids_info_func in bids_infos_func.items()
+        for _, bids_info_func in bids_infos_func.items()
     ],
 )
 def test_BIDSSourceFile(bids_info_anat, bids_info_func, precomputed_infos):
@@ -123,11 +123,6 @@ def test_BIDSSourceFile(bids_info_anat, bids_info_func, precomputed_infos):
     results = interface.run()
 
     if precomputed_infos:
-        bold = (
-            'sub-01/func/sub-01_bold.nii.gz'
-            if isinstance(bids_info_func['bold'][0], list)
-            else 'sub-01/func/sub-01_task-rest_bold.nii.gz'
-        )
-        assert results.outputs.source_file == bold
+        assert results.outputs.source_file == 'sub-01/func/sub-01_task-rest_bold.nii.gz'
     else:
         assert results.outputs.source_file == bids_info_anat[anat_type][0]

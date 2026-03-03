@@ -69,7 +69,6 @@ class _BIDSSourceFileInputSpec(TraitedSpec):
         desc='BIDS information dictionary',
     )
     precomputed = traits.Dict({}, usedefault=True, desc='Precomputed BIDS information')
-    sessionwise = traits.Bool(False, usedefault=True, desc='Keep session information')
     anat_type = traits.Enum('t1w', 't2w', usedefault=True, desc='Anatomical reference type')
 
 
@@ -86,19 +85,15 @@ class BIDSSourceFile(SimpleInterface):
 
         if not src and self.inputs.precomputed.get(f'{self.inputs.anat_type}_preproc'):
             src = _ravel(self.inputs.bids_info['bold'])
-            self._results['source_file'] = _create_multi_source_file(src)
-            return runtime
 
-        self._results['source_file'] = _create_multi_source_file(
-            src,
-            sessionwise=self.inputs.sessionwise,
-        )
+        self._results['source_file'] = _create_multi_source_file(src)
         return runtime
 
 
 class _CreateFreeSurferIDInputSpec(TraitedSpec):
     subject_id = traits.Str(mandatory=True, desc='BIDS Subject ID')
     session_id = traits.Str(desc='BIDS session ID')
+    exclude_session = traits.Bool(False, usedefault=True, desc='Do not append session ID')
 
 
 class _CreateFreeSurferIDOutputSpec(TraitedSpec):
@@ -113,15 +108,21 @@ class CreateFreeSurferID(SimpleInterface):
         self._results['subject_id'] = _create_fs_id(
             self.inputs.subject_id,
             self.inputs.session_id or None,
+            exclude_session=self.inputs.exclude_session,
         )
         return runtime
 
 
-def _create_multi_source_file(in_files, sessionwise=False):
+DEFAULT_MULTI_SOURCE_FILE_PATTERN = """\
+sub-{subject}[_ses-{session}][_task-{task}][_acq-{acquisition}][_ce-{ceagent}][_rec-{reconstruction}]\
+[_run-{run}][_echo-{echo}][_part-{part}][_desc-{desc}]_{suffix<T[12]w|T1rho|T[12]map|T2star|FLAIR\
+|FLASH|PDmap|PD|PDT2|inplaneT[12]|angio|bold>}{extension<.nii|.nii.gz>|.nii.gz}\
+"""
+
+
+def _create_multi_source_file(in_files, path_pattern=None):
     """
     Create a generic source name from multiple input files.
-
-    If sessionwise is True, session information from the first file is retained in the name.
 
     Examples
     --------
@@ -131,37 +132,38 @@ def _create_multi_source_file(in_files, sessionwise=False):
     '/path/to/sub-045_T1w.nii.gz'
     >>> _create_multi_source_file([
     ...     '/path/to/sub-045_ses-1_run-1_T1w.nii.gz',
-    ...     '/path/to/sub-045_ses-1_run-2_T1w.nii.gz'],
-    ...     sessionwise=True)
+    ...     '/path/to/sub-045_ses-1_run-2_T1w.nii.gz'])
     '/path/to/sub-045_ses-1_T1w.nii.gz'
+    >>> _create_multi_source_file([
+    ...     '/path/to/sub-045_ses-1_task-rest_echo-1_bold.nii.gz',
+    ...     '/path/to/sub-045_ses-1_task-rest_echo-2_bold.nii.gz'])
+    '/path/to/sub-045_ses-1_task-rest_bold.nii.gz'
     """
-    import re
+    from functools import reduce
     from pathlib import Path
 
+    from bids.layout.utils import parse_file_entities
+    from bids.layout.writing import build_path
     from nipype.utils.filemanip import filename_to_list
 
-    if not isinstance(in_files, tuple | list):
+    in_files = filename_to_list(in_files)
+
+    if not in_files or not isinstance(in_files, list):
         return in_files
-    elif len(in_files) == 1:
+    if len(in_files) == 1:
         return in_files[0]
 
-    p = Path(filename_to_list(in_files)[0])
-    try:
-        subj = re.search(r'(?<=^sub-)[a-zA-Z0-9]*', p.name).group()
-        suffix = re.search(r'(?<=_)\w+(?=\.)', p.name).group()
-    except AttributeError as e:
-        raise AttributeError('Could not extract BIDS information') from e
+    all_entities = [parse_file_entities(f) for f in in_files]
+    shared_entities = reduce(lambda a, b: dict(a.items() & b.items()), all_entities)
 
-    prefix = f'sub-{subj}'
+    if path_pattern is None:
+        path_pattern = DEFAULT_MULTI_SOURCE_FILE_PATTERN
 
-    if sessionwise:
-        ses = re.search(r'(?<=_ses-)[a-zA-Z0-9]*', p.name)
-        if ses:
-            prefix += f'_ses-{ses.group()}'
-    return str(p.parent / f'{prefix}_{suffix}.nii.gz')
+    out_file = build_path(shared_entities, path_pattern)
+    return str(Path(in_files[0]).parent / out_file)
 
 
-def _create_fs_id(subject_id, session_id=None):
+def _create_fs_id(subject_id, session_id=None, *, exclude_session=False):
     """
     Create FreeSurfer subject ID.
 
@@ -173,12 +175,14 @@ def _create_fs_id(subject_id, session_id=None):
     'sub-01'
     >>> _create_fs_id('01', 'pre')
     'sub-01_ses-pre'
+    >>> _create_fs_id('01', 'pre', exclude_session=True)
+    'sub-01'
     """
 
     if not subject_id.startswith('sub-'):
         subject_id = f'sub-{subject_id}'
 
-    if session_id:
+    if session_id and not exclude_session:
         ses_str = session_id
         if isinstance(session_id, list):
             from smriprep.utils.misc import stringify_sessions

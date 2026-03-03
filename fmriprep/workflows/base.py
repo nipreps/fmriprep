@@ -295,10 +295,7 @@ It is released under the [CC0]\
     )
 
     src_file = pe.Node(
-        BIDSSourceFile(
-            precomputed=anatomical_cache,
-            sessionwise=config.workflow.subject_anatomical_reference == 'sessionwise',
-        ),
+        BIDSSourceFile(precomputed=anatomical_cache),
         name='source_anatomical',
     )
 
@@ -306,7 +303,12 @@ It is released under the [CC0]\
         BIDSInfo(bids_dir=config.execution.bids_dir, bids_validate=False), name='bids_info'
     )
 
-    create_fs_id = pe.Node(CreateFreeSurferID(), name='create_fs_id')
+    create_fs_id = pe.Node(
+        CreateFreeSurferID(
+            exclude_session=config.workflow.subject_anatomical_reference != 'sessionwise',
+        ),
+        name='create_fs_id',
+    )
 
     summary = pe.Node(
         SubjectSummary(
