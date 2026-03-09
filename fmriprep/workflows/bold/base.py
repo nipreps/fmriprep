@@ -714,7 +714,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 template = ref_.space
                 density = ref_.spec.get('density') or ref_.spec.get('den') or None
                 if density is None:
-                    config.loggers.warning(f'Cannot resample {ref_} without density specified.')
+                    config.loggers.workflow.warning(
+                        f'Cannot resample {ref_} without density specified.'
+                    )
                     continue
 
                 resample_surfaces_wf = init_resample_surfaces_wf(
