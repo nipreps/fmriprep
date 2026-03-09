@@ -308,12 +308,17 @@ def test_reuse_config(tmp_path):
     parse_args(cli_args + config_args)
     reused_config = config.get(flat=True)
     # Reusing the config will apply same values
-    assert reused_config['execution.output_spaces'] == 'MNI152NLin2009cAsym:res-2 MNI152NLin2009cAsym:res-native fsaverage:den-10k fsaverage:den-30k'
+    assert (
+        reused_config['execution.output_spaces']
+        == 'MNI152NLin2009cAsym:res-2 MNI152NLin2009cAsym:res-native fsaverage:den-10k fsaverage:den-30k'
+    )
     # But some will still differ
     assert reused_config['execution.log_dir'] not in config_file.read_text()
     _reset_config()
 
-    overridden_args = cli_args + config_args + ['--output-spaces', 'MNI152NLin6Asym', '--force', 'bbr']
+    overridden_args = (
+        cli_args + config_args + ['--output-spaces', 'MNI152NLin6Asym', '--force', 'bbr']
+    )
     # set new output directory
     overridden_args[1] = str(tmp_path / 'out2')
     parse_args(overridden_args)
