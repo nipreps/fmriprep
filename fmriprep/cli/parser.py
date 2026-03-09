@@ -808,8 +808,6 @@ def parse_args(args=None, namespace=None):
 
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()
-        if opts.reports_only:
-            reuse_skips['execution'].append('run_uuid')
 
         config.load(opts.config_file, skip=reuse_skips, init=False)
         config.loggers.cli.info(f'Loaded previous configuration file {opts.config_file}')

@@ -757,9 +757,15 @@ def from_dict(settings, init=True, ignore=None):
 # Additionally, some toggle arguments only can be switched one way
 REUSE_SKIPS = {
     'execution': [
+        'dataset_links',
+        'layout',
+        '_layout',
         'fmriprep_dir',
         'notrack',
+        'sloppy',
         'templateflow_home',
+        'run_uuid',
+        'log_dir',
     ],
     'workflow': [
         'anat_only',
