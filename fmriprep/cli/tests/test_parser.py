@@ -300,11 +300,30 @@ def test_reuse_config(tmp_path):
 
     parse_args(cli_args)
     default_config = config.get(flat=True)
+    assert default_config['execution.output_spaces'] == 'MNI152NLin2009cAsym:res-native'
     _reset_config()
 
     config_file = data.load.readable('tests/config.toml')
-    parse_args(cli_args + ['--config-file', str(config_file)])
+    config_args = ['--config-file', str(config_file)]
+    parse_args(cli_args + config_args)
     reused_config = config.get(flat=True)
+    # Reusing the config will apply same values
+    assert reused_config['execution.output_spaces'] == 'MNI152NLin2009cAsym:res-2 MNI152NLin2009cAsym:res-native fsaverage:den-10k fsaverage:den-30k'
+    # But some will still differ
+    assert reused_config['execution.log_dir'] not in config_file.read_text()
+    _reset_config()
 
-    # TODO: override and verify
+    overridden_args = cli_args + config_args + ['--output-spaces', 'MNI152NLin6Asym', '--force', 'bbr']
+    # set new output directory
+    overridden_args[1] = str(tmp_path / 'out2')
+    parse_args(overridden_args)
+    overridden_config = config.get(flat=True)
+
+    # Passed in argument will override
+    assert overridden_config['execution.output_spaces'] == 'MNI152NLin6Asym:res-native'
+    assert 'bbr' in overridden_config['workflow.force']
+
+    # But some values will still differ
+    for v in ('execution.run_uuid', 'execution.fmriprep_dir'):
+        assert reused_config[v] != overridden_config[v]
     _reset_config()
