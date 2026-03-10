@@ -303,7 +303,7 @@ def test_reuse_config(tmp_path):
     assert default_config['execution.output_spaces'] == 'MNI152NLin2009cAsym:res-native'
     _reset_config()
 
-    config_file = data.load.readable('tests/config.toml')
+    config_file = data.load('tests/config.toml')
     config_args = ['--config-file', str(config_file)]
     parse_args(cli_args + config_args)
     reused_config = config.get(flat=True)
