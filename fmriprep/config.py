@@ -330,7 +330,7 @@ class nipype(_Config):
     """Clean up unused outputs after running"""
     resource_monitor = False
     """Enable resource monitor."""
-    stop_on_first_crash = True
+    stop_on_first_crash = False
     """Whether the workflow should stop or continue after the first error."""
 
     @classmethod
