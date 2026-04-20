@@ -3,7 +3,6 @@ requires = [
     "hatchling>=1.27",
     "hatch-vcs",
     "nipreps-versions",
-    "setuptools_scm<10",  # Broken at least through 10.0.1
 ]
 build-backend = "hatchling.build"
 
