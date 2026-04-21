@@ -55,12 +55,13 @@ def run_reports(
     # Count nbr of subject for which report generation failed
     try:
         robj.generate_report()
-    except:  # noqa: E722
-        import sys
+    except Exception:  # noqa: BLE001
         import traceback
 
-        # Store the list of subjects for which report generation failed
-        traceback.print_exception(*sys.exc_info(), file=str(Path(output_dir) / 'logs' / errorname))
+        log_dir = Path(output_dir) / 'logs'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / errorname, 'w') as f:
+            traceback.print_exc(file=f)
         return subject_label
 
     return None
