@@ -44,7 +44,7 @@ from packaging.version import Version
 from .. import config
 from ..interfaces import DerivativesDataSink
 from ..interfaces.reports import AboutSummary, SubjectSummary
-from ..utils.bids import dismiss_echo
+from ..utils.bids import dismiss_echo, select_bold_magnitude_files
 
 
 def init_fmriprep_wf():
@@ -248,11 +248,19 @@ It is released under the [CC0]\
 
     bold_runs = [
         sorted(
-            listify(run),
+            select_bold_magnitude_files(listify(run)),
             key=lambda file: config.execution.layout.get_metadata(file).get('EchoTime', 0),
         )
         for run in subject_data['bold']
     ]
+    bold_runs = [run for run in bold_runs if run]
+
+    if not anat_only and not bold_runs:
+        task_id = config.execution.task_id or '<all>'
+        raise RuntimeError(
+            f'No magnitude BOLD images found for participant {subject_id} and '
+            f'task {task_id}. All workflows require BOLD images.'
+        )
 
     if subject_data['roi']:
         warnings.warn(
@@ -633,11 +641,14 @@ It is released under the [CC0]\
             )
             fmap_cache.update(fmaps)
 
+    fieldmap_bold_runs = [
+        run for run in bold_runs if not (config.workflow.me_use_warpkit and len(run) > 1)
+    ]
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
         subject_id=subject_id,
         session_id=session_id,
-        bold_data=bold_runs,
+        bold_data=fieldmap_bold_runs,
         ignore_fieldmaps='fieldmaps' in config.workflow.ignore,
         use_syn=config.workflow.use_syn_sdc,
         force_syn='syn-sdc' in config.workflow.force,
@@ -835,7 +846,8 @@ tasks and sessions), the following preprocessing was performed.
 
     for bold_series in bold_runs:
         bold_file = bold_series[0]
-        fieldmap_id = estimator_map.get(bold_file)
+        use_warpkit = config.workflow.me_use_warpkit and len(bold_series) > 1
+        fieldmap_id = None if use_warpkit else estimator_map.get(bold_file)
         jacobian = False
 
         if len(bold_series) == 2:
@@ -848,7 +860,7 @@ tasks and sessions), the following preprocessing was performed.
                 'Please set "--echo-idx" to process one echo at a time.'
             )
 
-        if fieldmap_id:
+        if fieldmap_id and not use_warpkit:
             if 'fmap-jacobian' in config.workflow.force:
                 jacobian = True
             elif 'fmap-jacobian' not in config.workflow.ignore:
@@ -877,6 +889,7 @@ tasks and sessions), the following preprocessing was performed.
             bold_series=bold_series,
             precomputed=functional_cache,
             fieldmap_id=fieldmap_id,
+            use_warpkit=use_warpkit,
             jacobian=jacobian,
         )
         if bold_wf is None:

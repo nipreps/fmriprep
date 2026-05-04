@@ -175,3 +175,35 @@ def test_bold_native_precomputes(
 
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)
+
+
+def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path):
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    bold_series = [
+        str(bids_root / 'sub-01' / 'func' / f'sub-01_task-nback_echo-{i}_bold.nii.gz')
+        for i in range(1, 4)
+    ]
+    phase_series = [
+        str(bids_root / 'sub-01' / 'func' / f'sub-01_task-nback_echo-{i}_part-phase_bold.nii.gz')
+        for i in range(1, 4)
+    ]
+
+    for path in bold_series + phase_series:
+        img.to_filename(path)
+
+    with mock_config(bids_dir=bids_root):
+        fit_wf = init_bold_fit_wf(
+            bold_series=bold_series,
+            fieldmap_id=None,
+            use_warpkit=True,
+            omp_nthreads=1,
+        )
+        native_wf = init_bold_native_wf(
+            bold_series=bold_series,
+            fieldmap_id=None,
+            use_warpkit=True,
+            omp_nthreads=1,
+        )
+
+    generate_expanded_graph(fit_wf._create_flat_graph())
+    generate_expanded_graph(native_wf._create_flat_graph())

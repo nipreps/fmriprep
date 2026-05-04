@@ -35,13 +35,15 @@ from niworkflows.interfaces.utility import KeySelect
 from sdcflows.workflows.apply.registration import init_coeff2epi_wf
 
 from ... import config
+from ...interfaces.maths import TemporalMean
 from ...interfaces.reports import FunctionalSummary
 from ...interfaces.resampling import (
     DistortionParameters,
     ReconstructFieldmap,
     ResampleSeries,
 )
-from ...utils.bids import extract_entities
+from ...interfaces.warpkit import WarpkitMEDIC
+from ...utils.bids import collect_bold_part_files, extract_entities
 from ...utils.misc import estimate_bold_mem_usage
 
 # BOLD workflows
@@ -97,6 +99,7 @@ def init_bold_fit_wf(
     bold_series: list[str],
     precomputed: dict | None = None,
     fieldmap_id: str | None = None,
+    use_warpkit: bool = False,
     jacobian: bool = False,
     omp_nthreads: int = 1,
     name: str = 'bold_fit_wf',
@@ -126,6 +129,8 @@ def init_bold_fit_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    use_warpkit
+        Run warpkit MEDIC for compatible multi-echo BOLD series.
 
     Inputs
     ------
@@ -179,6 +184,8 @@ def init_bold_fit_wf(
     boldref2fmap_xfm
         Affine transform mapping from BOLD reference space to the fieldmap
         space, if applicable.
+    fieldmap
+        Direct fieldmap series in BOLD reference space, if generated in-workflow.
     dummy_scans
         The number of dummy scans declared or detected at the beginning of the series.
 
@@ -226,13 +233,32 @@ def init_bold_fit_wf(
 
     # Get metadata from BOLD file(s)
     entities = extract_entities(bold_series)
-    metadata = layout.get_metadata(bold_file)
+    all_metadata = [layout.get_metadata(fname) for fname in bold_series]
+    metadata = all_metadata[0]
     orientation = ''.join(nb.aff2axcodes(nb.load(bold_file).affine))
 
     _bold_tlen, mem_gb = estimate_bold_mem_usage(bold_file)
 
     # Boolean used to update workflow self-descriptions
     multiecho = len(bold_series) > 1
+    warpkit_enabled = use_warpkit and multiecho
+    phase_files = []
+    tes_ms = []
+    if warpkit_enabled:
+        phase_files = collect_bold_part_files(layout, bold_series, part='phase')
+        if len(phase_files) != len(bold_series):
+            raise RuntimeError(
+                'warpkit MEDIC requires one part-phase BOLD file per echo for '
+                f'<{bold_file}> (found {len(phase_files)} phase file(s) for '
+                f'{len(bold_series)} echo(es)).'
+            )
+
+        try:
+            tes_ms = [float(md['EchoTime']) * 1000 for md in all_metadata]
+        except KeyError as exc:
+            raise RuntimeError(
+                f'warpkit MEDIC requires EchoTime metadata for every echo of <{bold_file}>.'
+            ) from exc
 
     hmc_boldref = precomputed.get('hmc_boldref')
     coreg_boldref = precomputed.get('coreg_boldref')
@@ -281,6 +307,7 @@ def init_bold_fit_wf(
                 'motion_xfm',
                 'boldref2anat_xfm',
                 'boldref2fmap_xfm',
+                'fieldmap',
             ],
         ),
         name='outputnode',
@@ -314,7 +341,7 @@ def init_bold_fit_wf(
     if coreg_boldref:
         regref_buffer.inputs.boldref = coreg_boldref
         config.loggers.workflow.debug(f'Reusing coregistration reference: {coreg_boldref}')
-    fmapref_buffer.inputs.sbref_files = sbref_files
+    fmapref_buffer.inputs.sbref_files = [] if warpkit_enabled else sbref_files
 
     summary = pe.Node(
         FunctionalSummary(
@@ -338,6 +365,8 @@ def init_bold_fit_wf(
         run_without_submitting=True,
     )
     summary.inputs.dummy_scans = config.workflow.dummy_scans
+    if warpkit_enabled:
+        summary.inputs.distortion_correction = 'MEDIC (warpkit)'
     if config.workflow.level == 'full':
         # Hack. More pain than it's worth to connect this up at a higher level.
         # We can consider separating out fit and transform summaries,
@@ -349,7 +378,7 @@ def init_bold_fit_wf(
 
     func_fit_reports_wf = init_func_fit_reports_wf(
         source_file=bold_file,
-        sdc_correction=fieldmap_id is not None,
+        sdc_correction=fieldmap_id is not None and not warpkit_enabled,
         freesurfer=config.workflow.run_reconall,
         output_dir=config.execution.fmriprep_dir,
     )
@@ -463,8 +492,49 @@ def init_bold_fit_wf(
     else:
         config.loggers.workflow.info('Found motion correction transforms - skipping Stage 2')
 
-    # Stage 3: Register fieldmap to boldref and reconstruct in BOLD space
-    if fieldmap_id:
+    # Stage 3: Prepare distortion correction in BOLD space
+    warpkit_distortion_params = None
+    if warpkit_enabled:
+        config.loggers.workflow.info('Stage 3: Adding warpkit MEDIC workflow')
+        warpkit_distortion_params = pe.Node(
+            DistortionParameters(
+                metadata=metadata,
+                in_file=bold_file,
+                fallback=config.workflow.fallback_total_readout_time,
+            ),
+            name='warpkit_distortion_params',
+            run_without_submitting=True,
+        )
+        warpkit_medic = pe.Node(
+            WarpkitMEDIC(
+                magnitude=bold_series,
+                phase=phase_files,
+                tes=tes_ms,
+                n_cpus=omp_nthreads,
+            ),
+            name='warpkit_medic',
+            mem_gb=mem_gb['resampled'],
+        )
+        warpkit_fieldmap = pe.Node(
+            ResampleSeries(jacobian=False),
+            name='warpkit_fieldmap',
+            n_procs=omp_nthreads,
+            mem_gb=mem_gb['resampled'],
+        )
+        warpkit_mean = pe.Node(TemporalMean(), name='warpkit_mean', mem_gb=1)
+
+        workflow.connect([
+            (warpkit_distortion_params, warpkit_medic, [
+                ('readout_time', 'total_readout_time'),
+                ('pe_direction', 'phase_encoding_direction'),
+            ]),
+            (warpkit_medic, warpkit_fieldmap, [('fieldmap_native', 'in_file')]),
+            (hmcref_buffer, warpkit_fieldmap, [('boldref', 'ref_file')]),
+            (hmc_buffer, warpkit_fieldmap, [('hmc_xforms', 'transforms')]),
+            (warpkit_fieldmap, warpkit_mean, [('out_file', 'in_file')]),
+            (warpkit_fieldmap, outputnode, [('out_file', 'fieldmap')]),
+        ])  # fmt:skip
+    elif fieldmap_id:
         config.loggers.workflow.info('Stage 3: Adding fieldmap reconstruction workflow')
         fmap_select = pe.Node(
             KeySelect(
@@ -550,7 +620,7 @@ def init_bold_fit_wf(
         config.loggers.workflow.info('Stage 4: Adding coregistration boldref workflow')
 
         # If sbref files are available, add them to the list of sources
-        if sbref_files and nb.load(sbref_files[0]).ndim > 3:
+        if sbref_files and not warpkit_enabled and nb.load(sbref_files[0]).ndim > 3:
             raw_sbref_wf = init_raw_boldref_wf(
                 name='raw_sbref_wf',
                 bold_file=sbref_files[0],
@@ -586,7 +656,34 @@ def init_bold_fit_wf(
             (ds_boldmask_wf, regref_buffer, [('outputnode.boldmask', 'boldmask')]),
         ])  # fmt:skip
 
-        if fieldmap_id:
+        if warpkit_enabled:
+            unwarp_boldref = pe.Node(
+                ResampleSeries(jacobian=jacobian),
+                name='unwarp_boldref',
+                n_procs=omp_nthreads,
+                mem_gb=mem_gb['resampled'],
+            )
+            skullstrip_bold_wf = init_skullstrip_bold_wf()
+
+            workflow.connect([
+                (fmapref_buffer, unwarp_boldref, [('out', 'ref_file')]),
+                (enhance_boldref_wf, unwarp_boldref, [
+                    ('outputnode.bias_corrected_file', 'in_file'),
+                ]),
+                (warpkit_mean, unwarp_boldref, [('out_file', 'fieldmap')]),
+                (warpkit_distortion_params, unwarp_boldref, [
+                    ('readout_time', 'ro_time'),
+                    ('pe_direction', 'pe_dir'),
+                ]),
+                (unwarp_boldref, ds_coreg_boldref_wf, [('out_file', 'inputnode.boldref')]),
+                (ds_coreg_boldref_wf, skullstrip_bold_wf, [
+                    ('outputnode.boldref', 'inputnode.in_file'),
+                ]),
+                (skullstrip_bold_wf, ds_boldmask_wf, [
+                    ('outputnode.mask_file', 'inputnode.boldmask'),
+                ]),
+            ])  # fmt:skip
+        elif fieldmap_id:
             distortion_params = pe.Node(
                 DistortionParameters(
                     metadata=metadata,
@@ -717,6 +814,7 @@ def init_bold_native_wf(
     *,
     bold_series: list[str],
     fieldmap_id: str | None = None,
+    use_warpkit: bool = False,
     jacobian: bool = False,
     omp_nthreads: int = 1,
     name: str = 'bold_native_wf',
@@ -749,6 +847,9 @@ def init_bold_native_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    use_warpkit
+        Use a direct warpkit MEDIC fieldmap series instead of reconstructing
+        a static SDCFlows fieldmap.
 
     Inputs
     ------
@@ -768,6 +869,8 @@ def init_bold_native_wf(
         List of fieldmap reference files (collated with fmap_id)
     fmap_coeff
         List of lists of spline coefficient files (collated with fmap_id)
+    fieldmap
+        Framewise fieldmap series already aligned to ``boldref``.
 
     Outputs
     -------
@@ -810,6 +913,7 @@ def init_bold_native_wf(
     all_metadata = [layout.get_metadata(bold_file) for bold_file in bold_series]
     echo_times = [md.get('EchoTime') for md in all_metadata]
     multiecho = len(bold_series) > 1
+    warpkit_enabled = use_warpkit and multiecho
 
     bold_file = bold_series[0]
     metadata = all_metadata[0]
@@ -846,6 +950,7 @@ def init_bold_native_wf(
                 'fmap_ref',
                 'fmap_coeff',
                 'fmap_id',
+                'fieldmap',
             ],
         ),
         name='inputnode',
@@ -900,13 +1005,7 @@ def init_bold_native_wf(
         workflow.connect([(validate_bold, boldbuffer, [('out_file', 'bold_file')])])
 
     # Prepare fieldmap metadata
-    if fieldmap_id:
-        fmap_select = pe.Node(
-            KeySelect(fields=['fmap_ref', 'fmap_coeff'], key=fieldmap_id),
-            name='fmap_select',
-            run_without_submitting=True,
-        )
-
+    if fieldmap_id or warpkit_enabled:
         distortion_params = pe.Node(
             DistortionParameters(
                 metadata=metadata,
@@ -917,14 +1016,23 @@ def init_bold_native_wf(
             run_without_submitting=True,
         )
         workflow.connect([
+            (distortion_params, boldbuffer, [
+                ('readout_time', 'ro_time'),
+                ('pe_direction', 'pe_dir'),
+            ]),
+        ])  # fmt:skip
+
+    if fieldmap_id and not warpkit_enabled:
+        fmap_select = pe.Node(
+            KeySelect(fields=['fmap_ref', 'fmap_coeff'], key=fieldmap_id),
+            name='fmap_select',
+            run_without_submitting=True,
+        )
+        workflow.connect([
             (inputnode, fmap_select, [
                 ('fmap_ref', 'fmap_ref'),
                 ('fmap_coeff', 'fmap_coeff'),
                 ('fmap_id', 'keys'),
-            ]),
-            (distortion_params, boldbuffer, [
-                ('readout_time', 'ro_time'),
-                ('pe_direction', 'pe_dir'),
             ]),
         ])  # fmt:skip
 
@@ -948,7 +1056,9 @@ def init_bold_native_wf(
         ]),
     ])  # fmt:skip
 
-    if fieldmap_id:
+    if warpkit_enabled:
+        workflow.connect([(inputnode, boldref_bold, [('fieldmap', 'fieldmap')])])
+    elif fieldmap_id:
         boldref_fmap = pe.Node(ReconstructFieldmap(inverse=[True]), name='boldref_fmap', mem_gb=1)
         workflow.connect([
             (inputnode, boldref_fmap, [

@@ -57,6 +57,7 @@ def init_bold_wf(
     bold_series: list[str],
     precomputed: dict | None = None,
     fieldmap_id: str | None = None,
+    use_warpkit: bool = False,
     jacobian: bool = False,
 ) -> pe.Workflow:
     """
@@ -86,6 +87,8 @@ def init_bold_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    use_warpkit
+        Use warpkit MEDIC for compatible multi-echo BOLD runs.
 
     Inputs
     ------
@@ -246,6 +249,7 @@ configured with cubic B-spline interpolation.
         bold_series=bold_series,
         precomputed=precomputed,
         fieldmap_id=fieldmap_id,
+        use_warpkit=use_warpkit,
         jacobian=jacobian,
         omp_nthreads=omp_nthreads,
     )
@@ -287,6 +291,7 @@ configured with cubic B-spline interpolation.
     bold_native_wf = init_bold_native_wf(
         bold_series=bold_series,
         fieldmap_id=fieldmap_id,
+        use_warpkit=use_warpkit,
         jacobian=jacobian,
         omp_nthreads=omp_nthreads,
     )
@@ -302,6 +307,7 @@ configured with cubic B-spline interpolation.
             ('outputnode.bold_mask', 'inputnode.bold_mask'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
             ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
+            ('outputnode.fieldmap', 'inputnode.fieldmap'),
             ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
         ]),
     ])  # fmt:skip

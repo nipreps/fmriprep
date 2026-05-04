@@ -642,6 +642,8 @@ class workflow(_Config):
     in the absence of any alternatives."""
     me_t2s_fit_method = 'curvefit'
     """The method by which to estimate T2*/S0 for multi-echo data"""
+    me_use_warpkit = False
+    """Run warpkit's MEDIC workflow for multi-echo susceptibility correction."""
 
 
 class loggers:

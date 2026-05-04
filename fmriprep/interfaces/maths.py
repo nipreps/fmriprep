@@ -82,3 +82,34 @@ class Label2Mask(SimpleInterface):
 
         self._results['out_file'] = out_file
         return runtime
+
+
+class TemporalMeanInputSpec(TraitedSpec):
+    in_file = File(exists=True, mandatory=True, desc='Input 3D or 4D imaging file')
+
+
+class TemporalMeanOutputSpec(TraitedSpec):
+    out_file = File(desc='Temporal mean image')
+
+
+class TemporalMean(SimpleInterface):
+    """Collapse a time series to its temporal mean."""
+
+    input_spec = TemporalMeanInputSpec
+    output_spec = TemporalMeanOutputSpec
+
+    def _run_interface(self, runtime):
+        import nibabel as nb
+
+        img = nb.load(self.inputs.in_file)
+        data = img.get_fdata(dtype='f4')
+        if data.ndim > 3:
+            data = data.mean(axis=3, dtype='f4')
+
+        out_img = img.__class__(data, img.affine, img.header)
+        out_img.set_data_dtype(np.float32)
+        out_file = fname_presuffix(self.inputs.in_file, suffix='_mean', newpath=runtime.cwd)
+        out_img.to_filename(out_file)
+
+        self._results['out_file'] = out_file
+        return runtime

@@ -485,6 +485,16 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
             'It is faster and less memory intensive, but may be less accurate.'
         ),
     )
+    g_conf.add_argument(
+        '--me-use-warpkit',
+        action='store_true',
+        default=False,
+        help=(
+            'Use warpkit MEDIC for susceptibility distortion correction of compatible '
+            'multi-echo BOLD runs. Requires phase companions for each echo and a '
+            'warpkit installation (for example, `fmriprep[warpkit]`) on Python 3.11+.'
+        ),
+    )
 
     g_outputs = parser.add_argument_group('Options for modulating outputs')
     g_outputs.add_argument(
