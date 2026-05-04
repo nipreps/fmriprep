@@ -40,6 +40,7 @@ ARG PIXI_LOCK_FLAGS=--frozen
 #   - ...
 #
 FROM ghcr.io/prefix-dev/pixi:0.53.0 AS build
+ARG PIXI_LOCK_FLAGS=--frozen
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     ca-certificates \
