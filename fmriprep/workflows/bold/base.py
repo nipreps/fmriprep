@@ -52,6 +52,29 @@ from .resampling import init_bold_surf_wf
 from .t2s import init_t2s_reporting_wf
 
 
+def _build_postdesc(use_warpkit: bool) -> str:
+    """Build post-description boilerplate for functional preprocessing."""
+    postdesc = """\
+All resamplings can be performed with *a single interpolation
+step* by composing all the pertinent transformations (i.e. head-motion
+transform matrices, susceptibility distortion correction when available,
+and co-registrations to anatomical and output spaces).
+Gridded (volumetric) resamplings were performed using `nitransforms`,
+configured with cubic B-spline interpolation.
+"""
+    if use_warpkit:
+        postdesc += """\
+For compatible multi-echo runs with accompanying phase images, susceptibility
+distortion correction was performed with the Multi-Echo DIstortion Correction
+(MEDIC) procedure as implemented in *warpkit* [@van2023medic]. MEDIC estimates
+a framewise B0 fieldmap from the phase evolution across echoes at each
+repetition time, and the resulting fieldmap series was aligned to the
+head-motion-correction reference and applied during native-space resampling
+together with motion correction.
+"""
+    return postdesc
+
+
 def init_bold_wf(
     *,
     bold_series: list[str],
@@ -190,14 +213,7 @@ def init_bold_wf(
     )
 
     workflow = Workflow(name=_get_wf_name(bold_file, 'bold'))
-    workflow.__postdesc__ = """\
-All resamplings can be performed with *a single interpolation
-step* by composing all the pertinent transformations (i.e. head-motion
-transform matrices, susceptibility distortion correction when available,
-and co-registrations to anatomical and output spaces).
-Gridded (volumetric) resamplings were performed using `nitransforms`,
-configured with cubic B-spline interpolation.
-"""
+    workflow.__postdesc__ = _build_postdesc(use_warpkit)
 
     inputnode = pe.Node(
         niu.IdentityInterface(

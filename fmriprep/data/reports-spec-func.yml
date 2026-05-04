@@ -59,17 +59,12 @@ sections:
     static: false
     subtitle: Alignment between the anatomical reference of the fieldmap and the BOLD reference
   - bids: {datatype: figures, desc: fieldmap, suffix: bold}
-    caption: Estimated fieldmap, as reconstructed on the target BOLD run space to allow
-      the assessment of its alignment with the distorted data.
-      The anatomical reference is the fieldmap's reference moved into the BOLD reference's grid through
-      the estimated transformation.
-      In other words, this plot should be equivalent to that of the 
-      <em>Preprocessed estimation with varying Phase-Encoding (PE) blips</em> shown above in the
-      fieldmap section.
-      Therefore, the fieldmap should be positioned relative to the anatomical reference exactly
-      as it is positioned in the reportlet above.
+    caption: Estimated fieldmap shown in the corresponding run's space to allow
+      visual assessment of its alignment with the distorted BOLD reference.
+      If a dynamic fieldmap series was used, such as a framewise MEDIC estimate,
+      a representative nonzero volume from that series is shown.
     static: false
-    subtitle: "Reconstructed <em>B<sub>0</sub></em> map in the corresponding run's space (debug mode)"
+    subtitle: "Estimated <em>B<sub>0</sub></em> map in the corresponding run's space"
   - bids: {datatype: figures, desc: sdc, suffix: bold}
     caption: Results of performing susceptibility distortion correction (SDC) on the
       BOLD reference image. The "distorted" image is the image that would be used to

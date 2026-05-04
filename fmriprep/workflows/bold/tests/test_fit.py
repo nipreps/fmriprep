@@ -3,6 +3,8 @@ from pathlib import Path
 import nibabel as nb
 import numpy as np
 import pytest
+from nipype.interfaces import utility as niu
+from nipype.pipeline import engine as pe
 from nipype.pipeline.engine.utils import generate_expanded_graph
 from niworkflows.utils.testing import generate_bids_skeleton
 
@@ -45,6 +47,17 @@ def _make_params(
         have_boldref2anat_xfm,
         have_boldref2fmap_xfm,
     )
+
+
+def _stub_enhance_and_skullstrip_bold_wf(*, omp_nthreads: int = 1):
+    workflow = pe.Workflow(name='stub_enhance_and_skullstrip_bold_wf')
+    inputnode = pe.Node(niu.IdentityInterface(fields=['in_file']), name='inputnode')
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['bias_corrected_file', 'mask_file']),
+        name='outputnode',
+    )
+    workflow.connect([(inputnode, outputnode, [('in_file', 'bias_corrected_file')])])
+    return workflow
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
@@ -177,7 +190,7 @@ def test_bold_native_precomputes(
     generate_expanded_graph(flatgraph)
 
 
-def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path):
+def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path, monkeypatch):
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
     bold_series = [
         str(bids_root / 'sub-01' / 'func' / f'sub-01_task-nback_echo-{i}_bold.nii.gz')
@@ -191,7 +204,13 @@ def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path):
     for path in bold_series + phase_series:
         img.to_filename(path)
 
+    monkeypatch.setattr(
+        'fmriprep.workflows.bold.fit.init_enhance_and_skullstrip_bold_wf',
+        _stub_enhance_and_skullstrip_bold_wf,
+    )
+
     with mock_config(bids_dir=bids_root):
+        config.workflow.bold2anat_init = 't1w'
         fit_wf = init_bold_fit_wf(
             bold_series=bold_series,
             fieldmap_id=None,
@@ -207,3 +226,10 @@ def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path):
 
     generate_expanded_graph(fit_wf._create_flat_graph())
     generate_expanded_graph(native_wf._create_flat_graph())
+
+    fit_nodes = fit_wf.list_node_names()
+    assert any(name.endswith('fieldmap_report') for name in fit_nodes)
+    assert any(name.endswith('ds_fieldmap_report') for name in fit_nodes)
+    assert any(name.endswith('sdc_report') for name in fit_nodes)
+    assert any(name.endswith('ds_sdc_report') for name in fit_nodes)
+    assert not any(name.endswith('sdcreg_report') for name in fit_nodes)

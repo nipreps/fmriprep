@@ -143,6 +143,8 @@ def init_func_fit_reports_wf(
     *,
     source_file: str,
     sdc_correction: bool,
+    fieldmap_registration: bool,
+    fieldmap_reportlet: bool,
     freesurfer: bool,
     output_dir: str,
     name='func_fit_reports_wf',
@@ -300,7 +302,7 @@ def init_func_fit_reports_wf(
     #       Before: T1w brain with white matter mask
     #       After: Resampled boldref with white matter mask
 
-    if sdc_correction:
+    if fieldmap_registration:
         fmapref_boldref = pe.Node(
             ApplyTransforms(
                 dimension=3,
@@ -348,7 +350,57 @@ def init_func_fit_reports_wf(
             name='ds_sdcreg_report',
         )
 
-        # SDC2
+        workflow.connect([
+            (inputnode, fmapref_boldref, [
+                ('fmap_ref', 'input_image'),
+                ('coreg_boldref', 'reference_image'),
+                ('boldref2fmap_xfm', 'transforms'),
+            ]),
+            (inputnode, fmap_boldref, [
+                ('fieldmap', 'input_image'),
+                ('coreg_boldref', 'reference_image'),
+                ('boldref2fmap_xfm', 'transforms'),
+            ]),
+            (inputnode, sdcreg_report, [
+                ('sdc_boldref', 'reference'),
+                ('bold_mask', 'mask'),
+            ]),
+            (fmapref_boldref, sdcreg_report, [('output_image', 'moving')]),
+            (fmap_boldref, sdcreg_report, [('output_image', 'fieldmap')]),
+            (sdcreg_report, ds_sdcreg_report, [('out_report', 'in_file')]),
+        ])  # fmt:skip
+
+    if fieldmap_reportlet:
+        fieldmap_report = pe.Node(
+            FieldmapReportlet(
+                reference_label='Distorted BOLD reference',
+                show=0,
+            ),
+            name='fieldmap_report',
+            mem_gb=0.1,
+        )
+
+        ds_fieldmap_report = pe.Node(
+            DerivativesDataSink(
+                source_file=source_file,
+                base_directory=output_dir,
+                desc='fieldmap',
+                suffix='bold',
+                datatype='figures',
+                dismiss_entities=dismiss_echo(),
+            ),
+            name='ds_fieldmap_report',
+        )
+
+        workflow.connect([
+            (inputnode, fieldmap_report, [
+                ('sdc_boldref', 'reference'),
+                ('fieldmap', 'fieldmap'),
+            ]),
+            (fieldmap_report, ds_fieldmap_report, [('out_report', 'in_file')]),
+        ])  # fmt:skip
+
+    if sdc_correction:
         sdc_report = pe.Node(
             SimpleBeforeAfter(
                 before_label='Distorted',
@@ -372,23 +424,6 @@ def init_func_fit_reports_wf(
         )
 
         workflow.connect([
-            (inputnode, fmapref_boldref, [
-                ('fmap_ref', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
-            (inputnode, fmap_boldref, [
-                ('fieldmap', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
-            (inputnode, sdcreg_report, [
-                ('sdc_boldref', 'reference'),
-                ('bold_mask', 'mask'),
-            ]),
-            (fmapref_boldref, sdcreg_report, [('output_image', 'moving')]),
-            (fmap_boldref, sdcreg_report, [('output_image', 'fieldmap')]),
-            (sdcreg_report, ds_sdcreg_report, [('out_report', 'in_file')]),
             (inputnode, sdc_report, [
                 ('sdc_boldref', 'before'),
                 ('coreg_boldref', 'after'),

@@ -378,7 +378,9 @@ def init_bold_fit_wf(
 
     func_fit_reports_wf = init_func_fit_reports_wf(
         source_file=bold_file,
-        sdc_correction=fieldmap_id is not None and not warpkit_enabled,
+        sdc_correction=fieldmap_id is not None or warpkit_enabled,
+        fieldmap_registration=fieldmap_id is not None and not warpkit_enabled,
+        fieldmap_reportlet=warpkit_enabled,
         freesurfer=config.workflow.run_reconall,
         output_dir=config.execution.fmriprep_dir,
     )
@@ -533,6 +535,8 @@ def init_bold_fit_wf(
             (hmc_buffer, warpkit_fieldmap, [('hmc_xforms', 'transforms')]),
             (warpkit_fieldmap, warpkit_mean, [('out_file', 'in_file')]),
             (warpkit_fieldmap, outputnode, [('out_file', 'fieldmap')]),
+            (warpkit_fieldmap, func_fit_reports_wf, [('out_file', 'inputnode.fieldmap')]),
+            (fmapref_buffer, func_fit_reports_wf, [('out', 'inputnode.sdc_boldref')]),
         ])  # fmt:skip
     elif fieldmap_id:
         config.loggers.workflow.info('Stage 3: Adding fieldmap reconstruction workflow')

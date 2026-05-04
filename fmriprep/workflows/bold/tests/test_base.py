@@ -9,7 +9,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.layouts import get_layout
-from ..base import init_bold_wf
+from ..base import _build_postdesc, init_bold_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -81,3 +81,10 @@ def test_bold_wf(
 
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)
+
+
+def test_bold_wf_warpkit_postdesc():
+    postdesc = _build_postdesc(True)
+
+    assert 'MEDIC' in postdesc
+    assert 'van2023medic' in postdesc
