@@ -24,7 +24,6 @@ from fmriprep.extensions.exceptions import (
     ExtensionContractError,
     ExtensionError,
     ExtensionRegistrationError,
-    ExtensionVersionError,
 )
 
 __all__ = [
@@ -32,5 +31,4 @@ __all__ = [
     'ExtensionContractError',
     'ExtensionError',
     'ExtensionRegistrationError',
-    'ExtensionVersionError',
 ]

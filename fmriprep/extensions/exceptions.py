@@ -35,13 +35,9 @@ class ExtensionRegistrationError(ExtensionError):
     """Raised when a descriptor is malformed or fails registration validation."""
 
 
-class ExtensionVersionError(ExtensionError):
-    """Raised when an extension's fmriprep_compat does not satisfy the running version."""
-
-
 class ExtensionContractError(ExtensionError):
-    """Raised when an extension claims an unknown hook or contract version,
-    or its produced workflow does not match the declared contract."""
+    """Raised when an extension claims an unknown hook, or its produced
+    workflow does not match the declared contract schema."""
 
 
 class ExtensionActivationError(ExtensionError):

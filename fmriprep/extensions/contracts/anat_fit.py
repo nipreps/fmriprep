@@ -37,10 +37,11 @@ class AnatFitContract(Contract):
     this contract by producing those slot names — downstream consumers wire
     by name, not by contrast.
 
-    A future fmriprep release will introduce contrast-agnostic
+    A future fmriprep minor release will introduce contrast-agnostic
     (``anat_preproc``-style) naming, with a corresponding refactor of
     fmriprep's downstream wiring. That change will be a breaking contract
-    update tied to a major version bump.
+    update; per the CalVer + minor-as-API-stability convention, it lands
+    in a minor bump rather than a major one.
     """
 
     name = 'anat_fit'

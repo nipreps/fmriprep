@@ -24,14 +24,12 @@ from fmriprep.extensions.exceptions import (
     ExtensionContractError,
     ExtensionError,
     ExtensionRegistrationError,
-    ExtensionVersionError,
 )
 
 
 def test_extension_errors_subclasses():
     for cls in (
         ExtensionRegistrationError,
-        ExtensionVersionError,
         ExtensionContractError,
         ExtensionActivationError,
     ):
