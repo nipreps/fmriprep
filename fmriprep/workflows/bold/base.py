@@ -66,11 +66,11 @@ configured with cubic B-spline interpolation.
         postdesc += """\
 For compatible multi-echo runs with accompanying phase images, susceptibility
 distortion correction was performed with the Multi-Echo DIstortion Correction
-(MEDIC) procedure as implemented in *warpkit* [@van2023medic]. MEDIC estimates
-a framewise B0 fieldmap from the phase evolution across echoes at each
-repetition time, and the resulting fieldmap series was aligned to the
-head-motion-correction reference and applied during native-space resampling
-together with motion correction.
+(MEDIC) procedure as implemented in *warpkit* [@van2023medic]. MEDIC estimated
+a time-varying B0 fieldmap series by fitting phase evolution across echoes
+separately for each frame of the run. The resulting fieldmap series was aligned
+to the head-motion-correction reference and applied during native-space
+resampling together with motion correction.
 """
     return postdesc
 

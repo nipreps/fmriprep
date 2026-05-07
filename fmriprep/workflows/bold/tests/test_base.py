@@ -87,4 +87,5 @@ def test_bold_wf_warpkit_postdesc():
     postdesc = _build_postdesc(True)
 
     assert 'MEDIC' in postdesc
+    assert 'time-varying B0 fieldmap series' in postdesc
     assert 'van2023medic' in postdesc

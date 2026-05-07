@@ -394,6 +394,7 @@ def init_func_fit_reports_wf(
 
         workflow.connect([
             (inputnode, fieldmap_report, [
+                ('bold_mask', 'mask'),
                 ('sdc_boldref', 'reference'),
                 ('fieldmap', 'fieldmap'),
             ]),
