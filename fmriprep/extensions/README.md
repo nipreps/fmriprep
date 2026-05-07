@@ -9,14 +9,17 @@ fmriprep/extensions/
 ├── README.md              ← you are here
 ├── __init__.py            ← public re-exports (exception types, etc.)
 ├── exceptions.py          ← typed errors raised by the framework
-├── descriptor.py          ← ExtensionDescriptor base class
+├── descriptor.py          ← ExtensionDescriptor base class (the surface
+│                            extensions subclass)
 ├── contracts/             ← schema declarations for hookable workflows
 │   ├── __init__.py        ← Contract + ContractField + catalog + lookups
 │   └── anat_fit.py        ← AnatFitContract
-└── tests/                 ← framework + contract tests + fixtures
+├── registry.py            ← Registry: validates installed extensions and
+│                            resolves the active one's builders
+└── tests/                 ← framework + contract tests
 ```
 
-Future modules (registry, dispatch, default builders, container conformance checker) land alongside as the framework grows.
+Future modules (dispatch, default builders, container conformance checker) land alongside as the framework grows.
 
 ## Concepts
 
@@ -117,8 +120,9 @@ Whether a field is set at runtime is the implementation's choice (gated by upstr
 - Exception types (`ExtensionError` and subclasses).
 - Contract type system + the `anat_fit` contract.
 - `ExtensionDescriptor` base class.
+- `Registry` (discovery, validation, activation).
 
-Registry, dispatch, container conformance checker, and the full Tier 2 lifecycle hook surface (`cli_extend`, `config_extend`, `init_config`, `metadata_requirements`, `derivative_spec`) are landing in subsequent work.
+Dispatch, container conformance checker, and the full Tier 2 lifecycle hook surface (`cli_extend`, `config_extend`, `init_config`, `metadata_requirements`, `derivative_spec`) are landing in subsequent work.
 
 ## Errors
 
