@@ -16,10 +16,12 @@ fmriprep/extensions/
 │   └── anat_fit.py        ← AnatFitContract
 ├── registry.py            ← Registry: validates installed extensions and
 │                            resolves the active one's builders
+├── dispatch.py            ← build(hook, default_builder, **kwargs):
+│                            routes to the active extension or default
 └── tests/                 ← framework + contract tests
 ```
 
-Future modules (dispatch, default builders, container conformance checker) land alongside as the framework grows.
+Future modules (container conformance checker, lifecycle hooks) land alongside as the framework grows.
 
 ## Concepts
 
@@ -121,8 +123,9 @@ Whether a field is set at runtime is the implementation's choice (gated by upstr
 - Contract type system + the `anat_fit` contract.
 - `ExtensionDescriptor` base class.
 - `Registry` (discovery, validation, activation).
+- Dispatch (`build` routes hook calls through the active extension or to a call-site default).
 
-Dispatch, container conformance checker, and the full Tier 2 lifecycle hook surface (`cli_extend`, `config_extend`, `init_config`, `metadata_requirements`, `derivative_spec`) are landing in subsequent work.
+Container conformance checker and the full Tier 2 lifecycle hook surface (`cli_extend`, `config_extend`, `init_config`, `metadata_requirements`, `derivative_spec`) are landing in subsequent work.
 
 ## Errors
 
