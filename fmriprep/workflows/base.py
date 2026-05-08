@@ -184,6 +184,7 @@ def init_single_subject_wf(
         init_resample_surfaces_wf,
     )
 
+    from fmriprep.extensions.dispatch import build as _build_extension
     from fmriprep.interfaces.bids import BIDSSourceFile, CreateFreeSurferID
     from fmriprep.workflows.bold.base import init_bold_wf
 
@@ -351,7 +352,9 @@ It is released under the [CC0]\
     omp_nthreads = config.nipype.omp_nthreads
 
     # Build the workflow
-    anat_fit_wf = init_anat_fit_wf(
+    anat_fit_wf = _build_extension(
+        'anat_fit',
+        init_anat_fit_wf,
         bids_root=bids_root,
         output_dir=fmriprep_dir,
         freesurfer=freesurfer,
