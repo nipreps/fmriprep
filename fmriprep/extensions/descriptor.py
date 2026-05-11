@@ -43,6 +43,16 @@ class ExtensionDescriptor:
       fmriprep versions, e.g. ``'>=26,<27'``.
     - ``contracts`` (set[str]): hook names the extension implements.
 
+    Subclasses may optionally declare:
+
+    - ``telemetry`` (dict | None): telemetry routing overrides. Recognised keys:
+
+      - ``migas_project`` (str) — migas project slug, e.g. ``'nipreps/nibabies'``.
+      - ``sentry_dsn_env`` (str) — name of the environment variable holding the
+        Sentry DSN for this extension (secret stays out of source).
+
+      When ``None`` (the default), fmriprep's own telemetry identifiers are used.
+
     For each name in ``contracts``, the subclass must provide a method
     ``init_<hook>_wf`` whose signature is compatible with the corresponding
     hook contract. Builder-method presence is verified at registration
@@ -53,6 +63,7 @@ class ExtensionDescriptor:
     version: str
     fmriprep_compat: str
     contracts: set[str]
+    telemetry: dict | None = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
