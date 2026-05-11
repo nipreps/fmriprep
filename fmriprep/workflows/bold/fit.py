@@ -531,7 +531,13 @@ def init_bold_fit_wf(
                 ('readout_time', 'total_readout_time'),
                 ('pe_direction', 'phase_encoding_direction'),
             ]),
-            (warpkit_medic, warpkit_fieldmap, [('fieldmap_native', 'in_file')]),
+            # `fieldmap` is the undistorted-space, consumer-facing output from
+            # warpkit.api.medic — it lives on the same grid as the corrected EPI.
+            # `fieldmap_native` is a debug-only field in *distorted* space; using
+            # it here causes fmriprep's pull-resampler to sample the field at
+            # the wrong physical location (off by the SDC displacement itself).
+            # See resample_vol: fmap_hz is read on the target/undistorted grid.
+            (warpkit_medic, warpkit_fieldmap, [('fieldmap', 'in_file')]),
             (hmcref_buffer, warpkit_fieldmap, [('boldref', 'ref_file')]),
             (hmc_buffer, warpkit_fieldmap, [('hmc_xforms', 'transforms')]),
             (warpkit_fieldmap, warpkit_mean, [('out_file', 'in_file')]),
