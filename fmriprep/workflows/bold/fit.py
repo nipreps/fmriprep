@@ -542,7 +542,9 @@ def init_bold_fit_wf(
             (hmc_buffer, warpkit_fieldmap, [('hmc_xforms', 'transforms')]),
             (warpkit_fieldmap, warpkit_mean, [('out_file', 'in_file')]),
             (warpkit_fieldmap, outputnode, [('out_file', 'fieldmap')]),
-            (warpkit_fieldmap, func_fit_reports_wf, [('out_file', 'inputnode.fieldmap')]),
+            # FieldmapReportlet expects a 3D field; pass the temporal mean,
+            # not the 4D series (which would render only frame 0 or crash).
+            (warpkit_mean, func_fit_reports_wf, [('out_file', 'inputnode.fieldmap')]),
             (fmapref_buffer, func_fit_reports_wf, [('out', 'inputnode.sdc_boldref')]),
         ])  # fmt:skip
     elif fieldmap_id:
