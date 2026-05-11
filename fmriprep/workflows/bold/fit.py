@@ -341,7 +341,7 @@ def init_bold_fit_wf(
     if coreg_boldref:
         regref_buffer.inputs.boldref = coreg_boldref
         config.loggers.workflow.debug(f'Reusing coregistration reference: {coreg_boldref}')
-    fmapref_buffer.inputs.sbref_files = [] if warpkit_enabled else sbref_files
+    fmapref_buffer.inputs.sbref_files = sbref_files
 
     summary = pe.Node(
         FunctionalSummary(
@@ -637,7 +637,7 @@ def init_bold_fit_wf(
         config.loggers.workflow.info('Stage 4: Adding coregistration boldref workflow')
 
         # If sbref files are available, add them to the list of sources
-        if sbref_files and not warpkit_enabled and nb.load(sbref_files[0]).ndim > 3:
+        if sbref_files and nb.load(sbref_files[0]).ndim > 3:
             raw_sbref_wf = init_raw_boldref_wf(
                 name='raw_sbref_wf',
                 bold_file=sbref_files[0],
