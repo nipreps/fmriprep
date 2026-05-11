@@ -260,6 +260,22 @@ def init_bold_fit_wf(
                 f'warpkit MEDIC requires EchoTime metadata for every echo of <{bold_file}>.'
             ) from exc
 
+        # `bold_series` and `phase_files` are independently sorted by EchoTime
+        # (in workflows/base.py and collect_bold_part_files respectively). A
+        # missing/zero EchoTime sidecar would silently swap echo order on one
+        # side without the other, feeding warpkit a transposed pair set. Assert
+        # the orderings match before handing them off.
+        assert layout is not None  # narrowed for type-checker; warpkit needs BIDS
+        phase_tes_ms = [
+            float(layout.get_metadata(p).get('EchoTime', 0.0)) * 1000 for p in phase_files
+        ]
+        if phase_tes_ms != tes_ms:
+            raise RuntimeError(
+                'warpkit MEDIC echo-ordering mismatch between magnitude and '
+                f'phase for <{bold_file}>: magnitude TEs (ms)={tes_ms} '
+                f'phase TEs (ms)={phase_tes_ms}.'
+            )
+
     hmc_boldref = precomputed.get('hmc_boldref')
     coreg_boldref = precomputed.get('coreg_boldref')
     # Can contain
