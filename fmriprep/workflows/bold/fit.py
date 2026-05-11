@@ -516,7 +516,11 @@ def init_bold_fit_wf(
                 noise_frames=config.workflow.me_warpkit_noise_frames,
             ),
             name='warpkit_medic',
-            mem_gb=mem_gb['resampled'],
+            # MEDIC holds all N echoes of phase + magnitude in memory as
+            # float64, plus warpkit's internal state. `mem_gb['resampled']`
+            # is the size of a single resampled BOLD volume — wildly low
+            # for high-res / many-echo datasets.
+            mem_gb=2 * len(bold_series) * mem_gb['filesize'],
         )
         warpkit_fieldmap = pe.Node(
             ResampleSeries(jacobian=False),
