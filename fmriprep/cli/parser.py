@@ -103,6 +103,13 @@ def _build_parser(**kwargs):
             raise parser.error("Argument can't be less than one.")
         return value
 
+    def _min_zero(value, parser):
+        """Ensure an argument is not lower than 0."""
+        value = int(value)
+        if value < 0:
+            raise parser.error("Argument can't be negative.")
+        return value
+
     def _to_gb(value):
         scale = {'G': 1, 'T': 10**3, 'M': 1e-3, 'K': 1e-6, 'B': 1e-9}
         digits = ''.join([c for c in value if c.isdigit()])
@@ -177,6 +184,7 @@ def _build_parser(**kwargs):
     PathExists = partial(_path_exists, parser=parser)
     IsFile = partial(_is_file, parser=parser)
     PositiveInt = partial(_min_one, parser=parser)
+    NonnegativeInt = partial(_min_zero, parser=parser)
     BIDSFilter = partial(_bids_filter, parser=parser)
     SliceTimeRef = partial(_slice_time_ref, parser=parser)
     FallbackTRT = partial(_fallback_trt, parser=parser)
@@ -493,6 +501,17 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
             'Use warpkit MEDIC for susceptibility distortion correction of compatible '
             'multi-echo BOLD runs. Requires phase companions for each echo and a '
             'warpkit installation (for example, `fmriprep[warpkit]`) on Python 3.11+.'
+        ),
+    )
+    g_conf.add_argument(
+        '--me-warpkit-noise-frames',
+        action='store',
+        type=NonnegativeInt,
+        default=0,
+        help=(
+            'Number of trailing non-imaging/noise frames to trim from each '
+            'multi-echo magnitude and phase file before running warpkit MEDIC. '
+            'Only applies when --me-use-warpkit is enabled.'
         ),
     )
 

@@ -513,6 +513,7 @@ def init_bold_fit_wf(
                 phase=phase_files,
                 tes=tes_ms,
                 n_cpus=omp_nthreads,
+                noise_frames=config.workflow.me_warpkit_noise_frames,
             ),
             name='warpkit_medic',
             mem_gb=mem_gb['resampled'],

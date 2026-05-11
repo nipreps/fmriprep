@@ -211,6 +211,7 @@ def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path, monkeypatch):
 
     with mock_config(bids_dir=bids_root):
         config.workflow.bold2anat_init = 't1w'
+        config.workflow.me_warpkit_noise_frames = 3
         fit_wf = init_bold_fit_wf(
             bold_series=bold_series,
             fieldmap_id=None,
@@ -228,6 +229,7 @@ def test_bold_warpkit_graph(bids_root: Path, tmp_path: Path, monkeypatch):
     generate_expanded_graph(native_wf._create_flat_graph())
 
     fit_nodes = fit_wf.list_node_names()
+    assert fit_wf.get_node('warpkit_medic').inputs.noise_frames == 3
     assert any(name.endswith('fieldmap_report') for name in fit_nodes)
     assert any(name.endswith('ds_fieldmap_report') for name in fit_nodes)
     assert any(name.endswith('sdc_report') for name in fit_nodes)
