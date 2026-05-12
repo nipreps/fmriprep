@@ -33,6 +33,11 @@ from .. import __version__, config
 sentry_sdk = optional_package('sentry_sdk')[0]
 migas = optional_package('migas')[0]
 
+# Active project identity used by send_crumb / setup_migas.
+# Overridden at startup when an extension with a telemetry mapping is active.
+_active_project: str = 'nipreps/fmriprep'
+_active_version: str = __version__
+
 CHUNK_SIZE = 16384
 # Group common events with pre specified fingerprints
 KNOWN_ERRORS = {
@@ -59,8 +64,15 @@ KNOWN_ERRORS = {
 }
 
 
-def sentry_setup():
-    """Set-up sentry."""
+def sentry_setup(dsn: str | None = None):
+    """Set-up sentry.
+
+    Parameters
+    ----------
+    dsn
+        Sentry DSN to use. When ``None``, fmriprep's own DSN is used.
+        Pass the active extension's DSN to route errors to its project.
+    """
     release = config.environment.version or 'dev'
     environment = (
         'dev'
@@ -71,8 +83,9 @@ def sentry_setup():
         else 'prod'
     )
 
+    effective_dsn = dsn or 'https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693'
     sentry_sdk.init(
-        'https://d5a16b0c38d84d1584dfc93b9fb1ade6@sentry.io/1137693',
+        effective_dsn,
         release=release,
         environment=environment,
         before_send=before_send,
@@ -186,11 +199,34 @@ def _chunks(string, length=CHUNK_SIZE):
     return [string[i : i + length] for i in range(0, len(string), length)]
 
 
-def setup_migas(init_ping: bool = True, exit_ping: bool = True) -> None:
+def setup_migas(
+    init_ping: bool = True,
+    exit_ping: bool = True,
+    project: str | None = None,
+    version: str | None = None,
+) -> None:
+    """Prepare the migas python client to communicate with a migas server.
+
+    Parameters
+    ----------
+    init_ping
+        Send an initial breadcrumb on setup.
+    exit_ping
+        Register an exit handler that pings migas when the process ends.
+    project
+        migas project slug, e.g. ``'nipreps/nibabies'``. Defaults to the
+        module-level ``_active_project`` (fmriprep's own slug unless an
+        extension overrode it at startup).
+    version
+        Project version string. Defaults to the module-level ``_active_version``.
     """
-    Prepare the migas python client to communicate with a migas server.
-    If ``init_ping`` is ``True``, send an initial breadcrumb.
-    """
+    global _active_project, _active_version  # noqa: PLW0603
+
+    if project is not None:
+        _active_project = project
+    if version is not None:
+        _active_version = version
+
     # generate session UUID from generated run UUID
     session_id = None
     if config.execution.run_uuid:
@@ -203,14 +239,16 @@ def setup_migas(init_ping: bool = True, exit_ping: bool = True) -> None:
         from migas.error.nipype import node_execution_error
 
         migas.track_exit(
-            'nipreps/fmriprep',
-            __version__,
+            _active_project,
+            _active_version,
             {'NodeExecutionError': node_execution_error},
         )
 
 
 def send_crumb(**kwargs) -> dict:
+    """Communicate with the migas telemetry server.
+
+    Uses the module-level ``_active_project`` / ``_active_version`` set during
+    :func:`setup_migas`. Requires ``migas.setup()`` to have been called first.
     """
-    Communicate with the migas telemetry server. This requires `migas.setup()` to be called.
-    """
-    return migas.add_breadcrumb('nipreps/fmriprep', __version__, **kwargs)
+    return migas.add_breadcrumb(_active_project, _active_version, **kwargs)
