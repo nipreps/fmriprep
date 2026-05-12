@@ -710,6 +710,40 @@ class seeds(_Config):
         cls.numpy = _set_numpy_seed()
 
 
+class extensions:
+    """Config section for the active extension registry.
+
+    Call :meth:`init` once at startup (after CLI parsing); the class
+    attributes are read-only thereafter and accessible as
+    ``config.extensions.active`` anywhere in the codebase.
+    """
+
+    _registry = None
+    active = None
+
+    @classmethod
+    def init(cls) -> None:
+        """Discover installed extensions and install the process-wide registry."""
+        from fmriprep import __version__
+        from fmriprep.extensions.dispatch import set_registry
+        from fmriprep.extensions.registry import Registry
+
+        cls._registry = Registry.from_entry_points(fmriprep_version=__version__)
+        set_registry(cls._registry)
+        cls.active = cls._registry.active
+
+    @classmethod
+    def load(cls, settings, init=True, ignore=None):
+        """No-op currently; reserved for extension sub-namespace round-tripping."""
+        if init:
+            cls.init()
+
+    @classmethod
+    def get(cls) -> dict:
+        """Return serializable config state (empty until extensions declare sub-namespaces)."""
+        return {}
+
+
 def _set_ants_seed():
     """Fix random seed for antsRegistration, antsAI, antsMotionCorr"""
     val = random.randint(1, 65536)
@@ -817,6 +851,7 @@ def get(flat=False):
         'workflow': workflow.get(),
         'nipype': nipype.get(),
         'seeds': seeds.get(),
+        'extensions': extensions.get(),
     }
 
     if not flat:
