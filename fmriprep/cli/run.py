@@ -39,6 +39,9 @@ def main():
 
     parse_args()
 
+    # Activate extension registry before telemetry so routing uses the right identifiers.
+    config.extensions.init()
+
     # Code Carbon
     if config.execution.track_carbon:
         from codecarbon import OfflineEmissionsTracker
@@ -68,8 +71,13 @@ def main():
 
         from ..utils.telemetry import sentry_setup, setup_migas
 
-        sentry_setup()
-        setup_migas(init_ping=True)
+        _tel = getattr(config.extensions.active, 'telemetry', None) or {}
+        sentry_setup(dsn=_tel.get('sentry_dsn'))
+        setup_migas(
+            init_ping=True,
+            project=_tel.get('migas_project'),
+            version=config.extensions.active.version if config.extensions.active else None,
+        )
 
     # CRITICAL Save the config to a file. This is necessary because the execution graph
     # is built as a separate process to keep the memory footprint low. The most
