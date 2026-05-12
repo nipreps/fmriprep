@@ -48,8 +48,7 @@ class ExtensionDescriptor:
     - ``telemetry`` (dict | None): telemetry routing overrides. Recognised keys:
 
       - ``migas_project`` (str) — migas project slug, e.g. ``'nipreps/nibabies'``.
-      - ``sentry_dsn_env`` (str) — name of the environment variable holding the
-        Sentry DSN for this extension (secret stays out of source).
+      - ``sentry_dsn`` (str) — Sentry DSN for this extension.
 
       When ``None`` (the default), fmriprep's own telemetry identifiers are used.
 
