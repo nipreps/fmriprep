@@ -37,10 +37,10 @@ def main():
     from .parser import parse_args
     from .workflow import build_workflow
 
-    parse_args()
-
-    # Activate extension registry before telemetry so routing uses the right identifiers.
+    # Registry boot must precede CLI build so cli_extend can register flags.
     config.extensions.init()
+
+    parse_args()
 
     # Code Carbon
     if config.execution.track_carbon:

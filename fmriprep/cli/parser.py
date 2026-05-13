@@ -784,6 +784,9 @@ discourage its usage.""",
             file=sys.stderr,
         )
 
+    if config.extensions.active is not None:
+        config.extensions.active.cli_extend(parser)
+
     return parser
 
 
@@ -814,6 +817,9 @@ def parse_args(args=None, namespace=None):
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
+
+    if config.extensions.active is not None:
+        config.extensions.active.cli_populate(opts)
 
     if config.execution.work_dir is None:
         config.execution.work_dir = Path('work').absolute()
