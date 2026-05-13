@@ -710,16 +710,19 @@ class seeds(_Config):
         cls.numpy = _set_numpy_seed()
 
 
-class extensions:
-    """Config section for the active extension registry.
+class extensions(_Config):
+    """Config section for the active extension registry and per-extension settings.
 
-    Call :meth:`init` once at startup (after CLI parsing); the class
-    attributes are read-only thereafter and accessible as
-    ``config.extensions.active`` anywhere in the codebase.
+    Call :meth:`init` once at startup; class attributes are accessible as
+    ``config.extensions.*`` anywhere in the codebase.
+
+    Per-extension settings live in ``config.extensions.<name>`` sub-namespaces,
+    serialised as ``[extensions.<name>]`` TOML subtables in the run-state file.
     """
 
     _registry = None
     active = None
+    _namespaces: dict = {}
 
     @classmethod
     def init(cls) -> None:
@@ -733,15 +736,37 @@ class extensions:
         cls.active = cls._registry.active
 
     @classmethod
+    def get_namespace(cls, name: str) -> dict:
+        """Return (and lazily create) the mutable settings dict for *name*."""
+        if name not in cls._namespaces:
+            cls._namespaces[name] = {}
+        return cls._namespaces[name]
+
+    @classmethod
+    def set_namespace(cls, name: str, data: dict) -> None:
+        """Replace the settings dict for *name* (used during TOML reload)."""
+        cls._namespaces[name] = dict(data)
+
+    @classmethod
     def load(cls, settings, init=True, ignore=None):
-        """No-op currently; reserved for extension sub-namespace round-tripping."""
+        """Load per-extension sub-namespaces from a settings dict.
+
+        Top-level keys that map to dicts are treated as extension sub-namespace
+        tables; all others are ignored.
+        """
+        ignore = ignore or {}
+        for key, value in settings.items():
+            if key in ignore:
+                continue
+            if isinstance(value, dict):
+                cls.set_namespace(key, value)
         if init:
             cls.init()
 
     @classmethod
     def get(cls) -> dict:
-        """Return serializable config state (empty until extensions declare sub-namespaces)."""
-        return {}
+        """Return serialisable config state including per-extension sub-namespaces."""
+        return {name: dict(ns) for name, ns in cls._namespaces.items()}
 
 
 def _set_ants_seed():

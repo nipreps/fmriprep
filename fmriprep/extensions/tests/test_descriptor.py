@@ -19,6 +19,8 @@
 #
 """Tests for ExtensionDescriptor base."""
 
+import argparse
+
 import pytest
 
 from fmriprep.extensions.descriptor import ExtensionDescriptor
@@ -32,6 +34,24 @@ class _Good(ExtensionDescriptor):
 
     def init_anat_fit_wf(self, **kwargs):
         return ('built', kwargs)
+
+
+class _WithCLI(ExtensionDescriptor):
+    name = 'withcli'
+    version = '0.1.0'
+    fmriprep_compat = '>=26,<27'
+    contracts = {'anat_fit'}
+
+    def cli_extend(self, parser):
+        parser.add_argument_group('withcli options').add_argument(
+            '--foo', type=int, help='extra arg'
+        )
+
+    def cli_populate(self, opts):
+        self.set('foo', opts.foo)
+
+    def init_test_wf(self, **kwargs):
+        return {'foo': self.get('foo'), **kwargs}
 
 
 def test_subclass_missing_required_class_attrs_raises():
@@ -52,3 +72,21 @@ def test_get_builder_raises_for_unclaimed_hook():
     d = _Good()
     with pytest.raises(KeyError, match='does not claim'):
         d.get_builder('bold_reg')
+
+
+def test_cli_extend_args_are_parseable():
+    parser = argparse.ArgumentParser()
+    _WithCLI().cli_extend(parser)
+    opts = parser.parse_args(['--foo', '6'])
+    assert opts.foo == 6
+
+
+def test_cli_populate_then_workflow_reads_value():
+    from fmriprep import config
+
+    config.extensions._namespaces.clear()
+    d = _WithCLI()
+    d.cli_populate(argparse.Namespace(foo=6))
+    built_kwargs = d.init_test_wf()
+    assert built_kwargs['foo'] == 6
+    config.extensions._namespaces.clear()

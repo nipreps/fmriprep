@@ -86,20 +86,38 @@ class ExtensionDescriptor:
             raise KeyError(f'extension {self.name!r} does not claim hook {hook!r}')
         return getattr(self, f'init_{hook}_wf')
 
-    def cli_extend(self) -> dict | None:
-        """Return CLI extension definition or ``None`` to add no flags.
+    def get(self, key: str, default: Any = None) -> Any:
+        """Read *key* from this extension's config namespace."""
+        from fmriprep import config
 
-        The returned dict may contain:
+        return config.extensions.get_namespace(self.name).get(key, default)
 
-        - ``'args'``: list of ``([flag, ...], {kwarg: ...})`` tuples passed to
-          ``parser.add_argument()``.
-        - ``'populator'``: ``callable(opts) -> dict`` that extracts parsed
-          values from ``argparse.Namespace`` and returns a flat dict stored
-          as ``config.extensions.<name>.<key>``.
+    def set(self, key: str, value: Any) -> None:
+        """Write *key* into this extension's config namespace."""
+        from fmriprep import config
 
-        Returns ``None`` by default (no flags registered).
+        config.extensions.get_namespace(self.name)[key] = value
+
+    def cli_extend(self, parser) -> None:
+        """Add extension-specific arguments to *parser* in-place.
+
+        Called with fmriprep's fully-built :class:`argparse.ArgumentParser`
+        before it is returned from ``_build_parser``. Use
+        ``parser.add_argument_group`` to keep extension flags visually
+        separated in ``--help``.
+
+        Default: no-op (no flags added).
         """
-        return None
+
+    def cli_populate(self, opts) -> None:
+        """Write parsed CLI values into ``config.extensions.<name>``.
+
+        Called after argparse runs, receiving the parsed
+        :class:`argparse.Namespace`. Use
+        ``config.extensions.get_namespace(self.name)`` to store values.
+
+        Default: no-op.
+        """
 
     def config_extend(self) -> dict:
         """Return static core-config defaults this extension wants applied.
