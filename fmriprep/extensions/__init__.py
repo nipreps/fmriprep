@@ -21,6 +21,7 @@
 
 from fmriprep.extensions.exceptions import (
     ExtensionActivationError,
+    ExtensionConfigError,
     ExtensionContractError,
     ExtensionError,
     ExtensionRegistrationError,
@@ -28,6 +29,7 @@ from fmriprep.extensions.exceptions import (
 
 __all__ = [
     'ExtensionActivationError',
+    'ExtensionConfigError',
     'ExtensionContractError',
     'ExtensionError',
     'ExtensionRegistrationError',

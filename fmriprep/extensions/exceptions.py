@@ -47,3 +47,12 @@ class ExtensionActivationError(ExtensionError):
     environment: the design assumes a single extension per installation, so
     this is treated as a packaging error.
     """
+
+
+class ExtensionConfigError(ExtensionError):
+    """Raised by an extension's ``init_config`` when it cannot compute
+    its required dynamic config (e.g., a required path is missing).
+
+    Extensions should raise this with a message that tells the user
+    what to fix (e.g., 'set MCRIBS_HOME or pass --nibabies-mcribs-dir').
+    """

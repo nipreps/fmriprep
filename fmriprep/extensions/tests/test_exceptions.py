@@ -21,6 +21,7 @@
 
 from fmriprep.extensions.exceptions import (
     ExtensionActivationError,
+    ExtensionConfigError,
     ExtensionContractError,
     ExtensionError,
     ExtensionRegistrationError,
@@ -32,5 +33,6 @@ def test_extension_errors_subclasses():
         ExtensionRegistrationError,
         ExtensionContractError,
         ExtensionActivationError,
+        ExtensionConfigError,
     ):
         assert issubclass(cls, ExtensionError)
