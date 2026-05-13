@@ -85,3 +85,45 @@ class ExtensionDescriptor:
         if hook not in self.contracts:
             raise KeyError(f'extension {self.name!r} does not claim hook {hook!r}')
         return getattr(self, f'init_{hook}_wf')
+
+    def cli_extend(self) -> dict | None:
+        """Return CLI extension definition or ``None`` to add no flags.
+
+        The returned dict may contain:
+
+        - ``'args'``: list of ``([flag, ...], {kwarg: ...})`` tuples passed to
+          ``parser.add_argument()``.
+        - ``'populator'``: ``callable(opts) -> dict`` that extracts parsed
+          values from ``argparse.Namespace`` and returns a flat dict stored
+          as ``config.extensions.<name>.<key>``.
+
+        Returns ``None`` by default (no flags registered).
+        """
+        return None
+
+    def config_extend(self) -> dict:
+        """Return static core-config defaults this extension wants applied.
+
+        Keys use dot notation (e.g. ``'workflow.run_reconall'``). Applied after
+        CLI parse, only where the user left the field at its fmriprep default.
+        User-supplied values always win.
+
+        Returns an empty dict by default (no overrides).
+        """
+        return {}
+
+    def init_config(self, config_view) -> None:
+        """Compute extension-owned dynamic config values.
+
+        Called after core dynamic config has been set. Receives a proxy view:
+
+        - ``config_view.execution``, ``config_view.workflow``, etc. are
+          **read-only** wrappers around the corresponding core sections.
+        - ``config_view.set(key, value)`` writes into
+          ``config.extensions.<name>.<key>``.
+        - ``config_view.get(key, default)`` reads from
+          ``config.extensions.<name>``.
+
+        Raise :class:`~fmriprep.extensions.exceptions.ExtensionConfigError`
+        if a required value cannot be computed.
+        """
