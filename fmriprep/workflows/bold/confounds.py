@@ -262,6 +262,9 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     # Create the crown mask
     dilated_mask = pe.Node(BinaryDilation(), name='dilated_mask')
     subtract_mask = pe.Node(BinarySubtraction(), name='subtract_mask')
+    crown_clip = pe.Node(
+        niu.Function(function=_clip_mask_to_coverage), name='crown_clip', mem_gb=mem_gb
+    )
 
     # DVARS
     dvars = pe.Node(
@@ -536,7 +539,9 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         (union_mask, dilated_mask, [('out', 'in_mask')]),
         (union_mask, subtract_mask, [('out', 'in_subtract')]),
         (dilated_mask, subtract_mask, [('out_mask', 'in_base')]),
-        (subtract_mask, outputnode, [('out_mask', 'crown_mask')]),
+        (subtract_mask, crown_clip, [('out_mask', 'mask')]),
+        (inputnode, crown_clip, [('bold', 'bold')]),
+        (crown_clip, outputnode, [('out', 'crown_mask')]),
         # aCompCor
         (inputnode, acompcor, [('bold', 'realigned_file'),
                                ('skip_vols', 'ignore_initial_volumes')]),
@@ -555,7 +560,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         # crownCompCor
         (inputnode, crowncompcor, [('bold', 'realigned_file'),
                                    ('skip_vols', 'ignore_initial_volumes')]),
-        (subtract_mask, crowncompcor, [('out_mask', 'mask_files')]),
+        (crown_clip, crowncompcor, [('out', 'mask_files')]),
 
         # tCompCor
         (inputnode, tcompcor, [('bold', 'realigned_file'),
@@ -606,7 +611,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
                                 ('bold_mask', 'in_mask')]),
         (tcompcor, mrg_compcor, [('high_variance_masks', 'in1')]),
         (acc_msk_bin, mrg_compcor, [(('out_file', _last), 'in2')]),
-        (subtract_mask, mrg_compcor, [('out_mask', 'in3')]),
+        (crown_clip, mrg_compcor, [('out', 'in3')]),
         (mrg_compcor, rois_plot, [('out', 'in_rois')]),
         (rois_plot, ds_report_bold_rois, [('out_report', 'in_file')]),
         (tcompcor, mrg_cc_metadata, [('metadata_file', 'in1')]),
@@ -782,6 +787,23 @@ def _binary_union(mask1, mask2):
     out = img.__class__(mskarr1 | mskarr2, img.affine, img.header)
     out.set_data_dtype('uint8')
     out_name = Path('mask_union.nii.gz').absolute()
+    out.to_filename(out_name)
+    return str(out_name)
+
+
+def _clip_mask_to_coverage(mask, bold):
+    """Restrict mask to voxels where the BOLD time series carries variance."""
+    from pathlib import Path
+
+    import nibabel as nb
+    import numpy as np
+
+    img = nb.load(mask)
+    mskarr = np.asanyarray(img.dataobj, dtype=int) > 0
+    has_signal = nb.load(bold).get_fdata().var(axis=-1) > 0
+    out = img.__class__(mskarr & has_signal, img.affine, img.header)
+    out.set_data_dtype('uint8')
+    out_name = Path('crown_mask_clipped.nii.gz').absolute()
     out.to_filename(out_name)
     return str(out_name)
 
