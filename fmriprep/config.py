@@ -768,6 +768,28 @@ class extensions(_Config):
         """Return serialisable config state including per-extension sub-namespaces."""
         return {name: dict(ns) for name, ns in cls._namespaces.items()}
 
+    @classmethod
+    def apply_config_overrides(cls) -> None:
+        """Apply active extension's static config defaults where fields are unset.
+
+        Walks the dict returned by ``active.config_extend()`` and sets each
+        field only if the current value is ``None`` (i.e. the user did not
+        supply it explicitly). User-supplied values always win.
+        """
+        if cls.active is None:
+            return
+        import sys
+
+        for dotted_key, value in cls.active.config_extend().items():
+            section_name, _, field = dotted_key.partition('.')
+            if not field:
+                continue
+            section = getattr(sys.modules[__name__], section_name, None)
+            if section is None:
+                continue
+            if getattr(section, field, None) is None:
+                setattr(section, field, value)
+
 
 def _set_ants_seed():
     """Fix random seed for antsRegistration, antsAI, antsMotionCorr"""

@@ -1,0 +1,47 @@
+# Copyright The NiPreps Developers <nipreps@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# We support and encourage derived works from this project, please read
+# about our expectations at
+#
+#     https://www.nipreps.org/community/licensing/
+#
+"""Tests for lifecycle hooks: config_extend and init_config."""
+
+from fmriprep.extensions.tests.test_registry import DummyExtension
+
+
+class _DefaultingExtension(DummyExtension):
+    name = 'defaulting'
+
+    def config_extend(self):
+        return {'workflow.hires': False}
+
+
+def test_config_extend_applies_when_field_is_none(monkeypatch):
+    from fmriprep import config
+
+    monkeypatch.setattr(config.workflow, 'hires', None)
+    monkeypatch.setattr(config.extensions, 'active', _DefaultingExtension())
+    config.extensions.apply_config_overrides()
+    assert config.workflow.hires is False
+
+
+def test_config_extend_does_not_override_user_value(monkeypatch):
+    from fmriprep import config
+
+    monkeypatch.setattr(config.workflow, 'hires', True)
+    monkeypatch.setattr(config.extensions, 'active', _DefaultingExtension())
+    config.extensions.apply_config_overrides()
+    assert config.workflow.hires is True
