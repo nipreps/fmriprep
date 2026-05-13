@@ -28,7 +28,7 @@ from contextlib import nullcontext
 import pytest
 from packaging.version import Version
 
-from ... import config
+from ... import config, data
 from ...tests.test_config import _reset_config
 from .. import version as _version
 from ..parser import _build_parser, parse_args
@@ -286,3 +286,49 @@ def test_optional_booleans(tmp_path, supp_args, opt, expected):
     args = [str(tmp_path), out_path, 'participant'] + supp_args
     pargs = _build_parser().parse_args(args)
     assert getattr(pargs, opt) == expected
+    _reset_config()
+
+
+def test_reuse_config(tmp_path):
+    from niworkflows.utils.testing import generate_bids_skeleton
+
+    # Mirror the test config input
+    bids_dir = tmp_path / 'ds000005'
+    generate_bids_skeleton(bids_dir, {'01': {'anat': {'suffix': 'T1w'}}})
+    # Avoid requiring validator installation
+    cli_args = [str(bids_dir), str(tmp_path / 'out'), 'participant', '--skip-bids-validation']
+
+    parse_args(cli_args)
+    default_config = config.get(flat=True)
+    assert default_config['execution.output_spaces'] == 'MNI152NLin2009cAsym:res-native'
+    _reset_config()
+
+    config_file = data.load('tests/config.toml')
+    config_args = ['--config-file', str(config_file)]
+    parse_args(cli_args + config_args)
+    reused_config = config.get(flat=True)
+    # Reusing the config will apply same values
+    assert (
+        reused_config['execution.output_spaces']
+        == 'MNI152NLin2009cAsym:res-2 MNI152NLin2009cAsym:res-native fsaverage:den-10k fsaverage:den-30k'
+    )
+    # But some will still differ
+    assert reused_config['execution.log_dir'] not in config_file.read_text()
+    _reset_config()
+
+    overridden_args = (
+        cli_args + config_args + ['--output-spaces', 'MNI152NLin6Asym', '--force', 'bbr']
+    )
+    # set new output directory
+    overridden_args[1] = str(tmp_path / 'out2')
+    parse_args(overridden_args)
+    overridden_config = config.get(flat=True)
+
+    # Passed in argument will override
+    assert overridden_config['execution.output_spaces'] == 'MNI152NLin6Asym:res-native'
+    assert 'bbr' in overridden_config['workflow.force']
+
+    # But some values will still differ
+    for v in ('execution.run_uuid', 'execution.fmriprep_dir'):
+        assert reused_config[v] != overridden_config[v]
+    _reset_config()

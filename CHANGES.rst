@@ -1,16 +1,32 @@
+25.2.5 (March 10, 2026)
+=======================
+Bug-fix release in the 25.2.x series.
+
+This release restores compatibility with the treatment of multi-session data with
+older versions of fMRIPrep by providing the ``--no-track-sessions`` flag.
+Future versions of fMRIPrep may have different default behaviors for multi-session data,
+so please report any issues you encounter with either setting of this flag
+or multi-session data in general.
+
+  * FIX: Reuse fewer config options when using ``--config-file`` (#3625)
+  * FIX: Missing logger (#3624)
+  * FIX: Avoid overwriting codecarbon output (#3623)
+  * FIX: Sanitize plus signs in from entities in workflow names (#3604)
+  * ENH: add ``--[no-]track-sessions`` flag to lessen session label strictness (#3614)
+
 25.2.4 (January 14, 2026)
 =========================
 Bug-fix release in the 25.2.x series.
 
 This release addresses some errors in multi-echo and multi-session processing.
 
-* FIX: Set source_file in ds_report* nodes at resampling level (#3590)
-* FIX: Ravel multi-echo data for BIDSSourceFile with precomputed smriprep (#3583)
-* FIX: Ensure multi-echo processing and slice timing correction text is in boilerplate (#3577)
-* FIX: Pass session_id to fieldmap finder (#3573)
-* FIX: Import LinAlgError from a stable location (#3572)
-* ENH: Raise error if two-echo data are provided (#3570)
-* MNT: Prune Ubuntu environment before building docker images (#3571)
+  * FIX: Set source_file in ds_report* nodes at resampling level (#3590)
+  * FIX: Ravel multi-echo data for BIDSSourceFile with precomputed smriprep (#3583)
+  * FIX: Ensure multi-echo processing and slice timing correction text is in boilerplate (#3577)
+  * FIX: Pass session_id to fieldmap finder (#3573)
+  * FIX: Import LinAlgError from a stable location (#3572)
+  * ENH: Raise error if two-echo data are provided (#3570)
+  * MNT: Prune Ubuntu environment before building docker images (#3571)
 
 25.2.3 (October 17, 2025)
 =========================

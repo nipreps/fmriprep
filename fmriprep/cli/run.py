@@ -43,13 +43,16 @@ def main():
     if config.execution.track_carbon:
         from codecarbon import OfflineEmissionsTracker
 
+        codecarbon_log_dir = config.execution.log_dir / 'codecarbon' / config.execution.run_uuid
+        codecarbon_log_dir.mkdir(parents=True, exist_ok=True)
+
         country_iso_code = config.execution.country_code
         config.loggers.workflow.log(25, 'CodeCarbon tracker started ...')
         config.loggers.workflow.log(25, f'Using country_iso_code: {country_iso_code}')
-        config.loggers.workflow.log(25, f'Saving logs at: {config.execution.log_dir}')
+        config.loggers.workflow.log(25, f'Saving logs at: {codecarbon_log_dir}')
 
         tracker = OfflineEmissionsTracker(
-            output_dir=config.execution.log_dir, country_iso_code=country_iso_code
+            output_dir=codecarbon_log_dir, country_iso_code=country_iso_code
         )
         tracker.start()
 

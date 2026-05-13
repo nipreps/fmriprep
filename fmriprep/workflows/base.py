@@ -265,6 +265,7 @@ It is released under the [CC0]\
 
     spaces = config.workflow.spaces
     msm_sulc = config.workflow.run_msmsulc
+    sessionwise = config.workflow.subject_anatomical_reference == 'sessionwise'
 
     anatomical_cache = {}
     if config.execution.derivatives:
@@ -297,7 +298,7 @@ It is released under the [CC0]\
     src_file = pe.Node(
         BIDSSourceFile(
             precomputed=anatomical_cache,
-            sessionwise=config.workflow.subject_anatomical_reference == 'sessionwise',
+            sessionwise=sessionwise,
         ),
         name='source_anatomical',
     )
@@ -410,6 +411,9 @@ It is released under the [CC0]\
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
 
+    if not config.workflow.track_sessions and not sessionwise:
+        workflow.disconnect(bids_info, 'session', create_fs_id, 'session_id')
+
     # Set up the template iterator once, if used
     template_iterator_wf = None
     select_MNI2009c_xfm = None
@@ -439,7 +443,6 @@ It is released under the [CC0]\
                     ('outputnode.std_t1w', 'inputnode.ref_file'),
                     ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
                     ('outputnode.space', 'inputnode.space'),
-                    ('outputnode.cohort', 'inputnode.cohort'),
                     ('outputnode.resolution', 'inputnode.resolution'),
                 ]),
             ])  # fmt:skip
@@ -858,6 +861,8 @@ tasks and sessions), the following preprocessing was performed.
             from fmriprep.utils.bids import collect_derivatives, extract_entities
 
             entities = extract_entities(bold_series)
+            dismiss_entities = dismiss_echo(['part'])
+            entities = {k: v for k, v in entities.items() if k not in dismiss_entities}
 
             for deriv_dir in config.execution.derivatives.values():
                 functional_cache.update(
@@ -911,7 +916,6 @@ tasks and sessions), the following preprocessing was performed.
                         ('outputnode.anat2std_xfm', 'inputnode.anat2std_xfm'),
                         ('outputnode.space', 'inputnode.std_space'),
                         ('outputnode.resolution', 'inputnode.std_resolution'),
-                        ('outputnode.cohort', 'inputnode.std_cohort'),
                         ('outputnode.std_t1w', 'inputnode.std_t1w'),
                         ('outputnode.std_mask', 'inputnode.std_mask'),
                     ]),

@@ -136,8 +136,6 @@ def init_bold_wf(
         Value of space entity to be used in standard space output filenames
     std_resolution
         Value of resolution entity to be used in standard space output filenames
-    std_cohort
-        Value of cohort entity to be used in standard space output filenames
     anat2mni6_xfm
         Transform from anatomical space to MNI152NLin6Asym space
     mni6_mask
@@ -146,7 +144,7 @@ def init_bold_wf(
         Transform from MNI152NLin2009cAsym to anatomical space
 
     Note that ``anat2std_xfm``, ``std_space``, ``std_resolution``,
-    ``std_cohort``, ``std_t1w`` and ``std_mask`` are treated as single
+    ``std_t1w`` and ``std_mask`` are treated as single
     inputs. In order to resample to multiple target spaces, connect
     these fields to an iterable.
 
@@ -230,7 +228,6 @@ configured with cubic B-spline interpolation.
                 'std_mask',
                 'std_space',
                 'std_resolution',
-                'std_cohort',
                 # MNI152NLin6Asym warp, for CIFTI use
                 'anat2mni6_xfm',
                 'mni6_mask',
@@ -488,7 +485,6 @@ configured with cubic B-spline interpolation.
                 ('std_t1w', 'inputnode.template'),
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
-                ('std_cohort', 'inputnode.cohort'),
             ]),
             (bold_fit_wf, ds_bold_std_wf, [
                 ('outputnode.bold_mask', 'inputnode.bold_mask'),
@@ -714,7 +710,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 template = ref_.space
                 density = ref_.spec.get('density') or ref_.spec.get('den') or None
                 if density is None:
-                    config.loggers.warning(f'Cannot resample {ref_} without density specified.')
+                    config.loggers.workflow.warning(
+                        f'Cannot resample {ref_} without density specified.'
+                    )
                     continue
 
                 resample_surfaces_wf = init_resample_surfaces_wf(
@@ -877,8 +875,10 @@ def _get_wf_name(bold_fname, prefix):
     from nipype.utils.filemanip import split_filename
 
     fname = split_filename(bold_fname)[1]
-    fname_nosub = '_'.join(fname.split('_')[1:-1])
-    return f'{prefix}_{fname_nosub.replace("-", "_")}_wf'
+    fname_sanitized = '_'.join(fname.split('_')[1:-1])
+    for char in '-+':
+        fname_sanitized = fname_sanitized.replace(char, '_')
+    return f'{prefix}_{fname_sanitized}_wf'
 
 
 def extract_entities(file_list):

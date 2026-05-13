@@ -784,7 +784,6 @@ def init_ds_volumes_wf(
                 'anat2std_xfm',
                 # Entities
                 'space',
-                'cohort',
                 'resolution',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
@@ -837,7 +836,6 @@ def init_ds_volumes_wf(
         (inputnode, ds_bold, [
             ('bold', 'in_file'),
             ('space', 'space'),
-            ('cohort', 'cohort'),
             ('resolution', 'resolution'),
         ]),
         (sources, ds_bold, [('out', 'Sources')]),
@@ -930,7 +928,6 @@ def init_ds_volumes_wf(
         ] + [
             (inputnode, datasink, [
                 ('space', 'space'),
-                ('cohort', 'cohort'),
                 ('resolution', 'resolution'),
             ])
             for datasink in datasinks

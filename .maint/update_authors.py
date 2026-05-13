@@ -259,10 +259,8 @@ def publication(
 
     aff_indexes = [
         ', '.join(
-            [
-                f'{affiliations.index(a) + 1}'
-                for a in _aslist(author.get('affiliation', 'Unaffiliated'))
-            ]
+            f'{affiliations.index(a) + 1}'
+            for a in _aslist(author.get('affiliation', 'Unaffiliated'))
         )
         for author in authors
     ]

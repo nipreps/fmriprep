@@ -8,7 +8,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 
 from .... import config
 from ...tests import mock_config
-from ...tests.test_base import BASE_LAYOUT
+from ...tests.layouts import get_layout
 from ..fit import init_bold_fit_wf, init_bold_native_wf
 
 
@@ -27,7 +27,7 @@ def _quiet_logger():
 def bids_root(tmp_path_factory):
     base = tmp_path_factory.mktemp('boldfit')
     bids_dir = base / 'bids'
-    generate_bids_skeleton(bids_dir, BASE_LAYOUT)
+    generate_bids_skeleton(bids_dir, get_layout('no_session'))
     return bids_dir
 
 
@@ -122,6 +122,7 @@ def test_bold_fit_precomputes(
         precomputed['transforms']['boldref2fmap'] = dummy_affine
 
     with mock_config(bids_dir=bids_root):
+        config.workflow.bold2anat_init = 't1w'
         wf = init_bold_fit_wf(
             bold_series=bold_series,
             precomputed=precomputed,

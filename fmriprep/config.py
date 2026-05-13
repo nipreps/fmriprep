@@ -527,7 +527,7 @@ class execution(_Config):
                 else:
                     return (
                         getattr(Query, value[7:-4])
-                        if not isinstance(value, Query) and 'Query' in value
+                        if isinstance(value, str) and 'Query' in value
                         else value
                     )
 
@@ -631,6 +631,8 @@ class workflow(_Config):
     `first-lex` will use the first image in lexicographical order, `unbiased` will
     construct an unbiased template from all available images (previously --longitudinal),
     and `sessionwise` will independently process each session."""
+    track_sessions = True
+    """Propagate sessions within each sub-workflow."""
     use_aroma = None
     """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None
@@ -739,7 +741,9 @@ def from_dict(settings, init=True, ignore=None):
 
     # Accept global True/False or container of configs to initialize
     def initialize(x):
-        return init if init in (True, False) else x in init
+        if isinstance(init, bool):
+            return init
+        return x in init
 
     nipype.load(settings, init=initialize('nipype'), ignore=ignore)
     execution.load(settings, init=initialize('execution'), ignore=ignore)
@@ -747,6 +751,31 @@ def from_dict(settings, init=True, ignore=None):
     seeds.load(settings, init=initialize('seeds'), ignore=ignore)
 
     loggers.init()
+
+
+# Certain config fields are not directly settable, and should not be copied when reused
+# Additionally, some toggle arguments only can be switched one way
+REUSE_SKIPS = {
+    'execution': [
+        'dataset_links',
+        'layout',
+        '_layout',
+        'fmriprep_dir',
+        'notrack',
+        'sloppy',
+        'templateflow_home',
+        'run_uuid',
+        'log_dir',
+    ],
+    'workflow': [
+        'anat_only',
+    ],
+    'seeds': [],
+}
+
+
+def default_reuse_skips():
+    return {k: list(v) for k, v in REUSE_SKIPS.items()}
 
 
 def load(filename, skip=None, init=True):
@@ -772,10 +801,11 @@ def load(filename, skip=None, init=True):
     filename = Path(filename)
     settings = loads(filename.read_text())
     for sectionname, configs in settings.items():
-        if sectionname != 'environment':
-            section = getattr(sys.modules[__name__], sectionname)
-            ignore = skip.get(sectionname)
-            section.load(configs, ignore=ignore, init=initialize(sectionname))
+        if sectionname == 'environment':
+            continue
+        section = getattr(sys.modules[__name__], sectionname)
+        ignore = skip.get(sectionname)
+        section.load(configs, ignore=ignore, init=initialize(sectionname))
     init_spaces()
 
 
@@ -890,3 +920,81 @@ def _deserialize_pg(value: list[str]) -> list[tuple[str, list[str] | None]]:
             ses = ses.removeprefix('ses-').split(',')
         deserial.append((sub, ses or None))
     return deserial
+
+
+def _create_processing_groups() -> list[tuple[str, str | list[str] | None]]:
+    """
+    Generate subject/session groupings for processing.
+
+    This function determines how BIDS subjects and sessions should be grouped
+    for downstream processing, based on workflow configuration.
+
+    The grouping behavior depends on two workflow settings:
+
+    - ``workflow.subject_anatomical_reference == "sessionwise"``
+        Each (subject, session) pair is processed independently.
+        If a subject has no sessions, it is treated as a single-session subject.
+
+    - ``workflow.track_sessions == True``
+        Sessions are preserved and returned as a list associated with the subject.
+        This produces session-aware derivatives, such as sub-X-ses-Y FreeSurfer IDs.
+
+    - Otherwise
+        Session information is discarded and subjects are processed without
+        session differentiation.
+
+    Returns
+    -------
+    list
+        A list of processing groups. Each element is a tuple and can consist of:
+
+        - (subject, session) if operating session-wise
+        - (subject, [sessions]) if tracking sessions
+        - (subject, None) if sessions are ignored
+
+    Raises
+    ------
+    RuntimeError
+        If the BIDS layout has not been initialized.
+    """
+    layout = execution.layout
+    if layout is None:
+        raise RuntimeError('BIDS Layout is not initialized. Cannot create processing groups.')
+
+    from bids.layout import Query
+
+    sessionwise = workflow.subject_anatomical_reference == 'sessionwise'
+    track_sessions = workflow.track_sessions
+
+    if not sessionwise and not track_sessions:
+        loggers.cli.warning('Session information will not be preserved.')
+
+    subject_session_list: list[tuple[str, str | list[str] | None]] = []
+
+    for subject in execution.participant_label:
+        sessions = (
+            layout.get_sessions(
+                scope='raw',
+                subject=subject,
+                session=execution.session_label or Query.OPTIONAL,
+            )
+            or None
+        )
+
+        if sessionwise:
+            if not sessions:
+                loggers.cli.warning(
+                    '`--subject-anatomical-reference sessionwise` was requested, but '
+                    f'no sessions were found for subject {subject}. Treating as '
+                    'single-session.'
+                )
+                subject_session_list.append((subject, None))
+            else:
+                subject_session_list.extend((subject, ses) for ses in sessions)
+            continue
+
+        # Non-sessionwise processing
+        subject_session_list.append((subject, sessions if track_sessions else None))
+
+    execution.processing_groups = subject_session_list
+    return subject_session_list

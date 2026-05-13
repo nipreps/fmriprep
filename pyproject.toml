@@ -1,5 +1,9 @@
 [build-system]
-requires = ["hatchling>=1.27", "hatch-vcs", "nipreps-versions"]
+requires = [
+    "hatchling>=1.27",
+    "hatch-vcs",
+    "nipreps-versions",
+]
 build-backend = "hatchling.build"
 
 [project]

@@ -8,7 +8,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 
 from .... import config
 from ...tests import mock_config
-from ...tests.test_base import BASE_LAYOUT
+from ...tests.layouts import get_layout
 from ..base import init_bold_wf
 
 
@@ -27,7 +27,7 @@ def _quiet_logger():
 def bids_root(tmp_path_factory):
     base = tmp_path_factory.mktemp('boldbase')
     bids_dir = base / 'bids'
-    generate_bids_skeleton(bids_dir, BASE_LAYOUT)
+    generate_bids_skeleton(bids_dir, get_layout('no_session'))
     return bids_dir
 
 
