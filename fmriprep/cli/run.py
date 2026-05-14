@@ -41,7 +41,7 @@ def main():
     config.extensions.init()
 
     parse_args()
-    config.extensions.apply_config_overrides()
+    config.extensions.configure()
 
     # Code Carbon
     if config.execution.track_carbon:

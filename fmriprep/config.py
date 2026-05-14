@@ -769,26 +769,18 @@ class extensions(_Config):
         return {name: dict(ns) for name, ns in cls._namespaces.items()}
 
     @classmethod
-    def apply_config_overrides(cls) -> None:
-        """Apply active extension's static config defaults where fields are unset.
+    def configure(cls) -> None:
+        """Finalise extension config after CLI parse.
 
-        Walks the dict returned by ``active.config_extend()`` and sets each
-        field only if the current value is ``None`` (i.e. the user did not
-        supply it explicitly). User-supplied values always win.
+        Calls the active extension's ``init_config``, passing a read-only
+        proxy of the core config sections. The base implementation of
+        ``init_config`` applies static defaults from ``config_extend``;
+        subclasses extend it with dynamic derivations by calling
+        ``super().init_config(config_view)`` first.
         """
         if cls.active is None:
             return
-        import sys
-
-        for dotted_key, value in cls.active.config_extend().items():
-            section_name, _, field = dotted_key.partition('.')
-            if not field:
-                continue
-            section = getattr(sys.modules[__name__], section_name, None)
-            if section is None:
-                continue
-            if getattr(section, field, None) is None:
-                setattr(section, field, value)
+        cls.active.init_config()
 
 
 def _set_ants_seed():

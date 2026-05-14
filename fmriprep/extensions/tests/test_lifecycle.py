@@ -29,19 +29,40 @@ class _DefaultingExtension(DummyExtension):
         return {'workflow.hires': False}
 
 
-def test_config_extend_applies_when_field_is_none(monkeypatch):
+def test_config_extend_applies(monkeypatch):
     from fmriprep import config
 
     monkeypatch.setattr(config.workflow, 'hires', None)
     monkeypatch.setattr(config.extensions, 'active', _DefaultingExtension())
-    config.extensions.apply_config_overrides()
+    config.extensions.configure()
     assert config.workflow.hires is False
 
 
-def test_config_extend_does_not_override_user_value(monkeypatch):
+def test_config_extend_preserves_user_value(monkeypatch):
     from fmriprep import config
 
     monkeypatch.setattr(config.workflow, 'hires', True)
     monkeypatch.setattr(config.extensions, 'active', _DefaultingExtension())
-    config.extensions.apply_config_overrides()
+    config.extensions.configure()
     assert config.workflow.hires is True
+
+
+class _DynamicExtension(DummyExtension):
+    name = 'dynext'
+
+    def init_config(self):
+        super().init_config()
+        age = self.get('age_months')
+        self.set('atlas_label', f'infant-{age}mo')
+
+
+def test_init_config_derives_value_from_namespace(monkeypatch):
+    from fmriprep import config
+
+    config.extensions._namespaces.clear()
+    d = _DynamicExtension()
+    monkeypatch.setattr(config.extensions, 'active', d)
+    d.set('age_months', 6)
+    config.extensions.configure()
+    assert config.extensions.active.get('atlas_label') == 'infant-6mo'
+    config.extensions._namespaces.clear()

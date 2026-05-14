@@ -130,18 +130,28 @@ class ExtensionDescriptor:
         """
         return {}
 
-    def init_config(self, config_view) -> None:
-        """Compute extension-owned dynamic config values.
+    def init_config(self) -> None:
+        """Initialise extension config after CLI parse.
 
-        Called after core dynamic config has been set. Receives a proxy view:
-
-        - ``config_view.execution``, ``config_view.workflow``, etc. are
-          **read-only** wrappers around the corresponding core sections.
-        - ``config_view.set(key, value)`` writes into
-          ``config.extensions.<name>.<key>``.
-        - ``config_view.get(key, default)`` reads from
-          ``config.extensions.<name>``.
+        The base implementation applies static defaults from
+        :meth:`config_extend` to core config fields the user left unset.
+        Subclasses must call ``super().init_config()`` first, then read
+        core config directly (``from fmriprep import config``) and write
+        derived values via :meth:`set`.
 
         Raise :class:`~fmriprep.extensions.exceptions.ExtensionConfigError`
         if a required value cannot be computed.
         """
+        import sys
+
+        import fmriprep.config as _cfg
+
+        for dotted_key, value in self.config_extend().items():
+            section_name, _, field = dotted_key.partition('.')
+            if not field:
+                continue
+            section = getattr(sys.modules[_cfg.__name__], section_name, None)
+            if section is None:
+                continue
+            if getattr(section, field, None) is None:
+                setattr(section, field, value)
