@@ -17,7 +17,7 @@
 #
 #     https://www.nipreps.org/community/licensing/
 #
-"""Tests for config.extensions sub-namespace serialisation."""
+"""Tests for config.extensions sub-namespace serialization."""
 
 from fmriprep import config
 
@@ -32,7 +32,7 @@ def teardown_function():
 
 def test_namespace_survives_toml_round_trip():
     config.extensions.set_namespace('nibabies', {'age_months': 6})
-    serialised = config.extensions.get()
+    serialized = config.extensions.get()
     config.extensions._namespaces.clear()
-    config.extensions.load(serialised, init=False)
+    config.extensions.load(serialized, init=False)
     assert config.extensions.get_namespace('nibabies')['age_months'] == 6

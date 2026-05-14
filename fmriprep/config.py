@@ -717,7 +717,7 @@ class extensions(_Config):
     ``config.extensions.*`` anywhere in the codebase.
 
     Per-extension settings live in ``config.extensions.<name>`` sub-namespaces,
-    serialised as ``[extensions.<name>]`` TOML subtables in the run-state file.
+    serialized as ``[extensions.<name>]`` TOML subtables in the run-state file.
     """
 
     _registry = None
@@ -772,11 +772,9 @@ class extensions(_Config):
     def configure(cls) -> None:
         """Finalise extension config after CLI parse.
 
-        Calls the active extension's ``init_config``, passing a read-only
-        proxy of the core config sections. The base implementation of
-        ``init_config`` applies static defaults from ``config_extend``;
-        subclasses extend it with dynamic derivations by calling
-        ``super().init_config(config_view)`` first.
+        Calls the active extension's :meth:`~fmriprep.extensions.descriptor.ExtensionDescriptor.init_config`.
+        The base implementation applies static defaults from ``config_extend``; subclasses call
+        ``super().init_config()`` first, then derive dynamic values.
         """
         if cls.active is None:
             return

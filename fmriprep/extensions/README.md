@@ -1,64 +1,50 @@
 # fMRIPrep extension framework
 
-This subpackage is fmriprep's plugin surface. Extensions are independently-released Python packages that specialize fmriprep for populations or methods variants (e.g., `nibabies` for infants) without forking the whole pipeline.
+This subpackage is fmriprep's plugin surface. Extensions are independently-released Python packages that specialize fmriprep for populations or method variants (e.g., `nibabies` for infants) without forking the whole pipeline.
 
 ## Layout
 
 ```
 fmriprep/extensions/
-├── README.md              ← you are here
-├── __init__.py            ← public re-exports (exception types, etc.)
-├── exceptions.py          ← typed errors raised by the framework
-├── descriptor.py          ← ExtensionDescriptor base class (the surface
-│                            extensions subclass)
-├── contracts/             ← schema declarations for hookable workflows
-│   ├── __init__.py        ← Contract + ContractField + catalog + lookups
-│   └── anat_fit.py        ← AnatFitContract
-├── registry.py            ← Registry: validates installed extensions and
-│                            resolves the active one's builders
-├── dispatch.py            ← build(hook, default_builder, **kwargs):
-│                            routes to the active extension or default
-└── tests/                 ← framework + contract tests
+├── __init__.py       ← public re-exports (exception types)
+├── exceptions.py     ← typed errors raised by the framework
+├── descriptor.py     ← ExtensionDescriptor base class
+├── registry.py       ← discovers and validates installed extensions
+├── dispatch.py       ← routes hook calls to the active extension or default
+└── contracts/
+    ├── __init__.py   ← Contract, ContractField, catalog, lookups
+    └── anat_fit.py   ← AnatFitContract
 ```
-
-Future modules (container conformance checker, lifecycle hooks) land alongside as the framework grows.
 
 ## Concepts
 
-**Hook.** A named integration point — a slot fmriprep declares (e.g. `anat_fit`). Extensions claim hooks they implement.
+**Descriptor** (`descriptor.py`) — the single class an extension exposes. It declares identity (`name`, `version`), fmriprep compatibility (`fmriprep_compat`), the hook names it implements (`contracts`), and the methods that produce each workflow (`init_<hook>_wf`). It also holds lifecycle hooks (`cli_extend`, `cli_populate`, `init_config`) and owns the extension's config namespace via `self.get()`/`self.set()`.
 
-Two flavors:
+**Contract** (`contracts/`) — the schema for a workflow-builder hook: the declared inputnode and outputnode fields. Contracts are runtime-introspectable so fmriprep can verify that an extension's produced workflow satisfies the expected interface. Construction-time kwargs (e.g. "is T2w available?") are outside the contract and passed through freely.
 
-- **Workflow-builder hooks** (e.g. `anat_fit`, `bold_fit`, `bold_reg`) — points at which fmriprep delegates construction of a sub-workflow to the active extension. Each is paired with a *contract*.
-- **Lifecycle hooks** (e.g. `cli_extend`, `init_config`) — callbacks fmriprep invokes at deterministic points during startup. Documented signatures, not contracts.
+**Registry** (`registry.py`) — discovers extensions via `importlib.metadata.entry_points(group='fmriprep.extensions')`, validates each descriptor (compat check, required attributes, builder presence), and resolves which one is active. Only one extension per installation is supported; more than one raises `ExtensionActivationError`.
 
-**Contract.** The schema for a workflow-builder hook: declared inputnode and outputnode fields. Contracts are runtime-introspectable so fmriprep can validate extension implementations against them. Implementations are free to take additional construction-time keyword arguments (used for build-time decisions like "is T2w available?") that are not part of the contract.
+**Dispatch** (`dispatch.py`) — the call-site interface for workflow-builder hooks. `build(hook, default_builder, **kwargs)` routes to the active extension's builder if one claims the hook, otherwise calls `default_builder`. The default is supplied at the call site, not registered globally, so fmriprep's native workflows remain the explicit fallback.
 
-**Descriptor.** The single class an extension exposes. It declares identity (`name`, `version`), fmriprep compatibility (`fmriprep_compat`), and the set of hook names it implements, plus the methods that produce each workflow.
+## Startup lifecycle
 
-## Stability promise
-
-fmriprep follows **CalVer**: the major version reflects the release year, not API-stability semantics. API-breaking changes (including contract changes) land in **minor** bumps; **patch** releases are bug fixes and preserve contracts.
-
-Within a given minor:
-
-- Patch releases (e.g., `26.1.0` → `26.1.1`) preserve all contracts. Extensions targeting `26.1.*` keep working.
-- Minor bumps (e.g., `26.1.0` → `26.2.0`) may add new optional outputs *or* introduce breaking contract changes. Extensions declare the minor range they target.
-- Field renames, removals, or required-promotions only happen at minor bumps.
-
-Extensions are typically tracked as submodules of the fmriprep repo, so each fmriprep release pins compatible extension versions at build time. The `fmriprep_compat` declaration on the descriptor is an *attestation* by the extension author ("I claim this works with these fmriprep versions"), not a runtime gate. If the running fmriprep falls outside the declared range — usually a sign of a release-coordination slip — the framework logs a warning but does not refuse to start; the build pinning is the real protection.
-
-Typical extension `fmriprep_compat` values pin to a specific minor: `'>=26.1,<26.2'`.
+| Step | Call | What happens |
+|------|------|-------------|
+| 1 | `config.extensions.init()` | Registry boot — discovers extensions, sets `config.extensions.active` |
+| 2 | `_build_parser()` | `active.cli_extend(parser)` appends extension flags to fmriprep's argparser |
+| 3 | `parse_args()` | argparse runs; `active.cli_populate(opts)` writes parsed values into `config.extensions.<name>` |
+| 4 | `config.extensions.configure()` | `active.init_config()` applies static config defaults then derives dynamic values |
+| 5 | `config.to_filename()` | Extension namespace serialized into run-state TOML; survives main→subprocess boundary |
+| 6 | Workflow build | `dispatch.build('anat_fit', default, **kwargs)` routes to `active.init_anat_fit_wf` |
 
 ## Writing an extension
-
-A minimum extension is one Python class plus an entry-point declaration.
 
 ### 1. Subclass `ExtensionDescriptor`
 
 ```python
 # nibabies/fmriprep_ext.py
 from fmriprep.extensions.descriptor import ExtensionDescriptor
+from fmriprep.extensions.exceptions import ExtensionConfigError
 
 
 class NibabiesExtension(ExtensionDescriptor):
@@ -67,18 +53,42 @@ class NibabiesExtension(ExtensionDescriptor):
     fmriprep_compat = '>=26,<27'
     contracts = {'anat_fit'}
 
+    # Optional — routes Sentry and Migas through nibabies' own identifiers.
+    # Omit to fall back to fmriprep's telemetry.
+    telemetry = {
+        'sentry_dsn': 'https://...@sentry.io/...',
+        'migas_project': 'nipreps/nibabies',
+    }
+
+    def cli_extend(self, parser):
+        group = parser.add_argument_group('NiBabies options')
+        group.add_argument('--nibabies-age-months', type=int, dest='nibabies_age_months')
+
+    def cli_populate(self, opts):
+        self.set('age_months', opts.nibabies_age_months)
+
+    def config_extend(self):
+        return {'workflow.run_reconall': False}
+
+    def init_config(self):
+        super().init_config()  # applies config_extend() defaults
+        if self.get('age_months') is None:
+            raise ExtensionConfigError('nibabies', 'pass --nibabies-age-months')
+
     def init_anat_fit_wf(self, **kwargs):
         from nibabies.workflows.anatomical import init_infant_anat_fit_wf
-        from fmriprep import config
-
-        # Pull extension-specific config; pass through fmriprep-supplied kwargs.
-        return init_infant_anat_fit_wf(
-            **kwargs,
-            age_months=config.extensions.nibabies.age_months,
-        )
+        return init_infant_anat_fit_wf(age_months=self.get('age_months'), **kwargs)
 ```
 
-For each hook name in `contracts`, the descriptor must provide a method `init_<hook>_wf` with a signature compatible with the hook's contract. fmriprep forwards its kwargs verbatim to your method; you adapt and call your underlying implementation.
+| Method | When called | Purpose |
+|--------|-------------|---------|
+| `cli_extend(parser)` | Before argparse | Add extension flags to fmriprep's parser in-place |
+| `cli_populate(opts)` | After argparse | Write parsed values into the extension namespace via `self.set()` |
+| `config_extend()` | Via `init_config` | Return `{'section.field': value}` defaults (applied only where user left the field unset) |
+| `init_config()` | After CLI parse | Call `super()`, then derive dynamic values; raise `ExtensionConfigError` if required input is missing |
+| `init_<hook>_wf(**kwargs)` | Workflow build | Return the replacement sub-workflow |
+
+Read extension-owned values anywhere via `config.extensions.active.get('key')` or `self.get('key')` inside descriptor methods.
 
 ### 2. Declare the entry point
 
@@ -88,11 +98,7 @@ For each hook name in `contracts`, the descriptor must provide a method `init_<h
 nibabies = "nibabies.fmriprep_ext:NibabiesExtension"
 ```
 
-fmriprep discovers extensions via `importlib.metadata.entry_points(group='fmriprep.extensions')` at startup.
-
 ### 3. Distribute as a container
-
-The intended distribution model is one extension per container image:
 
 ```dockerfile
 FROM nipreps/fmriprep:26.0.0
@@ -100,41 +106,19 @@ COPY . /opt/nibabies
 RUN pip install /opt/nibabies
 ```
 
-Stock `fmriprep` containers carry no extensions. A `nibabies` user pulls `nipreps/nibabies:26.0.0` (which contains fmriprep core + nibabies); the same fmriprep CLI is the entry point.
+Stock `fmriprep` containers carry no extensions. A nibabies user pulls `nipreps/nibabies:26.0.0`; the same fmriprep CLI is the entry point.
 
-## Reading a contract
+## Stability promise
 
-Contracts live in `fmriprep.extensions.contracts`. Each is a class describing the inputnode and outputnode of the workflow the hook produces:
+fmriprep follows **CalVer**: major = release year, minor = API-breaking changes, patch = bug fixes. Contract changes land in minor bumps; patch releases preserve all contracts.
 
-```python
-from fmriprep.extensions.contracts import AnatFitContract
-
-for f in AnatFitContract.outputs:
-    print(f.name, f.type_hint, f.description)
-```
-
-Whether a field is set at runtime is the implementation's choice (gated by upstream config flags like `config.workflow.run_reconall`); nipype's `Undefined` machinery handles the unset case. The contract only declares which fields exist in the schema.
-
-`AnatFitContract.validated_through` records the upstream tool versions the schema was last verified against — informational metadata, not a constraint.
-
-## What's currently here
-
-- Exception types (`ExtensionError` and subclasses).
-- Contract type system + the `anat_fit` contract.
-- `ExtensionDescriptor` base class.
-- `Registry` (discovery, validation, activation).
-- Dispatch (`build` routes hook calls through the active extension or to a call-site default).
-
-Container conformance checker and the full Tier 2 lifecycle hook surface (`cli_extend`, `config_extend`, `init_config`, `metadata_requirements`, `derivative_spec`) are landing in subsequent work.
+The `fmriprep_compat` field is an attestation by the extension author, not a runtime gate. A version mismatch logs a warning; build pinning (extensions tracked as submodules) is the real protection.
 
 ## Errors
 
-The framework raises typed exceptions from `fmriprep.extensions.exceptions`:
-
 | Exception | When it fires |
-|---|---|
-| `ExtensionRegistrationError` | Descriptor malformed; bad metadata; duplicate name. |
-| `ExtensionContractError` | Extension claims an unknown hook, or its workflow doesn't satisfy the contract schema. |
-| `ExtensionActivationError` | More than one extension installed in the same environment (only one supported per installation). |
-
-All carry the offending extension's `name`, so messages identify the source unambiguously.
+|-----------|---------------|
+| `ExtensionRegistrationError` | Descriptor malformed or fails validation |
+| `ExtensionContractError` | Extension claims an unknown hook or its workflow doesn't satisfy the contract |
+| `ExtensionActivationError` | More than one extension installed (only one supported per installation) |
+| `ExtensionConfigError` | `init_config` cannot compute a required value (e.g. a required path is missing) |
