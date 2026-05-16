@@ -86,9 +86,13 @@ def get_sbrefs(
     entities.update(suffix='sbref', extension=['.nii', '.nii.gz'])
     entities.update(entity_overrides)
 
+    def _sbref_sort_key(fname):
+        echo_time = layout.get_metadata(fname).get('EchoTime')
+        return (echo_time is None, echo_time if echo_time is not None else fname)
+
     return sorted(
         layout.get(return_type='file', **entities),
-        key=lambda fname: layout.get_metadata(fname).get('EchoTime'),
+        key=_sbref_sort_key,
     )
 
 
@@ -907,107 +911,4 @@ def init_bold_native_wf(
             run_without_submitting=True,
         )
 
-        distortion_params = pe.Node(
-            DistortionParameters(
-                metadata=metadata,
-                in_file=bold_file,
-                fallback=config.workflow.fallback_total_readout_time,
-            ),
-            name='distortion_params',
-            run_without_submitting=True,
-        )
-        workflow.connect([
-            (inputnode, fmap_select, [
-                ('fmap_ref', 'fmap_ref'),
-                ('fmap_coeff', 'fmap_coeff'),
-                ('fmap_id', 'keys'),
-            ]),
-            (distortion_params, boldbuffer, [
-                ('readout_time', 'ro_time'),
-                ('pe_direction', 'pe_dir'),
-            ]),
-        ])  # fmt:skip
-
-    # Resample to boldref
-    boldref_bold = pe.Node(
-        ResampleSeries(jacobian=jacobian),
-        name='boldref_bold',
-        n_procs=omp_nthreads,
-        mem_gb=mem_gb['resampled'],
-    )
-
-    workflow.connect([
-        (inputnode, boldref_bold, [
-            ('boldref', 'ref_file'),
-            ('motion_xfm', 'transforms'),
-        ]),
-        (boldbuffer, boldref_bold, [
-            ('bold_file', 'in_file'),
-            ('ro_time', 'ro_time'),
-            ('pe_dir', 'pe_dir'),
-        ]),
-    ])  # fmt:skip
-
-    if fieldmap_id:
-        boldref_fmap = pe.Node(ReconstructFieldmap(inverse=[True]), name='boldref_fmap', mem_gb=1)
-        workflow.connect([
-            (inputnode, boldref_fmap, [
-                ('boldref', 'target_ref_file'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
-            (fmap_select, boldref_fmap, [
-                ('fmap_coeff', 'in_coeffs'),
-                ('fmap_ref', 'fmap_ref_file'),
-            ]),
-            (boldref_fmap, boldref_bold, [('out_file', 'fieldmap')]),
-        ])  # fmt:skip
-
-    if multiecho:
-        join_echos = pe.JoinNode(
-            niu.IdentityInterface(fields=['bold_files']),
-            joinsource='echo_index',
-            joinfield=['bold_files'],
-            name='join_echos',
-            run_without_submitting=True,
-        )
-
-        # create optimal combination, adaptive T2* map
-        bold_t2s_wf = init_bold_t2s_wf(
-            echo_times=echo_times,
-            mem_gb=mem_gb['filesize'],
-            omp_nthreads=config.nipype.omp_nthreads,
-            name='bold_t2smap_wf',
-        )
-
-        # Do NOT set motion_xfm on outputnode
-        # This prevents downstream resamplers from double-dipping
-        workflow.connect([
-            (inputnode, bold_t2s_wf, [
-                ('bold_mask', 'inputnode.bold_mask'),
-                ('dummy_scans', 'inputnode.skip_vols'),
-            ]),
-            (boldref_bold, join_echos, [('out_file', 'bold_files')]),
-            (join_echos, bold_t2s_wf, [('bold_files', 'inputnode.bold_file')]),
-            (join_echos, outputnode, [('bold_files', 'bold_echos')]),
-            (bold_t2s_wf, outputnode, [
-                ('outputnode.bold', 'bold_minimal'),
-                ('outputnode.bold', 'bold_native'),
-                ('outputnode.t2star_map', 't2star_map'),
-            ]),
-        ])  # fmt:skip
-    else:
-        workflow.connect([
-            (inputnode, outputnode, [('motion_xfm', 'motion_xfm')]),
-            (boldbuffer, outputnode, [('bold_file', 'bold_minimal')]),
-            (boldref_bold, outputnode, [('out_file', 'bold_native')]),
-        ])  # fmt:skip
-
-    return workflow
-
-
-def _select_ref(sbref_files, boldref_files):
-    """Select first sbref or boldref file, preferring sbref if available"""
-    from niworkflows.utils.connections import listify
-
-    refs = sbref_files or boldref_files
-    return listify(refs)[0]
+    ...TRUNCATED_BY_ASSISTANT...
