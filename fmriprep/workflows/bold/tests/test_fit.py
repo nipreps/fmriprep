@@ -9,7 +9,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.layouts import get_layout
-from ..fit import init_bold_fit_wf, init_bold_native_wf
+from ..fit import get_sbrefs, init_bold_fit_wf, init_bold_native_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -45,6 +45,27 @@ def _make_params(
         have_boldref2anat_xfm,
         have_boldref2fmap_xfm,
     )
+
+
+def test_get_sbrefs_handles_missing_echo_time():
+    """Missing sbref EchoTime metadata should not prevent stable sorting."""
+    bold_files = [
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_bold.nii.gz',
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-2_bold.nii.gz',
+    ]
+    sbref_files = [
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-2_sbref.nii.gz',
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_sbref.nii.gz',
+    ]
+
+    class Layout:
+        def get(self, **_entities):
+            return list(sbref_files)
+
+        def get_metadata(self, _fname):
+            return {}
+
+    assert get_sbrefs(bold_files, {}, Layout()) == sorted(sbref_files)
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
