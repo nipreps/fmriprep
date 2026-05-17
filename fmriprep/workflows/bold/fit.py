@@ -88,6 +88,9 @@ def get_sbrefs(
     entities.update(entity_overrides)
 
     sbref_files = layout.get(return_type='file', **entities)
+    if len(sbref_files) == 1:
+        return sbref_files
+
     valid_sbref_files = []
 
     for fname in sbref_files:
@@ -629,8 +632,7 @@ def init_bold_fit_wf(
                     ('out_file', 'inputnode.boldref'),
                 ]),
                 (ds_coreg_boldref_wf, skullstrip_bold_wf, [
-                    ('outputnode.boldref', 'inputnode.in_file'),
-                ]),
+                    ('outputnode.boldref', 'inputnode.in_file')]),
                 (skullstrip_bold_wf, ds_boldmask_wf, [
                     ('outputnode.mask_file', 'inputnode.boldmask'),
                 ]),
