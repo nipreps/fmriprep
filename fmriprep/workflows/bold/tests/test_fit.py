@@ -77,6 +77,23 @@ def test_get_sbrefs_rejects_missing_echo_time(caplog):
     assert 'Dropping SBRef without EchoTime metadata' in caplog.text
 
 
+def test_get_sbrefs_preserves_single_missing_echo_time():
+    """A single SBRef without EchoTime should still be returned."""
+    bold_files = ['/bids/sub-01/func/sub-01_task-rest_run-01_bold.nii.gz']
+    sbref_file = '/bids/sub-01/func/sub-01_task-rest_run-01_sbref.nii.gz'
+
+    class Layout:
+        def get(self, **_entities):
+            return [sbref_file]
+
+        def get_metadata(self, _fname):
+            return {}
+
+    found = get_sbrefs(bold_files, {}, Layout())
+
+    assert found == [sbref_file]
+
+
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize(
