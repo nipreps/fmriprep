@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import nibabel as nb
@@ -47,8 +48,8 @@ def _make_params(
     )
 
 
-def test_get_sbrefs_handles_missing_echo_time():
-    """Missing sbref EchoTime metadata should not prevent stable sorting."""
+def test_get_sbrefs_rejects_missing_echo_time(caplog):
+    """SBRefs without EchoTime metadata should be dropped with a warning."""
     bold_files = [
         '/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_bold.nii.gz',
         '/bids/sub-01/func/sub-01_task-rest_run-01_echo-2_bold.nii.gz',
@@ -62,10 +63,18 @@ def test_get_sbrefs_handles_missing_echo_time():
         def get(self, **_entities):
             return list(sbref_files)
 
-        def get_metadata(self, _fname):
-            return {}
+        def get_metadata(self, fname):
+            return {'EchoTime': 0.01} if fname.endswith('echo-1_sbref.nii.gz') else {}
 
-    assert get_sbrefs(bold_files, {}, Layout()) == sorted(sbref_files)
+    logger = logging.getLogger('nipype.workflow')
+    old_propagate = logger.propagate
+    logger.propagate = True
+    with caplog.at_level(logging.WARNING, logger='nipype.workflow'):
+        found = get_sbrefs(bold_files, {}, Layout())
+    logger.propagate = old_propagate
+
+    assert found == ['/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_sbref.nii.gz']
+    assert 'Dropping SBRef without EchoTime metadata' in caplog.text
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])
