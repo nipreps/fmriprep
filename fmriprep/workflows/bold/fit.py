@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@
 #
 #     https://www.nipreps.org/community/licensing/
 #
+import logging
 import os
 import re
 import typing as ty
@@ -86,14 +87,18 @@ def get_sbrefs(
     entities.update(suffix='sbref', extension=['.nii', '.nii.gz'])
     entities.update(entity_overrides)
 
-    def _sbref_sort_key(fname):
-        echo_time = layout.get_metadata(fname).get('EchoTime')
-        return (echo_time is None, echo_time if echo_time is not None else fname)
+    sbref_files = layout.get(return_type='file', **entities)
+    valid_sbref_files = []
 
-    return sorted(
-        layout.get(return_type='file', **entities),
-        key=_sbref_sort_key,
-    )
+    for fname in sbref_files:
+        if (echo_time := layout.get_metadata(fname).get('EchoTime')) is None:
+            logging.getLogger('nipype.workflow').warning(
+                'Dropping SBRef without EchoTime metadata: %s', fname
+            )
+            continue
+        valid_sbref_files.append((echo_time, fname))
+
+    return [fname for _, fname in sorted(valid_sbref_files)]
 
 
 def init_bold_fit_wf(
