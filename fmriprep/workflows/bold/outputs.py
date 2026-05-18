@@ -165,25 +165,33 @@ def init_func_fit_reports_wf(
 
     Inputs
     ------
-    std_t1w
-        T1w image resampled to standard space
-    std_mask
-        Mask of skull-stripped template
+    sdc_boldref
+        BOLD reference before SDC, in BOLD space
+    coreg_boldref
+        BOLD reference after SDC, in BOLD space
+    boldref2anat_xfm
+        Affine transform from BOLD reference to anatomical space
+    boldref2fmap_xfm
+        Affine transform from BOLD reference to fieldmap space
+    t1w_preproc
+        The T1w reference map, which is calculated as the average of bias-corrected
+        and preprocessed T1w images, defining the anatomical space.
+    t1w_mask
+        Brain (binary) mask estimated by brain extraction.
+    t1w_dseg
+        Segmentation in T1w space
+    fieldmap
+        Reconstructed fieldmap, in BOLD space
+    fmap_ref
+        Fieldmap reference image, in fieldmap space
     subject_dir
         FreeSurfer SUBJECTS_DIR
     subject_id
         FreeSurfer subject ID
-    t1w_conform_report
-        Conformation report
-    t1w_preproc
-        The T1w reference map, which is calculated as the average of bias-corrected
-        and preprocessed T1w images, defining the anatomical space.
-    t1w_dseg
-        Segmentation in T1w space
-    t1w_mask
-        Brain (binary) mask estimated by brain extraction.
-    template
-        Template space and specifications
+    summary_report
+        HTML snippet summarizing BOLD processing decisions
+    validation_report
+        HTML snippet indicating whether affine metadata were overwritten
 
     """
     from nireports.interfaces.reporting.base import (
@@ -315,18 +323,6 @@ def init_func_fit_reports_wf(
             mem_gb=1,
         )
 
-        fmap_boldref = pe.Node(
-            ApplyTransforms(
-                dimension=3,
-                default_value=0,
-                float=True,
-                invert_transform_flags=[True],
-                interpolation='LanczosWindowedSinc',
-            ),
-            name='fmap_boldref',
-            mem_gb=1,
-        )
-
         # SDC1
         sdcreg_report = pe.Node(
             FieldmapReportlet(
@@ -356,17 +352,12 @@ def init_func_fit_reports_wf(
                 ('coreg_boldref', 'reference_image'),
                 ('boldref2fmap_xfm', 'transforms'),
             ]),
-            (inputnode, fmap_boldref, [
-                ('fieldmap', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
-            ]),
             (inputnode, sdcreg_report, [
                 ('sdc_boldref', 'reference'),
+                ('fieldmap', 'fieldmap'),
                 ('bold_mask', 'mask'),
             ]),
             (fmapref_boldref, sdcreg_report, [('output_image', 'moving')]),
-            (fmap_boldref, sdcreg_report, [('output_image', 'fieldmap')]),
             (sdcreg_report, ds_sdcreg_report, [('out_report', 'in_file')]),
         ])  # fmt:skip
 
