@@ -260,6 +260,22 @@ def init_bold_fit_wf(
                 f'warpkit MEDIC requires EchoTime metadata for every echo of <{bold_file}>.'
             ) from exc
 
+        # `bold_series` and `phase_files` are independently sorted by EchoTime
+        # (in workflows/base.py and collect_bold_part_files respectively). A
+        # missing/zero EchoTime sidecar would silently swap echo order on one
+        # side without the other, feeding warpkit a transposed pair set. Assert
+        # the orderings match before handing them off.
+        assert layout is not None  # narrowed for type-checker; warpkit needs BIDS
+        phase_tes_ms = [
+            float(layout.get_metadata(p).get('EchoTime', 0.0)) * 1000 for p in phase_files
+        ]
+        if phase_tes_ms != tes_ms:
+            raise RuntimeError(
+                'warpkit MEDIC echo-ordering mismatch between magnitude and '
+                f'phase for <{bold_file}>: magnitude TEs (ms)={tes_ms} '
+                f'phase TEs (ms)={phase_tes_ms}.'
+            )
+
     hmc_boldref = precomputed.get('hmc_boldref')
     coreg_boldref = precomputed.get('coreg_boldref')
     # Can contain
@@ -341,7 +357,7 @@ def init_bold_fit_wf(
     if coreg_boldref:
         regref_buffer.inputs.boldref = coreg_boldref
         config.loggers.workflow.debug(f'Reusing coregistration reference: {coreg_boldref}')
-    fmapref_buffer.inputs.sbref_files = [] if warpkit_enabled else sbref_files
+    fmapref_buffer.inputs.sbref_files = sbref_files
 
     summary = pe.Node(
         FunctionalSummary(
@@ -516,7 +532,11 @@ def init_bold_fit_wf(
                 noise_frames=config.workflow.me_warpkit_noise_frames,
             ),
             name='warpkit_medic',
-            mem_gb=mem_gb['resampled'],
+            # MEDIC holds all N echoes of phase + magnitude in memory as
+            # float64, plus warpkit's internal state. `mem_gb['resampled']`
+            # is the size of a single resampled BOLD volume — wildly low
+            # for high-res / many-echo datasets.
+            mem_gb=2 * len(bold_series) * mem_gb['filesize'],
         )
         warpkit_fieldmap = pe.Node(
             ResampleSeries(jacobian=False),
@@ -531,12 +551,20 @@ def init_bold_fit_wf(
                 ('readout_time', 'total_readout_time'),
                 ('pe_direction', 'phase_encoding_direction'),
             ]),
-            (warpkit_medic, warpkit_fieldmap, [('fieldmap_native', 'in_file')]),
+            # `fieldmap` is the undistorted-space, consumer-facing output from
+            # warpkit.api.medic — it lives on the same grid as the corrected EPI.
+            # `fieldmap_native` is a debug-only field in *distorted* space; using
+            # it here causes fmriprep's pull-resampler to sample the field at
+            # the wrong physical location (off by the SDC displacement itself).
+            # See resample_vol: fmap_hz is read on the target/undistorted grid.
+            (warpkit_medic, warpkit_fieldmap, [('fieldmap', 'in_file')]),
             (hmcref_buffer, warpkit_fieldmap, [('boldref', 'ref_file')]),
             (hmc_buffer, warpkit_fieldmap, [('hmc_xforms', 'transforms')]),
             (warpkit_fieldmap, warpkit_mean, [('out_file', 'in_file')]),
             (warpkit_fieldmap, outputnode, [('out_file', 'fieldmap')]),
-            (warpkit_fieldmap, func_fit_reports_wf, [('out_file', 'inputnode.fieldmap')]),
+            # FieldmapReportlet expects a 3D field; pass the temporal mean,
+            # not the 4D series (which would render only frame 0 or crash).
+            (warpkit_mean, func_fit_reports_wf, [('out_file', 'inputnode.fieldmap')]),
             (fmapref_buffer, func_fit_reports_wf, [('out', 'inputnode.sdc_boldref')]),
         ])  # fmt:skip
     elif fieldmap_id:
@@ -625,7 +653,7 @@ def init_bold_fit_wf(
         config.loggers.workflow.info('Stage 4: Adding coregistration boldref workflow')
 
         # If sbref files are available, add them to the list of sources
-        if sbref_files and not warpkit_enabled and nb.load(sbref_files[0]).ndim > 3:
+        if sbref_files and nb.load(sbref_files[0]).ndim > 3:
             raw_sbref_wf = init_raw_boldref_wf(
                 name='raw_sbref_wf',
                 bold_file=sbref_files[0],
