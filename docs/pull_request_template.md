@@ -27,7 +27,7 @@ Please summarize here the main changes to the documentation that the reviewers s
 Welcome, new contributors!
 
 We ask you to read through the Contributing Guide:
-https://github.com/nipreps/fmriprep/blob/master/CONTRIBUTING.md
+https://github.com/nipreps/fmriprep/blob/main/CONTRIBUTING.md
 
 These are guidelines intended to make communication easier by describing a consistent process, but
 don't worry if you don't get it everything exactly "right" on the first try.
@@ -40,7 +40,7 @@ To boil it down, here are some highlights:
    (See the Contributing guide for the full set.) And consider adding a "WIP" tag for works-in-progress.
 3) Any code you submit will be licensed under the same terms (Apache License 2.0) as the rest of fMRIPrep.
 4) We invite every contributor to add themselves to the `.zenodo.json` file
-   (https://github.com/nipreps/fmriprep/blob/master/.zenodo.json), which will result in your being listed as an author
+   (https://github.com/nipreps/fmriprep/blob/main/.zenodo.json), which will result in your being listed as an author
    at the next release. Please add yourself as the next-to-last entry, just above Russ.
 
 A pull request is a conversation. We may ask you to make some changes before accepting your PR,

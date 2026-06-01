@@ -8,9 +8,9 @@ newPRWelcomeComment: >
   We invite you to list yourself as an *fMRIPrep* contributor.
   To learn more about what that entails and how we credit our contributors,
   please check out the
-  [contributing guidelines](https://github.com/nipreps/fmriprep/blob/master/CONTRIBUTING.md#recognizing-contributions).
+  [contributing guidelines](https://github.com/nipreps/fmriprep/blob/main/CONTRIBUTING.md#recognizing-contributions).
   If your name is not already on the list, please insert it, in alphabetical order, into the
-  [``CONTRIBUTORS.md`` file](https://github.com/nipreps/fmriprep/blob/master/.maint/CONTRIBUTORS.md).
+  [``CONTRIBUTORS.md`` file](https://github.com/nipreps/fmriprep/blob/main/.maint/CONTRIBUTORS.md).
 
   Of course, if you want to opt-out this time there is no
   problem at all with adding your name later.

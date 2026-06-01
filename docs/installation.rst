@@ -63,7 +63,7 @@ Make sure all of *fMRIPrep*'s `External Dependencies`_ are installed.
 These tools must be installed and their binaries available in the
 system's ``$PATH``.
 A relatively interpretable description of how your environment can be set-up
-is found in the `Dockerfile <https://github.com/nipreps/fmriprep/blob/master/Dockerfile>`_.
+is found in the `Dockerfile <https://github.com/nipreps/fmriprep/blob/main/Dockerfile>`_.
 As an additional installation setting, FreeSurfer requires a license file (see :ref:`fs_license`).
 
 On a functional Python 3.10 (or above) environment with ``pip`` installed,

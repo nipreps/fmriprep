@@ -166,7 +166,7 @@ jobs:
             - build-v2-{{ .Branch }}-{{ .Revision }}
             - build-v2--{{ .Revision }}
             - build-v2-{{ .Branch }}-
-            - build-v2-master-
+            - build-v2-main-
             - build-v2-
           paths:
             - /tmp/docker
@@ -278,7 +278,7 @@ jobs:
             - data-v0-{{ .Branch }}-{{ .Revision }}
             - data-v0--{{ .Revision }}
             - data-v0-{{ .Branch }}-
-            - data-v0-master-
+            - data-v0-main-
             - data-v0-
       - run:
           name: Get test data from ds000005
@@ -477,7 +477,7 @@ jobs:
             - ds005-anat-v0-{{ .Branch }}-{{ .Revision }}
             - ds005-anat-v0--{{ .Revision }}
             - ds005-anat-v0-{{ .Branch }}-
-            - ds005-anat-v0-master-
+            - ds005-anat-v0-main-
             - ds005-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
@@ -644,7 +644,7 @@ jobs:
             - ds054-anat-v0-{{ .Branch }}-{{ .Revision }}
             - ds054-anat-v0--{{ .Revision }}
             - ds054-anat-v0-{{ .Branch }}-
-            - ds054-anat-v0-master-
+            - ds054-anat-v0-main-
             - ds054-anat-v0-
       - docker/install-docker-credential-helper
       - run: *docker_auth
@@ -736,7 +736,7 @@ jobs:
             - ds210-anat-v1-{{ .Branch }}-{{ .Revision }}
             - ds210-anat-v1--{{ .Revision }}
             - ds210-anat-v1-{{ .Branch }}-
-            - ds210-anat-v1-master-
+            - ds210-anat-v1-main-
             - ds210-anat-v1-
       - docker/install-docker-credential-helper
       - run: *docker_auth
@@ -968,7 +968,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
                 - maint/20.2.x
     jobs:
       - build_clean:
@@ -1094,7 +1094,7 @@ workflows:
             - ds210
           filters:
             branches:
-              only: master
+              only: main
             tags:
               only: /.*/
 
@@ -1105,7 +1105,7 @@ workflows:
             - deployable
           filters:
             branches:
-              only: master
+              only: main
             tags:
               only: /.*/
 
