@@ -3,7 +3,7 @@
 Standalone script to facilitate caching of required TemplateFlow templates.
 
 To download and view how to use this script, run the following commands inside a terminal:
-1. wget https://raw.githubusercontent.com/nipreps/fmriprep/master/scripts/fetch_templates.py
+1. wget https://raw.githubusercontent.com/nipreps/fmriprep/main/scripts/fetch_templates.py
 2. python fetch_templates.py -h
 """
 

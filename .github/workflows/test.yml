@@ -3,12 +3,12 @@ name: Stable tests
 on:
   push:
     branches:
-      - master
+      - main
       - maint/*
       - next
   pull_request:
     branches:
-      - master
+      - main
       - maint/*
       - next
 

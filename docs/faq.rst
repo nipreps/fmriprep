@@ -171,7 +171,7 @@ On the other hand, if the project is about to start, then we strongly recommend
 using the latest version of the tool.
 
 In any case, if you can find your release listed as *flagged* in `this file
-of our repo <https://github.com/nipreps/fmriprep/blob/master/.versions.json>`__,
+of our repo <https://github.com/nipreps/fmriprep/blob/main/.versions.json>`__,
 then please update as soon as possible.
 
 I'm running *fMRIPrep* via Singularity containers - how can I troubleshoot problems?
