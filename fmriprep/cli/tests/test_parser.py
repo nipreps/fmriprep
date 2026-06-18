@@ -199,6 +199,27 @@ def test_slice_time_ref(tmp_path, st_ref):
     _reset_config()
 
 
+def test_me_use_warpkit(tmp_path):
+    bids_path = tmp_path / 'data'
+    out_path = tmp_path / 'out'
+    args = [
+        str(bids_path),
+        str(out_path),
+        'participant',
+        '--me-use-warpkit',
+        '--me-warpkit-noise-frames',
+        '3',
+    ]
+    bids_path.mkdir()
+
+    parser = _build_parser()
+    opts = parser.parse_args(args)
+
+    assert opts.me_use_warpkit is True
+    assert opts.me_warpkit_noise_frames == 3
+    _reset_config()
+
+
 @pytest.mark.parametrize(
     ('args', 'expectation'),
     [

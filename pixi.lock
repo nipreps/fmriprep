@@ -6,8 +6,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-4_kmp_llvm.conda
@@ -734,6 +732,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c2/14/e2a54fabd4f08cd7af1c07030603c3356b74da07f7cc056e600436edfa17/tzlocal-5.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/39/ff/b279045420056a817049a8f745f22f68085a11f01ff221ea22bc0dafebee/warpkit-1.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/af/b5/123f13c975e9f27ab9c0770f514345bd406d0e8d3b7a0723af9d43f710af/wcwidth-0.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9f/81/5d931d78d0eb732b95dc3ddaeeb71c8bb572fb01356e9133916cd729ecdd/wrapt-1.17.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d6/7d/b77455d7c7c51255b2992b429107fab811b2e36ceaf76da1e55a045dc568/xyzservices-2025.4.0-py3-none-any.whl
@@ -1095,6 +1094,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c2/14/e2a54fabd4f08cd7af1c07030603c3356b74da07f7cc056e600436edfa17/tzlocal-5.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/39/ff/b279045420056a817049a8f745f22f68085a11f01ff221ea22bc0dafebee/warpkit-1.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/af/b5/123f13c975e9f27ab9c0770f514345bd406d0e8d3b7a0723af9d43f710af/wcwidth-0.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9f/81/5d931d78d0eb732b95dc3ddaeeb71c8bb572fb01356e9133916cd729ecdd/wrapt-1.17.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d6/7d/b77455d7c7c51255b2992b429107fab811b2e36ceaf76da1e55a045dc568/xyzservices-2025.4.0-py3-none-any.whl
@@ -2134,8 +2134,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: fmriprep
-  version: 26.0.0.dev55+g37e151d3e.d20260114
-  sha256: e3e9590d09725c2cc97a110f6d30c2646d02408d0d8d056b158a175bb48c8398
+  version: 26.0.0.dev70+g43eecd295
+  sha256: f0ed814f6665164eb99485619272d0c63aefd77295c8998c30c456671fe5c29b
   requires_dist:
   - acres>=0.2.0
   - apscheduler>=3.10
@@ -2172,6 +2172,7 @@ packages:
   - sphinx-argparse!=0.5.0 ; extra == 'all'
   - sphinx-rtd-theme>=0.5.2 ; extra == 'all'
   - sphinx>=5 ; extra == 'all'
+  - warpkit>=1.2.1 ; python_full_version >= '3.11' and extra == 'all'
   - datalad ; extra == 'container'
   - datalad-osf ; extra == 'container'
   - migas>=0.4.0 ; extra == 'container'
@@ -2201,6 +2202,80 @@ packages:
   - pytest-env ; extra == 'tests'
   - pytest-xdist>=2.5 ; extra == 'tests'
   - pytest>=8.1 ; extra == 'tests'
+  - warpkit>=1.2.1 ; python_full_version >= '3.11' and extra == 'warpkit'
+  requires_python: '>=3.10'
+  editable: true
+- pypi: ./
+  name: fmriprep
+  version: 26.0.0.dev70+g43eecd295
+  sha256: f0ed814f6665164eb99485619272d0c63aefd77295c8998c30c456671fe5c29b
+  requires_dist:
+  - acres>=0.2.0
+  - apscheduler>=3.10
+  - codecarbon>=2
+  - looseversion>=1.3
+  - nibabel>=5.1.1
+  - nipype>=1.9.0
+  - nireports>=24.1.0
+  - nitime>=0.9
+  - nitransforms>=25.0.1
+  - niworkflows>=1.14.4
+  - numpy>=2.0
+  - packaging>=24
+  - pandas>=2.2
+  - psutil>=5.4
+  - pybids>=0.16
+  - requests>=2.27
+  - sdcflows>=2.15.0
+  - smriprep>=0.19.2
+  - tedana>=25.1.0
+  - templateflow>=24.2.2
+  - toml>=0.10
+  - transforms3d>=0.4.2
+  - coverage[toml]>=5.2.1 ; extra == 'all'
+  - fuzzywuzzy ; extra == 'all'
+  - migas>=0.4.0 ; extra == 'all'
+  - pydot>=1.2.3 ; extra == 'all'
+  - pytest-cov>=2.11 ; extra == 'all'
+  - pytest-env ; extra == 'all'
+  - pytest-xdist>=2.5 ; extra == 'all'
+  - pytest>=8.1 ; extra == 'all'
+  - python-levenshtein ; extra == 'all'
+  - sentry-sdk>=1.3 ; extra == 'all'
+  - sphinx-argparse!=0.5.0 ; extra == 'all'
+  - sphinx-rtd-theme>=0.5.2 ; extra == 'all'
+  - sphinx>=5 ; extra == 'all'
+  - warpkit>=1.2.1 ; python_full_version >= '3.11' and extra == 'all'
+  - datalad ; extra == 'container'
+  - datalad-osf ; extra == 'container'
+  - migas>=0.4.0 ; extra == 'container'
+  - sentry-sdk>=1.3 ; extra == 'container'
+  - pre-commit ; extra == 'dev'
+  - ruff ; extra == 'dev'
+  - pydot>=1.2.3 ; extra == 'doc'
+  - sphinx-argparse!=0.5.0 ; extra == 'doc'
+  - sphinx-rtd-theme>=0.5.2 ; extra == 'doc'
+  - sphinx>=5 ; extra == 'doc'
+  - pydot>=1.2.3 ; extra == 'docs'
+  - sphinx-argparse!=0.5.0 ; extra == 'docs'
+  - sphinx-rtd-theme>=0.5.2 ; extra == 'docs'
+  - sphinx>=5 ; extra == 'docs'
+  - duecredit ; extra == 'duecredit'
+  - fuzzywuzzy ; extra == 'maint'
+  - python-levenshtein ; extra == 'maint'
+  - migas>=0.4.0 ; extra == 'telemetry'
+  - sentry-sdk>=1.3 ; extra == 'telemetry'
+  - coverage[toml]>=5.2.1 ; extra == 'test'
+  - pytest-cov>=2.11 ; extra == 'test'
+  - pytest-env ; extra == 'test'
+  - pytest-xdist>=2.5 ; extra == 'test'
+  - pytest>=8.1 ; extra == 'test'
+  - coverage[toml]>=5.2.1 ; extra == 'tests'
+  - pytest-cov>=2.11 ; extra == 'tests'
+  - pytest-env ; extra == 'tests'
+  - pytest-xdist>=2.5 ; extra == 'tests'
+  - pytest>=8.1 ; extra == 'tests'
+  - warpkit>=1.2.1 ; python_full_version >= '3.11' and extra == 'warpkit'
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/font-ttf-dejavu-sans-mono-2.37-hab24e00_0.tar.bz2
   sha256: 58d7f40d2940dd0a8aa28651239adbf5613254df0f75789919c4e6762054403b
@@ -6696,6 +6771,18 @@ packages:
   - pysocks>=1.5.6,!=1.5.7,<2.0 ; extra == 'socks'
   - zstandard>=0.18.0 ; extra == 'zstd'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/39/ff/b279045420056a817049a8f745f22f68085a11f01ff221ea22bc0dafebee/warpkit-1.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+  name: warpkit
+  version: 1.2.1
+  sha256: ccbffe94bef9ebaecd507e39e8c8b59184da3745a3c3a2f506a5eb3341f028b1
+  requires_dist:
+  - nibabel>=4.0.2
+  - numpy>=1.23.3
+  - scikit-image>=0.20.0
+  - scipy>=1.8.1
+  - transforms3d>=0.4.1
+  - indexed-gzip>=1.7.0
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.24.0-h3e06ad9_0.conda
   sha256: ba673427dcd480cfa9bbc262fd04a9b1ad2ed59a159bd8f7e750d4c52282f34c
   md5: 0f2ca7906bf166247d1d760c3422cb8a
