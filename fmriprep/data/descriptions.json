@@ -1,0 +1,101 @@
+{
+  "_version": "1.0",
+  "_note": "Procedure-focused descriptions for BIDS desc- entities. Descriptions explain WHAT PROCESSING was done, not what the data represents. The suffix (e.g., _bold, _mask) indicates what the data IS; the desc- indicates what procedure created it.",
+
+  "entities": {
+    "preproc": {
+      "base": "Preprocessing pipeline applied:",
+      "conditional_parts": [
+        {"condition": "always", "text": " head motion correction"},
+        {"condition": "sdc_applied", "text": ", susceptibility distortion correction ({sdc_method})"},
+        {"condition": "stc_applied", "text": ", slice timing correction (reference: {slice_time_ref})"}
+      ],
+      "parameters": ["sdc_method", "slice_time_ref"]
+    },
+    "brain": {
+      "base": "Brain extraction via {mask_source} segmentation, projected and binarized",
+      "parameters": ["mask_source"]
+    },
+    "hmc": {
+      "base": "Rigid-body volume-to-reference registration for head motion estimation",
+      "parameters": []
+    },
+    "coreg": {
+      "base": "Functional-to-anatomical alignment via {coreg_method}",
+      "conditional_parts": [
+        {"condition": "has_dof", "text": " ({dof} degrees of freedom)"}
+      ],
+      "parameters": ["coreg_method", "dof"]
+    },
+    "fmap": {
+      "base": "Fieldmap estimation and registration to functional reference",
+      "parameters": []
+    },
+    "confounds": {
+      "base": "Nuisance regressor extraction:",
+      "conditional_parts": [
+        {"condition": "always", "text": " head motion parameters"},
+        {"condition": "has_compcor", "text": ", CompCor components (variance threshold: {compcor_variance})"},
+        {"condition": "always", "text": ", tissue-averaged signals"},
+        {"condition": "has_fd_threshold", "text": "; outlier flagging at FD > {fd_threshold} mm"},
+        {"condition": "has_dvars_threshold", "text": ", DVARS > {dvars_threshold}"}
+      ],
+      "parameters": ["fd_threshold", "dvars_threshold", "compcor_variance"]
+    },
+    "goodvoxels": {
+      "base": "Voxel exclusion based on local coefficient of variation threshold (HCP-style surface projection)",
+      "parameters": []
+    },
+    "summary": {
+      "base": "Aggregation of processing parameters and metadata for quality review",
+      "parameters": []
+    },
+    "validation": {
+      "base": "Automated input data validation and metadata consistency checks",
+      "parameters": []
+    },
+    "fmapCoreg": {
+      "base": "Visualization of fieldmap-to-functional reference alignment quality",
+      "parameters": []
+    },
+    "sdc": {
+      "base": "Before/after comparison of susceptibility distortion correction",
+      "conditional_parts": [
+        {"condition": "sdc_applied", "text": " ({sdc_method})"}
+      ],
+      "parameters": ["sdc_method"]
+    },
+    "rois": {
+      "base": "Visualization of anatomical ROI masks used for signal extraction",
+      "parameters": []
+    },
+    "compcorvar": {
+      "base": "Cumulative variance plot for CompCor component selection criterion",
+      "parameters": []
+    },
+    "confoundcorr": {
+      "base": "Pairwise correlation analysis of extracted nuisance timeseries",
+      "parameters": []
+    },
+    "carpetplot": {
+      "base": "Grayplot (carpet plot) generation with motion and signal quality traces",
+      "parameters": []
+    },
+    "t2scomp": {
+      "base": "Multi-echo T2* estimation quality visualization via echo comparison",
+      "parameters": []
+    },
+    "t2starhist": {
+      "base": "Histogram analysis of estimated T2* values across brain tissue",
+      "parameters": []
+    },
+    "aparcaseg": {
+      "base": "FreeSurfer cortical parcellation projection to functional space",
+      "parameters": []
+    },
+    "aseg": {
+      "base": "FreeSurfer subcortical segmentation projection to functional space",
+      "parameters": []
+    }
+  }
+}
