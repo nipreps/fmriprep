@@ -427,6 +427,16 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         '6 degrees (rotation and translation) are used by default.',
     )
     g_conf.add_argument(
+        '--bold-coreg-level',
+        action='store',
+        choices=('run', 'session', 'subject'),
+        default='run',
+        help='Level at which BOLD runs are combined before coregistration to the '
+        'anatomical reference. `run` (default) registers each run independently. '
+        '`session` builds one BOLD template per session; `subject` builds a single '
+        "template from all of a subject's runs.",
+    )
+    g_conf.add_argument(
         '--force-bbr',
         action=DeprecatedAction,
         help='Deprecated - use `--force bbr` instead.',
@@ -805,6 +815,14 @@ def parse_args(args=None, namespace=None):
             '`--subject-anatomical-reference unbiased` instead.'
         )
         config.loggers.cli.warning(msg)
+
+    if opts.bold_coreg_level == 'subject' and opts.subject_anatomical_reference == 'sessionwise':
+        parser.error(
+            '`--bold-coreg-level subject` is incompatible with '
+            '`--subject-anatomical-reference sessionwise`: a sessionwise workflow '
+            'processes a single session, so a subject-level BOLD template cannot span '
+            'sessions. Use `--bold-coreg-level session` instead.'
+        )
 
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()
