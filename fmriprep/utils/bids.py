@@ -78,6 +78,10 @@ def collect_derivatives(
             continue
         derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
 
+    # coreg_boldref is the legacy derivative name for run_boldref
+    if 'coreg_boldref' in derivs_cache and 'run_boldref' not in derivs_cache:
+        derivs_cache['run_boldref'] = derivs_cache['coreg_boldref']
+
     transforms_cache = {}
     for xfm, q in spec['transforms'].items():
         # Transform extension will often not match provided entities
@@ -85,15 +89,66 @@ def collect_derivatives(
         # And transform suffixes will be "xfm",
         #   whereas relevant src file will be "bold".
         query = {**entities, **q}
-        if xfm == 'boldref2fmap' and fieldmap_id:
+        if xfm == 'run2fmap' and fieldmap_id:
             # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
             query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
+        if not item and xfm == 'hmc':
+            # legacy: from-orig_to-boldref (now from-orig_to-run)
+            item = layout.get(return_type='filename', **{**query, 'to': 'boldref'})
         if not item:
             continue
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
     derivs_cache['transforms'] = transforms_cache
     return derivs_cache
+
+
+def is_valid_bold_template(
+    bold_runs: list[list[str]],
+    estimator_map: dict,
+    layout,
+) -> bool:
+    """Return True if BOLD template creation is possible.
+
+    Three independent conditions are checked:
+
+    1. **Insufficient runs** -- fewer than two runs cannot form a meaningful
+       template.
+    2. **Mixed SDC coverage** -- if only some runs are distortion corrected,
+       the resulting boldrefs live in different geometric spaces even when
+       their phase-encoding directions agree.
+    3. **PE-direction heterogeneity** -- when all runs are SDC-less, more than
+       one distinct phase-encoding direction (including ``None`` for runs that
+       lack the metadata) implies opposing distortions that rigid/affine
+       registration cannot recover.
+
+    Parameters
+    ----------
+    bold_runs
+        List of BOLD series (each series is a list of file paths).
+    estimator_map
+        Mapping of BOLD file -> fieldmap estimator ID. An absent key or a
+        falsy value means no fieldmap / no SDC for that run.
+    layout
+        A :class:`bids.layout.BIDSLayout` used to read file metadata.
+
+    Returns
+    -------
+    bool
+        ``True`` if there are at least two runs, all share the same SDC status,
+        and SDC-less runs span exactly one phase-encoding direction.
+    """
+    if len(bold_runs) < 2:
+        return False
+
+    sdc_corrected = [bool(estimator_map.get(series[0])) for series in bold_runs]
+    if any(sdc_corrected):
+        return all(sdc_corrected)
+
+    pe_dirs = {
+        layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
+    }
+    return len(pe_dirs) == 1
 
 
 def collect_fieldmaps(

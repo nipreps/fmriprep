@@ -26,7 +26,7 @@
       "hmc": {
         "datatype": "func",
         "from": "orig",
-        "to": "boldref",
+        "to": "run",
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
@@ -39,9 +39,18 @@
         "suffix": "xfm",
         "extension": ".txt"
       },
-      "boldref2fmap": {
+      "run2fmap": {
         "datatype": "func",
-        "from": "boldref",
+        "from": "run",
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
+      },
+      "run2boldref": {
+        "datatype": "func",
+        "from": "run",
+        "to": "boldref",
+        "desc": "coreg",
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
