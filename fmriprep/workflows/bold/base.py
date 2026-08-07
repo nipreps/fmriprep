@@ -24,8 +24,7 @@
 Orchestrating the BOLD-preprocessing workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: init_bold_wf
-.. autofunction:: init_bold_fit_wf
+.. autofunction:: init_bold_apply_wf
 .. autofunction:: init_bold_native_wf
 
 """
@@ -42,8 +41,9 @@ from ...utils.misc import estimate_bold_mem_usage
 # BOLD workflows
 from .apply import init_bold_volumetric_resample_wf
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
-from .fit import init_bold_fit_wf, init_bold_native_wf
+from .fit import init_bold_boldref_wf, init_bold_native_wf
 from .outputs import (
+    init_ds_bold_boldref_wf,
     init_ds_bold_native_wf,
     init_ds_volumes_wf,
     prepare_timing_parameters,
@@ -52,15 +52,16 @@ from .resampling import init_bold_surf_wf
 from .t2s import init_t2s_reporting_wf
 
 
-def init_bold_wf(
+def init_bold_apply_wf(
     *,
     bold_series: list[str],
-    precomputed: dict | None = None,
     fieldmap_id: str | None = None,
     jacobian: bool = False,
+    name: str = 'bold_apply_wf',
 ) -> pe.Workflow:
     """
-    This workflow controls the functional preprocessing stages of *fMRIPrep*.
+    This workflow controls the functional preprocessing stages of *fMRIPrep*
+    that follow BOLD fitting and coregistration (resampling and reporting).
 
     Workflow Graph
         .. workflow::
@@ -69,11 +70,11 @@ def init_bold_wf(
 
             from fmriprep.workflows.tests import mock_config
             from fmriprep import config
-            from fmriprep.workflows.bold.base import init_bold_wf
+            from fmriprep.workflows.bold.base import init_bold_apply_wf
             with mock_config():
                 bold_file = config.execution.bids_dir / "sub-01" / "func" \
                     / "sub-01_task-mixedgamblestask_run-01_bold.nii.gz"
-                wf = init_bold_wf(
+                wf = init_bold_apply_wf(
                     bold_series=[str(bold_file)],
                 )
 
@@ -166,27 +167,15 @@ def init_bold_wf(
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
-    if precomputed is None:
-        precomputed = {}
     bold_file = bold_series[0]
 
     fmriprep_dir = config.execution.fmriprep_dir
     omp_nthreads = config.nipype.omp_nthreads
     all_metadata = [config.execution.layout.get_metadata(file) for file in bold_series]
 
-    nvols, mem_gb = estimate_bold_mem_usage(bold_file)
-    if nvols <= 5 - config.execution.sloppy:
-        config.loggers.workflow.warning(
-            f'Too short BOLD series (<= 5 timepoints). Skipping processing of <{bold_file}>.'
-        )
-        return
+    _, mem_gb = estimate_bold_mem_usage(bold_file)
 
-    config.loggers.workflow.debug(
-        f'Creating bold processing workflow for <{bold_file}> ({mem_gb["filesize"]:.2f} GB / {nvols} TRs). '
-        f'Memory resampled/largemem={mem_gb["resampled"]:.2f}/{mem_gb["largemem"]:.2f} GB.'
-    )
-
-    workflow = Workflow(name=_get_wf_name(bold_file, 'bold'))
+    workflow = Workflow(name=name)
     workflow.__postdesc__ = """\
 All resamplings can be performed with *a single interpolation
 step* by composing all the pertinent transformations (i.e. head-motion
@@ -199,6 +188,18 @@ configured with cubic B-spline interpolation.
     inputnode = pe.Node(
         niu.IdentityInterface(
             fields=[
+                # Fit & coregistration outputs
+                'coreg_boldref',
+                'boldref_template',
+                'bold_mask',
+                'run_boldref',
+                'orig_bold_mask',
+                'run2anat_xfm',
+                'motion_xfm',
+                'run2fmap_xfm',
+                'dummy_scans',
+                'boldref2anat_xfm',
+                'run2boldref_xfm',
                 # Anatomical coregistration
                 't1w_preproc',
                 't1w_mask',
@@ -216,12 +217,8 @@ configured with cubic B-spline interpolation.
                 'cortex_mask',
                 'anat_ribbon',
                 # Fieldmap registration
-                'fmap',
                 'fmap_ref',
                 'fmap_coeff',
-                'fmap_mask',
-                'fmap_id',
-                'sdc_method',
                 # Volumetric templates
                 'anat2std_xfm',
                 'std_t1w',
@@ -237,38 +234,6 @@ configured with cubic B-spline interpolation.
         ),
         name='inputnode',
     )
-
-    #
-    # Minimal workflow
-    #
-
-    bold_fit_wf = init_bold_fit_wf(
-        bold_series=bold_series,
-        precomputed=precomputed,
-        fieldmap_id=fieldmap_id,
-        jacobian=jacobian,
-        omp_nthreads=omp_nthreads,
-    )
-
-    workflow.connect([
-        (inputnode, bold_fit_wf, [
-            ('t1w_preproc', 'inputnode.t1w_preproc'),
-            ('t1w_mask', 'inputnode.t1w_mask'),
-            ('t1w_dseg', 'inputnode.t1w_dseg'),
-            ('subjects_dir', 'inputnode.subjects_dir'),
-            ('subject_id', 'inputnode.subject_id'),
-            ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
-            ('fmap', 'inputnode.fmap'),
-            ('fmap_ref', 'inputnode.fmap_ref'),
-            ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_mask', 'inputnode.fmap_mask'),
-            ('fmap_id', 'inputnode.fmap_id'),
-            ('sdc_method', 'inputnode.sdc_method'),
-        ]),
-    ])  # fmt:skip
-
-    if config.workflow.level == 'minimal':
-        return workflow
 
     # Now that we're resampling and combining, multiecho matters
     multiecho = len(bold_series) > 2
@@ -295,27 +260,24 @@ configured with cubic B-spline interpolation.
         (inputnode, bold_native_wf, [
             ('fmap_ref', 'inputnode.fmap_ref'),
             ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_id', 'inputnode.fmap_id'),
-        ]),
-        (bold_fit_wf, bold_native_wf, [
-            ('outputnode.coreg_boldref', 'inputnode.boldref'),
-            ('outputnode.bold_mask', 'inputnode.bold_mask'),
-            ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
-            ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
+            ('run_boldref', 'inputnode.run_boldref'),
+            ('bold_mask', 'inputnode.bold_mask'),
+            ('motion_xfm', 'inputnode.motion_xfm'),
+            ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+            ('dummy_scans', 'inputnode.dummy_scans'),
         ]),
     ])  # fmt:skip
 
-    boldref_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
-    boldref_out &= config.workflow.level == 'full'
+    run_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'sbref')))
+    run_out &= config.workflow.level == 'full'
     echos_out = multiecho and config.execution.me_output_echos
 
-    if boldref_out or echos_out:
+    if run_out or echos_out:
         ds_bold_native_wf = init_ds_bold_native_wf(
             source_file=bold_series,
             bids_root=str(config.execution.bids_dir),
             output_dir=fmriprep_dir,
-            bold_output=boldref_out,
+            bold_output=run_out,
             echo_output=echos_out,
             multiecho=multiecho,
             all_metadata=all_metadata,
@@ -327,6 +289,52 @@ configured with cubic B-spline interpolation.
                 ('outputnode.bold_native', 'inputnode.bold'),
                 ('outputnode.bold_echos', 'inputnode.bold_echos'),
                 ('outputnode.t2star_map', 'inputnode.t2star'),
+            ]),
+            (inputnode, ds_bold_native_wf, [
+                ('motion_xfm', 'inputnode.motion_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+            ]),
+        ])  # fmt:skip
+
+    boldref_out = bool(nonstd_spaces.intersection(('boldref',)))
+    boldref_out &= config.workflow.level == 'full'
+
+    if boldref_out:
+        bold_boldref_wf = init_bold_boldref_wf(
+            bold_series=bold_series,
+            fieldmap_id=fieldmap_id,
+            jacobian=jacobian,
+            omp_nthreads=omp_nthreads,
+        )
+        ds_bold_boldref_wf = init_ds_bold_boldref_wf(
+            source_file=bold_file,
+            bids_root=str(config.execution.bids_dir),
+            output_dir=fmriprep_dir,
+            multiecho=multiecho,
+            metadata=all_metadata[0],
+        )
+        ds_bold_boldref_wf.inputs.inputnode.source_files = bold_series
+
+        workflow.connect([
+            (inputnode, bold_boldref_wf, [
+                ('boldref_template', 'inputnode.boldref_template'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+                ('fmap_ref', 'inputnode.fmap_ref'),
+                ('fmap_coeff', 'inputnode.fmap_coeff'),
+            ]),
+            (bold_native_wf, bold_boldref_wf, [
+                ('outputnode.bold_minimal', 'inputnode.bold_minimal'),
+                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
+            ]),
+            (bold_boldref_wf, ds_bold_boldref_wf, [
+                ('outputnode.bold_boldref', 'inputnode.bold'),
+            ]),
+            (inputnode, ds_bold_boldref_wf, [
+                ('motion_xfm', 'inputnode.motion_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
             ]),
         ])  # fmt:skip
 
@@ -354,10 +362,10 @@ configured with cubic B-spline interpolation.
         )
 
         workflow.connect([
-            (inputnode, t2s_reporting_wf, [('t1w_dseg', 'inputnode.label_file')]),
-            (bold_fit_wf, t2s_reporting_wf, [
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                ('outputnode.coreg_boldref', 'inputnode.boldref'),
+            (inputnode, t2s_reporting_wf, [
+                ('t1w_dseg', 'inputnode.label_file'),
+                ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('coreg_boldref', 'inputnode.boldref'),
             ]),
             (bold_native_wf, t2s_reporting_wf, [
                 ('outputnode.t2star_map', 'inputnode.t2star_file'),
@@ -398,18 +406,16 @@ configured with cubic B-spline interpolation.
             ('t1w_mask', 'inputnode.target_mask'),
             ('fmap_ref', 'inputnode.fmap_ref'),
             ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('fmap_id', 'inputnode.fmap_id'),
-        ]),
-        (bold_fit_wf, bold_anat_wf, [
-            ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-            ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
-            ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('coreg_boldref', 'inputnode.bold_ref_file'),
+            ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+            ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
         ]),
         (bold_native_wf, bold_anat_wf, [
             ('outputnode.bold_minimal', 'inputnode.bold_file'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
         ]),
-        (bold_fit_wf, merge_bold_sources, [('outputnode.coreg_boldref', 'in2')]),
+        (inputnode, merge_bold_sources, [('coreg_boldref', 'in2')]),
     ])  # fmt:skip
 
     # Full derivatives, including resampled BOLD series
@@ -425,12 +431,13 @@ configured with cubic B-spline interpolation.
         ds_bold_t1_wf.inputs.inputnode.space = 'T1w'
 
         workflow.connect([
-            (bold_fit_wf, ds_bold_t1_wf, [
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
+            (inputnode, ds_bold_t1_wf, [
+                ('bold_mask', 'inputnode.bold_mask'),
+                ('coreg_boldref', 'inputnode.bold_ref'),
+                ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('motion_xfm', 'inputnode.motion_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
             ]),
             (bold_native_wf, ds_bold_t1_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_anat_wf, ds_bold_t1_wf, [
@@ -469,12 +476,10 @@ configured with cubic B-spline interpolation.
                 ('std_resolution', 'inputnode.resolution'),
                 ('fmap_ref', 'inputnode.fmap_ref'),
                 ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('fmap_id', 'inputnode.fmap_id'),
-            ]),
-            (bold_fit_wf, bold_std_wf, [
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('coreg_boldref', 'inputnode.bold_ref_file'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+                ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
             ]),
             (bold_native_wf, bold_std_wf, [
                 ('outputnode.bold_minimal', 'inputnode.bold_file'),
@@ -485,13 +490,12 @@ configured with cubic B-spline interpolation.
                 ('std_t1w', 'inputnode.template'),
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
-            ]),
-            (bold_fit_wf, ds_bold_std_wf, [
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
+                ('bold_mask', 'inputnode.bold_mask'),
+                ('coreg_boldref', 'inputnode.bold_ref'),
+                ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('motion_xfm', 'inputnode.motion_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
             ]),
             (bold_native_wf, ds_bold_std_wf, [('outputnode.t2star_map', 'inputnode.t2star')]),
             (bold_std_wf, ds_bold_std_wf, [
@@ -558,20 +562,19 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (bold_anat_wf, bold_surf_wf, [('outputnode.bold_file', 'inputnode.bold_t1w')]),
         ])  # fmt:skip
 
-        # sources are bold_file, motion_xfm, boldref2anat_xfm, fsnative2t1w_xfm
+        # sources are bold_file, motion_xfm, run2boldref_xfm, boldref2anat_xfm, fsnative2t1w_xfm
         merge_surface_sources = pe.Node(
-            niu.Merge(4),
+            niu.Merge(5),
             name='merge_surface_sources',
             run_without_submitting=True,
         )
         merge_surface_sources.inputs.in1 = bold_file
         workflow.connect([
-            (bold_fit_wf, merge_surface_sources, [
-                ('outputnode.motion_xfm', 'in2'),
-                ('outputnode.boldref2anat_xfm', 'in3'),
-            ]),
             (inputnode, merge_surface_sources, [
-                ('fsnative2t1w_xfm', 'in4'),
+                ('motion_xfm', 'in2'),
+                ('run2boldref_xfm', 'in3'),
+                ('boldref2anat_xfm', 'in4'),
+                ('fsnative2t1w_xfm', 'in5'),
             ]),
         ])  # fmt:skip
 
@@ -635,12 +638,10 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('anat2mni6_xfm', 'inputnode.anat2std_xfm'),
                 ('fmap_ref', 'inputnode.fmap_ref'),
                 ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('fmap_id', 'inputnode.fmap_id'),
-            ]),
-            (bold_fit_wf, bold_MNI6_wf, [
-                ('outputnode.coreg_boldref', 'inputnode.bold_ref_file'),
-                ('outputnode.boldref2fmap_xfm', 'inputnode.boldref2fmap_xfm'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('coreg_boldref', 'inputnode.bold_ref_file'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+                ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
             ]),
             (bold_native_wf, bold_MNI6_wf, [
                 ('outputnode.bold_minimal', 'inputnode.bold_file'),
@@ -798,13 +799,11 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (inputnode, bold_confounds_wf, [
             ('t1w_tpms', 'inputnode.t1w_tpms'),
             ('t1w_mask', 'inputnode.t1w_mask'),
-        ]),
-        (bold_fit_wf, bold_confounds_wf, [
-            ('outputnode.bold_mask', 'inputnode.bold_mask'),
-            ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
-            ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-            ('outputnode.dummy_scans', 'inputnode.skip_vols'),
+            ('orig_bold_mask', 'inputnode.bold_mask'),
+            ('run_boldref', 'inputnode.hmc_boldref'),
+            ('motion_xfm', 'inputnode.motion_xfm'),
+            ('run2anat_xfm', 'inputnode.boldref2anat_xfm'),
+            ('dummy_scans', 'inputnode.skip_vols'),
         ]),
         (bold_native_wf, bold_confounds_wf, [
             ('outputnode.bold_native', 'inputnode.bold'),
@@ -834,11 +833,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         workflow.connect([
             (inputnode, carpetplot_wf, [
                 ('mni2009c2anat_xfm', 'inputnode.std2anat_xfm'),
-            ]),
-            (bold_fit_wf, carpetplot_wf, [
-                ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
-                ('outputnode.bold_mask', 'inputnode.bold_mask'),
-                ('outputnode.boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                ('dummy_scans', 'inputnode.dummy_scans'),
+                ('orig_bold_mask', 'inputnode.bold_mask'),
+                ('run2anat_xfm', 'inputnode.boldref2anat_xfm'),
             ]),
             (bold_native_wf, carpetplot_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
@@ -857,30 +854,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             workflow.get_node(node).inputs.source_file = bold_file
 
     return workflow
-
-
-def _get_wf_name(bold_fname, prefix):
-    """
-    Derive the workflow name for supplied BOLD file.
-
-    >>> _get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz", "bold")
-    'bold_task_nback_wf'
-    >>> _get_wf_name(
-    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz",
-    ...     "preproc",
-    ... )
-    'preproc_task_nback_run_01_echo_1_wf'
-
-    """
-    from nipype.utils.filemanip import split_filename
-
-    fname = split_filename(bold_fname)[1]
-    fname_sanitized = '_'.join(fname.split('_')[1:-1])
-    for char in '-+':
-        fname_sanitized = fname_sanitized.replace(char, '_')
-    if prefix is None:
-        return f'{fname_sanitized}_wf'
-    return f'{prefix}_{fname_sanitized}_wf'
 
 
 def extract_entities(file_list):

@@ -123,14 +123,14 @@ def init_bold_anat_coreg_wf(
     fallbacks
         Per-run fallback flags from registration.
     """
-    from fmriprep.workflows.bold.base import _get_wf_name
+    from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
     from fmriprep.workflows.bold.registration import init_bold_reg_wf
 
     precomputed = precomputed or {}
     bids_root = str(config.execution.bids_dir)
     n_runs = len(bold_files)
-    bold_ids = [_get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
+    bold_ids = [get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
 
     reg_kwargs = {
         'bold2anat_dof': bold2anat_dof,
