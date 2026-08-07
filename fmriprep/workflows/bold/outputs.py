@@ -169,8 +169,11 @@ def init_func_fit_reports_wf(
         BOLD reference after SDC, in BOLD space
     boldref2anat_xfm
         Affine transform from BOLD reference to anatomical space
-    boldref2fmap_xfm
-        Affine transform from BOLD reference to fieldmap space
+    run2fmap_xfm
+        Affine transform from the run-level BOLD reference to fieldmap space
+    run2boldref_xfm
+        Affine transform from the run-level BOLD reference to the boldref
+        template (identity at run level)
     t1w_preproc
         The T1w reference map, which is calculated as the average of bias-corrected
         and preprocessed T1w images, defining the anatomical space.
@@ -204,7 +207,8 @@ def init_func_fit_reports_wf(
         'coreg_boldref',
         'bold_mask',
         'boldref2anat_xfm',
-        'boldref2fmap_xfm',
+        'run2fmap_xfm',
+        'run2boldref_xfm',
         't1w_preproc',
         't1w_mask',
         't1w_dseg',
@@ -245,13 +249,20 @@ def init_func_fit_reports_wf(
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
 
+    to_anat_xfm = pe.Node(
+        niu.Merge(2),
+        name='to_anat_xfm',
+        run_without_submitting=True,
+        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
+    )
+
     # Resample anatomical references into BOLD space for plotting
     t1w_boldref = pe.Node(
         ApplyTransforms(
             dimension=3,
             default_value=0,
             float=True,
-            invert_transform_flags=[True],
+            invert_transform_flags=[True, False],
             interpolation='LanczosWindowedSinc',
         ),
         name='t1w_boldref',
@@ -269,7 +280,7 @@ def init_func_fit_reports_wf(
         ApplyTransforms(
             dimension=3,
             default_value=0,
-            invert_transform_flags=[True],
+            invert_transform_flags=[True, False],
             interpolation='NearestNeighbor',
         ),
         name='boldref_wm',
@@ -283,16 +294,20 @@ def init_func_fit_reports_wf(
         (inputnode, ds_validation, [
             ('validation_report', 'in_file'),
         ]),
+        (inputnode, to_anat_xfm, [
+            ('boldref2anat_xfm', 'in1'),
+            ('run2boldref_xfm', 'in2'),
+        ]),
         (inputnode, t1w_boldref, [
             ('t1w_preproc', 'input_image'),
             ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
         ]),
+        (to_anat_xfm, t1w_boldref, [('out', 'transforms')]),
         (inputnode, t1w_wm, [('t1w_dseg', 'in_seg')]),
         (inputnode, boldref_wm, [
             ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
         ]),
+        (to_anat_xfm, boldref_wm, [('out', 'transforms')]),
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
     ])  # fmt:skip
 
@@ -309,12 +324,19 @@ def init_func_fit_reports_wf(
     #       After: Resampled boldref with white matter mask
 
     if sdc_correction:
+        to_fmap_xfm = pe.Node(
+            niu.Merge(2),
+            name='to_fmap_xfm',
+            run_without_submitting=True,
+            mem_gb=config.DEFAULT_MEMORY_MIN_GB,
+        )
+
         fmapref_boldref = pe.Node(
             ApplyTransforms(
                 dimension=3,
                 default_value=0,
                 float=True,
-                invert_transform_flags=[True],
+                invert_transform_flags=[True, False],
                 interpolation='LanczosWindowedSinc',
             ),
             name='fmapref_boldref',
@@ -371,8 +393,12 @@ def init_func_fit_reports_wf(
             (inputnode, fmapref_boldref, [
                 ('fmap_ref', 'input_image'),
                 ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
             ]),
+            (inputnode, to_fmap_xfm, [
+                ('run2fmap_xfm', 'in1'),
+                ('run2boldref_xfm', 'in2'),
+            ]),
+            (to_fmap_xfm, fmapref_boldref, [('out', 'transforms')]),
             (inputnode, sdcreg_report, [
                 ('sdc_boldref', 'reference'),
                 ('fieldmap', 'fieldmap'),
@@ -610,7 +636,7 @@ def init_ds_hmc_wf(
             extension='.txt',
             compress=True,
             dismiss_entities=dismiss_echo(),
-            **{'from': 'orig', 'to': 'boldref'},
+            **{'from': 'orig', 'to': 'run'},
         ),
         name='ds_xforms',
         run_without_submitting=True,
@@ -650,7 +676,8 @@ def init_ds_bold_native_wf(
                 't2star',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
+                'run2boldref_xfm',
+                'run2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -658,7 +685,7 @@ def init_ds_bold_native_wf(
 
     sources = pe.Node(
         BIDSURI(
-            numinputs=3,
+            numinputs=4,
             dataset_links=config.execution.dataset_links,
             out_dir=str(output_dir),
         ),
@@ -668,7 +695,8 @@ def init_ds_bold_native_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
+            ('run2boldref_xfm', 'in3'),
+            ('run2fmap_xfm', 'in4'),
         ]),
     ])  # fmt:skip
 
@@ -747,6 +775,72 @@ def init_ds_bold_native_wf(
     return workflow
 
 
+def init_ds_bold_boldref_wf(
+    *,
+    source_file: str,
+    bids_root: str,
+    output_dir: str,
+    multiecho: bool,
+    metadata: dict,
+    name='ds_bold_boldref_wf',
+) -> pe.Workflow:
+    timing_parameters = prepare_timing_parameters(metadata)
+
+    workflow = pe.Workflow(name=name)
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            fields=[
+                'source_files',
+                'bold',
+                # Transforms previously used to generate the outputs
+                'motion_xfm',
+                'run2boldref_xfm',
+                'run2fmap_xfm',
+            ]
+        ),
+        name='inputnode',
+    )
+
+    sources = pe.Node(
+        BIDSURI(
+            numinputs=4,
+            dataset_links=config.execution.dataset_links,
+            out_dir=str(output_dir),
+        ),
+        name='sources',
+    )
+    workflow.connect([
+        (inputnode, sources, [
+            ('source_files', 'in1'),
+            ('motion_xfm', 'in2'),
+            ('run2boldref_xfm', 'in3'),
+            ('run2fmap_xfm', 'in4'),
+        ]),
+    ])  # fmt:skip
+
+    ds_bold = pe.Node(
+        DerivativesDataSink(
+            source_file=source_file,
+            base_directory=output_dir,
+            space='boldref',
+            desc='preproc',
+            compress=True,
+            SkullStripped=multiecho,
+            TaskName=metadata.get('TaskName'),
+            dismiss_entities=dismiss_echo(),
+            **timing_parameters,
+        ),
+        name='ds_bold',
+        mem_gb=DEFAULT_MEMORY_MIN_GB,
+    )
+    workflow.connect([
+        (inputnode, ds_bold, [('bold', 'in_file')]),
+        (sources, ds_bold, [('out', 'Sources')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
 def init_ds_volumes_wf(
     *,
     source_file: str,
@@ -778,7 +872,8 @@ def init_ds_volumes_wf(
                 'resolution',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
+                'run2boldref_xfm',
+                'run2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -786,7 +881,7 @@ def init_ds_volumes_wf(
 
     sources = pe.Node(
         BIDSURI(
-            numinputs=6,
+            numinputs=7,
             dataset_links=config.execution.dataset_links,
             out_dir=str(output_dir),
         ),
@@ -813,10 +908,11 @@ def init_ds_volumes_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
-            ('boldref2anat_xfm', 'in4'),
-            ('anat2std_xfm', 'in5'),
-            ('template', 'in6'),
+            ('run2boldref_xfm', 'in3'),
+            ('run2fmap_xfm', 'in4'),
+            ('boldref2anat_xfm', 'in5'),
+            ('anat2std_xfm', 'in6'),
+            ('template', 'in7'),
         ]),
         (inputnode, boldref2target, [
             # Note that ANTs expects transforms in target-to-source order
