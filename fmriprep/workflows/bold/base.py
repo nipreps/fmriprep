@@ -878,6 +878,8 @@ def _get_wf_name(bold_fname, prefix):
     fname_sanitized = '_'.join(fname.split('_')[1:-1])
     for char in '-+':
         fname_sanitized = fname_sanitized.replace(char, '_')
+    if prefix is None:
+        return f'{fname_sanitized}_wf'
     return f'{prefix}_{fname_sanitized}_wf'
 
 
