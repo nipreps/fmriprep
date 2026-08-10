@@ -223,16 +223,37 @@ these will be indicated with ``[specifiers]``::
    The mask file is part of the *minimal* processing level. The BOLD series
    is only generated at the *full* processing level.
 
+**BOLD reference spaces**.
+
+fMRIPrep tracks a consistent hierarchy of BOLD reference spaces, reflected in the
+``space`` and ``from``/``to`` entities of functional outputs:
+
+- ``orig`` -- the native BOLD acquisition space.
+- ``run`` -- the per-run boldref space. This is the target of head-motion
+  correction (HMC), derived from the sbref or a robust average of the BOLD series.
+- ``boldref`` -- the coregistration reference space registered to anatomy.
+  When ``--bold-coreg-level run`` (default), ``boldref`` is identical to ``run``.
+  When ``--bold-coreg-level session`` or ``subject``, ``boldref`` is a template image
+  built from all run-level boldrefs in the session (or subject).
+- ``anat`` -- the anatomical reference space (``T1w``).
+
+The transform chain applied during resampling is therefore::
+
+  orig -> run      (from-orig_to-run, HMC)
+  run  -> boldref  (from-run_to-boldref, identity when --bold-coreg-level run)
+  boldref -> anat  (from-boldref_to-T1w)
+  anat -> std      (anat2std)
+
 **Motion correction outputs**.
 
 Head-motion correction (HMC) produces a reference image to which all volumes
 are aligned, and a corresponding transform that maps the original BOLD series
-to the reference image::
+to the run-level boldref::
 
   sub-<subject_label>/
     func/
       sub-<subject_label>_[specifiers]_desc-hmc_boldref.nii.gz
-      sub-<subject_label>_[specifiers]_from-orig_to_boldref_mode-image_desc-hmc_xfm.txt
+      sub-<subject_label>_[specifiers]_from-orig_to-run_mode-image_desc-hmc_xfm.txt
 
 .. note::
 
@@ -246,7 +267,12 @@ image and affine transform::
   sub-<subject_label>/
     func/
       sub-<subject_label>_[specifiers]_desc-coreg_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_from-run_to-boldref_mode-image_desc-coreg_xfm.txt
       sub-<subject_label>_[specifiers]_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt
+
+The ``from-run_to-boldref`` transform is written for every run regardless of
+``--bold-coreg-level``; it is an identity transform when ``--bold-coreg-level run``
+(the default).
 
 .. note::
 
@@ -260,14 +286,14 @@ is identified with ``"B0Identifier": "TOPUP"``, the generated transform will be 
 
   sub-<subject_label>/
     func/
-      sub-<subject_label>_[specifiers]_from-boldref_to-TOPUP_mode-image_xfm.txt
+      sub-<subject_label>_[specifiers]_from-run_to-TOPUP_mode-image_xfm.txt
 
 If the association is discovered through the ``IntendedFor`` field of the
 fieldmap metadata, then the transform will be given an auto-generated name::
 
   sub-<subject_label>/
     func/
-      sub-<subject_label>_[specifiers]_from-boldref_to-auto000XX_mode-image_xfm.txt
+      sub-<subject_label>_[specifiers]_from-run_to-auto000XX_mode-image_xfm.txt
 
 .. note::
 

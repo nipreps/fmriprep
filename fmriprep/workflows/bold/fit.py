@@ -606,22 +606,20 @@ def init_bold_native_wf(
 
     Inputs
     ------
-    boldref
+    run_boldref
         BOLD reference file
     bold_mask
         Mask of BOLD reference file
     motion_xfm
         Affine transforms from each BOLD volume to ``hmc_boldref``, written
         as concatenated ITK affine transforms.
-    boldref2fmap_xfm
+    run2fmap_xfm
         Affine transform mapping from BOLD reference space to the fieldmap
         space, if applicable.
-    fmap_id
-        Unique identifiers to select fieldmap files
     fmap_ref
-        List of fieldmap reference files (collated with fmap_id)
+        Fieldmap reference file
     fmap_coeff
-        List of lists of spline coefficient files (collated with fmap_id)
+        List of spline coefficient files
 
     Outputs
     -------
