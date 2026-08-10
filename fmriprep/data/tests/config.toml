@@ -32,6 +32,7 @@ write_graph = false
 [workflow]
 anat_only = false
 bold2anat_dof = 6
+bold_coreg_level = "run"
 fmap_bspline = false
 force = []
 force_syn = false

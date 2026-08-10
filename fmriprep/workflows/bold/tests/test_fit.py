@@ -36,15 +36,13 @@ def _make_params(
     have_hmcref: bool = True,
     have_coregref: bool = True,
     have_hmc_xfms: bool = True,
-    have_boldref2fmap_xfm: bool = True,
-    have_boldref2anat_xfm: bool = True,
+    have_run2fmap_xfm: bool = True,
 ):
     return (
         have_hmcref,
         have_coregref,
         have_hmc_xfms,
-        have_boldref2anat_xfm,
-        have_boldref2fmap_xfm,
+        have_run2fmap_xfm,
     )
 
 
@@ -101,17 +99,15 @@ def test_get_sbrefs_preserves_single_missing_echo_time():
         'have_hmcref',
         'have_coregref',
         'have_hmc_xfms',
-        'have_boldref2fmap_xfm',
-        'have_boldref2anat_xfm',
+        'have_run2fmap_xfm',
     ),
     [
-        (True, True, True, True, True),
-        (False, False, False, False, False),
+        (True, True, True, True),
+        (False, False, False, False),
         _make_params(have_hmcref=False),
         _make_params(have_hmc_xfms=False),
         _make_params(have_coregref=False),
-        _make_params(have_coregref=False, have_boldref2fmap_xfm=False),
-        _make_params(have_boldref2anat_xfm=False),
+        _make_params(have_coregref=False, have_run2fmap_xfm=False),
     ],
 )
 def test_bold_fit_precomputes(
@@ -122,8 +118,7 @@ def test_bold_fit_precomputes(
     have_hmcref: bool,
     have_coregref: bool,
     have_hmc_xfms: bool,
-    have_boldref2fmap_xfm: bool,
-    have_boldref2anat_xfm: bool,
+    have_run2fmap_xfm: bool,
 ):
     """Test as many combinations of precomputed files and input
     configurations as possible."""
@@ -163,10 +158,8 @@ def test_bold_fit_precomputes(
         precomputed['coreg_boldref'] = dummy_nifti
     if have_hmc_xfms:
         precomputed['transforms']['hmc'] = dummy_affine
-    if have_boldref2anat_xfm:
-        precomputed['transforms']['boldref2anat'] = dummy_affine
-    if have_boldref2fmap_xfm:
-        precomputed['transforms']['boldref2fmap'] = dummy_affine
+    if have_run2fmap_xfm:
+        precomputed['transforms']['run2fmap'] = dummy_affine
 
     with mock_config(bids_dir=bids_root):
         config.workflow.bold2anat_init = 't1w'
