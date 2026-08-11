@@ -24,5 +24,9 @@ repos:
       - id: ruff-check
         args: [ --fix, --show-fixes ]
       - id: ruff-format
+  - repo: https://github.com/codespell-project/codespell
+    rev: 57b21406f092110c18776e39b0bda50d37c945c8  # frozen: v2.4.3
+    hooks:
+      - id: codespell
 ci:
   autoupdate_schedule: monthly
