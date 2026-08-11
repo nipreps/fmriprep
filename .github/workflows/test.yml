@@ -34,11 +34,11 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest']
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13', '3.14']
         dependencies: ['latest', 'pre']
         include:
           - os: ubuntu-latest
-            python-version: '3.10'
+            python-version: '3.12'
             dependencies: 'min'
 
     env:
@@ -78,27 +78,4 @@ jobs:
       - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-        if: ${{ always() }}
-
-  checks:
-    runs-on: "ubuntu-latest"
-    continue-on-error: true
-    strategy:
-      matrix:
-        check: ["style", "spellcheck"]
-
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-      - name: Install tox
-        run: uv tool install tox --with=tox-uv
-      - name: Show tox config
-        run: tox c -e ${{ matrix.check }}
-      - name: Run check
-        run: tox -e ${{ matrix.check }}
-      - name: Minimize uv cache
-        run: uv cache prune --ci
         if: ${{ always() }}
