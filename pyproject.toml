@@ -79,11 +79,11 @@ telemetry = [
     "sentry-sdk >= 2.13.0",
 ]
 test = [
-    "coverage[toml] >= 5.2.1",
-    "pytest >= 8.1",
-    "pytest-cov >= 2.11",
-    "pytest-env",
-    "pytest-xdist >= 3.3",
+    "coverage[toml] >= 7.6.2",
+    "pytest >= 8.3.3",
+    "pytest-cov >= 6.0.0",
+    "pytest-env >= 1.1.4",
+    "pytest-xdist >= 3.7.0",
 ]
 maint = [
     "fuzzywuzzy",
