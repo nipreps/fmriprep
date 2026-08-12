@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from bids.layout import BIDSLayout
 
 from fmriprep.utils import bids
 
@@ -56,3 +57,31 @@ def test_transforms_found_as_str(tmp_path: Path, xfm: str):
         fieldmap_id='auto_00000',
     )
     assert derivs == {'transforms': {xfm: str(to_find)}}
+
+
+def test_select_bold_magnitude_files():
+    files = [
+        'sub-01/func/sub-01_task-rest_echo-1_part-mag_bold.nii.gz',
+        'sub-01/func/sub-01_task-rest_echo-1_part-phase_bold.nii.gz',
+        'sub-01/func/sub-01_task-rest_echo-2_part-mag_bold.nii.gz',
+    ]
+    assert bids.select_bold_magnitude_files(files) == [files[0], files[2]]
+
+
+def test_collect_bold_part_files(tmp_path: Path):
+    (tmp_path / 'dataset_description.json').write_text('{"Name": "test", "BIDSVersion": "1.8.0"}')
+    func_dir = tmp_path / 'sub-01' / 'func'
+    func_dir.mkdir(parents=True)
+
+    magnitude_files = []
+    phase_files = []
+    for echo in range(1, 4):
+        mag = func_dir / f'sub-01_task-rest_echo-{echo}_part-mag_bold.nii.gz'
+        phase = func_dir / f'sub-01_task-rest_echo-{echo}_part-phase_bold.nii.gz'
+        mag.touch()
+        phase.touch()
+        magnitude_files.append(str(mag))
+        phase_files.append(str(phase))
+
+    layout = BIDSLayout(tmp_path, validate=False)
+    assert bids.collect_bold_part_files(layout, magnitude_files, part='phase') == phase_files

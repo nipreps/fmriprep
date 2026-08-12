@@ -2,7 +2,7 @@ import nibabel as nb
 import numpy as np
 from nipype.pipeline import engine as pe
 
-from fmriprep.interfaces.maths import Clip
+from fmriprep.interfaces.maths import Clip, TemporalMean
 
 
 def test_Clip(tmp_path):
@@ -41,3 +41,21 @@ def test_Clip(tmp_path):
     assert ret.outputs.out_file == str(tmp_path / 'nonpositive/input_clipped.nii')
     out_img = nb.load(ret.outputs.out_file)
     assert np.allclose(out_img.get_fdata(), [[[-1.0, 0.0], [-2.0, 0.0]]])
+
+
+def test_TemporalMean(tmp_path):
+    in_file = str(tmp_path / 'timeseries.nii')
+    data = np.stack(
+        (
+            np.array([[[1.0, 2.0], [3.0, 4.0]]]),
+            np.array([[[5.0, 6.0], [7.0, 8.0]]]),
+        ),
+        axis=3,
+    )
+    nb.Nifti1Image(data, np.eye(4)).to_filename(in_file)
+
+    meaner = pe.Node(TemporalMean(in_file=in_file), name='meaner', base_dir=tmp_path)
+    ret = meaner.run()
+
+    out_img = nb.load(ret.outputs.out_file)
+    assert np.allclose(out_img.get_fdata(), [[[3.0, 4.0], [5.0, 6.0]]])

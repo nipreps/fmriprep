@@ -378,6 +378,15 @@ async def resample_series_async(
         The resampled array, with shape ``coordinates.shape[1:] + (N,)``,
         where N is the number of volumes in ``data``.
     """
+    fmap_is_series = fmap_hz.ndim > 3
+    if data.ndim == 3 and fmap_is_series:
+        raise ValueError('A 3D source image cannot be resampled with a 4D fieldmap series.')
+    if fmap_is_series and fmap_hz.shape[-1] != data.shape[-1]:
+        raise ValueError(
+            'Fieldmap series and source series must have matching numbers of volumes '
+            f'(got {fmap_hz.shape[-1]} and {data.shape[-1]}).'
+        )
+
     if data.ndim == 3:
         return resample_vol(
             data,
@@ -385,7 +394,7 @@ async def resample_series_async(
             pe_info[0],
             jacobian,
             hmc_xfms[0] if hmc_xfms else None,
-            fmap_hz,
+            fmap_hz[..., 0] if fmap_is_series else fmap_hz,
             output_dtype,
             order,
             mode,
@@ -409,7 +418,7 @@ async def resample_series_async(
                     pe_info=pe_info[volid],
                     jacobian=jacobian,
                     hmc_xfm=hmc_xfms[volid] if hmc_xfms else None,
-                    fmap_hz=fmap_hz,
+                    fmap_hz=fmap_hz[..., volid] if fmap_is_series else fmap_hz,
                     output=out_array[..., volid],
                     order=order,
                     mode=mode,

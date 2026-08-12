@@ -381,6 +381,43 @@ def extract_entities(file_list):
     return {k: _unique(v) for k, v in entities.items()}
 
 
+def select_bold_magnitude_files(file_list):
+    """Return BOLD files that should be treated as magnitude data.
+
+    This filters out explicit phase companions so pipelines that operate on
+    ``subject_data['bold']`` do not accidentally schedule ``part-phase`` series
+    as if they were standard BOLD inputs.
+    """
+    from bids.layout import parse_file_entities
+
+    return [
+        fname
+        for fname in listify(file_list)
+        if parse_file_entities(fname).get('part') in (None, 'mag')
+    ]
+
+
+def collect_bold_part_files(layout, bold_series, part):
+    """Collect BOLD part-files matching a run, sorted by echo time."""
+    magnitude_files = select_bold_magnitude_files(bold_series)
+    if not magnitude_files:
+        return []
+
+    entities = extract_entities(magnitude_files)
+    entities.pop('part', None)
+    entities.update(
+        datatype='func',
+        suffix='bold',
+        part=part,
+        extension=['.nii', '.nii.gz'],
+    )
+
+    return sorted(
+        layout.get(return_type='file', **entities),
+        key=lambda fname: layout.get_metadata(fname).get('EchoTime', 0),
+    )
+
+
 def dismiss_echo(entities=None):
     """Set entities to dismiss in a DerivativesDataSink."""
     if entities is None:

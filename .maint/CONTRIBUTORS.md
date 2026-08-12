@@ -60,6 +60,7 @@ Before every release, unlisted contributors will be invited again to add their n
 | Schaefer          | Theo A.J.    |  | 0000-0003-4102-559X | Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany                                                                |
 | Seeley            | Saren        | @sarenseeley | 0000-0002-9493-8512 | Department of Psychiatry, Icahn School of Medicine at Mount Sinai |
 | Sitek             | Kevin R.     |  | 0000-0002-2172-5786 | Speech & Hearing Bioscience & Technology Program, Harvard University                                                                         |
+| Smith             | David V.     | @dvsmith.bsky.social | 0000-0001-5754-9633 | Department of Psychology and Neuroscience, Temple University |
 | Smith             | Robert E.    |  | 0000-0003-3636-4642 | Florey Institute of Neuroscience and Mental Health                                                                                           |
 | Sneve             | Markus H.    |  | 0000-0001-7644-7915 | Center for Lifespan Changes in Brain and Cognition, University of Oslo                                                                       |
 | Stojić            | Hrvoje       |  | 0000-0002-9699-9052 | Max Planck UCL Centre for Computational Psychiatry and Ageing Research, University College London                                            |
