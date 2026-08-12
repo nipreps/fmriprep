@@ -22,7 +22,7 @@
 #
 """Test version checks."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from os import getenv, geteuid
 from pathlib import Path
 
@@ -72,7 +72,7 @@ def test_check_latest1(tmpdir, monkeypatch):
     assert v == Version('1.1.0')
     assert cachefile.read_text().split('|') == [
         str(v),
-        datetime.now(tz=timezone.utc).strftime(DATE_FMT),
+        datetime.now(tz=UTC).strftime(DATE_FMT),
     ]
 
     # Second check - test the cache file is read
@@ -140,7 +140,7 @@ def test_check_latest2(tmpdir, monkeypatch, result, code, json):
     [
         '3laj#r???d|3akajdf#',
         '2.0.0|3akajdf#',
-        '|'.join(('2.0.0', datetime.now(tz=timezone.utc).strftime(DATE_FMT), '')),
+        '|'.join(('2.0.0', datetime.now(tz=UTC).strftime(DATE_FMT), '')),
         '',
     ],
 )
