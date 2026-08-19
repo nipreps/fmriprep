@@ -99,7 +99,7 @@ def init_bold_template_wf(
         StructuralReference(
             auto_detect_sensitivity=True,
             initial_timepoint=1,
-            intensity_scaling=False,
+            intensity_scaling=True,
             subsample_threshold=200,
             fixed_timepoint=not unbiased,
             no_iteration=not unbiased,
