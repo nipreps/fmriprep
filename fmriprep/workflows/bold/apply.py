@@ -125,7 +125,7 @@ def init_bold_volumetric_resample_wf(
 
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref', mem_gb=0.3)
 
-    boldref2target = pe.Node(niu.Merge(3), name='boldref2target', run_without_submitting=True)
+    run2target = pe.Node(niu.Merge(3), name='run2target', run_without_submitting=True)
     bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
     resample = pe.Node(
         ResampleSeries(jacobian=jacobian),
@@ -141,7 +141,7 @@ def init_bold_volumetric_resample_wf(
             ('target_mask', 'fov_mask'),
             (('resolution', _is_native), 'keep_native'),
         ]),
-        (inputnode, boldref2target, [
+        (inputnode, run2target, [
             ('run2boldref_xfm', 'in1'),
             ('boldref2anat_xfm', 'in2'),
             ('anat2std_xfm', 'in3'),
@@ -149,7 +149,7 @@ def init_bold_volumetric_resample_wf(
         (inputnode, bold2target, [('motion_xfm', 'in1')]),
         (inputnode, resample, [('bold_file', 'in_file')]),
         (gen_ref, resample, [('out_file', 'ref_file')]),
-        (boldref2target, bold2target, [('out', 'in2')]),
+        (run2target, bold2target, [('out', 'in2')]),
         (bold2target, resample, [('out', 'transforms')]),
         (gen_ref, outputnode, [('out_file', 'resampling_reference')]),
         (resample, outputnode, [('out_file', 'bold_file')]),
@@ -179,8 +179,8 @@ def init_bold_volumetric_resample_wf(
         (inputnode, distortion_params, [('bold_file', 'in_file')]),
         (inputnode, fmap2target, [('run2fmap_xfm', 'in1')]),
         (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
-        (boldref2target, fmap2target, [('out', 'in2')]),
-        (boldref2target, inverses, [('out', 'inlist')]),
+        (run2target, fmap2target, [('out', 'in2')]),
+        (run2target, inverses, [('out', 'inlist')]),
         (inputnode, fmap_recon, [
             ('fmap_coeff', 'in_coeffs'),
             ('fmap_ref', 'fmap_ref_file'),

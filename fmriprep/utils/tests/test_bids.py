@@ -33,6 +33,9 @@ class _MockLayout:
         return {'PhaseEncodingDirection': pe} if pe is not None else {}
 
 
+# Each case pairs (bold_runs, estimator_map, pe_map) with the expected validity:
+# a template needs >=2 runs, uniform SDC status, and SDC-less runs to share one
+# phase-encoding direction. ``ids`` label the scenario each case exercises.
 @pytest.mark.parametrize(
     ('bold_runs', 'estimator_map', 'pe_map', 'expected'),
     [

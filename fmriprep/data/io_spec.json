@@ -3,7 +3,7 @@
     "baseline": {
       "hmc": {
         "datatype": "func",
-        "space": "orig",
+        "space": ["orig", null],
         "desc": "hmc",
         "suffix": "boldref",
         "extension": [
@@ -13,8 +13,8 @@
       },
       "run": {
         "datatype": "func",
-        "space": "run",
-        "desc": null,
+        "space": ["run", null],
+        "desc": [null, "coreg"],
         "suffix": "boldref",
         "extension": [
           ".nii.gz",
@@ -26,14 +26,14 @@
       "hmc": {
         "datatype": "func",
         "from": "orig",
-        "to": "run",
+        "to": ["run", "boldref"],
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
       },
       "boldref2anat": {
         "datatype": "func",
-        "from": ["run", "session", "subject"],
+        "from": ["run", "session", "subject", "boldref"],
         "to": ["anat", "T1w", "T2w"],
         "mode": "image",
         "suffix": "xfm",
@@ -41,7 +41,7 @@
       },
       "run2fmap": {
         "datatype": "func",
-        "from": "run",
+        "from": ["run", "boldref"],
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"

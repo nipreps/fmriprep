@@ -82,16 +82,9 @@ def collect_derivatives(
     layout = _get_layout(derivatives_dir)
 
     # search for both boldrefs
-    legacy_names = {
-        # legacy io_spec - TODO: warn and deprecate
-        'hmc': {'space': None},
-        'run': {'space': None, 'desc': 'coreg'},
-    }
     for k, q in spec['baseline'].items():
         query = {**entities, **q}
         item = layout.get(return_type='filename', **query)
-        if not item and k in legacy_names:
-            item = layout.get(return_type='filename', **{**query, **legacy_names[k]})
         if not item:
             continue
         derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
@@ -107,12 +100,6 @@ def collect_derivatives(
             # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
             query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
-        if not item and xfm == 'hmc':
-            # legacy: from-orig_to-boldref -> from-orig_to-run
-            item = layout.get(return_type='filename', **{**query, 'to': 'boldref'})
-        if not item and xfm in ('run2fmap', 'boldref2anat'):
-            # legacy: from-boldref -> now from-run
-            item = layout.get(return_type='filename', **{**query, 'from': 'boldref'})
         if not item and xfm == 'boldref2anat':
             # session/subject coreg targets are written once with run-varying
             # entities dropped; relax the query to find them for each run

@@ -519,7 +519,6 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (bold_anat_wf, bold_surf_wf, [('outputnode.bold_file', 'inputnode.bold_t1w')]),
         ])  # fmt:skip
 
-        # sources are bold_file, motion_xfm, run2boldref_xfm, boldref2anat_xfm, fsnative2t1w_xfm
         merge_surface_sources = pe.Node(
             niu.Merge(5),
             name='merge_surface_sources',
