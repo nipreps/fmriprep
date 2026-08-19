@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 
 from nipype.interfaces import utility as niu
+from nipype.interfaces.base import Undefined
 from nipype.pipeline import engine as pe
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 
@@ -41,7 +42,7 @@ def _expand(value, n):
 def init_bold_anat_coreg_wf(
     *,
     bold_files: list[str],
-    coreg_per_run: bool,
+    coreg_space: str,
     bold2anat_dof: int,
     bold2anat_init: str,
     use_bbr: bool | None,
@@ -57,11 +58,11 @@ def init_bold_anat_coreg_wf(
     """
     Build a workflow to coregister BOLD run references to anatomical space.
 
-    Behavior is controlled by ``coreg_per_run``. When ``False`` (session- or
-    subject-level), a common BOLD template is built from all run references and
+    Behavior is controlled by ``coreg_space``. At ``session`` or ``subject``
+    level, a common BOLD template is built from all run references and
     registered to the anatomical, composing per-run ``run->template->anat``
-    transforms. When ``True`` (run-level), each run reference is registered to
-    the anatomical independently.
+    transforms. At ``run`` level, each run reference is registered to the
+    anatomical independently.
 
     Either way, per-run lists are returned so downstream workflows can be wired uniformly.
 
@@ -118,8 +119,6 @@ def init_bold_anat_coreg_wf(
         Per-run transform from coregistration target to anatomical space.
     run2anat_xfms
         Per-run composed run->anat transform.
-    boldref_template
-        Scalar session-level template boldref; unset for run-level.
     fallbacks
         Per-run fallback flags from registration.
     """
@@ -155,7 +154,7 @@ def init_bold_anat_coreg_wf(
             bids_root=bids_root,
             source_file=bold_file,
             output_dir=output_dir,
-            source='boldref',
+            source=coreg_space,
             dest=reference_anat,
             desc='coreg',
             name=f'ds_boldref2anat_{bold_id}',
@@ -187,7 +186,6 @@ def init_bold_anat_coreg_wf(
                 'run2boldref_xfms',
                 'boldref2anat_xfms',
                 'run2anat_xfms',
-                'boldref_template',
                 'fallbacks',
             ]
         ),
@@ -195,10 +193,24 @@ def init_bold_anat_coreg_wf(
     )
 
     # Template-level: all runs coregistered together first, then that template is coregistered to anat.
-    if not coreg_per_run:
+    if coreg_space != 'run':
         from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 
         from fmriprep.workflows.bold.template import init_bold_template_wf
+
+        # Simplify writing template
+        _dismiss = [
+            'task',
+            'acquisition',
+            'ceagent',
+            'reconstruction',
+            'direction',
+            'run',
+            'echo',
+            'part',
+        ]
+        if coreg_space == 'subject':
+            _dismiss.append('session')
 
         run2boldref_xfms = precomputed.get('run2boldref_xfms') or [None] * n_runs
         boldref2anat_xfm = precomputed.get('boldref2anat_xfm')
@@ -276,33 +288,32 @@ def init_bold_anat_coreg_wf(
                 ]),
             ])  # fmt:skip
 
-            # Datasink the session template boldref + mask (one copy per run naming)
-            ds_boldref_template = pe.MapNode(
+            # Single template is written
+            ds_boldref_template = pe.Node(
                 DerivativesDataSink(
                     base_directory=output_dir,
-                    space='boldref',
-                    desc='coreg',
+                    source_file=bold_files[0],
+                    space=coreg_space,
                     suffix='boldref',
                     compress=True,
+                    dismiss_entities=_dismiss,
                 ),
-                iterfield=['source_file'],
                 name='ds_boldref_template',
                 run_without_submitting=True,
             )
-            ds_boldref_template.inputs.source_file = bold_files
-            ds_boldref_mask = pe.MapNode(
+            ds_boldref_mask = pe.Node(
                 DerivativesDataSink(
                     base_directory=output_dir,
-                    space='boldref',
+                    source_file=bold_files[0],
+                    space=coreg_space,
                     desc='brain',
                     suffix='mask',
                     compress=True,
+                    dismiss_entities=_dismiss,
                 ),
-                iterfield=['source_file'],
                 name='ds_boldref_mask',
                 run_without_submitting=True,
             )
-            ds_boldref_mask.inputs.source_file = bold_files
             template_sources = pe.Node(
                 BIDSURI(
                     numinputs=1,
@@ -332,11 +343,27 @@ def init_bold_anat_coreg_wf(
             boldref_reg_wf = init_bold_reg_wf(name='boldref_reg_wf', **reg_kwargs)
             workflow.connect([
                 (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
-                (inputnode, boldref_reg_wf, anat_reg_inputs),
+                (inputnode, boldref_reg_wf, list(anat_reg_inputs)),
                 (boldref_reg_wf, reg_buffer, [
                     ('outputnode.itk_bold_to_t1', 'boldref2anat'),
                     ('outputnode.fallback', 'fallback'),
                 ]),
+            ])  # fmt:skip
+
+            # Single template->anat transform is written
+            ds_template2anat = init_ds_registration_wf(
+                bids_root=bids_root,
+                source_file=bold_files[0],
+                output_dir=output_dir,
+                source=coreg_space,
+                dest=reference_anat,
+                desc='coreg',
+                dismiss_entities=_dismiss,
+                name='ds_template2anat',
+            )
+            workflow.connect([
+                (inputnode, ds_template2anat, [('run_boldrefs', 'inputnode.source_files')]),
+                (reg_buffer, ds_template2anat, [('boldref2anat', 'inputnode.xform')]),
             ])  # fmt:skip
 
         merge_run2boldref = pe.Node(
@@ -373,7 +400,7 @@ def init_bold_anat_coreg_wf(
                     source_file=bold_file,
                     output_dir=output_dir,
                     source='run',
-                    dest='boldref',
+                    dest=coreg_space,
                     desc='coreg',
                     name=f'ds_run2boldref_{bold_id}',
                 )
@@ -388,12 +415,10 @@ def init_bold_anat_coreg_wf(
                 setattr(merge_boldref2anat.inputs, f'in{i + 1}', boldref2anat_xfm)
                 merge_run2anat.inputs.in2 = boldref2anat_xfm
             else:
-                ds_boldref2anat = _ds_boldref2anat_wf(bold_file, bold_id)
+                # Pass single template->anat transform to all runs
                 workflow.connect([
-                    (inputnode, ds_boldref2anat, [('run_boldrefs', 'inputnode.source_files')]),
-                    (reg_buffer, ds_boldref2anat, [('boldref2anat', 'inputnode.xform')]),
-                    (ds_boldref2anat, merge_boldref2anat, [('outputnode.xform', f'in{i + 1}')]),
-                    (ds_boldref2anat, merge_run2anat, [('outputnode.xform', 'in2')]),
+                    (reg_buffer, merge_boldref2anat, [('boldref2anat', f'in{i + 1}')]),
+                    (reg_buffer, merge_run2anat, [('boldref2anat', 'in2')]),
                 ])  # fmt:skip
 
             workflow.connect([
@@ -413,7 +438,6 @@ def init_bold_anat_coreg_wf(
             (template_buffer, expand_boldref, [('boldref', 'value')]),
             (template_buffer, expand_mask, [('mask', 'value')]),
             (reg_buffer, expand_fallback, [('fallback', 'value')]),
-            (template_buffer, outputnode, [('boldref', 'boldref_template')]),
             (expand_boldref, outputnode, [('out', 'coreg_boldrefs')]),
             (expand_mask, outputnode, [('out', 'bold_masks')]),
             (expand_fallback, outputnode, [('out', 'fallbacks')]),
@@ -423,13 +447,10 @@ def init_bold_anat_coreg_wf(
         ])  # fmt:skip
         return workflow
 
-    # Run-level: each run is coregistered to anat independently
-    from niworkflows.data import load as nwf_load
-
+    # Run-level: each run is coregistered to anat independently.
     boldref2anat_xfm = precomputed.get('boldref2anat_xfm') or [None] * n_runs
 
-    identity_xfm = str(nwf_load('itkIdentityTransform.txt'))
-    outputnode.inputs.run2boldref_xfms = [identity_xfm] * n_runs
+    outputnode.inputs.run2boldref_xfms = [Undefined] * n_runs
 
     merge_boldref2anat = pe.Node(
         niu.Merge(n_runs), name='merge_boldref2anat', run_without_submitting=True
@@ -444,19 +465,6 @@ def init_bold_anat_coreg_wf(
         )
         workflow.connect(inputnode, 'run_boldrefs', select_boldref, 'inlist')
 
-        # Save an identity transform for output space consistency
-        ds_run2boldref = init_ds_registration_wf(
-            bids_root=bids_root,
-            source_file=bold_file,
-            output_dir=output_dir,
-            source='run',
-            dest='boldref',
-            desc='coreg',
-            name=f'ds_run2boldref_{bold_id}',
-        )
-        ds_run2boldref.inputs.inputnode.xform = identity_xfm
-        workflow.connect(select_boldref, 'out', ds_run2boldref, 'inputnode.source_files')
-
         if boldref2anat_xfm[i]:
             setattr(merge_boldref2anat.inputs, f'in{i + 1}', boldref2anat_xfm[i])
             setattr(merge_fallbacks.inputs, f'in{i + 1}', False)
@@ -467,7 +475,7 @@ def init_bold_anat_coreg_wf(
 
         workflow.connect([
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
-            (inputnode, reg_wf, anat_reg_inputs),
+            (inputnode, reg_wf, list(anat_reg_inputs)),
             (select_boldref, ds_boldref2anat, [('out', 'inputnode.source_files')]),
             (reg_wf, ds_boldref2anat, [
                 ('outputnode.itk_bold_to_t1', 'inputnode.xform'),
