@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import nibabel as nb
@@ -9,7 +10,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.layouts import get_layout
-from ..fit import init_bold_fit_wf, init_bold_native_wf
+from ..fit import get_sbrefs, init_bold_fit_wf, init_bold_native_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -45,6 +46,52 @@ def _make_params(
         have_boldref2anat_xfm,
         have_boldref2fmap_xfm,
     )
+
+
+def test_get_sbrefs_rejects_missing_echo_time(caplog):
+    """SBRefs without EchoTime metadata should be dropped with a warning."""
+    bold_files = [
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_bold.nii.gz',
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-2_bold.nii.gz',
+    ]
+    sbref_files = [
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-2_sbref.nii.gz',
+        '/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_sbref.nii.gz',
+    ]
+
+    class Layout:
+        def get(self, **_entities):
+            return list(sbref_files)
+
+        def get_metadata(self, fname):
+            return {'EchoTime': 0.01} if fname.endswith('echo-1_sbref.nii.gz') else {}
+
+    logger = logging.getLogger('nipype.workflow')
+    old_propagate = logger.propagate
+    logger.propagate = True
+    with caplog.at_level(logging.WARNING, logger='nipype.workflow'):
+        found = get_sbrefs(bold_files, {}, Layout())
+    logger.propagate = old_propagate
+
+    assert found == ['/bids/sub-01/func/sub-01_task-rest_run-01_echo-1_sbref.nii.gz']
+    assert 'Dropping SBRef without EchoTime metadata' in caplog.text
+
+
+def test_get_sbrefs_preserves_single_missing_echo_time():
+    """A single SBRef without EchoTime should still be returned."""
+    bold_files = ['/bids/sub-01/func/sub-01_task-rest_run-01_bold.nii.gz']
+    sbref_file = '/bids/sub-01/func/sub-01_task-rest_run-01_sbref.nii.gz'
+
+    class Layout:
+        def get(self, **_entities):
+            return [sbref_file]
+
+        def get_metadata(self, _fname):
+            return {}
+
+    found = get_sbrefs(bold_files, {}, Layout())
+
+    assert found == [sbref_file]
 
 
 @pytest.mark.parametrize('task', ['rest', 'nback'])

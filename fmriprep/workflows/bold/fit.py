@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@
 #
 #     https://www.nipreps.org/community/licensing/
 #
+import logging
 import os
 import re
 import typing as ty
@@ -86,10 +87,21 @@ def get_sbrefs(
     entities.update(suffix='sbref', extension=['.nii', '.nii.gz'])
     entities.update(entity_overrides)
 
-    return sorted(
-        layout.get(return_type='file', **entities),
-        key=lambda fname: layout.get_metadata(fname).get('EchoTime'),
-    )
+    sbref_files = layout.get(return_type='file', **entities)
+    if len(sbref_files) == 1:
+        return sbref_files
+
+    valid_sbref_files = []
+
+    for fname in sbref_files:
+        if (echo_time := layout.get_metadata(fname).get('EchoTime')) is None:
+            logging.getLogger('nipype.workflow').warning(
+                'Dropping SBRef without EchoTime metadata: %s', fname
+            )
+            continue
+        valid_sbref_files.append((echo_time, fname))
+
+    return [fname for _, fname in sorted(valid_sbref_files)]
 
 
 def init_bold_fit_wf(
@@ -620,8 +632,7 @@ def init_bold_fit_wf(
                     ('out_file', 'inputnode.boldref'),
                 ]),
                 (ds_coreg_boldref_wf, skullstrip_bold_wf, [
-                    ('outputnode.boldref', 'inputnode.in_file'),
-                ]),
+                    ('outputnode.boldref', 'inputnode.in_file')]),
                 (skullstrip_bold_wf, ds_boldmask_wf, [
                     ('outputnode.mask_file', 'inputnode.boldmask'),
                 ]),
