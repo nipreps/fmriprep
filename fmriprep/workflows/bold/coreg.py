@@ -122,6 +122,7 @@ def init_bold_anat_coreg_wf(
     fallbacks
         Per-run fallback flags from registration.
     """
+    from fmriprep.utils.bids import GROUP_DISMISS_ENTITIES
     from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
     from fmriprep.workflows.bold.registration import init_bold_reg_wf
@@ -198,17 +199,7 @@ def init_bold_anat_coreg_wf(
 
         from fmriprep.workflows.bold.template import init_bold_template_wf
 
-        # Simplify writing template
-        _dismiss = [
-            'task',
-            'acquisition',
-            'ceagent',
-            'reconstruction',
-            'direction',
-            'run',
-            'echo',
-            'part',
-        ]
+        _dismiss = list(GROUP_DISMISS_ENTITIES)
         if coreg_space == 'subject':
             _dismiss.append('session')
 

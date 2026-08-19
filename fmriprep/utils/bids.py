@@ -39,6 +39,17 @@ from packaging.version import Version
 from .. import config
 from ..data import load as load_data
 
+GROUP_DISMISS_ENTITIES = (
+    'task',
+    'acquisition',
+    'ceagent',
+    'reconstruction',
+    'direction',
+    'run',
+    'echo',
+    'part',
+)
+
 
 @cache
 def _get_layout(derivatives_dir: Path) -> BIDSLayout:
@@ -71,16 +82,19 @@ def collect_derivatives(
     layout = _get_layout(derivatives_dir)
 
     # search for both boldrefs
+    legacy_names = {
+        # legacy io_spec - TODO: warn and deprecate
+        'hmc': {'space': None},
+        'run': {'space': None, 'desc': 'coreg'},
+    }
     for k, q in spec['baseline'].items():
         query = {**entities, **q}
         item = layout.get(return_type='filename', **query)
+        if not item and k in legacy_names:
+            item = layout.get(return_type='filename', **{**query, **legacy_names[k]})
         if not item:
             continue
         derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
-
-    # coreg_boldref is the legacy derivative name for run_boldref
-    if 'coreg_boldref' in derivs_cache and 'run_boldref' not in derivs_cache:
-        derivs_cache['run_boldref'] = derivs_cache['coreg_boldref']
 
     transforms_cache = {}
     for xfm, q in spec['transforms'].items():
@@ -94,8 +108,20 @@ def collect_derivatives(
             query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
         if not item and xfm == 'hmc':
-            # legacy: from-orig_to-boldref (now from-orig_to-run)
+            # legacy: from-orig_to-boldref -> from-orig_to-run
             item = layout.get(return_type='filename', **{**query, 'to': 'boldref'})
+        if not item and xfm in ('run2fmap', 'boldref2anat'):
+            # legacy: from-boldref -> now from-run
+            item = layout.get(return_type='filename', **{**query, 'from': 'boldref'})
+        if not item and xfm == 'boldref2anat':
+            # session/subject coreg targets are written once with run-varying
+            # entities dropped; relax the query to find them for each run
+            relaxed = {k: v for k, v in query.items() if k not in GROUP_DISMISS_ENTITIES}
+            item = layout.get(return_type='filename', **relaxed)
+            if not item:  # subject-level template drops session too
+                item = layout.get(
+                    return_type='filename', **{k: v for k, v in relaxed.items() if k != 'session'}
+                )
         if not item:
             continue
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
