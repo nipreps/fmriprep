@@ -41,9 +41,8 @@ from ...utils.misc import estimate_bold_mem_usage
 # BOLD workflows
 from .apply import init_bold_volumetric_resample_wf
 from .confounds import init_bold_confs_wf, init_carpetplot_wf
-from .fit import init_bold_boldref_wf, init_bold_native_wf
+from .fit import init_bold_native_wf
 from .outputs import (
-    init_ds_bold_boldref_wf,
     init_ds_bold_native_wf,
     init_ds_volumes_wf,
     prepare_timing_parameters,
@@ -190,7 +189,6 @@ configured with cubic B-spline interpolation.
             fields=[
                 # Fit & coregistration outputs
                 'coreg_boldref',
-                'boldref_template',
                 'bold_mask',
                 'run_boldref',
                 'orig_bold_mask',
@@ -268,7 +266,8 @@ configured with cubic B-spline interpolation.
         ]),
     ])  # fmt:skip
 
-    run_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'sbref')))
+    # TODO (MG): Pare down space names
+    run_out = bool(nonstd_spaces.intersection(('func', 'run', 'bold', 'boldref', 'sbref')))
     run_out &= config.workflow.level == 'full'
     echos_out = multiecho and config.execution.me_output_echos
 
@@ -292,48 +291,6 @@ configured with cubic B-spline interpolation.
             ]),
             (inputnode, ds_bold_native_wf, [
                 ('motion_xfm', 'inputnode.motion_xfm'),
-                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
-                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
-            ]),
-        ])  # fmt:skip
-
-    boldref_out = bool(nonstd_spaces.intersection(('boldref',)))
-    boldref_out &= config.workflow.level == 'full'
-
-    if boldref_out:
-        bold_boldref_wf = init_bold_boldref_wf(
-            bold_series=bold_series,
-            fieldmap_id=fieldmap_id,
-            jacobian=jacobian,
-            omp_nthreads=omp_nthreads,
-        )
-        ds_bold_boldref_wf = init_ds_bold_boldref_wf(
-            source_file=bold_file,
-            bids_root=str(config.execution.bids_dir),
-            output_dir=fmriprep_dir,
-            multiecho=multiecho,
-            metadata=all_metadata[0],
-        )
-        ds_bold_boldref_wf.inputs.inputnode.source_files = bold_series
-
-        workflow.connect([
-            (inputnode, bold_boldref_wf, [
-                ('boldref_template', 'inputnode.boldref_template'),
-                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
-                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
-                ('fmap_ref', 'inputnode.fmap_ref'),
-                ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ]),
-            (bold_native_wf, bold_boldref_wf, [
-                ('outputnode.bold_minimal', 'inputnode.bold_minimal'),
-                ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
-            ]),
-            (bold_boldref_wf, ds_bold_boldref_wf, [
-                ('outputnode.bold_boldref', 'inputnode.bold'),
-            ]),
-            (inputnode, ds_bold_boldref_wf, [
-                ('motion_xfm', 'inputnode.motion_xfm'),
-                ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
             ]),
         ])  # fmt:skip

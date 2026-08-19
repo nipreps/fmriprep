@@ -923,7 +923,7 @@ tasks and sessions), the following preprocessing was performed.
 
         bold_anat_coreg_wf = init_bold_anat_coreg_wf(
             bold_files=group_bold_files,
-            coreg_per_run=coreg_per_run,
+            coreg_space=bold_coreg_level,
             bold2anat_dof=config.workflow.bold2anat_dof,
             bold2anat_init=config.workflow.bold2anat_init,
             use_bbr=use_bbr,
@@ -1000,7 +1000,6 @@ tasks and sessions), the following preprocessing was performed.
                         'run_boldref',
                         'orig_bold_mask',
                         'run2anat_xfm',
-                        'boldref_template',
                     ],
                 ),
                 name=f'boldref_buffer_{bold_id}',
@@ -1117,10 +1116,10 @@ tasks and sessions), the following preprocessing was performed.
             )
 
             workflow.connect([
-                (bold_fit_wf, merge_fit_boldrefs, [('outputnode.coreg_boldref', f'in{i + 1}')]),
+                (bold_fit_wf, merge_fit_boldrefs, [('outputnode.run_boldref', f'in{i + 1}')]),
                 (bold_fit_wf, merge_fit_masks, [('outputnode.bold_mask', f'in{i + 1}')]),
                 (bold_fit_wf, boldref_buffer, [
-                    ('outputnode.coreg_boldref', 'run_boldref'),
+                    ('outputnode.run_boldref', 'run_boldref'),
                     ('outputnode.bold_mask', 'orig_bold_mask'),
                 ]),
                 (bold_anat_coreg_wf, select_coreg_boldref, [('outputnode.coreg_boldrefs', 'inlist')]),
@@ -1134,7 +1133,6 @@ tasks and sessions), the following preprocessing was performed.
                 (select_run2boldref, boldref_buffer, [('out', 'run2boldref_xfm')]),
                 (select_boldref2anat, boldref_buffer, [('out', 'boldref2anat_xfm')]),
                 (select_run2anat, boldref_buffer, [('out', 'run2anat_xfm')]),
-                (bold_anat_coreg_wf, boldref_buffer, [('outputnode.boldref_template', 'boldref_template')]),
                 (select_fallback, func_fit_summary, [('out', 'fallback')]),
             ])  # fmt:skip
 
@@ -1184,7 +1182,6 @@ tasks and sessions), the following preprocessing was performed.
                     ('run_boldref', 'inputnode.run_boldref'),
                     ('orig_bold_mask', 'inputnode.orig_bold_mask'),
                     ('run2anat_xfm', 'inputnode.run2anat_xfm'),
-                    ('boldref_template', 'inputnode.boldref_template'),
                 ]),
             ])  # fmt:skip
 

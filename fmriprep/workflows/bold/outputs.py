@@ -139,6 +139,10 @@ def prepare_timing_parameters(metadata: dict):
     return timing_parameters
 
 
+def _first_transform_inverse(transforms):
+    return [True] + [False] * (len(transforms) - 1)
+
+
 def init_func_fit_reports_wf(
     *,
     source_file: str,
@@ -249,20 +253,13 @@ def init_func_fit_reports_wf(
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
 
-    to_anat_xfm = pe.Node(
-        niu.Merge(2),
-        name='to_anat_xfm',
-        run_without_submitting=True,
-        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
-    )
-
     # Resample anatomical references into BOLD space for plotting
     t1w_boldref = pe.Node(
         ApplyTransforms(
             dimension=3,
             default_value=0,
             float=True,
-            invert_transform_flags=[True, False],
+            invert_transform_flags=[True],
             interpolation='LanczosWindowedSinc',
         ),
         name='t1w_boldref',
@@ -280,7 +277,7 @@ def init_func_fit_reports_wf(
         ApplyTransforms(
             dimension=3,
             default_value=0,
-            invert_transform_flags=[True, False],
+            invert_transform_flags=[True],
             interpolation='NearestNeighbor',
         ),
         name='boldref_wm',
@@ -294,20 +291,16 @@ def init_func_fit_reports_wf(
         (inputnode, ds_validation, [
             ('validation_report', 'in_file'),
         ]),
-        (inputnode, to_anat_xfm, [
-            ('boldref2anat_xfm', 'in1'),
-            ('run2boldref_xfm', 'in2'),
-        ]),
         (inputnode, t1w_boldref, [
             ('t1w_preproc', 'input_image'),
             ('coreg_boldref', 'reference_image'),
+            ('boldref2anat_xfm', 'transforms'),
         ]),
-        (to_anat_xfm, t1w_boldref, [('out', 'transforms')]),
         (inputnode, t1w_wm, [('t1w_dseg', 'in_seg')]),
         (inputnode, boldref_wm, [
             ('coreg_boldref', 'reference_image'),
+            ('boldref2anat_xfm', 'transforms'),
         ]),
-        (to_anat_xfm, boldref_wm, [('out', 'transforms')]),
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
     ])  # fmt:skip
 
@@ -330,13 +323,17 @@ def init_func_fit_reports_wf(
             run_without_submitting=True,
             mem_gb=config.DEFAULT_MEMORY_MIN_GB,
         )
+        fmap_inverts = pe.Node(
+            niu.Function(function=_first_transform_inverse),
+            name='fmap_inverts',
+            run_without_submitting=True,
+        )
 
         fmapref_boldref = pe.Node(
             ApplyTransforms(
                 dimension=3,
                 default_value=0,
                 float=True,
-                invert_transform_flags=[True, False],
                 interpolation='LanczosWindowedSinc',
             ),
             name='fmapref_boldref',
@@ -398,7 +395,9 @@ def init_func_fit_reports_wf(
                 ('run2fmap_xfm', 'in1'),
                 ('run2boldref_xfm', 'in2'),
             ]),
+            (to_fmap_xfm, fmap_inverts, [('out', 'transforms')]),
             (to_fmap_xfm, fmapref_boldref, [('out', 'transforms')]),
+            (fmap_inverts, fmapref_boldref, [('out', 'invert_transform_flags')]),
             (inputnode, sdcreg_report, [
                 ('sdc_boldref', 'reference'),
                 ('fieldmap', 'fieldmap'),
@@ -454,7 +453,8 @@ def init_ds_boldref_wf(
     source_file: str,
     bids_root,
     output_dir,
-    desc: str,
+    desc: str | None = None,
+    space: str | None = None,
     name='ds_boldref_wf',
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
@@ -479,6 +479,7 @@ def init_ds_boldref_wf(
             source_file=source_file,
             base_directory=output_dir,
             desc=desc,
+            space=space,
             suffix='boldref',
             compress=True,
             dismiss_entities=dismiss_echo(),
@@ -502,6 +503,7 @@ def init_ds_boldmask_wf(
     source_file: str,
     output_dir,
     desc: str,
+    space: str | None = None,
     name='ds_boldmask_wf',
 ) -> pe.Workflow:
     """Write out a BOLD mask."""
@@ -527,6 +529,7 @@ def init_ds_boldmask_wf(
             source_file=source_file,
             base_directory=output_dir,
             desc=desc,
+            space=space,
             suffix='mask',
             compress=True,
             dismiss_entities=dismiss_echo(),
@@ -556,6 +559,7 @@ def init_ds_registration_wf(
     dest: str,
     name: str,
     desc: str | None = None,
+    dismiss_entities: list | None = None,
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
 
@@ -582,7 +586,7 @@ def init_ds_registration_wf(
             desc=desc,
             suffix='xfm',
             extension='.txt',
-            dismiss_entities=dismiss_echo(['part']),
+            dismiss_entities=dismiss_echo(['part', *(dismiss_entities or [])]),
             **{'from': source, 'to': dest},
         ),
         name='ds_xform',
@@ -676,7 +680,6 @@ def init_ds_bold_native_wf(
                 't2star',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'run2boldref_xfm',
                 'run2fmap_xfm',
             ]
         ),
@@ -685,7 +688,7 @@ def init_ds_bold_native_wf(
 
     sources = pe.Node(
         BIDSURI(
-            numinputs=4,
+            numinputs=3,
             dataset_links=config.execution.dataset_links,
             out_dir=str(output_dir),
         ),
@@ -695,8 +698,7 @@ def init_ds_bold_native_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('run2boldref_xfm', 'in3'),
-            ('run2fmap_xfm', 'in4'),
+            ('run2fmap_xfm', 'in3'),
         ]),
     ])  # fmt:skip
 
@@ -732,7 +734,7 @@ def init_ds_bold_native_wf(
             DerivativesDataSink(
                 source_file=source_file,
                 base_directory=output_dir,
-                space='boldref',
+                space='run',
                 suffix='T2starmap',
                 compress=True,
                 dismiss_entities=dismiss_echo(),
@@ -771,72 +773,6 @@ def init_ds_bold_native_wf(
                 ('bold_echos', 'in_file'),
             ]),
         ])  # fmt:skip
-
-    return workflow
-
-
-def init_ds_bold_boldref_wf(
-    *,
-    source_file: str,
-    bids_root: str,
-    output_dir: str,
-    multiecho: bool,
-    metadata: dict,
-    name='ds_bold_boldref_wf',
-) -> pe.Workflow:
-    timing_parameters = prepare_timing_parameters(metadata)
-
-    workflow = pe.Workflow(name=name)
-    inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=[
-                'source_files',
-                'bold',
-                # Transforms previously used to generate the outputs
-                'motion_xfm',
-                'run2boldref_xfm',
-                'run2fmap_xfm',
-            ]
-        ),
-        name='inputnode',
-    )
-
-    sources = pe.Node(
-        BIDSURI(
-            numinputs=4,
-            dataset_links=config.execution.dataset_links,
-            out_dir=str(output_dir),
-        ),
-        name='sources',
-    )
-    workflow.connect([
-        (inputnode, sources, [
-            ('source_files', 'in1'),
-            ('motion_xfm', 'in2'),
-            ('run2boldref_xfm', 'in3'),
-            ('run2fmap_xfm', 'in4'),
-        ]),
-    ])  # fmt:skip
-
-    ds_bold = pe.Node(
-        DerivativesDataSink(
-            source_file=source_file,
-            base_directory=output_dir,
-            space='boldref',
-            desc='preproc',
-            compress=True,
-            SkullStripped=multiecho,
-            TaskName=metadata.get('TaskName'),
-            dismiss_entities=dismiss_echo(),
-            **timing_parameters,
-        ),
-        name='ds_bold',
-        mem_gb=DEFAULT_MEMORY_MIN_GB,
-    )
-    workflow.connect([
-        (inputnode, ds_bold, [('bold', 'in_file')]),
-        (sources, ds_bold, [('out', 'Sources')]),
-    ])  # fmt:skip
 
     return workflow
 
