@@ -200,8 +200,9 @@ The session-/subject-level pipeline follows four steps:
    FreeSurfer's ``mri_robust_template``.
 #. The template is registered to the anatomical image.
 
-The full transform chain applied during resampling is therefore
-``bold volume -> run boldref (HMC) -> boldref (run2boldref) -> T1w (boldref2anat) -> standard space (anat2std)``.
+The full transform chain applied during resampling is therefore (``<coreg>`` is
+``run``, ``session``, or ``subject``)
+``bold volume -> run boldref (HMC) -> <coreg> boldref (run->coreg) -> T1w (coreg->anat) -> standard space (anat2std)``.
 
 If ``session`` or ``subject`` is selected, *fMRIPrep* first validates whether all
 runs in a group can contribute to a common template. If the data are incompatible
@@ -215,10 +216,6 @@ template per session and ``subject`` a single cross-session template, each
 registered to the shared anatomical image; with ``sessionwise``, each session is
 processed independently against its own anatomical reference. ``--bold-coreg-level
 subject`` is incompatible with ``--subject-anatomical-reference sessionwise``.
-
-.. tip::
-   Adding ``boldref`` to ``--output-spaces`` saves each run resampled into the
-   boldref (template) space.
 
 Troubleshooting
 ---------------

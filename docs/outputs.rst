@@ -226,23 +226,29 @@ these will be indicated with ``[specifiers]``::
 **BOLD reference spaces**.
 
 fMRIPrep tracks a consistent hierarchy of BOLD reference spaces, reflected in the
-``space`` and ``from``/``to`` entities of functional outputs:
+``space`` and ``from``/``to`` entities of functional outputs. The coregistration
+target space is named after ``--bold-coreg-level``:
 
-- ``orig`` -- the native BOLD acquisition space.
-- ``run`` -- the per-run boldref space. This is the target of head-motion
-  correction (HMC), derived from the sbref or a robust average of the BOLD series.
-- ``boldref`` -- the coregistration reference space registered to anatomy.
-  When ``--bold-coreg-level run`` (default), ``boldref`` is identical to ``run``.
-  When ``--bold-coreg-level session`` or ``subject``, ``boldref`` is a template image
-  built from all run-level boldrefs in the session (or subject).
-- ``anat`` -- the anatomical reference space (``T1w``).
+- ``orig``: the native BOLD acquisition space - only used for head-motion correction (HMC).
+- ``run``: the per-run boldref space. This is the target of HMC, derived
+  from the sbref or a robust average of the BOLD series, and the run's own
+  coregistration reference.
+- ``session`` / ``subject``: the template boldref built from all run-level
+  boldrefs in the session (or subject). Produced only with ``--bold-coreg-level session`` or
+  ``subject``.
+- ``anat``: the anatomical reference space (``T1w``).
 
-The transform chain applied during resampling is therefore::
+The transform chain applied during resampling is therefore (``<coreg>`` is
+``run``, ``session``, or ``subject``)::
 
-  orig -> run      (from-orig_to-run, HMC)
-  run  -> boldref  (from-run_to-boldref, identity when --bold-coreg-level run)
-  boldref -> anat  (from-boldref_to-T1w)
-  anat -> std      (anat2std)
+  orig -> run       (from-orig_to-run, HMC)
+  run  -> <coreg>   (from-run_to-<coreg>, only for session/subject)
+  <coreg> -> anat   (from-<coreg>_to-T1w)
+  anat -> std       (anat2std)
+
+At ``--bold-coreg-level run`` (default), the coregistration target is ``run``
+itself, so no ``run``-to-template transform is written and coregistration to
+anatomy is ``from-run_to-T1w``.
 
 **Motion correction outputs**.
 
@@ -252,7 +258,7 @@ to the run-level boldref::
 
   sub-<subject_label>/
     func/
-      sub-<subject_label>_[specifiers]_desc-hmc_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_space-run_desc-hmc_boldref.nii.gz
       sub-<subject_label>_[specifiers]_from-orig_to-run_mode-image_desc-hmc_xfm.txt
 
 .. note::
@@ -261,18 +267,25 @@ to the run-level boldref::
 
 **Coregistration outputs**.
 
-Registration of the BOLD series to the T1w image generates a further reference
-image and affine transform::
+The per-run coregistration reference is always written as ``space-run_boldref``.
+With ``--bold-coreg-level session`` or ``subject``, a template reference
+(``space-session_boldref`` / ``space-subject_boldref``) and transform
+``from-run_to-<session|subject>`` is written as well. Registration of
+the coregistration target to the T1w image generates the ``from-<coreg>_to-T1w``
+transform::
 
   sub-<subject_label>/
     func/
-      sub-<subject_label>_[specifiers]_desc-coreg_boldref.nii.gz
-      sub-<subject_label>_[specifiers]_from-run_to-boldref_mode-image_desc-coreg_xfm.txt
-      sub-<subject_label>_[specifiers]_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt
+      sub-<subject_label>_[specifiers]_space-run_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_from-run_to-T1w_mode-image_desc-coreg_xfm.txt
 
-The ``from-run_to-boldref`` transform is written for every run regardless of
-``--bold-coreg-level``; it is an identity transform when ``--bold-coreg-level run``
-(the default).
+With ``--bold-coreg-level session``::
+
+  sub-<subject_label>/[ses-<session_label>/]
+    func/
+      sub-<subject_label>_[specifiers]_space-session_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_from-run_to-session_mode-image_desc-coreg_xfm.txt
+      sub-<subject_label>_[specifiers]_from-session_to-T1w_mode-image_desc-coreg_xfm.txt
 
 .. note::
 
