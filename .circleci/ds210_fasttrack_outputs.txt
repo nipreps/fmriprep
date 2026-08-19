@@ -29,8 +29,8 @@ sub-02/func/sub-02_task-cuedSGT_run-01_desc-confounds_timeseries.json
 sub-02/func/sub-02_task-cuedSGT_run-01_desc-confounds_timeseries.tsv
 sub-02/func/sub-02_task-cuedSGT_run-01_space-run_boldref.json
 sub-02/func/sub-02_task-cuedSGT_run-01_space-run_boldref.nii.gz
-sub-02/func/sub-02_task-cuedSGT_run-01_space-run_desc-hmc_boldref.json
-sub-02/func/sub-02_task-cuedSGT_run-01_space-run_desc-hmc_boldref.nii.gz
+sub-02/func/sub-02_task-cuedSGT_run-01_space-orig_desc-hmc_boldref.json
+sub-02/func/sub-02_task-cuedSGT_run-01_space-orig_desc-hmc_boldref.nii.gz
 sub-02/func/sub-02_task-cuedSGT_run-01_echo-1_desc-preproc_bold.json
 sub-02/func/sub-02_task-cuedSGT_run-01_echo-1_desc-preproc_bold.nii.gz
 sub-02/func/sub-02_task-cuedSGT_run-01_echo-2_desc-preproc_bold.json

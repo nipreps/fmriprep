@@ -258,7 +258,7 @@ to the run-level boldref::
 
   sub-<subject_label>/
     func/
-      sub-<subject_label>_[specifiers]_space-run_desc-hmc_boldref.nii.gz
+      sub-<subject_label>_[specifiers]_space-orig_desc-hmc_boldref.nii.gz
       sub-<subject_label>_[specifiers]_from-orig_to-run_mode-image_desc-hmc_xfm.txt
 
 .. note::

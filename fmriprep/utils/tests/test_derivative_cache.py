@@ -8,7 +8,7 @@ from fmriprep.utils import bids
 @pytest.mark.parametrize(
     ('key', 'ents'),
     [
-        ('hmc', 'space-run_desc-hmc'),
+        ('hmc', 'space-orig_desc-hmc'),
         ('run', 'space-run'),
         # legacy space-less names
         ('hmc', 'desc-hmc'),

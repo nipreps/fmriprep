@@ -3,7 +3,7 @@
     "baseline": {
       "hmc": {
         "datatype": "func",
-        "space": "run",
+        "space": "orig",
         "desc": "hmc",
         "suffix": "boldref",
         "extension": [

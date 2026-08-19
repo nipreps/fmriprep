@@ -332,7 +332,7 @@ def init_bold_fit_wf(
             bids_root=layout.root,
             output_dir=config.execution.fmriprep_dir,
             desc='hmc',
-            space='run',
+            space='orig',
             name='ds_hmc_boldref_wf',
         )
         ds_hmc_boldref_wf.inputs.inputnode.source_files = [bold_file]
