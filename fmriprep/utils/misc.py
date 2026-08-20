@@ -25,6 +25,30 @@
 from functools import cache
 
 
+def get_wf_name(bold_fname, prefix):
+    """
+    Derive the workflow name for supplied BOLD file.
+
+    >>> get_wf_name("/completely/made/up/path/sub-01_task-nback_bold.nii.gz", "bold")
+    'bold_task_nback_wf'
+    >>> get_wf_name(
+    ...     "/completely/made/up/path/sub-01_task-nback_run-01_echo-1_bold.nii.gz",
+    ...     "preproc",
+    ... )
+    'preproc_task_nback_run_01_echo_1_wf'
+
+    """
+    from nipype.utils.filemanip import split_filename
+
+    fname = split_filename(bold_fname)[1]
+    fname_sanitized = '_'.join(fname.split('_')[1:-1])
+    for char in '-+':
+        fname_sanitized = fname_sanitized.replace(char, '_')
+    if prefix is None:
+        return f'{fname_sanitized}_wf'
+    return f'{prefix}_{fname_sanitized}_wf'
+
+
 def check_deps(workflow):
     """Make sure dependencies are present in this system."""
     from nipype.utils.filemanip import which

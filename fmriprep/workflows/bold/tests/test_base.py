@@ -9,7 +9,7 @@ from niworkflows.utils.testing import generate_bids_skeleton
 from .... import config
 from ...tests import mock_config
 from ...tests.layouts import get_layout
-from ..base import init_bold_wf
+from ..base import init_bold_apply_wf
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -34,9 +34,9 @@ def bids_root(tmp_path_factory):
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize('freesurfer', [False, True])
-@pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
+@pytest.mark.parametrize('level', ['resampling', 'full'])
 @pytest.mark.parametrize('bold2anat_init', ['t1w', 't2w'])
-def test_bold_wf(
+def test_bold_apply_wf(
     bids_root: Path,
     tmp_path: Path,
     task: str,
@@ -45,8 +45,7 @@ def test_bold_wf(
     level: str,
     bold2anat_init: str,
 ):
-    """Test as many combinations of precomputed files and input
-    configurations as possible."""
+    """Test as many combinations of input configurations as possible."""
     output_dir = tmp_path / 'output'
     output_dir.mkdir()
 
@@ -73,10 +72,9 @@ def test_bold_wf(
         config.workflow.bold2anat_init = bold2anat_init
         config.workflow.level = level
         config.workflow.run_reconall = freesurfer
-        wf = init_bold_wf(
+        wf = init_bold_apply_wf(
             bold_series=bold_series,
             fieldmap_id=fieldmap_id,
-            precomputed={},
         )
 
     flatgraph = wf._create_flat_graph()

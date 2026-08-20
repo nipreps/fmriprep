@@ -39,6 +39,17 @@ from packaging.version import Version
 from .. import config
 from ..data import load as load_data
 
+GROUP_DISMISS_ENTITIES = (
+    'task',
+    'acquisition',
+    'ceagent',
+    'reconstruction',
+    'direction',
+    'run',
+    'echo',
+    'part',
+)
+
 
 @cache
 def _get_layout(derivatives_dir: Path) -> BIDSLayout:
@@ -70,30 +81,101 @@ def collect_derivatives(
     derivs_cache = defaultdict(list, {})
     layout = _get_layout(derivatives_dir)
 
-    # search for both boldrefs
-    for k, q in spec['baseline'].items():
-        query = {**entities, **q}
+    # Session- and subject-level templates are written once
+    # TODO: Move towards expected filenames for these group-level files
+    level_relax = {
+        'run': (),
+        'session': GROUP_DISMISS_ENTITIES,
+        'subject': (*GROUP_DISMISS_ENTITIES, 'session'),
+    }
+
+    def _query(q, relax=()):
+        query = {k: v for k, v in {**entities, **q}.items() if k not in relax}
         item = layout.get(return_type='filename', **query)
         if not item:
-            continue
-        derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
+            return None
+        return item[0] if len(item) == 1 else item
+
+    for level, relax in level_relax.items():
+        for name, q in spec.get(level, {}).items():
+            if q.get('suffix') != 'boldref':
+                continue
+            item = _query(q, relax)
+            if not item:
+                continue
+            derivs_cache['hmc_boldref' if name == 'hmc' else f'{level}_boldref'] = item
 
     transforms_cache = {}
+    # Per-run transforms. Transform extensions/suffixes will not match the provided
+    #   entities (e.g., ".txt" vs ".nii.gz", "xfm" vs "bold"); the queries override them.
     for xfm, q in spec['transforms'].items():
-        # Transform extension will often not match provided entities
-        #   (e.g., ".nii.gz" vs ".txt").
-        # And transform suffixes will be "xfm",
-        #   whereas relevant src file will be "bold".
         query = {**entities, **q}
-        if xfm == 'boldref2fmap' and fieldmap_id:
+        if xfm == 'run2fmap' and fieldmap_id:
             # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
             query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
         if not item:
             continue
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
+
+    for level in ('session', 'subject'):
+        xfm_q = spec.get(level, {}).get('xfm')
+        if not xfm_q:
+            continue
+        item = _query(xfm_q, level_relax[level])
+        if item:
+            transforms_cache[f'{level}2anat'] = item
+
     derivs_cache['transforms'] = transforms_cache
     return derivs_cache
+
+
+def is_valid_bold_template(
+    bold_runs: list[list[str]],
+    estimator_map: dict,
+    layout,
+) -> bool:
+    """Return True if BOLD template creation is possible.
+
+    Three independent conditions are checked:
+
+    1. **Insufficient runs** -- fewer than two runs cannot form a meaningful
+       template.
+    2. **Mixed SDC coverage** -- if only some runs are distortion corrected,
+       the resulting boldrefs live in different geometric spaces even when
+       their phase-encoding directions agree.
+    3. **PE-direction heterogeneity** -- when all runs are SDC-less, more than
+       one distinct phase-encoding direction (including ``None`` for runs that
+       lack the metadata) implies opposing distortions that rigid/affine
+       registration cannot recover.
+
+    Parameters
+    ----------
+    bold_runs
+        List of BOLD series (each series is a list of file paths).
+    estimator_map
+        Mapping of BOLD file -> fieldmap estimator ID. An absent key or a
+        falsy value means no fieldmap / no SDC for that run.
+    layout
+        A :class:`bids.layout.BIDSLayout` used to read file metadata.
+
+    Returns
+    -------
+    bool
+        ``True`` if there are at least two runs, all share the same SDC status,
+        and SDC-less runs span exactly one phase-encoding direction.
+    """
+    if len(bold_runs) < 2:
+        return False
+
+    sdc_corrected = [bool(estimator_map.get(series[0])) for series in bold_runs]
+    if any(sdc_corrected):
+        return all(sdc_corrected)
+
+    pe_dirs = {
+        layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
+    }
+    return len(pe_dirs) == 1
 
 
 def collect_fieldmaps(
