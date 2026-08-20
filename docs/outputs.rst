@@ -379,8 +379,8 @@ to perform more advanced denoising or alternative combination strategies.
    In contrast to volume onsets, event onsets need to be shifted *backward* by half a TR,
    for example, from [5, 10, 15] to [4, 9, 14].
 
-   In versions 20.2.4 and later, *fMRIPrep* adds the `StartTime` metadata field to
-   `*_bold.json` sidecar files, which indicates the time shift applied to the volume onsets.
+   In versions 20.2.4 and later, *fMRIPrep* adds the ``StartTime`` metadata field to
+   ``*_bold.json`` sidecar files, which indicates the time shift applied to the volume onsets.
    When available, this should be considered authoritative and applied by modeling tools.
 
    Further information on this issue is found at
