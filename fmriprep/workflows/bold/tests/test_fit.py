@@ -155,7 +155,7 @@ def test_bold_fit_precomputes(
     if have_hmcref:
         precomputed['hmc_boldref'] = dummy_nifti
     if have_coregref:
-        precomputed['coreg_boldref'] = dummy_nifti
+        precomputed['run_boldref'] = dummy_nifti
     if have_hmc_xfms:
         precomputed['transforms']['hmc'] = dummy_affine
     if have_run2fmap_xfm:
