@@ -1,6 +1,6 @@
 {
   "queries": {
-    "baseline": {
+    "run": {
       "hmc": {
         "datatype": "func",
         "space": ["orig", null],
@@ -11,7 +11,7 @@
           ".nii"
         ]
       },
-      "run": {
+      "boldref": {
         "datatype": "func",
         "space": ["run", null],
         "desc": [null, "coreg"],
@@ -20,6 +20,44 @@
           ".nii.gz",
           ".nii"
         ]
+      }
+    },
+    "session": {
+      "boldref": {
+        "datatype": "func",
+        "space": "session",
+        "suffix": "boldref",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "xfm": {
+        "datatype": "func",
+        "from": "session",
+        "to": ["anat", "T1w", "T2w"],
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
+      }
+    },
+    "subject": {
+      "boldref": {
+        "datatype": "func",
+        "space": "subject",
+        "suffix": "boldref",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "xfm": {
+        "datatype": "func",
+        "from": "subject",
+        "to": ["anat", "T1w", "T2w"],
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
       }
     },
     "transforms": {
@@ -31,9 +69,9 @@
         "suffix": "xfm",
         "extension": ".txt"
       },
-      "boldref2anat": {
+      "run2anat": {
         "datatype": "func",
-        "from": ["run", "session", "subject", "boldref"],
+        "from": ["run", "boldref"],
         "to": ["anat", "T1w", "T2w"],
         "mode": "image",
         "suffix": "xfm",
