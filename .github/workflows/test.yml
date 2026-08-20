@@ -4,13 +4,13 @@ on:
   push:
     branches:
       - master
+      - main
       - maint/*
-      - next
   pull_request:
     branches:
       - master
+      - main
       - maint/*
-      - next
 
 defaults:
   run:
@@ -35,7 +35,7 @@ jobs:
       matrix:
         os: ['ubuntu-latest']
         python-version: ['3.10', '3.11', '3.12', '3.13']
-        dependencies: ['latest', 'pre']
+        dependencies: ['latest']
         include:
           - os: ubuntu-latest
             python-version: '3.10'
