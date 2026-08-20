@@ -911,9 +911,10 @@ tasks and sessions), the following preprocessing was performed.
                     )
             functional_caches.append(functional_cache)
 
+        boldref2anat_key = f'{bold_coreg_level}2anat'
         coreg_precomputed = {
             'boldref2anat_xfm': [
-                cache.get('transforms', {}).get('boldref2anat') for cache in functional_caches
+                cache.get('transforms', {}).get(boldref2anat_key) for cache in functional_caches
             ],
         }
         if not coreg_per_run:

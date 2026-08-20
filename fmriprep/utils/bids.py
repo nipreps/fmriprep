@@ -81,37 +81,51 @@ def collect_derivatives(
     derivs_cache = defaultdict(list, {})
     layout = _get_layout(derivatives_dir)
 
-    # search for both boldrefs
-    for k, q in spec['baseline'].items():
-        query = {**entities, **q}
+    # Session- and subject-level templates are written once
+    # TODO: Move towards expected filenames for these group-level files
+    level_relax = {
+        'run': (),
+        'session': GROUP_DISMISS_ENTITIES,
+        'subject': (*GROUP_DISMISS_ENTITIES, 'session'),
+    }
+
+    def _query(q, relax=()):
+        query = {k: v for k, v in {**entities, **q}.items() if k not in relax}
         item = layout.get(return_type='filename', **query)
         if not item:
-            continue
-        derivs_cache[f'{k}_boldref'] = item[0] if len(item) == 1 else item
+            return None
+        return item[0] if len(item) == 1 else item
+
+    for level, relax in level_relax.items():
+        for name, q in spec.get(level, {}).items():
+            if q.get('suffix') != 'boldref':
+                continue
+            item = _query(q, relax)
+            if not item:
+                continue
+            derivs_cache['hmc_boldref' if name == 'hmc' else f'{level}_boldref'] = item
 
     transforms_cache = {}
+    # Per-run transforms. Transform extensions/suffixes will not match the provided
+    #   entities (e.g., ".txt" vs ".nii.gz", "xfm" vs "bold"); the queries override them.
     for xfm, q in spec['transforms'].items():
-        # Transform extension will often not match provided entities
-        #   (e.g., ".nii.gz" vs ".txt").
-        # And transform suffixes will be "xfm",
-        #   whereas relevant src file will be "bold".
         query = {**entities, **q}
         if xfm == 'run2fmap' and fieldmap_id:
             # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
             query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
         item = layout.get(return_type='filename', **query)
-        if not item and xfm == 'boldref2anat':
-            # session/subject coreg targets are written once with run-varying
-            # entities dropped; relax the query to find them for each run
-            relaxed = {k: v for k, v in query.items() if k not in GROUP_DISMISS_ENTITIES}
-            item = layout.get(return_type='filename', **relaxed)
-            if not item:  # subject-level template drops session too
-                item = layout.get(
-                    return_type='filename', **{k: v for k, v in relaxed.items() if k != 'session'}
-                )
         if not item:
             continue
         transforms_cache[xfm] = item[0] if len(item) == 1 else item
+
+    for level in ('session', 'subject'):
+        xfm_q = spec.get(level, {}).get('xfm')
+        if not xfm_q:
+            continue
+        item = _query(xfm_q, level_relax[level])
+        if item:
+            transforms_cache[f'{level}2anat'] = item
+
     derivs_cache['transforms'] = transforms_cache
     return derivs_cache
 
