@@ -70,8 +70,10 @@ jobs:
           uv tool install --with=tox-uv --with=tox-gh-actions tox
       - name: Show tox config
         run: tox c
-      - name: Run tox
-        run: tox -v --exit-and-dump-after 1200
+      - name: Setup test suite
+        run: tox run -vv --notest
+      - name: Run test suite
+        run: tox -v --skip-pkg-install --exit-and-dump-after 1200
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -94,5 +96,7 @@ jobs:
         run: uv tool install tox --with=tox-uv
       - name: Show tox config
         run: tox c -e ${{ matrix.check }}
+      - name: Setup check environment
+        run: tox -vv --notest -e ${{ matrix.check }}
       - name: Run check
-        run: tox -e ${{ matrix.check }}
+        run: tox --skip-pkg-install -e ${{ matrix.check }}
