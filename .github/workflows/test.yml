@@ -4,13 +4,13 @@ on:
   push:
     branches:
       - master
+      - main
       - maint/*
-      - next
   pull_request:
     branches:
       - master
+      - main
       - maint/*
-      - next
 
 defaults:
   run:
@@ -35,7 +35,7 @@ jobs:
       matrix:
         os: ['ubuntu-latest']
         python-version: ['3.12', '3.13', '3.14']
-        dependencies: ['latest', 'pre']
+        dependencies: ['latest']
         include:
           - os: ubuntu-latest
             python-version: '3.12'
@@ -70,8 +70,10 @@ jobs:
           uv tool install --with=tox-uv --with=tox-gh-actions tox
       - name: Show tox config
         run: tox c
-      - name: Run tox
-        run: tox -v --exit-and-dump-after 1200
+      - name: Setup test suite
+        run: tox run -vv --notest
+      - name: Run test suite
+        run: tox -v --skip-pkg-install --exit-and-dump-after 1200
       - name: Minimize uv cache
         run: uv cache prune --ci
         if: ${{ always() }}
