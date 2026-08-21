@@ -400,12 +400,12 @@ def init_bold_fit_wf(
         boldref_fmap = pe.Node(ReconstructFieldmap(inverse=[True]), name='boldref_fmap', mem_gb=1)
 
         workflow.connect([
-            (fmapref_buffer, boldref_fmap, [('out', 'target_ref_file')]),
-            (fmapreg_buffer, boldref_fmap, [('run2fmap_xfm', 'transforms')]),
             (inputnode, boldref_fmap, [
                 ('fmap_coeff', 'in_coeffs'),
                 ('fmap_ref', 'fmap_ref_file'),
             ]),
+            (fmapref_buffer, boldref_fmap, [('out', 'target_ref_file')]),
+            (fmapreg_buffer, boldref_fmap, [('run2fmap_xfm', 'transforms')]),
             (fmapref_buffer, outputnode, [('out', 'sdc_boldref')]),
             (boldref_fmap, outputnode, [('out_file', 'fieldmap')]),
         ])  # fmt:skip
