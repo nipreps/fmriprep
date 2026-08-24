@@ -130,6 +130,22 @@ def collect_derivatives(
     return derivs_cache
 
 
+def aggregate_coreg_precomputed(caches: list[dict], level: str) -> dict:
+    """Aggregate coregistration precomputed inputs from per-run caches"""
+
+    def get_xfm(cache, key):
+        return cache.get('transforms', {}).get(key)
+
+    precomputed = {'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]}
+    if level != 'run':
+        precomputed['run2template_xfms'] = [get_xfm(c, 'run2template') for c in caches]
+        precomputed['boldref_template'] = next(
+            (c[f'{level}_boldref'] for c in caches if c.get(f'{level}_boldref')),
+            None,
+        )
+    return precomputed
+
+
 def is_valid_bold_template(
     bold_runs: list[list[str]],
     estimator_map: dict,

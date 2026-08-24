@@ -118,3 +118,28 @@ def test_group_xfm_found_for_run(tmp_path: Path, coreg_space: str, ses_ents: str
 
     derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
     assert derivs == {'transforms': {f'{coreg_space}2anat': str(to_find)}}
+
+
+def test_aggregate_coreg_precomputed_run():
+    caches = [
+        {'transforms': {'run2anat': '/ra1', 'session2anat': '/sa', 'run2template': '/rb1'}},
+        {'transforms': {'run2anat': '/ra2'}},
+    ]
+    assert bids.aggregate_coreg_precomputed(caches, 'run') == {
+        'template2anat_xfm': ['/ra1', '/ra2'],
+    }
+
+
+def test_aggregate_coreg_precomputed_group():
+    caches = [
+        {
+            'transforms': {'session2anat': '/sa', 'run2template': '/rb1'},
+            'session_boldref': '/tpl',
+        },
+        {'transforms': {'session2anat': '/sa', 'run2template': '/rb2'}},
+    ]
+    assert bids.aggregate_coreg_precomputed(caches, 'session') == {
+        'template2anat_xfm': ['/sa', '/sa'],
+        'run2template_xfms': ['/rb1', '/rb2'],
+        'boldref_template': '/tpl',
+    }
