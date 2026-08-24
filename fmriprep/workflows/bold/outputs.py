@@ -171,11 +171,11 @@ def init_func_fit_reports_wf(
         BOLD reference before SDC, in BOLD space
     coreg_boldref
         BOLD reference after SDC, in BOLD space
-    boldref2anat_xfm
+    template2anat_xfm
         Affine transform from BOLD reference to anatomical space
     run2fmap_xfm
         Affine transform from the run-level BOLD reference to fieldmap space
-    run2boldref_xfm
+    run2template_xfm
         Affine transform from the run-level BOLD reference to the boldref
         template (identity at run level)
     t1w_preproc
@@ -210,9 +210,9 @@ def init_func_fit_reports_wf(
         'sdc_boldref',
         'coreg_boldref',
         'bold_mask',
-        'boldref2anat_xfm',
+        'template2anat_xfm',
         'run2fmap_xfm',
-        'run2boldref_xfm',
+        'run2template_xfm',
         't1w_preproc',
         't1w_mask',
         't1w_dseg',
@@ -294,12 +294,12 @@ def init_func_fit_reports_wf(
         (inputnode, t1w_boldref, [
             ('t1w_preproc', 'input_image'),
             ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+            ('template2anat_xfm', 'transforms'),
         ]),
         (inputnode, t1w_wm, [('t1w_dseg', 'in_seg')]),
         (inputnode, boldref_wm, [
             ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+            ('template2anat_xfm', 'transforms'),
         ]),
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
     ])  # fmt:skip
@@ -393,7 +393,7 @@ def init_func_fit_reports_wf(
             ]),
             (inputnode, to_fmap_xfm, [
                 ('run2fmap_xfm', 'in1'),
-                ('run2boldref_xfm', 'in2'),
+                ('run2template_xfm', 'in2'),
             ]),
             (to_fmap_xfm, fmap_inverts, [('out', 'transforms')]),
             (to_fmap_xfm, fmapref_boldref, [('out', 'transforms')]),
@@ -800,7 +800,7 @@ def init_ds_volumes_wf(
                 't2star',  # boldref space
                 'template',  # target reference image from original transform
                 # Anatomical
-                'boldref2anat_xfm',
+                'template2anat_xfm',
                 # Template
                 'anat2std_xfm',
                 # Entities
@@ -808,7 +808,7 @@ def init_ds_volumes_wf(
                 'resolution',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'run2boldref_xfm',
+                'run2template_xfm',
                 'run2fmap_xfm',
             ]
         ),
@@ -844,9 +844,9 @@ def init_ds_volumes_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('run2boldref_xfm', 'in3'),
+            ('run2template_xfm', 'in3'),
             ('run2fmap_xfm', 'in4'),
-            ('boldref2anat_xfm', 'in5'),
+            ('template2anat_xfm', 'in5'),
             ('anat2std_xfm', 'in6'),
             ('template', 'in7'),
         ]),
@@ -854,7 +854,7 @@ def init_ds_volumes_wf(
             # Note that ANTs expects transforms in target-to-source order
             # Reverse this for nitransforms-based resamplers
             ('anat2std_xfm', 'in1'),
-            ('boldref2anat_xfm', 'in2'),
+            ('template2anat_xfm', 'in2'),
         ]),
         (inputnode, ds_bold, [
             ('bold', 'in_file'),

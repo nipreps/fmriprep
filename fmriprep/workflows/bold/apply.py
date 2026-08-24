@@ -72,10 +72,10 @@ def init_bold_volumetric_resample_wf(
         Fieldmap reference image defining the valid field of view for the fieldmap.
     fmap_coeff
         B-Spline coefficients for the fieldmap.
-    run2boldref_xfm
+    run2template_xfm
         Affine transform from the run-level BOLD reference to the boldref
         template. Identity when ``--bold-coreg-level run``.
-    boldref2anat_xfm
+    template2anat_xfm
         Affine transform from ``bold_ref_file`` to the anatomical reference image.
     anat2std_xfm
         Affine transform from the anatomical reference image to standard space.
@@ -106,9 +106,9 @@ def init_bold_volumetric_resample_wf(
                 'fmap_ref',
                 'fmap_coeff',
                 # boldref template
-                'run2boldref_xfm',
+                'run2template_xfm',
                 # Anatomical
-                'boldref2anat_xfm',
+                'template2anat_xfm',
                 # Template
                 'anat2std_xfm',
                 # Entity for selecting target resolution
@@ -142,8 +142,8 @@ def init_bold_volumetric_resample_wf(
             (('resolution', _is_native), 'keep_native'),
         ]),
         (inputnode, run2target, [
-            ('run2boldref_xfm', 'in1'),
-            ('boldref2anat_xfm', 'in2'),
+            ('run2template_xfm', 'in1'),
+            ('template2anat_xfm', 'in2'),
             ('anat2std_xfm', 'in3'),
         ]),
         (inputnode, bold2target, [('motion_xfm', 'in1')]),

@@ -840,7 +840,11 @@ tasks and sessions), the following preprocessing was performed.
             )
         config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
 
-    from fmriprep.utils.bids import collect_derivatives, extract_entities
+    from fmriprep.utils.bids import (
+        aggregate_coreg_precomputed,
+        collect_derivatives,
+        extract_entities,
+    )
 
     bold_coreg_level = config.workflow.bold_coreg_level
     coreg_per_run = bold_coreg_level == 'run'
@@ -911,16 +915,7 @@ tasks and sessions), the following preprocessing was performed.
                     )
             functional_caches.append(functional_cache)
 
-        boldref2anat_key = f'{bold_coreg_level}2anat'
-        coreg_precomputed = {
-            'boldref2anat_xfm': [
-                cache.get('transforms', {}).get(boldref2anat_key) for cache in functional_caches
-            ],
-        }
-        if not coreg_per_run:
-            coreg_precomputed['run2boldref_xfms'] = [
-                cache.get('transforms', {}).get('run2boldref') for cache in functional_caches
-            ]
+        coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
 
         bold_anat_coreg_wf = init_bold_anat_coreg_wf(
             bold_files=group_bold_files,
@@ -994,8 +989,8 @@ tasks and sessions), the following preprocessing was performed.
                 niu.IdentityInterface(
                     fields=[
                         'bold_file',
-                        'boldref2anat_xfm',
-                        'run2boldref_xfm',
+                        'template2anat_xfm',
+                        'run2template_xfm',
                         'coreg_boldref',
                         'bold_mask',
                         'run_boldref',
@@ -1056,8 +1051,8 @@ tasks and sessions), the following preprocessing was performed.
                 (boldref_buffer, func_fit_reports_wf, [
                     ('coreg_boldref', 'inputnode.coreg_boldref'),
                     ('bold_mask', 'inputnode.bold_mask'),
-                    ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
-                    ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
+                    ('run2template_xfm', 'inputnode.run2template_xfm'),
+                    ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ]),
             ])  # fmt:skip
 
@@ -1095,14 +1090,14 @@ tasks and sessions), the following preprocessing was performed.
                 name=f'select_bold_mask_{bold_id}',
                 run_without_submitting=True,
             )
-            select_run2boldref = pe.Node(
+            select_run2template = pe.Node(
                 niu.Select(index=i),
-                name=f'select_run2boldref_{bold_id}',
+                name=f'select_run2template_{bold_id}',
                 run_without_submitting=True,
             )
-            select_boldref2anat = pe.Node(
+            select_template2anat = pe.Node(
                 niu.Select(index=i),
-                name=f'select_boldref2anat_{bold_id}',
+                name=f'select_template2anat_{bold_id}',
                 run_without_submitting=True,
             )
             select_run2anat = pe.Node(
@@ -1125,14 +1120,14 @@ tasks and sessions), the following preprocessing was performed.
                 ]),
                 (bold_anat_coreg_wf, select_coreg_boldref, [('outputnode.coreg_boldrefs', 'inlist')]),
                 (bold_anat_coreg_wf, select_bold_mask, [('outputnode.bold_masks', 'inlist')]),
-                (bold_anat_coreg_wf, select_run2boldref, [('outputnode.run2boldref_xfms', 'inlist')]),
-                (bold_anat_coreg_wf, select_boldref2anat, [('outputnode.boldref2anat_xfms', 'inlist')]),
+                (bold_anat_coreg_wf, select_run2template, [('outputnode.run2template_xfms', 'inlist')]),
+                (bold_anat_coreg_wf, select_template2anat, [('outputnode.template2anat_xfms', 'inlist')]),
                 (bold_anat_coreg_wf, select_run2anat, [('outputnode.run2anat_xfms', 'inlist')]),
                 (bold_anat_coreg_wf, select_fallback, [('outputnode.fallbacks', 'inlist')]),
                 (select_coreg_boldref, boldref_buffer, [('out', 'coreg_boldref')]),
                 (select_bold_mask, boldref_buffer, [('out', 'bold_mask')]),
-                (select_run2boldref, boldref_buffer, [('out', 'run2boldref_xfm')]),
-                (select_boldref2anat, boldref_buffer, [('out', 'boldref2anat_xfm')]),
+                (select_run2template, boldref_buffer, [('out', 'run2template_xfm')]),
+                (select_template2anat, boldref_buffer, [('out', 'template2anat_xfm')]),
                 (select_run2anat, boldref_buffer, [('out', 'run2anat_xfm')]),
                 (select_fallback, func_fit_summary, [('out', 'fallback')]),
             ])  # fmt:skip
@@ -1176,8 +1171,8 @@ tasks and sessions), the following preprocessing was performed.
                     ('outputnode.dummy_scans', 'inputnode.dummy_scans'),
                 ]),
                 (boldref_buffer, bold_apply_wf, [
-                    ('boldref2anat_xfm', 'inputnode.boldref2anat_xfm'),
-                    ('run2boldref_xfm', 'inputnode.run2boldref_xfm'),
+                    ('template2anat_xfm', 'inputnode.template2anat_xfm'),
+                    ('run2template_xfm', 'inputnode.run2template_xfm'),
                     ('coreg_boldref', 'inputnode.coreg_boldref'),
                     ('bold_mask', 'inputnode.bold_mask'),
                     ('run_boldref', 'inputnode.run_boldref'),

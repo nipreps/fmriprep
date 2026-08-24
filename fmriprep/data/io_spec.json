@@ -84,7 +84,7 @@
         "suffix": "xfm",
         "extension": ".txt"
       },
-      "run2boldref": {
+      "run2template": {
         "datatype": "func",
         "from": "run",
         "to": ["session", "subject"],
