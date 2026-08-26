@@ -1,3 +1,22 @@
+26.0.0 (TBD)
+============
+First release of the 26.0.x series.
+
+This release adds alternative BOLD coregistration target spaces, selected with
+``--bold-coreg-level {run,session,subject}``.
+
+Historically, fMRIPrep coregistered each BOLD run to the anatomical reference
+independently; this remains the default (``--bold-coreg-level run``). With
+``--bold-coreg-level session`` or ``subject``, the run references are first
+combined into a common boldref template, which is coregistered to the anatomical reference once.
+This writes the template image alongside ``from-run_to-<session|subject>`` and
+``from-<session|subject>_to-T1w`` transforms.
+
+Additionally, several functional outputs have been renamed so the ``space`` and
+``from``/``to`` entities name the reference explicitly rather than the generic
+``boldref``.
+
+
 25.2.5 (March 10, 2026)
 =======================
 Bug-fix release in the 25.2.x series.

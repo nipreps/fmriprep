@@ -225,9 +225,9 @@ these will be indicated with ``[specifiers]``::
 
 **BOLD reference spaces**.
 
-fMRIPrep tracks a consistent hierarchy of BOLD reference spaces, reflected in the
-``space`` and ``from``/``to`` entities of functional outputs. The coregistration
-target space is named after ``--bold-coreg-level``:
+fMRIPrep tracks a consistent hierarchy of BOLD reference (*boldref*) spaces,
+reflected in the ``space`` and ``from``/``to`` entities of functional outputs.
+The coregistration target space is named after ``--bold-coreg-level``:
 
 - ``orig``: the native BOLD acquisition space - only used for head-motion correction (HMC).
 - ``run``: the per-run boldref space. This is the target of HMC, derived
@@ -283,9 +283,17 @@ With ``--bold-coreg-level session``::
 
   sub-<subject_label>/[ses-<session_label>/]
     func/
-      sub-<subject_label>_[specifiers]_space-session_boldref.nii.gz
-      sub-<subject_label>_[specifiers]_from-run_to-session_mode-image_desc-coreg_xfm.txt
-      sub-<subject_label>_[specifiers]_from-session_to-T1w_mode-image_desc-coreg_xfm.txt
+      sub-<subject_label>_[ses-<session_label>_]space-session_boldref.nii.gz
+      sub-<subject_label>_[ses-<session_label>_]from-run_to-session_mode-image_desc-coreg_xfm.txt
+      sub-<subject_label>_[ses-<session_label>_]from-session_to-T1w_mode-image_desc-coreg_xfm.txt
+
+With ``--bold-coreg-level subject``, the template will be at the subject level, whether or not there are sessions::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_space-subject_boldref.nii.gz
+      sub-<subject_label>_from-run_to-subject_mode-image_desc-coreg_xfm.txt
+      sub-<subject_label>_from-subject_to-T1w_mode-image_desc-coreg_xfm.txt
 
 .. note::
 
