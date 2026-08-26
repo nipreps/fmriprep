@@ -303,10 +303,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9d/6a/43827cf9d1e70c0c3d916b8d139f2ff07501a8adadd8585e432af0bb7db4/migas-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/19/1c/3fd51e599d00eacc17b6f8c0b30e5f1483b07aee83ed12f0d710ddf9879e/nipype-1.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fa/71/e399826fda4c9f41bd3b895c7d5612d4eae76269519ea923ece9f798f79f/nitransforms-25.1.0-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=enh%2Fboldref-hierarchy#d6ed3819a607556f29f843208449a97b03320be6
+      - pypi: https://files.pythonhosted.org/packages/cf/24/2e6bb7df2db7eae67e971eac252499373c43b38c35a678a9315724e12456/niworkflows-1.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/96/d6d25a4c307d6645f4a9b91d620c0151c544ad38b5e371313a87d2761004/nvidia_ml_py-13.580.82-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b8/db/14bafcb4af2139e046d03fd00dea7873e48eafe18b7d2797e73d6681f210/prometheus_client-0.23.1-py3-none-any.whl
@@ -682,10 +682,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4d/ec/fd869e2567cc9c01278a736cfd1697941ba0d4b81a43e0aa2e8d71dab208/msgpack-1.1.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/19/1c/3fd51e599d00eacc17b6f8c0b30e5f1483b07aee83ed12f0d710ddf9879e/nipype-1.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fa/71/e399826fda4c9f41bd3b895c7d5612d4eae76269519ea923ece9f798f79f/nitransforms-25.1.0-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=enh%2Fboldref-hierarchy#d6ed3819a607556f29f843208449a97b03320be6
+      - pypi: https://files.pythonhosted.org/packages/cf/24/2e6bb7df2db7eae67e971eac252499373c43b38c35a678a9315724e12456/niworkflows-1.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/96/d6d25a4c307d6645f4a9b91d620c0151c544ad38b5e371313a87d2761004/nvidia_ml_py-13.580.82-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a8/7a/8d6fe30d424329ced46a738faaea4150efb8eee656599b88a791cf7ad07e/osfclient-0.0.5-py2.py3-none-any.whl
@@ -1049,10 +1049,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9d/6a/43827cf9d1e70c0c3d916b8d139f2ff07501a8adadd8585e432af0bb7db4/migas-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/44/61/cccfbc8df9559fc9f44a940cccd99f02c1f1ec9992291a89e3eb3cdafe25/nilearn-0.11.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/19/1c/3fd51e599d00eacc17b6f8c0b30e5f1483b07aee83ed12f0d710ddf9879e/nipype-1.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fa/71/e399826fda4c9f41bd3b895c7d5612d4eae76269519ea923ece9f798f79f/nitransforms-25.1.0-py3-none-any.whl
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=enh%2Fboldref-hierarchy#d6ed3819a607556f29f843208449a97b03320be6
+      - pypi: https://files.pythonhosted.org/packages/cf/24/2e6bb7df2db7eae67e971eac252499373c43b38c35a678a9315724e12456/niworkflows-1.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/5b/545e9267a1cc080c8a1be2746113a063e34bcdd0f5173fd665a5c13cb234/num2words-0.5.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/96/d6d25a4c307d6645f4a9b91d620c0151c544ad38b5e371313a87d2761004/nvidia_ml_py-13.580.82-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
@@ -2163,8 +2163,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: fmriprep
-  version: 26.0.0.dev100+gabb808697
-  sha256: dda1cb6496abe3a693313f596a92eb0ce9411aa2b1c5ec53f9d0ec1765ab8047
+  version: 26.0.0.dev110+g8b12dd1bd
+  sha256: 982c504ecf25c9d4b62faaeba6207af9c6d72a940e8b1f39c50fed12d9c15eb5
   requires_dist:
   - acres>=0.5.0
   - apscheduler>=3.11.0
@@ -2175,7 +2175,7 @@ packages:
   - nireports>=25.0.1
   - nitime>=0.12
   - nitransforms>=25.0.1
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@enh/boldref-hierarchy
+  - niworkflows>=1.15.0
   - numpy>=2.1
   - packaging>=24.2
   - pandas>=2.2.3
@@ -2234,8 +2234,8 @@ packages:
   editable: true
 - pypi: ./
   name: fmriprep
-  version: 26.0.0.dev100+gabb808697
-  sha256: dda1cb6496abe3a693313f596a92eb0ce9411aa2b1c5ec53f9d0ec1765ab8047
+  version: 26.0.0.dev110+g8b12dd1bd
+  sha256: 982c504ecf25c9d4b62faaeba6207af9c6d72a940e8b1f39c50fed12d9c15eb5
   requires_dist:
   - acres>=0.5.0
   - apscheduler>=3.11.0
@@ -2246,7 +2246,7 @@ packages:
   - nireports>=25.0.1
   - nitime>=0.12
   - nitransforms>=25.0.1
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@enh/boldref-hierarchy
+  - niworkflows>=1.15.0
   - numpy>=2.1
   - packaging>=24.2
   - pandas>=2.2.3
@@ -4858,104 +4858,110 @@ packages:
   - pytest>=6.0.0 ; extra == 'test'
   - tox ; extra == 'test'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/91/53/c5ad0140e2e4c4d92ae45558587e26b2ebc62e39eafa30b74cb052d9375b/nipype-1.10.0-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/19/1c/3fd51e599d00eacc17b6f8c0b30e5f1483b07aee83ed12f0d710ddf9879e/nipype-1.12.0-py3-none-any.whl
   name: nipype
-  version: 1.10.0
-  sha256: 56ced3272e77952e330f13e28328a8fe2e8a69587ca89bc34234f7d06f8319bb
+  version: 1.12.0
+  sha256: 2b9f5369bee97ab73a46e94233e91f691119b7f5c8b3abb19aff449989cbc130
   requires_dist:
-  - click>=6.6.0
-  - networkx>=2.5
-  - nibabel>=3.0
-  - numpy>=1.21
-  - packaging
+  - acres>=0.3.0
+  - click>=8.2.0
+  - etelemetry>=0.3.1
+  - filelock>=3.0.0
+  - looseversion>=1.3.0
+  - lxml>=5.3.0
+  - networkx>=3.4
+  - nibabel>=5.3
+  - numpy>=2.2.0
+  - packaging>=21.0
   - prov>=1.5.2
+  - puremagic>=1.15
   - pydot>=1.2.3
   - python-dateutil>=2.2
   - rdflib>=5.0.0
-  - scipy>=1.8
+  - scipy>=1.15.0
   - simplejson>=3.8.0
   - traits>=6.2
-  - filelock>=3.0.0
-  - acres
-  - etelemetry>=0.3.1
-  - looseversion!=1.2
-  - puremagic
+  - black ; extra == 'all'
+  - coverage[toml]>=7.6.2 ; extra == 'all'
+  - datalad ; extra == 'all'
+  - dipy ; extra == 'all'
+  - duecredit ; extra == 'all'
+  - fuzzywuzzy ; extra == 'all'
+  - gitpython ; extra == 'all'
+  - ipython ; extra == 'all'
+  - matplotlib ; extra == 'all'
+  - matplotlib>=3.10.0 ; extra == 'all'
+  - nbsphinx ; extra == 'all'
+  - niflow-nipype1-workflows ; extra == 'all'
+  - nilearn>=0.11.0 ; extra == 'all'
+  - nipy ; extra == 'all'
+  - nitime ; extra == 'all'
+  - pandas>=2.3.0 ; extra == 'all'
+  - paramiko ; extra == 'all'
+  - psutil>=5.0 ; extra == 'all'
+  - pybids>=0.18.0 ; extra == 'all'
+  - pytest-cov>=6.0.0 ; extra == 'all'
+  - pytest-doctestplus>=1.5.0 ; extra == 'all'
+  - pytest-env>=1.1.4 ; extra == 'all'
+  - pytest-timeout>=2.3.1 ; extra == 'all'
+  - pytest-xdist>=3.7.0 ; extra == 'all'
+  - pytest>=8.3.3 ; extra == 'all'
+  - sphinx-argparse ; extra == 'all'
+  - sphinx>=2.1.2 ; extra == 'all'
+  - sphinx>=8 ; extra == 'all'
+  - sphinxcontrib-apidoc ; extra == 'all'
+  - xvfbwrapper ; extra == 'all'
   - datalad ; extra == 'data'
+  - black ; extra == 'dev'
+  - coverage[toml]>=7.6.2 ; extra == 'dev'
+  - dipy ; extra == 'dev'
+  - ipython ; extra == 'dev'
+  - matplotlib>=3.10.0 ; extra == 'dev'
+  - nbsphinx ; extra == 'dev'
+  - niflow-nipype1-workflows ; extra == 'dev'
+  - pandas>=2.3.0 ; extra == 'dev'
+  - pytest-cov>=6.0.0 ; extra == 'dev'
+  - pytest-doctestplus>=1.5.0 ; extra == 'dev'
+  - pytest-env>=1.1.4 ; extra == 'dev'
+  - pytest-timeout>=2.3.1 ; extra == 'dev'
+  - pytest-xdist>=3.7.0 ; extra == 'dev'
+  - pytest>=8.3.3 ; extra == 'dev'
+  - sphinx-argparse ; extra == 'dev'
+  - sphinx>=2.1.2 ; extra == 'dev'
+  - sphinx>=8 ; extra == 'dev'
+  - sphinxcontrib-apidoc ; extra == 'dev'
+  - xvfbwrapper ; extra == 'dev'
   - dipy ; extra == 'doc'
   - ipython ; extra == 'doc'
-  - matplotlib ; extra == 'doc'
+  - matplotlib>=3.10.0 ; extra == 'doc'
   - nbsphinx ; extra == 'doc'
+  - niflow-nipype1-workflows ; extra == 'doc'
   - sphinx-argparse ; extra == 'doc'
   - sphinx>=2.1.2 ; extra == 'doc'
   - sphinxcontrib-apidoc ; extra == 'doc'
   - duecredit ; extra == 'duecredit'
-  - gitpython ; extra == 'maint'
   - fuzzywuzzy ; extra == 'maint'
-  - nitime ; extra == 'nipy'
-  - nilearn ; extra == 'nipy'
+  - gitpython ; extra == 'maint'
   - dipy ; extra == 'nipy'
-  - nipy ; extra == 'nipy'
   - matplotlib ; extra == 'nipy'
+  - nilearn>=0.11.0 ; extra == 'nipy'
+  - nipy ; extra == 'nipy'
+  - nitime ; extra == 'nipy'
   - psutil>=5.0 ; extra == 'profiler'
-  - pybids>=0.7.0 ; extra == 'pybids'
+  - pybids>=0.18.0 ; extra == 'pybids'
   - black ; extra == 'specs'
   - paramiko ; extra == 'ssh'
-  - coverage>=5.2.1 ; extra == 'tests'
-  - pandas>=1.5.0 ; extra == 'tests'
-  - pytest>=6 ; extra == 'tests'
-  - pytest-cov>=2.11 ; extra == 'tests'
-  - pytest-env ; extra == 'tests'
-  - pytest-timeout>=1.4 ; extra == 'tests'
-  - pytest-doctestplus ; extra == 'tests'
-  - pytest-xdist>=2.5 ; extra == 'tests'
-  - sphinx>=7 ; extra == 'tests'
+  - coverage[toml]>=7.6.2 ; extra == 'tests'
+  - pandas>=2.3.0 ; extra == 'tests'
+  - pytest-cov>=6.0.0 ; extra == 'tests'
+  - pytest-doctestplus>=1.5.0 ; extra == 'tests'
+  - pytest-env>=1.1.4 ; extra == 'tests'
+  - pytest-timeout>=2.3.1 ; extra == 'tests'
+  - pytest-xdist>=3.7.0 ; extra == 'tests'
+  - pytest>=8.3.3 ; extra == 'tests'
+  - sphinx>=8 ; extra == 'tests'
   - xvfbwrapper ; extra == 'xvfbwrapper'
-  - fuzzywuzzy ; extra == 'all'
-  - pytest-doctestplus ; extra == 'all'
-  - pytest-timeout>=1.4 ; extra == 'all'
-  - ipython ; extra == 'all'
-  - pytest-cov>=2.11 ; extra == 'all'
-  - pybids>=0.7.0 ; extra == 'all'
-  - psutil>=5.0 ; extra == 'all'
-  - pytest-env ; extra == 'all'
-  - duecredit ; extra == 'all'
-  - pandas>=1.5.0 ; extra == 'all'
-  - black ; extra == 'all'
-  - sphinxcontrib-apidoc ; extra == 'all'
-  - gitpython ; extra == 'all'
-  - sphinx-argparse ; extra == 'all'
-  - coverage>=5.2.1 ; extra == 'all'
-  - matplotlib ; extra == 'all'
-  - pytest>=6 ; extra == 'all'
-  - nilearn ; extra == 'all'
-  - dipy ; extra == 'all'
-  - nbsphinx ; extra == 'all'
-  - sphinx>=2.1.2 ; extra == 'all'
-  - nitime ; extra == 'all'
-  - paramiko ; extra == 'all'
-  - sphinx>=7 ; extra == 'all'
-  - xvfbwrapper ; extra == 'all'
-  - pytest-xdist>=2.5 ; extra == 'all'
-  - nipy ; extra == 'all'
-  - datalad ; extra == 'all'
-  - pytest-env ; extra == 'dev'
-  - matplotlib ; extra == 'dev'
-  - pytest>=6 ; extra == 'dev'
-  - pytest-doctestplus ; extra == 'dev'
-  - pytest-timeout>=1.4 ; extra == 'dev'
-  - pandas>=1.5.0 ; extra == 'dev'
-  - pytest-xdist>=2.5 ; extra == 'dev'
-  - black ; extra == 'dev'
-  - dipy ; extra == 'dev'
-  - ipython ; extra == 'dev'
-  - sphinxcontrib-apidoc ; extra == 'dev'
-  - pytest-cov>=2.11 ; extra == 'dev'
-  - nbsphinx ; extra == 'dev'
-  - sphinx-argparse ; extra == 'dev'
-  - coverage>=5.2.1 ; extra == 'dev'
-  - sphinx>=2.1.2 ; extra == 'dev'
-  - sphinx>=7 ; extra == 'dev'
-  requires_python: '>=3.9'
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/4e/23/f87d9328c96e0107fed479ec564ce645b033ae0d6cedad2672bddeb0e065/nireports-25.3.0-py3-none-any.whl
   name: nireports
   version: 25.3.0
@@ -5064,9 +5070,10 @@ packages:
   - nitransforms[test] ; extra == 'tests'
   - nitransforms[test] ; extra == 'all'
   requires_python: '>=3.10'
-- pypi: git+https://github.com/nipreps/niworkflows.git?rev=enh%2Fboldref-hierarchy#d6ed3819a607556f29f843208449a97b03320be6
+- pypi: https://files.pythonhosted.org/packages/cf/24/2e6bb7df2db7eae67e971eac252499373c43b38c35a678a9315724e12456/niworkflows-1.15.0-py3-none-any.whl
   name: niworkflows
-  version: 1.15.0.dev125+gd6ed3819a
+  version: 1.15.0
+  sha256: 4dee69164a6e2aedef616b25ca09e23317b6da108865077346774a29666bd994
   requires_dist:
   - acres>=0.5
   - attrs>=23.1
@@ -5075,19 +5082,19 @@ packages:
   - matplotlib>=3.8
   - nibabel>=5.2
   - nilearn>=0.11.1
-  - nipype>=1.9.2
+  - nipype>=1.12.0
   - nitransforms>=24.1.1
-  - numpy>=1.26
+  - numpy>=2.2
   - packaging>=23
   - pandas>=2.1
   - pybids>=0.18.1
   - pyyaml>=6.0.1
-  - scikit-image>=0.22
+  - scikit-image>=0.25
   - scipy>=1.12
   - seaborn>=0.13
   - svgutils>=0.3.4
   - templateflow>=24.2
-  - transforms3d>=0.4
+  - transforms3d>=0.4.2
   - coverage[toml]>=7 ; extra == 'all'
   - flake8>=3.7.0 ; extra == 'all'
   - furo ; extra == 'all'
