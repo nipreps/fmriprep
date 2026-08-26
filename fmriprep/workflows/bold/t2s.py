@@ -161,7 +161,7 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
         reference BOLD file
     label_file
         an integer label file identifying gray matter with value ``1``
-    template2anat_xfm
+    run2anat_xfm
         Affine matrix that maps images in the native bold space into the
         anatomical space of ``label_file``; can be ``"identity"`` if label
         file is already aligned
@@ -182,9 +182,7 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     workflow = pe.Workflow(name=name)
 
     inputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['t2star_file', 'boldref', 'label_file', 'template2anat_xfm']
-        ),
+        niu.IdentityInterface(fields=['t2star_file', 'boldref', 'label_file', 'run2anat_xfm']),
         name='inputnode',
     )
 
@@ -217,7 +215,7 @@ def init_t2s_reporting_wf(name: str = 't2s_reporting_wf'):
     workflow.connect([
         (inputnode, label_tfm, [('label_file', 'input_image'),
                                 ('t2star_file', 'reference_image'),
-                                ('template2anat_xfm', 'transforms')]),
+                                ('run2anat_xfm', 'transforms')]),
         (inputnode, clip_t2star, [('t2star_file', 'in_file')]),
         (clip_t2star, t2s_hist, [('out_file', 'in_file')]),
         (label_tfm, gm_mask, [('output_image', 'in_file')]),

@@ -796,7 +796,7 @@ def init_ds_volumes_wf(
                 'ref_file',
                 'bold',  # Resampled into target space
                 'bold_mask',  # boldref space
-                'bold_ref',  # boldref space
+                'run_boldref',  # boldref space
                 't2star',  # boldref space
                 'template',  # target reference image from original transform
                 # Anatomical
@@ -877,7 +877,7 @@ def init_ds_volumes_wf(
     resamplers = [resample_ref, resample_mask]
 
     workflow.connect([
-        (inputnode, resample_ref, [('bold_ref', 'input_image')]),
+        (inputnode, resample_ref, [('run_boldref', 'input_image')]),
         (inputnode, resample_mask, [('bold_mask', 'input_image')]),
     ])  # fmt:skip
 

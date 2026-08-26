@@ -321,8 +321,8 @@ configured with cubic B-spline interpolation.
         workflow.connect([
             (inputnode, t2s_reporting_wf, [
                 ('t1w_dseg', 'inputnode.label_file'),
-                ('template2anat_xfm', 'inputnode.template2anat_xfm'),
-                ('coreg_boldref', 'inputnode.boldref'),
+                ('run2anat_xfm', 'inputnode.run2anat_xfm'),
+                ('run_boldref', 'inputnode.boldref'),
             ]),
             (bold_native_wf, t2s_reporting_wf, [
                 ('outputnode.t2star_map', 'inputnode.t2star_file'),
@@ -363,7 +363,7 @@ configured with cubic B-spline interpolation.
             ('t1w_mask', 'inputnode.target_mask'),
             ('fmap_ref', 'inputnode.fmap_ref'),
             ('fmap_coeff', 'inputnode.fmap_coeff'),
-            ('coreg_boldref', 'inputnode.bold_ref_file'),
+            ('run_boldref', 'inputnode.run_boldref'),
             ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
             ('template2anat_xfm', 'inputnode.template2anat_xfm'),
             ('run2template_xfm', 'inputnode.run2template_xfm'),
@@ -390,7 +390,7 @@ configured with cubic B-spline interpolation.
         workflow.connect([
             (inputnode, ds_bold_t1_wf, [
                 ('bold_mask', 'inputnode.bold_mask'),
-                ('coreg_boldref', 'inputnode.bold_ref'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('motion_xfm', 'inputnode.motion_xfm'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
@@ -433,7 +433,7 @@ configured with cubic B-spline interpolation.
                 ('std_resolution', 'inputnode.resolution'),
                 ('fmap_ref', 'inputnode.fmap_ref'),
                 ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('coreg_boldref', 'inputnode.bold_ref_file'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('run2template_xfm', 'inputnode.run2template_xfm'),
@@ -448,7 +448,7 @@ configured with cubic B-spline interpolation.
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
                 ('bold_mask', 'inputnode.bold_mask'),
-                ('coreg_boldref', 'inputnode.bold_ref'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('motion_xfm', 'inputnode.motion_xfm'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
@@ -594,7 +594,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('anat2mni6_xfm', 'inputnode.anat2std_xfm'),
                 ('fmap_ref', 'inputnode.fmap_ref'),
                 ('fmap_coeff', 'inputnode.fmap_coeff'),
-                ('coreg_boldref', 'inputnode.bold_ref_file'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('run2template_xfm', 'inputnode.run2template_xfm'),
@@ -758,7 +758,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             ('orig_bold_mask', 'inputnode.bold_mask'),
             ('run_boldref', 'inputnode.hmc_boldref'),
             ('motion_xfm', 'inputnode.motion_xfm'),
-            ('run2anat_xfm', 'inputnode.template2anat_xfm'),
+            ('run2anat_xfm', 'inputnode.run2anat_xfm'),
             ('dummy_scans', 'inputnode.skip_vols'),
         ]),
         (bold_native_wf, bold_confounds_wf, [
@@ -791,7 +791,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
                 ('mni2009c2anat_xfm', 'inputnode.std2anat_xfm'),
                 ('dummy_scans', 'inputnode.dummy_scans'),
                 ('orig_bold_mask', 'inputnode.bold_mask'),
-                ('run2anat_xfm', 'inputnode.template2anat_xfm'),
+                ('run2anat_xfm', 'inputnode.run2anat_xfm'),
             ]),
             (bold_native_wf, carpetplot_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
