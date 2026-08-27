@@ -694,17 +694,63 @@ jobs:
                 --mem-mb 14336 --nthreads 4 -vv --debug compcor
       - run: *check_outputs
       - run:
+          name: Run session- and subject-level coregistration on ds054
+          no_output_timeout: 2h
+          command: |
+            FASTRACK_ARG="--derivatives anat=/tmp/${DATASET}/smriprep"
+            if [ -f /tmp/.nofasttrack ]; then
+                FASTRACK_ARG=""
+            fi
+            for level in session subject; do
+              mkdir -p /tmp/${DATASET}/work_${level} /tmp/${DATASET}/fmriprep-${level}
+              fmriprep-docker -i nipreps/fmriprep:latest \
+                  -e FMRIPREP_DEV 1 --user $(id -u):$(id -g) \
+                  --config $PWD/nipype.cfg -w /tmp/${DATASET}/work_${level} \
+                  /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-${level} participant \
+                  ${FASTRACK_ARG} \
+                  --fs-no-reconall --sloppy --level minimal \
+                  --bold-coreg-level ${level} \
+                  --mem-mb 14336 --nthreads 4 -vv
+            done
+      - run:
+          name: Verify session/subject coregistration outputs are written to the proper location
+          command: |
+            set -x
+            rc=0
+            exists() { test -f "$1" || { echo "MISSING: $1"; rc=1; }; }
+            absent() { test ! -e "$1" || { echo "UNEXPECTED: $1"; rc=1; }; }
+            for level in session subject; do
+              d=/tmp/${DATASET}/fmriprep-${level}/sub-100185/func
+              exists "${d}/sub-100185_space-${level}_boldref.nii.gz"
+              exists "${d}/sub-100185_space-${level}_desc-brain_mask.nii.gz"
+              exists "${d}/sub-100185_from-${level}_to-T1w_mode-image_desc-coreg_xfm.txt"
+              for run in 01 02; do
+                base="sub-100185_task-machinegame_run-${run}"
+                exists "${d}/${base}_space-run_boldref.nii.gz"
+                exists "${d}/${base}_from-run_to-${level}_mode-image_desc-coreg_xfm.txt"
+                absent "${d}/${base}_from-run_to-T1w_mode-image_desc-coreg_xfm.txt"
+              done
+            done
+            exit $rc
+      - store_artifacts:
+          path: /tmp/ds054/fmriprep-session
+          destination: session-run
+      - store_artifacts:
+          path: /tmp/ds054/fmriprep-subject
+          destination: subject-run
+      - run:
           name: Clean working directory
           when: on_success
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/${DATASET}
-            sudo rm -rf /tmp/${DATASET}/work
+            sudo rm -rf /tmp/${DATASET}/work /tmp/${DATASET}/work_session /tmp/${DATASET}/work_subject
       - run:
           name: Clean working directory
           when: on_fail
           command: |
             sudo chown $(id -un):$(id -gn) -R /tmp/${DATASET}
-            find /tmp/${DATASET}/work \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
+            find /tmp/${DATASET}/work /tmp/${DATASET}/work_session /tmp/${DATASET}/work_subject \
+                \( -name "*.nii.gz" -or -name "*.nii" -or -name "*.gii" -or -name "*.h5" \) \
                 -exec sh -c 'rm -f {}; touch {}' \;
       - store_artifacts:
           path: /tmp/ds054
