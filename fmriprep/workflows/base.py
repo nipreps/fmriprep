@@ -1166,6 +1166,7 @@ tasks and sessions), the following preprocessing was performed.
                     ),
                 ]),
                 (bold_fit_wf, bold_apply_wf, [
+                    ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
                     ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
                     ('outputnode.run2fmap_xfm', 'inputnode.run2fmap_xfm'),
                     ('outputnode.dummy_scans', 'inputnode.dummy_scans'),

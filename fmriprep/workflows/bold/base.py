@@ -192,6 +192,7 @@ configured with cubic B-spline interpolation.
                 'template_mask',
                 'run_boldref',
                 'run_mask',
+                'hmc_boldref',
                 'run2anat_xfm',
                 'motion_xfm',
                 'run2fmap_xfm',
