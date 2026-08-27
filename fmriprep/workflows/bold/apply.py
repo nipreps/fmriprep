@@ -56,7 +56,7 @@ def init_bold_volumetric_resample_wf(
     ------
     bold_file
         BOLD series to resample.
-    bold_ref_file
+    run_boldref
         Reference image to which BOLD series is aligned.
     target_ref_file
         Reference image defining the target space.
@@ -64,10 +64,10 @@ def init_bold_volumetric_resample_wf(
         Brain mask corresponding to ``target_ref_file``.
         This is used to define the field of view for the resampled BOLD series.
     motion_xfm
-        List of affine transforms aligning each volume to ``bold_ref_file``.
+        List of affine transforms aligning each volume to ``run_boldref``.
         If undefined, no motion correction is performed.
     run2fmap_xfm
-        Affine transform from ``bold_ref_file`` to the fieldmap reference image.
+        Affine transform from ``run_boldref`` to the fieldmap reference image.
     fmap_ref
         Fieldmap reference image defining the valid field of view for the fieldmap.
     fmap_coeff
@@ -76,7 +76,7 @@ def init_bold_volumetric_resample_wf(
         Affine transform from the run-level BOLD reference to the boldref
         template. Identity when ``--bold-coreg-level run``.
     template2anat_xfm
-        Affine transform from ``bold_ref_file`` to the anatomical reference image.
+        Affine transform from template BOLD reference to the anatomical reference image.
     anat2std_xfm
         Affine transform from the anatomical reference image to standard space.
         Leave undefined to resample to anatomical reference space.
@@ -96,7 +96,7 @@ def init_bold_volumetric_resample_wf(
         niu.IdentityInterface(
             fields=[
                 'bold_file',
-                'bold_ref_file',
+                'run_boldref',
                 'target_ref_file',
                 'target_mask',
                 # HMC
@@ -136,7 +136,7 @@ def init_bold_volumetric_resample_wf(
 
     workflow.connect([
         (inputnode, gen_ref, [
-            ('bold_ref_file', 'moving_image'),
+            ('run_boldref', 'moving_image'),
             ('target_ref_file', 'fixed_image'),
             ('target_mask', 'fov_mask'),
             (('resolution', _is_native), 'keep_native'),
