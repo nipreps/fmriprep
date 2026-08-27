@@ -155,12 +155,9 @@ def init_bold_anat_coreg_wf(
     fallbacks
         Per-run fallback flags from registration.
     """
-    workflow = Workflow(name=name)
-    inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
 
     init_coreg_wf = init_bold_run_coreg_wf if coreg_space == 'run' else init_bold_template_coreg_wf
-    coreg_wf = init_coreg_wf(
+    return init_coreg_wf(
         bold_files=bold_files,
         coreg_space=coreg_space,
         bold2anat_dof=bold2anat_dof,
@@ -173,14 +170,8 @@ def init_bold_anat_coreg_wf(
         output_dir=output_dir,
         reference_anat=reference_anat,
         precomputed=precomputed,
+        name=name,
     )
-
-    workflow.connect([
-        (inputnode, coreg_wf, [(field, f'inputnode.{field}') for field in INPUT_FIELDS]),
-        (coreg_wf, outputnode, [(f'outputnode.{field}', field) for field in OUTPUT_FIELDS]),
-    ])  # fmt:skip
-
-    return workflow
 
 
 def init_bold_run_coreg_wf(
