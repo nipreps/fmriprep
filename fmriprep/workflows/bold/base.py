@@ -188,10 +188,10 @@ configured with cubic B-spline interpolation.
         niu.IdentityInterface(
             fields=[
                 # Fit & coregistration outputs
-                'coreg_boldref',
-                'bold_mask',
+                'template_boldref',
+                'template_mask',
                 'run_boldref',
-                'orig_bold_mask',
+                'run_mask',
                 'run2anat_xfm',
                 'motion_xfm',
                 'run2fmap_xfm',
@@ -259,7 +259,7 @@ configured with cubic B-spline interpolation.
             ('fmap_ref', 'inputnode.fmap_ref'),
             ('fmap_coeff', 'inputnode.fmap_coeff'),
             ('run_boldref', 'inputnode.run_boldref'),
-            ('bold_mask', 'inputnode.bold_mask'),
+            ('run_mask', 'inputnode.run_mask'),
             ('motion_xfm', 'inputnode.motion_xfm'),
             ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
             ('dummy_scans', 'inputnode.dummy_scans'),
@@ -372,7 +372,7 @@ configured with cubic B-spline interpolation.
             ('outputnode.bold_minimal', 'inputnode.bold_file'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
         ]),
-        (inputnode, merge_bold_sources, [('coreg_boldref', 'in2')]),
+        (inputnode, merge_bold_sources, [('template_boldref', 'in2')]),
     ])  # fmt:skip
 
     # Full derivatives, including resampled BOLD series
@@ -389,8 +389,8 @@ configured with cubic B-spline interpolation.
 
         workflow.connect([
             (inputnode, ds_bold_t1_wf, [
-                ('bold_mask', 'inputnode.bold_mask'),
-                ('run_boldref', 'inputnode.bold_ref'),
+                ('run_mask', 'inputnode.run_mask'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('motion_xfm', 'inputnode.motion_xfm'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
@@ -447,8 +447,8 @@ configured with cubic B-spline interpolation.
                 ('std_t1w', 'inputnode.template'),
                 ('std_space', 'inputnode.space'),
                 ('std_resolution', 'inputnode.resolution'),
-                ('bold_mask', 'inputnode.bold_mask'),
-                ('run_boldref', 'inputnode.bold_ref'),
+                ('run_mask', 'inputnode.run_mask'),
+                ('run_boldref', 'inputnode.run_boldref'),
                 ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                 ('motion_xfm', 'inputnode.motion_xfm'),
                 ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
@@ -755,8 +755,8 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         (inputnode, bold_confounds_wf, [
             ('t1w_tpms', 'inputnode.t1w_tpms'),
             ('t1w_mask', 'inputnode.t1w_mask'),
-            ('orig_bold_mask', 'inputnode.bold_mask'),
-            ('run_boldref', 'inputnode.hmc_boldref'),
+            ('run_mask', 'inputnode.run_mask'),
+            ('hmc_boldref', 'inputnode.hmc_boldref'),
             ('motion_xfm', 'inputnode.motion_xfm'),
             ('run2anat_xfm', 'inputnode.run2anat_xfm'),
             ('dummy_scans', 'inputnode.skip_vols'),
@@ -790,7 +790,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
             (inputnode, carpetplot_wf, [
                 ('mni2009c2anat_xfm', 'inputnode.std2anat_xfm'),
                 ('dummy_scans', 'inputnode.dummy_scans'),
-                ('orig_bold_mask', 'inputnode.bold_mask'),
+                ('run_mask', 'inputnode.bold_mask'),
                 ('run2anat_xfm', 'inputnode.run2anat_xfm'),
             ]),
             (bold_native_wf, carpetplot_wf, [

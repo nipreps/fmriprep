@@ -45,7 +45,7 @@ INPUT_FIELDS = [
     'fsnative2t1w_xfm',
 ]
 OUTPUT_FIELDS = [
-    'coreg_boldrefs',
+    'template_boldrefs',
     'bold_masks',
     'run2template_xfms',
     'template2anat_xfms',
@@ -140,7 +140,7 @@ def init_bold_anat_coreg_wf(
 
     Outputs
     -------
-    coreg_boldrefs
+    template_boldrefs
         Per-run boldref in coregistration target space: session template repeated
         n times (session-level) or each run's own boldref (run-level).
     bold_masks
@@ -273,7 +273,7 @@ def init_bold_run_coreg_wf(
 
     workflow.connect([
         (inputnode, outputnode, [
-            ('run_boldrefs', 'coreg_boldrefs'),
+            ('run_boldrefs', 'template_boldrefs'),
             ('run_masks', 'bold_masks'),
         ]),
         (merge_template2anat, outputnode, [
@@ -573,7 +573,7 @@ def init_bold_template_coreg_wf(
         (template_buffer, expand_boldref, [('boldref', 'value')]),
         (template_buffer, expand_mask, [('mask', 'value')]),
         (reg_buffer, expand_fallback, [('fallback', 'value')]),
-        (expand_boldref, outputnode, [('out', 'coreg_boldrefs')]),
+        (expand_boldref, outputnode, [('out', 'template_boldrefs')]),
         (expand_mask, outputnode, [('out', 'bold_masks')]),
         (expand_fallback, outputnode, [('out', 'fallbacks')]),
         (merge_run2template, outputnode, [('out', 'run2template_xfms')]),

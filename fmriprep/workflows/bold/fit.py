@@ -157,7 +157,7 @@ def init_bold_fit_wf(
         BOLD reference image used for coregistration. Contrast-enhanced
         and fieldmap-corrected for greater anatomical fidelity, and aligned
         with ``hmc_boldref``.
-    bold_mask
+    run_mask
         Mask of ``run_boldref``.
     motion_xfm
         Affine transforms from each BOLD volume to ``hmc_boldref``, written
@@ -256,7 +256,7 @@ def init_bold_fit_wf(
                 'dummy_scans',
                 'hmc_boldref',
                 'run_boldref',
-                'bold_mask',
+                'run_mask',
                 'motion_xfm',
                 'run2fmap_xfm',
                 # Passed through for reporting at the base-workflow level
@@ -305,7 +305,7 @@ def init_bold_fit_wf(
         (hmcref_buffer, fmapref_buffer, [('boldref', 'boldref_files')]),
         (regref_buffer, outputnode, [
             ('boldref', 'run_boldref'),
-            ('boldmask', 'bold_mask'),
+            ('boldmask', 'run_mask'),
         ]),
         (fmapreg_buffer, outputnode, [('run2fmap_xfm', 'run2fmap_xfm')]),
         (hmc_buffer, outputnode, [
@@ -611,7 +611,7 @@ def init_bold_native_wf(
     ------
     run_boldref
         BOLD reference file
-    bold_mask
+    run_mask
         Mask of BOLD reference file
     motion_xfm
         Affine transforms from each BOLD volume to ``hmc_boldref``, written
@@ -693,7 +693,7 @@ def init_bold_native_wf(
             fields=[
                 # BOLD fit
                 'run_boldref',
-                'bold_mask',
+                'run_mask',
                 'motion_xfm',
                 'run2fmap_xfm',
                 'dummy_scans',
@@ -824,7 +824,7 @@ def init_bold_native_wf(
         # This prevents downstream resamplers from double-dipping
         workflow.connect([
             (inputnode, bold_t2s_wf, [
-                ('bold_mask', 'inputnode.bold_mask'),
+                ('run_mask', 'inputnode.bold_mask'),
                 ('dummy_scans', 'inputnode.skip_vols'),
             ]),
             (boldref_bold, join_echos, [('out_file', 'bold_files')]),
