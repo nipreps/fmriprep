@@ -139,6 +139,143 @@ def write_bidsignore(deriv_dir):
     ignore_file.write_text('\n'.join(bids_ignore) + '\n')
 
 
+def write_descriptions_tsv(
+    deriv_dir,
+    *,
+    sdc_method: str | None = None,
+    slice_timing_corrected: bool = False,
+    slice_time_ref: float = 0.5,
+    fd_threshold: float | None = None,
+    dvars_threshold: float | None = None,
+    compcor_variance: float = 0.5,
+    coreg_method: str = 'bbr',
+    bold2anat_dof: int = 6,
+    freesurfer: bool = True,
+):
+    """Write descriptions.tsv to derivatives root directory.
+
+    This file documents the processing procedures associated with each
+    ``desc-`` entity value used in the derivatives, following the BIDS
+    common derivatives specification.
+
+    Parameters
+    ----------
+    deriv_dir : :obj:`str` or :obj:`os.PathLike`
+        Root directory of fMRIPrep derivatives
+    sdc_method : :obj:`str`, optional
+        Susceptibility distortion correction method used (e.g., 'TOPUP', 'SyN').
+        If None, SDC was not applied.
+    slice_timing_corrected : :obj:`bool`
+        Whether slice timing correction was applied
+    slice_time_ref : :obj:`float`
+        Slice timing reference (0-1), only used if slice_timing_corrected is True
+    fd_threshold : :obj:`float`, optional
+        Framewise displacement threshold in mm for outlier flagging
+    dvars_threshold : :obj:`float`, optional
+        DVARS threshold for outlier detection
+    compcor_variance : :obj:`float`
+        Variance threshold for CompCor component selection (default 0.5 = 50%)
+    coreg_method : :obj:`str`
+        Coregistration method (e.g., 'bbr' for boundary-based registration)
+    bold2anat_dof : :obj:`int`
+        Degrees of freedom for BOLD-to-anatomical registration
+    freesurfer : :obj:`bool`
+        Whether FreeSurfer was used for segmentation
+
+    Returns
+    -------
+    :obj:`pathlib.Path`
+        Path to written descriptions.tsv
+
+    """
+    deriv_dir = Path(deriv_dir)
+
+    # Load description templates
+    desc_templates = json.loads(load_data.readable('descriptions.json').read_text())
+    entities = desc_templates.get('entities', {})
+
+    # Build context for template substitution
+    context = {
+        'sdc_applied': sdc_method is not None,
+        'sdc_method': sdc_method or '',
+        'stc_applied': slice_timing_corrected,
+        'slice_time_ref': slice_time_ref,
+        'has_fd_threshold': fd_threshold is not None,
+        'fd_threshold': fd_threshold if fd_threshold is not None else '',
+        'has_dvars_threshold': dvars_threshold is not None,
+        'dvars_threshold': dvars_threshold if dvars_threshold is not None else '',
+        'has_compcor': True,  # CompCor is always computed
+        'compcor_variance': compcor_variance,
+        'coreg_method': 'boundary-based registration' if coreg_method == 'bbr' else coreg_method,
+        'has_dof': bold2anat_dof is not None,
+        'dof': bold2anat_dof,
+        'mask_source': 'FreeSurfer' if freesurfer else 'ANTs',
+    }
+
+    def _build_description(entity_def: dict, ctx: dict) -> str:
+        """Build description string from template definition."""
+        desc = entity_def.get('base', '')
+
+        # Process conditional parts
+        for part in entity_def.get('conditional_parts', []):
+            condition = part.get('condition', '')
+            text = part.get('text', '')
+
+            # Check if condition is met
+            include = False
+            if condition == 'always':
+                include = True
+            elif condition in ctx:
+                include = bool(ctx[condition])
+
+            if include:
+                # Substitute parameters in text
+                try:
+                    desc += text.format(**ctx)
+                except KeyError:
+                    desc += text
+
+        # Substitute any remaining parameters in base
+        try:
+            desc = desc.format(**ctx)
+        except KeyError:
+            pass
+
+        return desc
+
+    # Build rows for descriptions.tsv
+    rows = []
+    for desc_id, entity_def in entities.items():
+        description = _build_description(entity_def, context)
+
+        # Build parameters dict (only include non-empty values)
+        params = {}
+        for param_name in entity_def.get('parameters', []):
+            if param_name in context and context[param_name] not in (None, ''):
+                params[param_name] = context[param_name]
+
+        # Add condition flags to parameters for key dynamic fields
+        if desc_id == 'preproc':
+            params['sdc_applied'] = context['sdc_applied']
+            params['stc_applied'] = context['stc_applied']
+
+        rows.append(
+            {
+                'desc_id': desc_id,
+                'description': description,
+                'parameters': json.dumps(params) if params else '{}',
+            }
+        )
+
+    # Write TSV file
+    tsv_path = deriv_dir / 'descriptions.tsv'
+    header = 'desc_id\tdescription\tparameters\n'
+    lines = [f'{row["desc_id"]}\t{row["description"]}\t{row["parameters"]}\n' for row in rows]
+    tsv_path.write_text(header + ''.join(lines))
+
+    return tsv_path
+
+
 def write_derivative_description(bids_dir, deriv_dir, dataset_links=None):
     from .. import __version__
 
