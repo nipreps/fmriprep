@@ -189,7 +189,6 @@ configured with cubic B-spline interpolation.
             fields=[
                 # Fit & coregistration outputs
                 'template_boldref',
-                'template_mask',
                 'run_boldref',
                 'run_mask',
                 'hmc_boldref',

@@ -722,11 +722,11 @@ jobs:
             for level in session subject; do
               d=/tmp/${DATASET}/fmriprep-${level}/sub-100185/func
               exists "${d}/sub-100185_space-${level}_boldref.nii.gz"
-              exists "${d}/sub-100185_space-${level}_desc-brain_mask.nii.gz"
               exists "${d}/sub-100185_from-${level}_to-T1w_mode-image_desc-coreg_xfm.txt"
               for run in 01 02; do
                 base="sub-100185_task-machinegame_run-${run}"
                 exists "${d}/${base}_space-run_boldref.nii.gz"
+                exists "${d}/${base}_space-run_desc-brain_mask.nii.gz"
                 exists "${d}/${base}_from-run_to-${level}_mode-image_desc-coreg_xfm.txt"
                 absent "${d}/${base}_from-run_to-T1w_mode-image_desc-coreg_xfm.txt"
               done

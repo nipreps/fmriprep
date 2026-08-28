@@ -36,7 +36,6 @@ logger = logging.getLogger('nipype.workflow')
 
 INPUT_FIELDS = [
     'run_boldrefs',
-    'run_masks',
     't1w_preproc',
     't1w_mask',
     't1w_dseg',
@@ -46,7 +45,6 @@ INPUT_FIELDS = [
 ]
 OUTPUT_FIELDS = [
     'template_boldrefs',
-    'bold_masks',
     'run2template_xfms',
     'template2anat_xfms',
     'run2anat_xfms',
@@ -123,8 +121,6 @@ def init_bold_anat_coreg_wf(
     ------
     run_boldrefs
         List of per-run SDC-corrected BOLD references.
-    run_masks
-        List of per-run brain masks.
     t1w_preproc
         Bias-corrected anatomical image.
     t1w_mask
@@ -143,8 +139,6 @@ def init_bold_anat_coreg_wf(
     template_boldrefs
         Per-run boldref in coregistration target space: session template repeated
         n times (session-level) or each run's own boldref (run-level).
-    bold_masks
-        Per-run masks in coregistration target space.
     run2template_xfms
         Per-run transform from run space to the coregistration template.
         Identity transforms for run-level coregistration.
@@ -265,7 +259,6 @@ def init_bold_run_coreg_wf(
     workflow.connect([
         (inputnode, outputnode, [
             ('run_boldrefs', 'template_boldrefs'),
-            ('run_masks', 'bold_masks'),
         ]),
         (merge_template2anat, outputnode, [
             ('out', 'template2anat_xfms'),
@@ -337,7 +330,7 @@ def init_bold_template_coreg_wf(
         )
 
     template_buffer = pe.Node(
-        niu.IdentityInterface(fields=['boldref', 'mask', 'run2template_xfms']),
+        niu.IdentityInterface(fields=['boldref', 'run2template_xfms']),
         name='template_buffer',
     )
     boldref_template = precomputed.get('boldref_template')
@@ -345,22 +338,6 @@ def init_bold_template_coreg_wf(
         from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
         template_buffer.inputs.run2template_xfms = list(run2template_xfms)
-
-        select_mask0 = pe.Node(
-            niu.Select(index=0), name='select_mask0', run_without_submitting=True
-        )
-        warp_template_mask = pe.Node(
-            ApplyTransforms(transforms=[run2template_xfms[0]], interpolation='MultiLabel'),
-            name='warp_template_mask',
-        )
-        workflow.connect([
-            (inputnode, select_mask0, [('run_masks', 'inlist')]),
-            (select_mask0, warp_template_mask, [
-                ('out', 'input_image'),
-                ('out', 'reference_image'),
-            ]),
-            (warp_template_mask, template_buffer, [('output_image', 'mask')]),
-        ])  # fmt:skip
 
         if boldref_template:
             logger.info('Reusing precomputed boldref template; skipping reconstruction.')
@@ -400,7 +377,6 @@ def init_bold_template_coreg_wf(
             (inputnode, bold_template_wf, [('run_boldrefs', 'inputnode.boldref_files')]),
             (bold_template_wf, template_buffer, [
                 ('outputnode.boldref', 'boldref'),
-                ('outputnode.bold_mask', 'mask'),
                 ('outputnode.run2template_xfms', 'run2template_xfms'),
             ]),
         ])  # fmt:skip
@@ -418,19 +394,6 @@ def init_bold_template_coreg_wf(
             name='ds_boldref_template',
             run_without_submitting=True,
         )
-        ds_boldref_mask = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                source_file=bold_files[0],
-                space=coreg_space,
-                desc='brain',
-                suffix='mask',
-                compress=True,
-                dismiss_entities=_dismiss,
-            ),
-            name='ds_boldref_mask',
-            run_without_submitting=True,
-        )
         template_sources = pe.Node(
             BIDSURI(
                 numinputs=1,
@@ -443,9 +406,7 @@ def init_bold_template_coreg_wf(
         workflow.connect([
             (inputnode, template_sources, [('run_boldrefs', 'in1')]),
             (template_buffer, ds_boldref_template, [('boldref', 'in_file')]),
-            (template_buffer, ds_boldref_mask, [('mask', 'in_file')]),
             (template_sources, ds_boldref_template, [('out', 'Sources')]),
-            (template_sources, ds_boldref_mask, [('out', 'Sources')]),
         ])  # fmt:skip
 
     reg_buffer = pe.Node(
@@ -554,18 +515,15 @@ def init_bold_template_coreg_wf(
 
     # Broadcast the session template image/mask/fallback into per-run lists
     expand_boldref = pe.Node(niu.Function(function=_expand), name='expand_boldref')
-    expand_mask = pe.Node(niu.Function(function=_expand), name='expand_mask')
     expand_fallback = pe.Node(niu.Function(function=_expand), name='expand_fallback')
-    for node in (expand_boldref, expand_mask, expand_fallback):
+    for node in (expand_boldref, expand_fallback):
         node.inputs.n = n_runs
         node.run_without_submitting = True
 
     workflow.connect([
         (template_buffer, expand_boldref, [('boldref', 'value')]),
-        (template_buffer, expand_mask, [('mask', 'value')]),
         (reg_buffer, expand_fallback, [('fallback', 'value')]),
         (expand_boldref, outputnode, [('out', 'template_boldrefs')]),
-        (expand_mask, outputnode, [('out', 'bold_masks')]),
         (expand_fallback, outputnode, [('out', 'fallbacks')]),
         (merge_run2template, outputnode, [('out', 'run2template_xfms')]),
         (merge_template2anat, outputnode, [('out', 'template2anat_xfms')]),

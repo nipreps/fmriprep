@@ -992,7 +992,6 @@ tasks and sessions), the following preprocessing was performed.
                         'template2anat_xfm',
                         'run2template_xfm',
                         'template_boldref',
-                        'template_mask',
                         'run_boldref',
                         'run_mask',
                         'run2anat_xfm',
@@ -1085,11 +1084,6 @@ tasks and sessions), the following preprocessing was performed.
                 name=f'select_template_boldref_{bold_id}',
                 run_without_submitting=True,
             )
-            select_template_mask = pe.Node(
-                niu.Select(index=i),
-                name=f'select_template_mask_{bold_id}',
-                run_without_submitting=True,
-            )
             select_run2template = pe.Node(
                 niu.Select(index=i),
                 name=f'select_run2template_{bold_id}',
@@ -1119,13 +1113,11 @@ tasks and sessions), the following preprocessing was performed.
                     ('outputnode.run_mask', 'run_mask'),
                 ]),
                 (bold_anat_coreg_wf, select_template_boldref, [('outputnode.template_boldrefs', 'inlist')]),
-                (bold_anat_coreg_wf, select_template_mask, [('outputnode.bold_masks', 'inlist')]),
                 (bold_anat_coreg_wf, select_run2template, [('outputnode.run2template_xfms', 'inlist')]),
                 (bold_anat_coreg_wf, select_template2anat, [('outputnode.template2anat_xfms', 'inlist')]),
                 (bold_anat_coreg_wf, select_run2anat, [('outputnode.run2anat_xfms', 'inlist')]),
                 (bold_anat_coreg_wf, select_fallback, [('outputnode.fallbacks', 'inlist')]),
                 (select_template_boldref, boldref_buffer, [('out', 'template_boldref')]),
-                (select_template_mask, boldref_buffer, [('out', 'template_mask')]),
                 (select_run2template, boldref_buffer, [('out', 'run2template_xfm')]),
                 (select_template2anat, boldref_buffer, [('out', 'template2anat_xfm')]),
                 (select_run2anat, boldref_buffer, [('out', 'run2anat_xfm')]),
@@ -1175,7 +1167,6 @@ tasks and sessions), the following preprocessing was performed.
                     ('template2anat_xfm', 'inputnode.template2anat_xfm'),
                     ('run2template_xfm', 'inputnode.run2template_xfm'),
                     ('template_boldref', 'inputnode.template_boldref'),
-                    ('template_mask', 'inputnode.template_mask'),
                     ('run_boldref', 'inputnode.run_boldref'),
                     ('run_mask', 'inputnode.run_mask'),
                     ('run2anat_xfm', 'inputnode.run2anat_xfm'),
