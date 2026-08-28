@@ -256,12 +256,16 @@ def init_func_fit_reports_wf(
     )
 
     anat2run_xfms = pe.Node(
-        niu.Merge(2), name='anat2run_xfms', run_without_submitting=True, mem_gb=1
+        niu.Merge(2),
+        name='anat2run_xfms',
+        run_without_submitting=True,
+        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
     anat2run_invert = pe.Node(
         niu.Function(function=_invert_all_transforms),
         name='anat2run_invert',
         run_without_submitting=True,
+        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
 
     # Resample anatomical references into BOLD space for plotting
