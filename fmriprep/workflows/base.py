@@ -938,10 +938,6 @@ tasks and sessions), the following preprocessing was performed.
             name=f'merge_fit_boldrefs_{group_id}',
             run_without_submitting=True,
         )
-        merge_fit_masks = pe.Node(
-            niu.Merge(len(group)), name=f'merge_fit_masks_{group_id}', run_without_submitting=True
-        )
-
         workflow.connect([
             (anat_fit_wf, bold_anat_coreg_wf, [
                 ('outputnode.t1w_preproc', 'inputnode.t1w_preproc'),
@@ -952,7 +948,6 @@ tasks and sessions), the following preprocessing was performed.
                 ('outputnode.fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
             ]),
             (merge_fit_boldrefs, bold_anat_coreg_wf, [('out', 'inputnode.run_boldrefs')]),
-            (merge_fit_masks, bold_anat_coreg_wf, [('out', 'inputnode.run_masks')]),
         ])  # fmt:skip
 
         for i, bold_series in enumerate(group):
@@ -1107,7 +1102,6 @@ tasks and sessions), the following preprocessing was performed.
 
             workflow.connect([
                 (bold_fit_wf, merge_fit_boldrefs, [('outputnode.run_boldref', f'in{i + 1}')]),
-                (bold_fit_wf, merge_fit_masks, [('outputnode.run_mask', f'in{i + 1}')]),
                 (bold_fit_wf, boldref_buffer, [
                     ('outputnode.run_boldref', 'run_boldref'),
                     ('outputnode.run_mask', 'run_mask'),
