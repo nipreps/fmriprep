@@ -284,14 +284,14 @@ configured with cubic B-spline interpolation.
         ds_bold_native_wf.inputs.inputnode.source_files = bold_series
 
         workflow.connect([
+            (inputnode, ds_bold_native_wf, [
+                ('motion_xfm', 'inputnode.motion_xfm'),
+                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
+            ]),
             (bold_native_wf, ds_bold_native_wf, [
                 ('outputnode.bold_native', 'inputnode.bold'),
                 ('outputnode.bold_echos', 'inputnode.bold_echos'),
                 ('outputnode.t2star_map', 'inputnode.t2star'),
-            ]),
-            (inputnode, ds_bold_native_wf, [
-                ('motion_xfm', 'inputnode.motion_xfm'),
-                ('run2fmap_xfm', 'inputnode.run2fmap_xfm'),
             ]),
         ])  # fmt:skip
 
@@ -358,6 +358,7 @@ configured with cubic B-spline interpolation.
     bold_anat_wf.inputs.inputnode.resolution = 'native'
 
     workflow.connect([
+        (inputnode, merge_bold_sources, [('template_boldref', 'in2')]),
         (inputnode, bold_anat_wf, [
             ('t1w_preproc', 'inputnode.target_ref_file'),
             ('t1w_mask', 'inputnode.target_mask'),
@@ -372,7 +373,6 @@ configured with cubic B-spline interpolation.
             ('outputnode.bold_minimal', 'inputnode.bold_file'),
             ('outputnode.motion_xfm', 'inputnode.motion_xfm'),
         ]),
-        (inputnode, merge_bold_sources, [('template_boldref', 'in2')]),
     ])  # fmt:skip
 
     # Full derivatives, including resampled BOLD series

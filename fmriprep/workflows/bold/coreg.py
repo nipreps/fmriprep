@@ -245,8 +245,8 @@ def init_bold_run_coreg_wf(
         )
 
         workflow.connect([
+            (inputnode, reg_wf, ANAT_REG_INPUTS),
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
-            (inputnode, reg_wf, list(ANAT_REG_INPUTS)),
             (select_boldref, ds_template2anat, [('out', 'inputnode.source_files')]),
             (reg_wf, ds_template2anat, [
                 ('outputnode.itk_bold_to_t1', 'inputnode.xform'),
@@ -429,8 +429,8 @@ def init_bold_template_coreg_wf(
             sloppy=sloppy,
         )
         workflow.connect([
+            (inputnode, boldref_reg_wf, ANAT_REG_INPUTS),
             (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
-            (inputnode, boldref_reg_wf, list(ANAT_REG_INPUTS)),
             (boldref_reg_wf, reg_buffer, [
                 ('outputnode.itk_bold_to_t1', 'template2anat'),
                 ('outputnode.fallback', 'fallback'),

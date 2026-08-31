@@ -178,13 +178,13 @@ def init_bold_volumetric_resample_wf(
     workflow.connect([
         (inputnode, distortion_params, [('bold_file', 'in_file')]),
         (inputnode, fmap2target, [('run2fmap_xfm', 'in1')]),
-        (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
-        (run2target, fmap2target, [('out', 'in2')]),
-        (run2target, inverses, [('out', 'inlist')]),
         (inputnode, fmap_recon, [
             ('fmap_coeff', 'in_coeffs'),
             ('fmap_ref', 'fmap_ref_file'),
         ]),
+        (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
+        (run2target, fmap2target, [('out', 'in2')]),
+        (run2target, inverses, [('out', 'inlist')]),
         (fmap2target, fmap_recon, [('out', 'transforms')]),
         (inverses, fmap_recon, [('out', 'inverse')]),
         # Inject fieldmap correction into resample node
