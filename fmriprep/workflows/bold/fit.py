@@ -439,10 +439,8 @@ def init_bold_fit_wf(
                     ('fmap_ref', 'inputnode.fmap_ref'),
                     ('fmap_mask', 'inputnode.fmap_mask'),
                 ]),
+                (inputnode, fmapreg_source_files, [('fmap_ref', 'in2')]),
                 (fmapref_buffer, fmapreg_source_files, [('out', 'in1')]),
-                (inputnode, fmapreg_source_files, [
-                    ('fmap_ref', 'in2'),
-                ]),
                 (fmapreg_wf, itk_mat2txt, [('outputnode.target2fmap_xfm', 'in_xfms')]),
                 (itk_mat2txt, ds_fmapreg_wf, [('out_xfm', 'inputnode.xform')]),
                 (fmapreg_source_files, ds_fmapreg_wf, [('out', 'inputnode.source_files')]),

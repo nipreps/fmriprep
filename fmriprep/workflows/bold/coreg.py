@@ -305,6 +305,7 @@ def init_bold_template_coreg_wf(
     bids_root = str(config.execution.bids_dir)
     n_runs = len(bold_files)
     bold_ids = [get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
+
     workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
@@ -313,35 +314,58 @@ def init_bold_template_coreg_wf(
     if coreg_space == 'subject':
         _dismiss.append('session')
 
+    boldref_template = precomputed.get('boldref_template')
     run2template_xfms = precomputed.get('run2template_xfms') or [None] * n_runs
     template2anat_xfm = precomputed.get('template2anat_xfm')
     if isinstance(template2anat_xfm, (list, tuple)):
         template2anat_xfm = template2anat_xfm[0] if template2anat_xfm else None
 
-    # Only skip if ALL run -> boldref transforms are present.
-    skip_template = all(run2template_xfms)
-    # If template needs to be recomputed, redo coregistration to anat
-    skip_reg = bool(template2anat_xfm) and skip_template
-    if template2anat_xfm and not skip_template:
-        logger.warning(
-            'A precomputed template2anat transform was found without a complete set '
-            'of run2template transforms; ignoring it and recomputing registration '
-            'against the rebuilt template.'
-        )
-
     template_buffer = pe.Node(
         niu.IdentityInterface(fields=['boldref', 'run2template_xfms']),
         name='template_buffer',
     )
-    boldref_template = precomputed.get('boldref_template')
-    if skip_template:
-        from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    reg_buffer = pe.Node(
+        niu.IdentityInterface(fields=['template2anat', 'fallback']),
+        name='reg_buffer',
+    )
 
-        template_buffer.inputs.run2template_xfms = list(run2template_xfms)
+    if boldref_template:
+        template_buffer.inputs.boldref = boldref_template
+    if have_run2template_xfms := all(run2template_xfms):
+        template_buffer.inputs.run2template_xfms = run2template_xfms
+    else:
+        if any(run2template_xfms):
+            logger.warning(
+                f'Only some run-to-{coreg_space} transforms were found; '
+                'ignoring and recomputing the template.'
+            )
+        if template2anat_xfm:
+            template2anat_xfm = None
+            logger.warning(
+                f'A precomputed {coreg_space}-to-anat transform was found without a '
+                f'complete set of run-to-{coreg_space} transforms; '
+                'ignoring it and recomputing registration against the rebuilt template.'
+            )
+    if template2anat_xfm:
+        logger.info(f'Found precomputed {coreg_space}-to-anat transform; skipping coregistration.')
+        reg_buffer.inputs.template2anat = template2anat_xfm
+        reg_buffer.inputs.fallback = False
+
+    merge_run2template = pe.Node(
+        niu.Merge(n_runs), name='merge_run2template', run_without_submitting=True
+    )
+    merge_template2anat = pe.Node(
+        niu.Merge(n_runs), name='merge_template2anat', run_without_submitting=True
+    )
+    merge_run2anat_xfms = pe.Node(
+        niu.Merge(n_runs), name='merge_run2anat_xfms', run_without_submitting=True
+    )
+
+    if have_run2template_xfms:
+        from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
         if boldref_template:
             logger.info('Reusing precomputed boldref template; skipping reconstruction.')
-            template_buffer.inputs.boldref = boldref_template
         else:
             logger.info(
                 'Found precomputed run2template transforms; '
@@ -365,10 +389,6 @@ def init_bold_template_coreg_wf(
                 (warp_template_boldref, template_buffer, [('output_image', 'boldref')]),
             ])  # fmt:skip
     else:
-        if any(run2template_xfms):
-            logger.warning(
-                'Only some run2template transforms were found - ignoring and recomputing the template.'
-            )
         bold_template_wf = init_bold_template_wf(num_bold_runs=n_runs, omp_nthreads=omp_nthreads)
 
         template_sources = pe.Node(
@@ -405,15 +425,7 @@ def init_bold_template_coreg_wf(
             (ds_boldref_template, template_buffer, [('out_file', 'boldref')]),
         ])  # fmt:skip
 
-    reg_buffer = pe.Node(
-        niu.IdentityInterface(fields=['template2anat', 'fallback']),
-        name='reg_buffer',
-    )
-    if skip_reg:
-        logger.info('Found precomputed template2anat transform; skipping coregistration.')
-        reg_buffer.inputs.template2anat = template2anat_xfm
-        reg_buffer.inputs.fallback = False
-    else:
+    if not template2anat_xfm:
         boldref_reg_wf = init_bold_reg_wf(
             name='boldref_reg_wf',
             bold2anat_dof=bold2anat_dof,
@@ -447,16 +459,6 @@ def init_bold_template_coreg_wf(
             (ds_template2anat_wf, reg_buffer, [('outputnode.xform', 'template2anat')]),
         ])  # fmt:skip
 
-    merge_run2template = pe.Node(
-        niu.Merge(n_runs), name='merge_run2template', run_without_submitting=True
-    )
-    merge_template2anat = pe.Node(
-        niu.Merge(n_runs), name='merge_template2anat', run_without_submitting=True
-    )
-    merge_run2anat_xfms = pe.Node(
-        niu.Merge(n_runs), name='merge_run2anat_xfms', run_without_submitting=True
-    )
-
     for i, (bold_file, bold_id) in enumerate(zip(bold_files, bold_ids, strict=True)):
         select_run2template = pe.Node(
             niu.Select(index=i),
@@ -470,7 +472,7 @@ def init_bold_template_coreg_wf(
         )
         concat = pe.Node(ConcatenateXFMs(), name=f'concat_run2anat_{bold_id}')
 
-        if skip_template:
+        if have_run2template_xfms:
             workflow.connect([
                 (select_run2template, merge_run2template, [('out', f'in{i + 1}')]),
                 (select_run2template, merge_run2anat, [('out', 'in1')]),
@@ -492,7 +494,7 @@ def init_bold_template_coreg_wf(
                 (ds_run2template_wf, merge_run2anat, [('outputnode.xform', 'in1')]),
             ])  # fmt:skip
 
-        if skip_reg:
+        if template2anat_xfm:
             setattr(merge_template2anat.inputs, f'in{i + 1}', template2anat_xfm)
             merge_run2anat.inputs.in2 = template2anat_xfm
         else:
