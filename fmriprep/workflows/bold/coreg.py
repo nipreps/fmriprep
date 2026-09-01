@@ -424,14 +424,6 @@ def init_bold_template_coreg_wf(
             mem_gb=mem_gb,
             sloppy=sloppy,
         )
-        workflow.connect([
-            (inputnode, boldref_reg_wf, ANAT_REG_INPUTS),
-            (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
-            (boldref_reg_wf, reg_buffer, [
-                ('outputnode.itk_bold_to_t1', 'template2anat'),
-                ('outputnode.fallback', 'fallback'),
-            ]),
-        ])  # fmt:skip
 
         # Single template->anat transform is written
         ds_template2anat_wf = init_ds_registration_wf(
@@ -445,8 +437,14 @@ def init_bold_template_coreg_wf(
             name='ds_template2anat_wf',
         )
         workflow.connect([
+            (inputnode, boldref_reg_wf, ANAT_REG_INPUTS),
             (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
-            (reg_buffer, ds_template2anat_wf, [('template2anat', 'inputnode.xform')]),
+            (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
+            (boldref_reg_wf, ds_template2anat_wf, [
+                ('outputnode.itk_bold_to_t1', 'xform'),
+            ]),
+            (boldref_reg_wf, reg_buffer, [('outputnode.fallback', 'fallback')]),
+            (ds_template2anat_wf, reg_buffer, [('outputnode.xform', 'template2anat')]),
         ])  # fmt:skip
 
     merge_run2template = pe.Node(
