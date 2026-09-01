@@ -369,17 +369,15 @@ def init_bold_template_coreg_wf(
             logger.warning(
                 'Only some run2template transforms were found - ignoring and recomputing the template.'
             )
-        bold_template_wf = init_bold_template_wf(
-            num_bold_runs=n_runs,
-            omp_nthreads=omp_nthreads,
+        bold_template_wf = init_bold_template_wf(num_bold_runs=n_runs, omp_nthreads=omp_nthreads)
+
+        template_sources = pe.Node(
+            BIDSURI(
+                numinputs=1, dataset_links=config.execution.dataset_links, out_dir=str(output_dir)
+            ),
+            name='template_sources',
+            run_without_submitting=True,
         )
-        workflow.connect([
-            (inputnode, bold_template_wf, [('run_boldrefs', 'inputnode.boldref_files')]),
-            (bold_template_wf, template_buffer, [
-                ('outputnode.boldref', 'boldref'),
-                ('outputnode.run2template_xfms', 'run2template_xfms'),
-            ]),
-        ])  # fmt:skip
 
         # Single template is written
         ds_boldref_template = pe.Node(
@@ -394,19 +392,17 @@ def init_bold_template_coreg_wf(
             name='ds_boldref_template',
             run_without_submitting=True,
         )
-        template_sources = pe.Node(
-            BIDSURI(
-                numinputs=1,
-                dataset_links=config.execution.dataset_links,
-                out_dir=str(output_dir),
-            ),
-            name='template_sources',
-            run_without_submitting=True,
-        )
         workflow.connect([
+            (inputnode, bold_template_wf, [('run_boldrefs', 'inputnode.boldref_files')]),
             (inputnode, template_sources, [('run_boldrefs', 'in1')]),
-            (template_buffer, ds_boldref_template, [('boldref', 'in_file')]),
             (template_sources, ds_boldref_template, [('out', 'Sources')]),
+            (bold_template_wf, ds_boldref_template, [
+                ('outputnode.boldref', 'in_file'),
+            ]),
+            (bold_template_wf, template_buffer, [
+                ('outputnode.run2template_xfms', 'run2template_xfms'),
+            ]),
+            (ds_boldref_template, template_buffer, [('out_file', 'boldref')]),
         ])  # fmt:skip
 
     reg_buffer = pe.Node(
