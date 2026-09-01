@@ -234,25 +234,25 @@ def init_bold_run_coreg_wf(
             mem_gb=mem_gb,
             sloppy=sloppy,
         )
-        ds_template2anat = init_ds_registration_wf(
+        ds_template2anat_wf = init_ds_registration_wf(
             bids_root=bids_root,
             source_file=bold_file,
             output_dir=output_dir,
             source=coreg_space,
             dest=reference_anat,
             desc='coreg',
-            name=f'ds_template2anat_{bold_id}',
+            name=f'ds_template2anat_{bold_id}_wf',
         )
 
         workflow.connect([
             (inputnode, reg_wf, ANAT_REG_INPUTS),
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
-            (select_boldref, ds_template2anat, [('out', 'inputnode.source_files')]),
-            (reg_wf, ds_template2anat, [
+            (select_boldref, ds_template2anat_wf, [('out', 'inputnode.source_files')]),
+            (reg_wf, ds_template2anat_wf, [
                 ('outputnode.itk_bold_to_t1', 'inputnode.xform'),
                 ('outputnode.metadata', 'inputnode.metadata'),
             ]),
-            (ds_template2anat, merge_template2anat, [('outputnode.xform', f'in{i + 1}')]),
+            (ds_template2anat_wf, merge_template2anat, [('outputnode.xform', f'in{i + 1}')]),
             (reg_wf, merge_fallbacks, [('outputnode.fallback', f'in{i + 1}')]),
         ])  # fmt:skip
 
@@ -438,7 +438,7 @@ def init_bold_template_coreg_wf(
         ])  # fmt:skip
 
         # Single template->anat transform is written
-        ds_template2anat = init_ds_registration_wf(
+        ds_template2anat_wf = init_ds_registration_wf(
             bids_root=bids_root,
             source_file=bold_files[0],
             output_dir=output_dir,
@@ -446,11 +446,11 @@ def init_bold_template_coreg_wf(
             dest=reference_anat,
             desc='coreg',
             dismiss_entities=_dismiss,
-            name='ds_template2anat',
+            name='ds_template2anat_wf',
         )
         workflow.connect([
-            (inputnode, ds_template2anat, [('run_boldrefs', 'inputnode.source_files')]),
-            (reg_buffer, ds_template2anat, [('template2anat', 'inputnode.xform')]),
+            (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
+            (reg_buffer, ds_template2anat_wf, [('template2anat', 'inputnode.xform')]),
         ])  # fmt:skip
 
     merge_run2template = pe.Node(
@@ -482,20 +482,20 @@ def init_bold_template_coreg_wf(
                 (select_run2template, merge_run2anat, [('out', 'in1')]),
             ])  # fmt:skip
         else:
-            ds_run2template = init_ds_registration_wf(
+            ds_run2template_wf = init_ds_registration_wf(
                 bids_root=bids_root,
                 source_file=bold_file,
                 output_dir=output_dir,
                 source='run',
                 dest=coreg_space,
                 desc='coreg',
-                name=f'ds_run2template_{bold_id}',
+                name=f'ds_run2template_{bold_id}_wf',
             )
             workflow.connect([
-                (inputnode, ds_run2template, [('run_boldrefs', 'inputnode.source_files')]),
-                (select_run2template, ds_run2template, [('out', 'inputnode.xform')]),
-                (ds_run2template, merge_run2template, [('outputnode.xform', f'in{i + 1}')]),
-                (ds_run2template, merge_run2anat, [('outputnode.xform', 'in1')]),
+                (inputnode, ds_run2template_wf, [('run_boldrefs', 'inputnode.source_files')]),
+                (select_run2template, ds_run2template_wf, [('out', 'inputnode.xform')]),
+                (ds_run2template_wf, merge_run2template, [('outputnode.xform', f'in{i + 1}')]),
+                (ds_run2template_wf, merge_run2anat, [('outputnode.xform', 'in1')]),
             ])  # fmt:skip
 
         if skip_reg:
