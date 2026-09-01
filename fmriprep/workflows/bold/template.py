@@ -28,7 +28,6 @@ BOLD template creation workflow.
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-from niworkflows.func.util import init_skullstrip_bold_wf
 
 
 def init_bold_template_wf(
@@ -62,8 +61,6 @@ def init_bold_template_wf(
     -------
     boldref
         The computed session-level BOLD reference.
-    bold_mask
-        Brain mask for the session-level BOLD reference.
     boldref_files
         List of BOLD reference files (same as input).
     run2template_xfms
@@ -89,9 +86,7 @@ def init_bold_template_wf(
     )
 
     outputnode = pe.Node(
-        niu.IdentityInterface(
-            fields=['boldref', 'bold_mask', 'run2template_xfms', 'boldref_files']
-        ),
+        niu.IdentityInterface(fields=['boldref', 'run2template_xfms']),
         name='outputnode',
     )
 
@@ -117,8 +112,6 @@ def init_bold_template_wf(
         name='to_itk',
     )
 
-    skullstrip_boldref_wf = init_skullstrip_bold_wf(name='skullstrip_boldref_wf')
-
     workflow.connect([
         (inputnode, boldref_template, [
             ('boldref_files', 'in_files'),
@@ -132,11 +125,6 @@ def init_bold_template_wf(
         (to_itk, outputnode, [
             ('out_xfm', 'run2template_xfms'),
         ]),
-        (inputnode, outputnode, [
-            ('boldref_files', 'boldref_files'),
-        ]),
-        (boldref_template, skullstrip_boldref_wf, [('out_file', 'inputnode.in_file')]),
-        (skullstrip_boldref_wf, outputnode, [('outputnode.mask_file', 'bold_mask')]),
     ])  # fmt:skip
 
     return workflow
