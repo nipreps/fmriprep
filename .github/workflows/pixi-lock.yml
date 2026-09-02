@@ -37,7 +37,7 @@ jobs:
         run: |
           git config --global user.name "nipreps[bot]"
           git config --global user.email "bot@nipreps.org"
-      - uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
+      - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
         with:
           pixi-version: v0.58.0
           run-install: false
