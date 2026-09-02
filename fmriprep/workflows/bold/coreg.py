@@ -380,34 +380,9 @@ def init_bold_template_coreg_wf(
         (run2anat_xfms, outputnode, [('out_xfm', 'run2anat_xfms')]),
     ])  # fmt:skip
 
-    if have_run2template_xfms:
-        from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+    if not have_run2template_xfms:
+        logger.info('Constructing BOLD template from run references.')
 
-        if boldref_template:
-            logger.info('Reusing precomputed boldref template; skipping reconstruction.')
-        else:
-            logger.info(
-                'Found precomputed run2template transforms; '
-                'reconstructing boldref template from run references.'
-            )
-            select_boldref0 = pe.Node(
-                niu.Select(index=0), name='select_boldref0', run_without_submitting=True
-            )
-            warp_template_boldref = pe.Node(
-                ApplyTransforms(
-                    transforms=[run2template_xfms[0]], interpolation='LanczosWindowedSinc'
-                ),
-                name='warp_template_boldref',
-            )
-            workflow.connect([
-                (inputnode, select_boldref0, [('run_boldrefs', 'inlist')]),
-                (select_boldref0, warp_template_boldref, [
-                    ('out', 'input_image'),
-                    ('out', 'reference_image'),
-                ]),
-                (warp_template_boldref, template_buffer, [('output_image', 'boldref')]),
-            ])  # fmt:skip
-    else:
         bold_template_wf = init_bold_template_wf(num_bold_runs=n_runs, omp_nthreads=omp_nthreads)
 
         template_sources = pe.Node(
@@ -467,7 +442,35 @@ def init_bold_template_coreg_wf(
                 (ds_run2template_wf, merge_run2template, [('outputnode.xform', f'in{i + 1}')]),
             ])  # fmt:skip
 
+    elif boldref_template:
+        logger.info('Reusing precomputed boldref template; skipping reconstruction.')
+    else:
+        from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+
+        logger.info(
+            'Found precomputed run2template transforms; '
+            'reconstructing boldref template from run references.'
+        )
+        select_boldref0 = pe.Node(
+            niu.Select(index=0), name='select_boldref0', run_without_submitting=True
+        )
+        warp_template_boldref = pe.Node(
+            ApplyTransforms(
+                transforms=[run2template_xfms[0]], interpolation='LanczosWindowedSinc'
+            ),
+            name='warp_template_boldref',
+        )
+        workflow.connect([
+            (inputnode, select_boldref0, [('run_boldrefs', 'inlist')]),
+            (select_boldref0, warp_template_boldref, [
+                ('out', 'input_image'),
+                ('out', 'reference_image'),
+            ]),
+            (warp_template_boldref, template_buffer, [('output_image', 'boldref')]),
+        ])  # fmt:skip
+
     if not template2anat_xfm:
+        logger.info('Registering BOLD template to anatomical.')
         boldref_reg_wf = init_bold_reg_wf(
             name='boldref_reg_wf',
             bold2anat_dof=bold2anat_dof,
