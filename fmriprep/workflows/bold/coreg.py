@@ -498,7 +498,8 @@ def init_bold_template_coreg_wf(
             (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
             (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
             (boldref_reg_wf, ds_template2anat_wf, [
-                ('outputnode.itk_bold_to_t1', 'xform'),
+                ('outputnode.itk_bold_to_t1', 'inputnode.xform'),
+                ('outputnode.metadata', 'inputnode.metadata'),
             ]),
             (boldref_reg_wf, reg_buffer, [('outputnode.fallback', 'fallback')]),
             (ds_template2anat_wf, reg_buffer, [('outputnode.xform', 'template2anat_xfm')]),
