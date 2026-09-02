@@ -21,8 +21,6 @@
 
 from __future__ import annotations
 
-import logging
-
 from nipype.interfaces import utility as niu
 from nipype.interfaces.base import Undefined
 from nipype.pipeline import engine as pe
@@ -32,7 +30,7 @@ from fmriprep import config
 from fmriprep.interfaces import DerivativesDataSink
 from fmriprep.interfaces.bids import BIDSURI
 
-logger = logging.getLogger('nipype.workflow')
+logger = config.loggers.workflow
 
 INPUT_FIELDS = [
     'run_boldrefs',
