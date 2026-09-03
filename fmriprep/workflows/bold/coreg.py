@@ -243,7 +243,7 @@ def init_bold_run_coreg_wf(
         )
 
         workflow.connect([
-            (inputnode, reg_wf, ANAT_REG_INPUTS),
+            (inputnode, reg_wf, list(ANAT_REG_INPUTS)),
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
             (select_boldref, ds_template2anat_wf, [('out', 'inputnode.source_files')]),
             (reg_wf, ds_template2anat_wf, [
@@ -494,7 +494,7 @@ def init_bold_template_coreg_wf(
             name='ds_template2anat_wf',
         )
         workflow.connect([
-            (inputnode, boldref_reg_wf, ANAT_REG_INPUTS),
+            (inputnode, boldref_reg_wf, list(ANAT_REG_INPUTS)),
             (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
             (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
             (boldref_reg_wf, ds_template2anat_wf, [
