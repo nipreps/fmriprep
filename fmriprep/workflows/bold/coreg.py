@@ -347,7 +347,7 @@ def init_bold_template_coreg_wf(
             )
     if template2anat_xfm:
         logger.info(f'Found precomputed {coreg_space}-to-anat transform; skipping coregistration.')
-        reg_buffer.inputs.template2anat = template2anat_xfm
+        reg_buffer.inputs.template2anat_xfm = template2anat_xfm
         reg_buffer.inputs.fallback = False
 
     # Collation nodes
