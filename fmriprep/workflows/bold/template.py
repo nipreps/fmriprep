@@ -60,7 +60,7 @@ def init_bold_template_wf(
     Outputs
     -------
     boldref
-        The computed session-level BOLD reference.
+        The computed BOLD template reference.
     boldref_files
         List of BOLD reference files (same as input).
     run2template_xfms
