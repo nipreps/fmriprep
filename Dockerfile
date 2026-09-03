@@ -38,7 +38,7 @@ ARG BASE_IMAGE=ghcr.io/nipreps/fmriprep-base:20251006
 #   - connectome-workbench (via conda-forge)
 #   - ...
 #
-FROM ghcr.io/prefix-dev/pixi:0.53.0 AS build
+FROM ghcr.io/prefix-dev/pixi:0.78.0 AS build
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                     ca-certificates \
