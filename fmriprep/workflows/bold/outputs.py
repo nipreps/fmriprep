@@ -139,6 +139,10 @@ def prepare_timing_parameters(metadata: dict):
     return timing_parameters
 
 
+def _invert_all_transforms(transforms):
+    return [True] * len(transforms)
+
+
 def init_func_fit_reports_wf(
     *,
     source_file: str,
@@ -164,13 +168,18 @@ def init_func_fit_reports_wf(
     Inputs
     ------
     sdc_boldref
-        BOLD reference before SDC, in BOLD space
-    coreg_boldref
-        BOLD reference after SDC, in BOLD space
-    boldref2anat_xfm
+        BOLD reference before SDC, in ``run`` space
+    run_boldref
+        BOLD reference after SDC, in ``run`` space
+    run_mask
+        Mask for ``run_boldref``
+    template2anat_xfm
         Affine transform from BOLD reference to anatomical space
-    boldref2fmap_xfm
-        Affine transform from BOLD reference to fieldmap space
+    run2fmap_xfm
+        Affine transform from the run-level BOLD reference to fieldmap space
+    run2template_xfm
+        Affine transform from the run-level BOLD reference to the boldref
+        template (identity at run level)
     t1w_preproc
         The T1w reference map, which is calculated as the average of bias-corrected
         and preprocessed T1w images, defining the anatomical space.
@@ -201,10 +210,11 @@ def init_func_fit_reports_wf(
 
     inputfields = [
         'sdc_boldref',
-        'coreg_boldref',
-        'bold_mask',
-        'boldref2anat_xfm',
-        'boldref2fmap_xfm',
+        'run_boldref',
+        'run_mask',
+        'template2anat_xfm',
+        'run2fmap_xfm',
+        'run2template_xfm',
         't1w_preproc',
         't1w_mask',
         't1w_dseg',
@@ -241,6 +251,19 @@ def init_func_fit_reports_wf(
             dismiss_entities=dismiss_echo(),
         ),
         name='ds_report_validation',
+        run_without_submitting=True,
+        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
+    )
+
+    anat2run_xfms = pe.Node(
+        niu.Merge(2),
+        name='anat2run_xfms',
+        run_without_submitting=True,
+        mem_gb=config.DEFAULT_MEMORY_MIN_GB,
+    )
+    anat2run_invert = pe.Node(
+        niu.Function(function=_invert_all_transforms),
+        name='anat2run_invert',
         run_without_submitting=True,
         mem_gb=config.DEFAULT_MEMORY_MIN_GB,
     )
@@ -285,15 +308,22 @@ def init_func_fit_reports_wf(
         ]),
         (inputnode, t1w_boldref, [
             ('t1w_preproc', 'input_image'),
-            ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+            ('run_boldref', 'reference_image'),
         ]),
         (inputnode, t1w_wm, [('t1w_dseg', 'in_seg')]),
         (inputnode, boldref_wm, [
-            ('coreg_boldref', 'reference_image'),
-            ('boldref2anat_xfm', 'transforms'),
+            ('run_boldref', 'reference_image'),
         ]),
         (t1w_wm, boldref_wm, [('out', 'input_image')]),
+        (inputnode, anat2run_xfms, [
+            ('template2anat_xfm', 'in1'),
+            ('run2template_xfm', 'in2'),
+        ]),
+        (anat2run_xfms, anat2run_invert, [('out', 'transforms')]),
+        (anat2run_xfms, t1w_boldref, [('out', 'transforms')]),
+        (anat2run_xfms, boldref_wm, [('out', 'transforms')]),
+        (anat2run_invert, t1w_boldref, [('out', 'invert_transform_flags')]),
+        (anat2run_invert, boldref_wm, [('out', 'invert_transform_flags')]),
     ])  # fmt:skip
 
     # Reportlets follow the structure of init_bold_fit_wf stages
@@ -314,8 +344,8 @@ def init_func_fit_reports_wf(
                 dimension=3,
                 default_value=0,
                 float=True,
-                invert_transform_flags=[True],
                 interpolation='LanczosWindowedSinc',
+                invert_transform_flags=[True],
             ),
             name='fmapref_boldref',
             mem_gb=1,
@@ -370,19 +400,19 @@ def init_func_fit_reports_wf(
         workflow.connect([
             (inputnode, fmapref_boldref, [
                 ('fmap_ref', 'input_image'),
-                ('coreg_boldref', 'reference_image'),
-                ('boldref2fmap_xfm', 'transforms'),
+                ('run_boldref', 'reference_image'),
+                ('run2fmap_xfm', 'transforms')
             ]),
             (inputnode, sdcreg_report, [
                 ('sdc_boldref', 'reference'),
                 ('fieldmap', 'fieldmap'),
-                ('bold_mask', 'mask'),
+                ('run_mask', 'mask'),
             ]),
             (fmapref_boldref, sdcreg_report, [('output_image', 'moving')]),
             (sdcreg_report, ds_sdcreg_report, [('out_report', 'in_file')]),
             (inputnode, sdc_report, [
                 ('sdc_boldref', 'before'),
-                ('coreg_boldref', 'after'),
+                ('run_boldref', 'after'),
             ]),
             (boldref_wm, sdc_report, [('output_image', 'wm_seg')]),
             (sdc_report, ds_sdc_report, [('out_report', 'in_file')]),
@@ -414,7 +444,7 @@ def init_func_fit_reports_wf(
     )
 
     workflow.connect([
-        (inputnode, epi_t1_report, [('coreg_boldref', 'after')]),
+        (inputnode, epi_t1_report, [('run_boldref', 'after')]),
         (t1w_boldref, epi_t1_report, [('output_image', 'before')]),
         (boldref_wm, epi_t1_report, [('output_image', 'wm_seg')]),
         (epi_t1_report, ds_epi_t1_report, [('out_report', 'in_file')]),
@@ -428,7 +458,8 @@ def init_ds_boldref_wf(
     source_file: str,
     bids_root,
     output_dir,
-    desc: str,
+    desc: str | None = None,
+    space: str | None = None,
     name='ds_boldref_wf',
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
@@ -453,6 +484,7 @@ def init_ds_boldref_wf(
             source_file=source_file,
             base_directory=output_dir,
             desc=desc,
+            space=space,
             suffix='boldref',
             compress=True,
             dismiss_entities=dismiss_echo(),
@@ -476,6 +508,7 @@ def init_ds_boldmask_wf(
     source_file: str,
     output_dir,
     desc: str,
+    space: str | None = None,
     name='ds_boldmask_wf',
 ) -> pe.Workflow:
     """Write out a BOLD mask."""
@@ -501,6 +534,7 @@ def init_ds_boldmask_wf(
             source_file=source_file,
             base_directory=output_dir,
             desc=desc,
+            space=space,
             suffix='mask',
             compress=True,
             dismiss_entities=dismiss_echo(),
@@ -530,6 +564,7 @@ def init_ds_registration_wf(
     dest: str,
     name: str,
     desc: str | None = None,
+    dismiss_entities: list | None = None,
 ) -> pe.Workflow:
     workflow = pe.Workflow(name=name)
 
@@ -556,7 +591,7 @@ def init_ds_registration_wf(
             desc=desc,
             suffix='xfm',
             extension='.txt',
-            dismiss_entities=dismiss_echo(['part']),
+            dismiss_entities=dismiss_echo(['part', *(dismiss_entities or [])]),
             **{'from': source, 'to': dest},
         ),
         name='ds_xform',
@@ -610,7 +645,7 @@ def init_ds_hmc_wf(
             extension='.txt',
             compress=True,
             dismiss_entities=dismiss_echo(),
-            **{'from': 'orig', 'to': 'boldref'},
+            **{'from': 'orig', 'to': 'run'},
         ),
         name='ds_xforms',
         run_without_submitting=True,
@@ -650,7 +685,7 @@ def init_ds_bold_native_wf(
                 't2star',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
+                'run2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -668,7 +703,7 @@ def init_ds_bold_native_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
+            ('run2fmap_xfm', 'in3'),
         ]),
     ])  # fmt:skip
 
@@ -704,7 +739,7 @@ def init_ds_bold_native_wf(
             DerivativesDataSink(
                 source_file=source_file,
                 base_directory=output_dir,
-                space='boldref',
+                space='run',
                 suffix='T2starmap',
                 compress=True,
                 dismiss_entities=dismiss_echo(),
@@ -765,12 +800,12 @@ def init_ds_volumes_wf(
                 'source_files',
                 'ref_file',
                 'bold',  # Resampled into target space
-                'bold_mask',  # boldref space
-                'bold_ref',  # boldref space
+                'run_mask',  # boldref space
+                'run_boldref',  # boldref space
                 't2star',  # boldref space
                 'template',  # target reference image from original transform
                 # Anatomical
-                'boldref2anat_xfm',
+                'template2anat_xfm',
                 # Template
                 'anat2std_xfm',
                 # Entities
@@ -778,7 +813,8 @@ def init_ds_volumes_wf(
                 'resolution',
                 # Transforms previously used to generate the outputs
                 'motion_xfm',
-                'boldref2fmap_xfm',
+                'run2template_xfm',
+                'run2fmap_xfm',
             ]
         ),
         name='inputnode',
@@ -786,13 +822,13 @@ def init_ds_volumes_wf(
 
     sources = pe.Node(
         BIDSURI(
-            numinputs=6,
+            numinputs=7,
             dataset_links=config.execution.dataset_links,
             out_dir=str(output_dir),
         ),
         name='sources',
     )
-    boldref2target = pe.Node(niu.Merge(2), name='boldref2target')
+    run2target = pe.Node(niu.Merge(3), name='run2target')
 
     # BOLD is pre-resampled
     ds_bold = pe.Node(
@@ -813,16 +849,18 @@ def init_ds_volumes_wf(
         (inputnode, sources, [
             ('source_files', 'in1'),
             ('motion_xfm', 'in2'),
-            ('boldref2fmap_xfm', 'in3'),
-            ('boldref2anat_xfm', 'in4'),
-            ('anat2std_xfm', 'in5'),
-            ('template', 'in6'),
+            ('run2template_xfm', 'in3'),
+            ('run2fmap_xfm', 'in4'),
+            ('template2anat_xfm', 'in5'),
+            ('anat2std_xfm', 'in6'),
+            ('template', 'in7'),
         ]),
-        (inputnode, boldref2target, [
+        (inputnode, run2target, [
             # Note that ANTs expects transforms in target-to-source order
             # Reverse this for nitransforms-based resamplers
             ('anat2std_xfm', 'in1'),
-            ('boldref2anat_xfm', 'in2'),
+            ('template2anat_xfm', 'in2'),
+            ('run2template_xfm', 'in3'),
         ]),
         (inputnode, ds_bold, [
             ('bold', 'in_file'),
@@ -845,8 +883,8 @@ def init_ds_volumes_wf(
     resamplers = [resample_ref, resample_mask]
 
     workflow.connect([
-        (inputnode, resample_ref, [('bold_ref', 'input_image')]),
-        (inputnode, resample_mask, [('bold_mask', 'input_image')]),
+        (inputnode, resample_ref, [('run_boldref', 'input_image')]),
+        (inputnode, resample_mask, [('run_mask', 'input_image')]),
     ])  # fmt:skip
 
     ds_ref = pe.Node(
@@ -914,7 +952,7 @@ def init_ds_volumes_wf(
             (inputnode, resampler, [('ref_file', 'reference_image')])
             for resampler in resamplers
         ] + [
-            (boldref2target, resampler, [('out', 'transforms')])
+            (run2target, resampler, [('out', 'transforms')])
             for resampler in resamplers
         ] + [
             (inputnode, datasink, [

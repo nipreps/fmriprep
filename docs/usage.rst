@@ -178,6 +178,45 @@ This feature has several intended use-cases:
 See also the ``--level`` flag, which can be used to control which derivatives are
 generated.
 
+.. _bold_coreg_level:
+
+BOLD coregistration level (``--bold-coreg-level``)
+--------------------------------------------------
+By default (``run``), each BOLD run is registered to the anatomical image
+independently.
+The ``session`` option instead builds one BOLD template per session from all of
+that session's runs before registering the template to the anatomical image, and
+``subject`` builds a single template from all of a subject's runs.
+Averaging the BOLD reference across runs before coregistration can improve
+BOLD-to-anatomical registration quality relative to registering each (noisier)
+single-run reference.
+
+The session-/subject-level pipeline follows four steps:
+
+#. Head-motion correction (HMC) is applied per-volume within each run.
+#. Susceptibility distortion correction (SDC) is applied to each run's BOLD
+   reference image.
+#. Each run's SDC-corrected boldref is registered to a common BOLD template using
+   FreeSurfer's ``mri_robust_template``.
+#. The template is registered to the anatomical image.
+
+The full transform chain applied during resampling is therefore (``<coreg>`` is
+``run``, ``session``, or ``subject``)
+``bold volume -> run boldref (HMC) -> <coreg> boldref (run->coreg) -> T1w (coreg->anat) -> standard space (anat2std)``.
+
+If ``session`` or ``subject`` is selected, *fMRIPrep* first validates whether all
+runs in a group can contribute to a common template. If the data are incompatible
+(for example, when only some runs have SDC applied, or when all runs are SDC-less
+but have mixed phase-encoding directions), *fMRIPrep* raises an error identifying
+the offending runs.
+
+The grouping interacts with ``--subject-anatomical-reference``: with the default
+(sessions aggregated under one anatomical reference), ``session`` yields one
+template per session and ``subject`` a single cross-session template, each
+registered to the shared anatomical image; with ``sessionwise``, each session is
+processed independently against its own anatomical reference. ``--bold-coreg-level
+subject`` is incompatible with ``--subject-anatomical-reference sessionwise``.
+
 Troubleshooting
 ---------------
 Logs and crashfiles are output into the

@@ -67,6 +67,7 @@ FUNCTIONAL_TEMPLATE = """\
 \t\t\t<li>Slice timing correction: {stc}</li>
 \t\t\t<li>Susceptibility distortion correction: {sdc}</li>
 \t\t\t<li>Registration: {registration}</li>
+\t\t\t<li>Registration level: {bold_coreg_level}</li>
 \t\t\t<li>Non-steady-state volumes: {dummy_scan_desc}</li>
 \t\t</ul>
 \t\t</details>
@@ -211,6 +212,9 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         desc='Functional/anatomical registration method',
     )
     fallback = traits.Bool(desc='Boundary-based registration rejected')
+    bold_coreg_level = traits.Enum(
+        'run', 'session', 'subject', usedefault=True, desc='BOLD coregistration level'
+    )
     registration_dof = traits.Enum(
         6, 9, 12, desc='Registration degrees of freedom', mandatory=True
     )
@@ -286,6 +290,7 @@ class FunctionalSummary(SummaryInterface):
             stc=stc,
             sdc=self.inputs.distortion_correction,
             registration=reg,
+            bold_coreg_level=self.inputs.bold_coreg_level,
             tr=self.inputs.tr,
             dummy_scan_desc=dummy_scan_msg,
             multiecho=multiecho,

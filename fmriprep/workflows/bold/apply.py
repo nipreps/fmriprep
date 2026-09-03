@@ -3,7 +3,6 @@ from __future__ import annotations
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 from niworkflows.interfaces.nibabel import GenerateSamplingReference
-from niworkflows.interfaces.utility import KeySelect
 
 from ...interfaces.resampling import (
     DistortionParameters,
@@ -57,7 +56,7 @@ def init_bold_volumetric_resample_wf(
     ------
     bold_file
         BOLD series to resample.
-    bold_ref_file
+    run_boldref
         Reference image to which BOLD series is aligned.
     target_ref_file
         Reference image defining the target space.
@@ -65,18 +64,19 @@ def init_bold_volumetric_resample_wf(
         Brain mask corresponding to ``target_ref_file``.
         This is used to define the field of view for the resampled BOLD series.
     motion_xfm
-        List of affine transforms aligning each volume to ``bold_ref_file``.
+        List of affine transforms aligning each volume to ``run_boldref``.
         If undefined, no motion correction is performed.
-    boldref2fmap_xfm
-        Affine transform from ``bold_ref_file`` to the fieldmap reference image.
+    run2fmap_xfm
+        Affine transform from ``run_boldref`` to the fieldmap reference image.
     fmap_ref
         Fieldmap reference image defining the valid field of view for the fieldmap.
     fmap_coeff
         B-Spline coefficients for the fieldmap.
-    fmap_id
-        Fieldmap identifier, to select correct fieldmap in case there are multiple.
-    boldref2anat_xfm
-        Affine transform from ``bold_ref_file`` to the anatomical reference image.
+    run2template_xfm
+        Affine transform from the run-level BOLD reference to the boldref
+        template. Identity when ``--bold-coreg-level run``.
+    template2anat_xfm
+        Affine transform from template BOLD reference to the anatomical reference image.
     anat2std_xfm
         Affine transform from the anatomical reference image to standard space.
         Leave undefined to resample to anatomical reference space.
@@ -96,18 +96,19 @@ def init_bold_volumetric_resample_wf(
         niu.IdentityInterface(
             fields=[
                 'bold_file',
-                'bold_ref_file',
+                'run_boldref',
                 'target_ref_file',
                 'target_mask',
                 # HMC
                 'motion_xfm',
                 # SDC
-                'boldref2fmap_xfm',
+                'run2fmap_xfm',
                 'fmap_ref',
                 'fmap_coeff',
-                'fmap_id',
+                # boldref template
+                'run2template_xfm',
                 # Anatomical
-                'boldref2anat_xfm',
+                'template2anat_xfm',
                 # Template
                 'anat2std_xfm',
                 # Entity for selecting target resolution
@@ -124,7 +125,7 @@ def init_bold_volumetric_resample_wf(
 
     gen_ref = pe.Node(GenerateSamplingReference(), name='gen_ref', mem_gb=0.3)
 
-    boldref2target = pe.Node(niu.Merge(2), name='boldref2target', run_without_submitting=True)
+    run2target = pe.Node(niu.Merge(3), name='run2target', run_without_submitting=True)
     bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
     resample = pe.Node(
         ResampleSeries(jacobian=jacobian),
@@ -135,19 +136,20 @@ def init_bold_volumetric_resample_wf(
 
     workflow.connect([
         (inputnode, gen_ref, [
-            ('bold_ref_file', 'moving_image'),
+            ('run_boldref', 'moving_image'),
             ('target_ref_file', 'fixed_image'),
             ('target_mask', 'fov_mask'),
             (('resolution', _is_native), 'keep_native'),
         ]),
-        (inputnode, boldref2target, [
-            ('boldref2anat_xfm', 'in1'),
-            ('anat2std_xfm', 'in2'),
+        (inputnode, run2target, [
+            ('run2template_xfm', 'in1'),
+            ('template2anat_xfm', 'in2'),
+            ('anat2std_xfm', 'in3'),
         ]),
         (inputnode, bold2target, [('motion_xfm', 'in1')]),
         (inputnode, resample, [('bold_file', 'in_file')]),
         (gen_ref, resample, [('out_file', 'ref_file')]),
-        (boldref2target, bold2target, [('out', 'in2')]),
+        (run2target, bold2target, [('out', 'in2')]),
         (bold2target, resample, [('out', 'transforms')]),
         (gen_ref, outputnode, [('out_file', 'resampling_reference')]),
         (resample, outputnode, [('out_file', 'bold_file')]),
@@ -156,11 +158,6 @@ def init_bold_volumetric_resample_wf(
     if not fieldmap_id:
         return workflow
 
-    fmap_select = pe.Node(
-        KeySelect(fields=['fmap_ref', 'fmap_coeff'], key=fieldmap_id),
-        name='fmap_select',
-        run_without_submitting=True,
-    )
     distortion_params = pe.Node(
         DistortionParameters(
             metadata=metadata,
@@ -179,20 +176,15 @@ def init_bold_volumetric_resample_wf(
     fmap_recon = pe.Node(ReconstructFieldmap(), name='fmap_recon', mem_gb=1)
 
     workflow.connect([
-        (inputnode, fmap_select, [
-            ('fmap_ref', 'fmap_ref'),
-            ('fmap_coeff', 'fmap_coeff'),
-            ('fmap_id', 'keys'),
-        ]),
         (inputnode, distortion_params, [('bold_file', 'in_file')]),
-        (inputnode, fmap2target, [('boldref2fmap_xfm', 'in1')]),
-        (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
-        (boldref2target, fmap2target, [('out', 'in2')]),
-        (boldref2target, inverses, [('out', 'inlist')]),
-        (fmap_select, fmap_recon, [
+        (inputnode, fmap2target, [('run2fmap_xfm', 'in1')]),
+        (inputnode, fmap_recon, [
             ('fmap_coeff', 'in_coeffs'),
             ('fmap_ref', 'fmap_ref_file'),
         ]),
+        (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
+        (run2target, fmap2target, [('out', 'in2')]),
+        (run2target, inverses, [('out', 'inlist')]),
         (fmap2target, fmap_recon, [('out', 'transforms')]),
         (inverses, fmap_recon, [('out', 'inverse')]),
         # Inject fieldmap correction into resample node

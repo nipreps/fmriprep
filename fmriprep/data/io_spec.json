@@ -1,9 +1,9 @@
 {
   "queries": {
-    "baseline": {
+    "run": {
       "hmc": {
         "datatype": "func",
-        "space": null,
+        "space": ["orig", null],
         "desc": "hmc",
         "suffix": "boldref",
         "extension": [
@@ -11,10 +11,10 @@
           ".nii"
         ]
       },
-      "coreg": {
+      "boldref": {
         "datatype": "func",
-        "space": null,
-        "desc": "coreg",
+        "space": ["run", null],
+        "desc": [null, "coreg"],
         "suffix": "boldref",
         "extension": [
           ".nii.gz",
@@ -22,26 +22,73 @@
         ]
       }
     },
+    "session": {
+      "boldref": {
+        "datatype": "func",
+        "space": "session",
+        "suffix": "boldref",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "xfm": {
+        "datatype": "func",
+        "from": "session",
+        "to": ["anat", "T1w", "T2w"],
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
+      }
+    },
+    "subject": {
+      "boldref": {
+        "datatype": "func",
+        "space": "subject",
+        "suffix": "boldref",
+        "extension": [
+          ".nii.gz",
+          ".nii"
+        ]
+      },
+      "xfm": {
+        "datatype": "func",
+        "from": "subject",
+        "to": ["anat", "T1w", "T2w"],
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
+      }
+    },
     "transforms": {
       "hmc": {
         "datatype": "func",
         "from": "orig",
-        "to": "boldref",
+        "to": ["run", "boldref"],
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
       },
-      "boldref2anat": {
+      "run2anat": {
         "datatype": "func",
-        "from": "boldref",
+        "from": ["run", "boldref"],
         "to": ["anat", "T1w", "T2w"],
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"
       },
-      "boldref2fmap": {
+      "run2fmap": {
         "datatype": "func",
-        "from": "boldref",
+        "from": ["run", "boldref"],
+        "mode": "image",
+        "suffix": "xfm",
+        "extension": ".txt"
+      },
+      "run2template": {
+        "datatype": "func",
+        "from": "run",
+        "to": ["session", "subject"],
+        "desc": "coreg",
         "mode": "image",
         "suffix": "xfm",
         "extension": ".txt"

@@ -1,6 +1,54 @@
 """Tests for fmriprep.interfaces.bids."""
 
+from pathlib import Path
+
 import pytest
+
+
+@pytest.mark.parametrize(
+    ('space', 'entities', 'expected'),
+    [
+        (
+            'session',
+            {'suffix': 'boldref'},
+            'sub-01/ses-A/func/sub-01_ses-A_space-session_boldref.nii.gz',
+        ),
+        (
+            'session',
+            {'desc': 'brain', 'suffix': 'mask'},
+            'sub-01/ses-A/func/sub-01_ses-A_space-session_desc-brain_mask.nii.gz',
+        ),
+        ('subject', {'suffix': 'boldref'}, 'sub-01/func/sub-01_space-subject_boldref.nii.gz'),
+    ],
+)
+def test_group_template_datasink_path(tmp_path, space, entities, expected):
+    import nibabel as nb
+    import numpy as np
+
+    from fmriprep.interfaces import DerivativesDataSink
+    from fmriprep.utils.bids import GROUP_DISMISS_ENTITIES
+
+    source = tmp_path / 'sub-01' / 'ses-A' / 'func' / 'sub-01_ses-A_task-rest_run-01_bold.nii.gz'
+    source.parent.mkdir(parents=True)
+    in_file = tmp_path / 'template.nii.gz'
+    nb.Nifti1Image(np.zeros((2, 2, 2)), np.eye(4)).to_filename(in_file)
+
+    dismiss = list(GROUP_DISMISS_ENTITIES)
+    if space == 'subject':
+        dismiss.append('session')
+
+    out_dir = tmp_path / 'out'
+    ds = DerivativesDataSink(
+        base_directory=str(out_dir),
+        source_file=str(source),
+        space=space,
+        compress=True,
+        dismiss_entities=dismiss,
+        in_file=str(in_file),
+        **entities,
+    )
+    out_file = ds.run().outputs.out_file
+    assert Path(out_file).relative_to(out_dir).as_posix() == expected
 
 
 def test_BIDSURI():
