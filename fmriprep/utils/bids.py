@@ -26,16 +26,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-from bids.layout import BIDSLayout
 from bids.utils import listify
-from nipost.bids import collect_derivatives as _collect_derivatives
-from nipost.bids import collect_fieldmaps as _collect_fieldmaps
-from nipost.bids import load_spec, sanitize_fieldmap_id
+from nipost.bids import collect_derivatives, collect_fieldmaps, load_spec, sanitize_fieldmap_id
 from packaging.version import Version
 
 from .. import config
@@ -61,85 +57,6 @@ GROUP_DISMISS_ENTITIES = (
     'echo',
     'part',
 )
-
-
-@cache
-def _get_layout(derivatives_dir: Path) -> BIDSLayout:
-    import niworkflows.data
-
-    return BIDSLayout(
-        derivatives_dir, config=[niworkflows.data.load('nipreps.json')], validate=False
-    )
-
-
-def collect_derivatives(
-    derivatives_dir: Path,
-    entities: dict,
-    fieldmap_id: str | None = None,
-    spec: dict | None = None,
-    patterns: list[str] | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None or patterns is None:
-        _spec, _patterns = tuple(
-            json.loads(load_data.readable('io_spec.json').read_text()).values()
-        )
-
-        if spec is None:
-            spec = _spec
-        if patterns is None:
-            patterns = _patterns
-
-    derivs_cache = defaultdict(list, {})
-    layout = _get_layout(derivatives_dir)
-
-    # Session- and subject-level templates are written once
-    # TODO: Move towards expected filenames for these group-level files
-    level_relax = {
-        'run': (),
-        'session': GROUP_DISMISS_ENTITIES,
-        'subject': (*GROUP_DISMISS_ENTITIES, 'session'),
-    }
-
-    def _query(q, relax=()):
-        query = {k: v for k, v in {**entities, **q}.items() if k not in relax}
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            return None
-        return item[0] if len(item) == 1 else item
-
-    for level, relax in level_relax.items():
-        for name, q in spec.get(level, {}).items():
-            if q.get('suffix') != 'boldref':
-                continue
-            item = _query(q, relax)
-            if not item:
-                continue
-            derivs_cache['hmc_boldref' if name == 'hmc' else f'{level}_boldref'] = item
-
-    transforms_cache = {}
-    # Per-run transforms. Transform extensions/suffixes will not match the provided
-    #   entities (e.g., ".txt" vs ".nii.gz", "xfm" vs "bold"); the queries override them.
-    for xfm, q in spec['transforms'].items():
-        query = {**entities, **q}
-        if xfm == 'run2fmap' and fieldmap_id:
-            # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
-            query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            continue
-        transforms_cache[xfm] = item[0] if len(item) == 1 else item
-
-    for level in ('session', 'subject'):
-        xfm_q = spec.get(level, {}).get('xfm')
-        if not xfm_q:
-            continue
-        item = _query(xfm_q, level_relax[level])
-        if item:
-            transforms_cache[f'{level}2anat'] = item
-
-    derivs_cache['transforms'] = transforms_cache
-    return derivs_cache
 
 
 def aggregate_coreg_precomputed(caches: list[dict], level: str) -> AggregateCache:
@@ -208,31 +125,6 @@ def is_valid_bold_template(
     return len(pe_dirs) == 1
 
 
-def collect_fieldmaps(
-    derivatives_dir: Path,
-    entities: dict,
-    spec: dict | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None:
-        spec = json.loads(load_data.readable('fmap_spec.json').read_text())['queries']
-
-    fmap_cache = defaultdict(dict, {})
-    layout = _get_layout(derivatives_dir)
-
-    fmapids = layout.get_fmapids(**entities)
-
-    for fmapid in fmapids:
-        for k, q in spec['fieldmaps'].items():
-            query = {**entities, **q}
-            item = layout.get(return_type='filename', fmapid=fmapid, **query)
-            if not item:
-                continue
-            fmap_cache[fmapid][k] = item[0] if len(item) == 1 else item
-
-    return fmap_cache
-
-
 def _merge(merged: dict, found: dict, kind: str, deriv_dir) -> None:
     """Update ``merged`` with ``found``, logging each entry that is replaced."""
     for name, value in found.items():
@@ -278,7 +170,7 @@ def collect_func_derivatives(
     fmapid = sanitize_fieldmap_id(fieldmap_id) if fieldmap_id else None
     merged = {'boldrefs': {}, 'transforms': {}}
     for deriv_dir in derivatives:
-        found = _collect_derivatives(
+        found = collect_derivatives(
             deriv_dir, spec=spec, entities=entities, params={'fmapid': fmapid}
         )
         # A run has at most one estimator, so its transform joins the others
@@ -310,7 +202,7 @@ def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
     spec = load_spec(load_data('fmap_spec.yml'))
     merged = {}
     for deriv_dir in derivatives:
-        found = _collect_fieldmaps(deriv_dir, entities={'subject': subject_id}, spec=spec)
+        found = collect_fieldmaps(deriv_dir, entities={'subject': subject_id}, spec=spec)
         # Keep only the IDs with files
         fmaps = {fmapid: files for fmapid, files in found['fieldmaps'].items() if files}
         _merge(merged, fmaps, 'fieldmap', deriv_dir)
@@ -558,7 +450,6 @@ def extract_entities(file_list):
     {'subject': '01', 'run': [1, 2], 'suffix': 'T1w', 'datatype': 'anat', 'extension': '.nii.gz'}
 
     """
-    from collections import defaultdict
 
     from bids.layout import parse_file_entities
 
