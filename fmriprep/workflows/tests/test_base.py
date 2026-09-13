@@ -11,7 +11,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
-from ..base import get_estimator, init_fmriprep_wf
+from ..base import _merge_bids_filters, get_estimator, init_fmriprep_wf
 from ..tests import mock_config
 from .layouts import get_layout
 
@@ -110,6 +110,34 @@ def _make_params(
         bids_filters,
         bold_coreg_level,
     )
+
+
+def test_merge_bids_filters_reports_final_queries():
+    bids_filters = {
+        'bold': {'run': '01'},
+        't1w': {'session': 'baseline'},
+        'unknown': {'suffix': 'ignored'},
+    }
+
+    queries = _merge_bids_filters(
+        '01',
+        session_id='baseline',
+        task='rest',
+        echo=2,
+        bids_filters=bids_filters,
+    )
+
+    assert queries['bold'] == {
+        'datatype': 'func',
+        'suffix': 'bold',
+        'part': ['mag', None],
+        'run': '01',
+        'task': 'rest',
+        'echo': 2,
+    }
+    assert queries['pet']['task'] == 'rest'
+    assert queries['t1w']['session'] == 'baseline'
+    assert 'unknown' not in queries
 
 
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
