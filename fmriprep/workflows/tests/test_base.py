@@ -11,7 +11,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
-from ..base import _merge_bids_filters, get_estimator, init_fmriprep_wf
+from ..base import _compose_bids_query_spec, get_estimator, init_fmriprep_wf
 from ..tests import mock_config
 from .layouts import get_layout
 
@@ -112,14 +112,13 @@ def _make_params(
     )
 
 
-def test_merge_bids_filters_reports_final_queries():
+def test_compose_bids_query_spec_reports_final_queries():
     bids_filters = {
         'bold': {'run': '01'},
-        't1w': {'session': 'baseline'},
         'unknown': {'suffix': 'ignored'},
     }
 
-    queries = _merge_bids_filters(
+    spec = _compose_bids_query_spec(
         '01',
         session_id='baseline',
         task='rest',
@@ -127,7 +126,12 @@ def test_merge_bids_filters_reports_final_queries():
         bids_filters=bids_filters,
     )
 
-    assert queries['bold'] == {
+    assert spec['common'] == {
+        'subject': '01',
+        'extension': ['.nii', '.nii.gz'],
+        'session': 'baseline',
+    }
+    assert spec['queries']['bold'] == {
         'datatype': 'func',
         'suffix': 'bold',
         'part': ['mag', None],
@@ -135,9 +139,8 @@ def test_merge_bids_filters_reports_final_queries():
         'task': 'rest',
         'echo': 2,
     }
-    assert queries['pet']['task'] == 'rest'
-    assert queries['t1w']['session'] == 'baseline'
-    assert 'unknown' not in queries
+    assert spec['queries']['pet']['task'] == 'rest'
+    assert 'unknown' not in spec['queries']
 
 
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
