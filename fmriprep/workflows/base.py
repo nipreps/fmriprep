@@ -156,6 +156,8 @@ def _compose_bids_query_spec(
         queries[acq].update(entities)
 
         for entity in list(common_selectors):
+            if entity in {'subject', 'session'}:
+                continue
             if entity in entities:
                 del common_selectors[entity]
 
