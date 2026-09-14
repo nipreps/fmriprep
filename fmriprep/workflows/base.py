@@ -167,7 +167,15 @@ def _compose_bids_query_spec(
     if echo:
         queries['bold']['echo'] = echo
 
-    return {'common': common_selectors, 'queries': queries}
+    logged_queries = {
+        acq: {
+            **common_selectors,
+            **entities,
+        }
+        for acq, entities in queries.items()
+    }
+
+    return logged_queries
 
 
 def init_single_subject_wf(

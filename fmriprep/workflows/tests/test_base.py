@@ -126,12 +126,10 @@ def test_compose_bids_query_spec_reports_final_queries():
         bids_filters=bids_filters,
     )
 
-    assert spec['common'] == {
+    assert spec['bold'] == {
         'subject': '01',
         'extension': ['.nii', '.nii.gz'],
         'session': 'baseline',
-    }
-    assert spec['queries']['bold'] == {
         'datatype': 'func',
         'suffix': 'bold',
         'part': ['mag', None],
@@ -140,8 +138,9 @@ def test_compose_bids_query_spec_reports_final_queries():
         'task': 'rest',
         'echo': 2,
     }
-    assert spec['queries']['pet']['task'] == 'rest'
-    assert 'unknown' not in spec['queries']
+    assert spec['pet']['session'] == 'baseline'
+    assert spec['pet']['task'] == 'rest'
+    assert 'unknown' not in spec
 
 
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
