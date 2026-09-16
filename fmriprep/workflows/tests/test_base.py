@@ -199,8 +199,10 @@ def test_init_fmriprep_wf(
         config.workflow.force = force
         config.workflow.use_syn_sdc = use_syn_sdc
         config.workflow.bold_coreg_level = bold_coreg_level
+        before = config.get(flat=True)
         with patch.dict('fmriprep.config.execution.bids_filters', bids_filters):
             wf = init_fmriprep_wf()
+        assert config.get(flat=True) == before
 
     generate_expanded_graph(wf._create_flat_graph())
 

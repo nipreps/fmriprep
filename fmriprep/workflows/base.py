@@ -832,13 +832,14 @@ tasks and sessions), the following preprocessing was performed.
 """
 
     # Before initializing BOLD workflow, select/verify anatomical target for coregistration
-    if config.workflow.bold2anat_init in ('auto', 't2w'):
+    bold2anat_init = config.workflow.bold2anat_init
+    if bold2anat_init in ('auto', 't2w'):
         has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
-        if config.workflow.bold2anat_init == 't2w' and not has_t2w:
+        if bold2anat_init == 't2w' and not has_t2w:
             raise OSError(
                 'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
             )
-        config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
+        bold2anat_init = 't2w' if has_t2w else 't1w'
 
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
@@ -921,7 +922,7 @@ tasks and sessions), the following preprocessing was performed.
             bold_files=group_bold_files,
             coreg_space=bold_coreg_level,
             bold2anat_dof=config.workflow.bold2anat_dof,
-            bold2anat_init=config.workflow.bold2anat_init,
+            bold2anat_init=bold2anat_init,
             use_bbr=use_bbr,
             freesurfer=freesurfer,
             omp_nthreads=omp_nthreads,
@@ -1001,7 +1002,7 @@ tasks and sessions), the following preprocessing was performed.
                     distortion_correction='None',  # Can override with connection
                     registration='FreeSurfer' if freesurfer else 'FSL',
                     registration_dof=config.workflow.bold2anat_dof,
-                    registration_init=config.workflow.bold2anat_init,
+                    registration_init=bold2anat_init,
                     pe_direction=metadata.get('PhaseEncodingDirection'),
                     echo_idx=entities.get('echo', []),
                     tr=metadata['RepetitionTime'],
