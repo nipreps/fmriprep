@@ -151,11 +151,11 @@ def test_bold_fit_precomputes(
     np.savetxt(dummy_affine, np.eye(4))
 
     # Construct precomputed files
-    precomputed = {'transforms': {}}
+    precomputed = {'boldrefs': {}, 'transforms': {}}
     if have_hmcref:
-        precomputed['hmc_boldref'] = dummy_nifti
+        precomputed['boldrefs']['hmc'] = dummy_nifti
     if have_coregref:
-        precomputed['run_boldref'] = dummy_nifti
+        precomputed['boldrefs']['run'] = dummy_nifti
     if have_hmc_xfms:
         precomputed['transforms']['hmc'] = dummy_affine
     if have_run2fmap_xfm:

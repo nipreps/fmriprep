@@ -36,12 +36,13 @@ import warnings
 from copy import deepcopy
 
 import bids
+from nipost.bids import collect_derivatives, collect_fieldmaps, load_spec
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.utils.connections import listify
 from packaging.version import Version
 
-from .. import config
+from .. import config, data
 from ..interfaces import DerivativesDataSink
 from ..interfaces.reports import AboutSummary, SubjectSummary
 from ..utils.bids import dismiss_echo
@@ -276,17 +277,21 @@ It is released under the [CC0]\
 
     anatomical_cache = {}
     if config.execution.derivatives:
-        from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
+        import smriprep.data
 
-        std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
-        std_spaces.append('fsnative')
+        entities: dict[str, str | list[str]] = {'subject': subject_id}
+        if session_id:
+            entities['session'] = session_id
+
         for deriv_dir in config.execution.derivatives.values():
             anatomical_cache.update(
-                collect_anat_derivatives(
-                    derivatives_dir=deriv_dir,
-                    subject_id=subject_id,
-                    std_spaces=std_spaces,
-                    session_id=session_id,
+                collect_derivatives(
+                    deriv_dir,
+                    spec=load_spec(smriprep.data.load('anat_spec.yml')),
+                    entities=entities,
+                    params={
+                        'space': [*spaces.get_spaces(nonstandard=False, dim=(3,)), 'fsnative']
+                    },
                 )
             )
 
@@ -628,13 +633,13 @@ It is released under the [CC0]\
 
     fmap_cache = {}
     if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fieldmaps
-
+        fmap_spec = load_spec(data.load('fmap_spec.yml'))
         for deriv_dir in config.execution.derivatives.values():
             fmaps = collect_fieldmaps(
                 derivatives_dir=deriv_dir,
+                spec=fmap_spec,
                 entities={'subject': subject_id},
-            )
+            )['fieldmaps']
             config.loggers.workflow.debug(
                 f'Detected precomputed fieldmaps in {deriv_dir} for fieldmap IDs: {list(fmaps)}',
             )
@@ -843,7 +848,6 @@ tasks and sessions), the following preprocessing was performed.
 
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
-        collect_derivatives,
         extract_entities,
     )
 
@@ -899,22 +903,23 @@ tasks and sessions), the following preprocessing was performed.
         group_id = get_wf_name(group_bold_files[0], None).removesuffix('_wf')
 
         # Collect precomputed derivatives per run
-        functional_caches = []
-        for bold_series in group:
-            functional_cache = {}
-            if config.execution.derivatives:
+        functional_caches = [{} for _ in group]
+        if config.execution.derivatives:
+            func_spec = load_spec(data.load('func_spec.yml'))
+            for bold_series, cache in zip(group, functional_caches, strict=True):
                 entities = extract_entities(bold_series)
                 dismiss_entities = dismiss_echo(['part'])
                 entities = {k: v for k, v in entities.items() if k not in dismiss_entities}
+                params = {'fmapid': estimator_map.get(bold_series[0])}
                 for deriv_dir in config.execution.derivatives.values():
-                    functional_cache.update(
+                    cache.update(
                         collect_derivatives(
-                            derivatives_dir=deriv_dir,
+                            deriv_dir,
+                            spec=func_spec,
                             entities=entities,
-                            fieldmap_id=estimator_map.get(bold_series[0]),
+                            params=params,
                         )
                     )
-            functional_caches.append(functional_cache)
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
 

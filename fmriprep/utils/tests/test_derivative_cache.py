@@ -1,8 +1,16 @@
 from pathlib import Path
 
 import pytest
+from nipost.bids import collect_derivatives, load_spec
+from nipost.bids.spec import Spec
 
+import fmriprep.data
 from fmriprep.utils import bids
+
+
+@pytest.fixture(scope='module')
+def func_spec() -> Spec:
+    return load_spec(fmriprep.data.load('func_spec.yml'))
 
 
 @pytest.mark.parametrize(
@@ -15,7 +23,7 @@ from fmriprep.utils import bids
         ('run', 'desc-coreg'),
     ],
 )
-def test_baseline_found_as_str(tmp_path: Path, key: str, ents: str):
+def test_baseline_found_as_str(tmp_path: Path, key: str, ents: str, func_spec: Spec):
     subject = '0'
     task = 'rest'
 
@@ -32,12 +40,13 @@ def test_baseline_found_as_str(tmp_path: Path, key: str, ents: str):
         'extension': '.nii.gz',
     }
 
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert dict(derivs) == {f'{key}_boldref': str(to_find), 'transforms': {}}
+    derivs = collect_derivatives(tmp_path, spec=func_spec, entities=entities)
+    expected = {'boldrefs': {}, 'transforms': {}}
+    assert derivs == {**expected, 'boldrefs': {key: str(to_find)}}
 
 
 @pytest.mark.parametrize(('level', 'ses_ents'), [('session', '_ses-A'), ('subject', '')])
-def test_group_boldref_found(tmp_path: Path, level: str, ses_ents: str):
+def test_group_boldref_found(tmp_path: Path, level: str, ses_ents: str, func_spec: Spec):
     subject = '0'
     task = 'rest'
 
@@ -55,8 +64,9 @@ def test_group_boldref_found(tmp_path: Path, level: str, ses_ents: str):
         'extension': '.nii.gz',
     }
 
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert derivs == {f'{level}_boldref': str(to_find), 'transforms': {}}
+    derivs = collect_derivatives(tmp_path, spec=func_spec, entities=entities)
+    expected = {'boldrefs': {}, 'transforms': {}}
+    assert derivs == {**expected, 'boldrefs': {level: str(to_find)}}
 
 
 @pytest.mark.parametrize(
@@ -70,7 +80,7 @@ def test_group_boldref_found(tmp_path: Path, level: str, ses_ents: str):
         ('run2anat', 'from-boldref_to-anat'),
     ],
 )
-def test_transforms_found_as_str(tmp_path: Path, xfm: str, fromto: str):
+def test_transforms_found_as_str(tmp_path: Path, xfm: str, fromto: str, func_spec: Spec):
     subject = '0'
     task = 'rest'
 
@@ -87,16 +97,15 @@ def test_transforms_found_as_str(tmp_path: Path, xfm: str, fromto: str):
         'extension': '.nii.gz',
     }
 
-    derivs = bids.collect_derivatives(
-        derivatives_dir=tmp_path,
-        entities=entities,
-        fieldmap_id='auto_00000',
+    derivs = collect_derivatives(
+        tmp_path, spec=func_spec, entities=entities, params={'fmapid': 'auto00000'}
     )
-    assert derivs == {'transforms': {xfm: str(to_find)}}
+    expected = {'boldrefs': {}, 'transforms': {}}
+    assert derivs == {**expected, 'transforms': {**expected['transforms'], xfm: str(to_find)}}
 
 
 @pytest.mark.parametrize(('coreg_space', 'ses_ents'), [('session', '_ses-A'), ('subject', '')])
-def test_group_xfm_found_for_run(tmp_path: Path, coreg_space: str, ses_ents: str):
+def test_group_xfm_found_for_run(tmp_path: Path, coreg_space: str, ses_ents: str, func_spec: Spec):
     subject = '0'
     task = 'rest'
 
@@ -116,13 +125,17 @@ def test_group_xfm_found_for_run(tmp_path: Path, coreg_space: str, ses_ents: str
         'extension': '.nii.gz',
     }
 
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert derivs == {'transforms': {f'{coreg_space}2anat': str(to_find)}}
+    derivs = collect_derivatives(tmp_path, spec=func_spec, entities=entities)
+    expected = {'boldrefs': {}, 'transforms': {}}
+    assert derivs == {
+        **expected,
+        'transforms': {**expected['transforms'], f'{coreg_space}2anat': str(to_find)},
+    }
 
 
 def test_aggregate_coreg_precomputed_run():
     caches = [
-        {'transforms': {'run2anat': '/ra1', 'session2anat': '/sa', 'run2template': '/rb1'}},
+        {'transforms': {'run2anat': '/ra1', 'session2anat': '/sa', 'run2session': '/rb1'}},
         {'transforms': {'run2anat': '/ra2'}},
     ]
     assert bids.aggregate_coreg_precomputed(caches, 'run') == {
@@ -133,10 +146,10 @@ def test_aggregate_coreg_precomputed_run():
 def test_aggregate_coreg_precomputed_group():
     caches = [
         {
-            'transforms': {'session2anat': '/sa', 'run2template': '/rb1'},
+            'transforms': {'session2anat': '/sa', 'run2session': '/rb1'},
             'session_boldref': '/tpl',
         },
-        {'transforms': {'session2anat': '/sa', 'run2template': '/rb2'}},
+        {'transforms': {'session2anat': '/sa', 'run2session': '/rb2'}},
     ]
     assert bids.aggregate_coreg_precomputed(caches, 'session') == {
         'template2anat_xfm': ['/sa', '/sa'],

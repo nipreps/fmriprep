@@ -26,18 +26,23 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
-from collections import defaultdict
-from functools import cache
 from pathlib import Path
 
-from bids.layout import BIDSLayout
 from bids.utils import listify
 from packaging.version import Version
 
 from .. import config
-from ..data import load as load_data
+
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from typing import NotRequired, TypedDict
+
+    class AggregateCache(TypedDict):
+        template2anat_xfm: list[str]
+        run2template_xfms: NotRequired[list[str]]
+        boldref_template: NotRequired[str | None]
+
 
 GROUP_DISMISS_ENTITIES = (
     'task',
@@ -51,98 +56,18 @@ GROUP_DISMISS_ENTITIES = (
 )
 
 
-@cache
-def _get_layout(derivatives_dir: Path) -> BIDSLayout:
-    import niworkflows.data
-
-    return BIDSLayout(
-        derivatives_dir, config=[niworkflows.data.load('nipreps.json')], validate=False
-    )
-
-
-def collect_derivatives(
-    derivatives_dir: Path,
-    entities: dict,
-    fieldmap_id: str | None = None,
-    spec: dict | None = None,
-    patterns: list[str] | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None or patterns is None:
-        _spec, _patterns = tuple(
-            json.loads(load_data.readable('io_spec.json').read_text()).values()
-        )
-
-        if spec is None:
-            spec = _spec
-        if patterns is None:
-            patterns = _patterns
-
-    derivs_cache = defaultdict(list, {})
-    layout = _get_layout(derivatives_dir)
-
-    # Session- and subject-level templates are written once
-    # TODO: Move towards expected filenames for these group-level files
-    level_relax = {
-        'run': (),
-        'session': GROUP_DISMISS_ENTITIES,
-        'subject': (*GROUP_DISMISS_ENTITIES, 'session'),
-    }
-
-    def _query(q, relax=()):
-        query = {k: v for k, v in {**entities, **q}.items() if k not in relax}
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            return None
-        return item[0] if len(item) == 1 else item
-
-    for level, relax in level_relax.items():
-        for name, q in spec.get(level, {}).items():
-            if q.get('suffix') != 'boldref':
-                continue
-            item = _query(q, relax)
-            if not item:
-                continue
-            derivs_cache['hmc_boldref' if name == 'hmc' else f'{level}_boldref'] = item
-
-    transforms_cache = {}
-    # Per-run transforms. Transform extensions/suffixes will not match the provided
-    #   entities (e.g., ".txt" vs ".nii.gz", "xfm" vs "bold"); the queries override them.
-    for xfm, q in spec['transforms'].items():
-        query = {**entities, **q}
-        if xfm == 'run2fmap' and fieldmap_id:
-            # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
-            query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            continue
-        transforms_cache[xfm] = item[0] if len(item) == 1 else item
-
-    for level in ('session', 'subject'):
-        xfm_q = spec.get(level, {}).get('xfm')
-        if not xfm_q:
-            continue
-        item = _query(xfm_q, level_relax[level])
-        if item:
-            transforms_cache[f'{level}2anat'] = item
-
-    derivs_cache['transforms'] = transforms_cache
-    return derivs_cache
-
-
-def aggregate_coreg_precomputed(caches: list[dict], level: str) -> dict:
+def aggregate_coreg_precomputed(caches: list[dict], level: str) -> AggregateCache:
     """Aggregate coregistration precomputed inputs from per-run caches"""
 
     def get_xfm(cache, key):
         return cache.get('transforms', {}).get(key)
 
-    precomputed = {'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]}
+    precomputed: AggregateCache = {
+        'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]
+    }
     if level != 'run':
-        precomputed['run2template_xfms'] = [get_xfm(c, 'run2template') for c in caches]
-        precomputed['boldref_template'] = next(
-            (c[f'{level}_boldref'] for c in caches if c.get(f'{level}_boldref')),
-            None,
-        )
+        precomputed['run2template_xfms'] = [get_xfm(c, f'run2{level}') for c in caches]
+        precomputed['boldref_template'] = caches[0].get(f'{level}_boldref')
     return precomputed
 
 
@@ -192,31 +117,6 @@ def is_valid_bold_template(
         layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
     }
     return len(pe_dirs) == 1
-
-
-def collect_fieldmaps(
-    derivatives_dir: Path,
-    entities: dict,
-    spec: dict | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None:
-        spec = json.loads(load_data.readable('fmap_spec.json').read_text())['queries']
-
-    fmap_cache = defaultdict(dict, {})
-    layout = _get_layout(derivatives_dir)
-
-    fmapids = layout.get_fmapids(**entities)
-
-    for fmapid in fmapids:
-        for k, q in spec['fieldmaps'].items():
-            query = {**entities, **q}
-            item = layout.get(return_type='filename', fmapid=fmapid, **query)
-            if not item:
-                continue
-            fmap_cache[fmapid][k] = item[0] if len(item) == 1 else item
-
-    return fmap_cache
 
 
 def write_bidsignore(deriv_dir):

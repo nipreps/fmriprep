@@ -225,8 +225,9 @@ def init_bold_fit_wf(
     # Boolean used to update workflow self-descriptions
     multiecho = len(bold_series) > 1
 
-    hmc_boldref = precomputed.get('hmc_boldref')
-    run_boldref = precomputed.get('run_boldref')
+    boldrefs = precomputed.get('boldrefs', {})
+    hmc_boldref = boldrefs.get('hmc')
+    run_boldref = boldrefs.get('run')
     # Can contain
     #  1) run2fmap
     #  2) hmc

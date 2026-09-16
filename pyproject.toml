@@ -38,13 +38,14 @@ dependencies = [
     "pybids >= 0.21",
     "requests >= 2.32.4",
     "sdcflows >= 2.15.0",
-    "smriprep >= 0.19.2",
+    "smriprep @ git+https://github.com/effigies/smriprep@nipost",
     "tedana >= 25.1.0",
     "templateflow >= 24.2.2",
     "transforms3d >= 0.4.2",
     "toml >= 0.10",
     "codecarbon >= 2.7.0",
     "APScheduler >= 3.11.0",
+    "nipost[bids] @ git+https://github.com/nipreps/nipost@rf/yaml-alternatives",
 ]
 dynamic = ["version"]
 
@@ -279,4 +280,9 @@ omit = [
 source = [
   "fmriprep",
   "**/site-packages/fmriprep"
+]
+
+[tool.coverage.report]
+exclude-also = [
+  "if .*TYPE_CHECKING:",
 ]

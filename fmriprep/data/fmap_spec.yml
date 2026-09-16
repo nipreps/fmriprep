@@ -1,0 +1,25 @@
+fieldmaps:
+  per: fmapid
+  queries:
+    fieldmap:
+      entities:
+        - datatype: fmap
+          fmapid: "{fmapid}"
+          desc: preproc
+          suffix: fieldmap
+          extension: [.nii.gz, .nii]
+    coeffs:
+      entities:
+        - datatype: fmap
+          fmapid: "{fmapid}"
+          desc: [coeff, coeff0, coeff1]
+          suffix: fieldmap
+          extension: [.nii.gz, .nii]
+      multi: true
+    magnitude:
+      entities:
+        - datatype: fmap
+          fmapid: "{fmapid}"
+          desc: epi
+          suffix: fieldmap
+          extension: [.nii.gz, .nii]

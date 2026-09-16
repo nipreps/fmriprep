@@ -448,7 +448,7 @@ def init_bold_template_coreg_wf(
         from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
         logger.info(
-            'Found precomputed run2template transforms; '
+            f'Found precomputed run2{coreg_space} transforms; '
             'reconstructing boldref template from run references.'
         )
         select_boldref0 = pe.Node(

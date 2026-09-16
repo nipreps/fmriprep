@@ -1,0 +1,134 @@
+boldrefs:
+  queries:
+    hmc:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          space: orig
+          desc: hmc
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+        # fMRIPrep 23.2 - 25.2
+        - datatype: func
+          space: null
+          desc: hmc
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+    run:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          space: run
+          desc: null
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+        # fMRIPrep 23.2 - 25.2
+        - datatype: func
+          space: null
+          desc: coreg
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+    session:
+      entities:
+        - datatype: func
+          space: session
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+      scope: [subject, session]
+    subject:
+      entities:
+        - datatype: func
+          space: subject
+          suffix: boldref
+          extension: [.nii.gz, .nii]
+      scope: [subject]
+transforms:
+  queries:
+    hmc:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: orig
+          to: run
+          mode: image
+          suffix: xfm
+          extension: .txt
+        # fMRIPrep 23.2 - 25.2
+        - datatype: func
+          from: orig
+          to: boldref
+          mode: image
+          suffix: xfm
+          extension: .txt
+    run2anat:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: run
+          to: [anat, T1w, T2w]
+          mode: image
+          suffix: xfm
+          extension: .txt
+        # fMRIPrep 23.2 - 25.2
+        - datatype: func
+          from: boldref
+          to: [anat, T1w, T2w]
+          mode: image
+          suffix: xfm
+          extension: .txt
+    run2fmap:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: run
+          to: "{fmapid}"
+          mode: image
+          suffix: xfm
+          extension: .txt
+        # fMRIPrep 23.2 - 25.2
+        - datatype: func
+          from: boldref
+          to: "{fmapid}"
+          mode: image
+          suffix: xfm
+          extension: .txt
+    run2session:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: run
+          to: session
+          desc: coreg
+          mode: image
+          suffix: xfm
+          extension: .txt
+    run2subject:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: run
+          to: subject
+          desc: coreg
+          mode: image
+          suffix: xfm
+          extension: .txt
+    session2anat:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: session
+          to: [anat, T1w, T2w]
+          mode: image
+          suffix: xfm
+          extension: .txt
+      scope: [subject, session]
+    subject2anat:
+      entities:
+        # fMRIPrep 26.0 -
+        - datatype: func
+          from: subject
+          to: [anat, T1w, T2w]
+          mode: image
+          suffix: xfm
+          extension: .txt
+      scope: [subject]

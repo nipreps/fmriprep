@@ -123,15 +123,23 @@ def test_BIDSURI():
 
 
 bids_infos_anat = [
-    [{'t1w': ['sub-01/anat/sub-01_T1w.nii.gz']}, {}],
-    [{'t2w': ['sub-01/anat/sub-01_T2w.nii.gz']}, {}],
+    [{'t1w': ['sub-01/anat/sub-01_T1w.nii.gz']}, {'images': {}}],
+    [{'t2w': ['sub-01/anat/sub-01_T2w.nii.gz']}, {'images': {}}],
     [
         {'t1w': []},
-        {'t1w_preproc': ['sourcedata/smriprep/sub-01/anat/sub-01_desc-preproc_T1w.nii.gz']},
+        {
+            'images': {
+                't1w_preproc': ['sourcedata/smriprep/sub-01/anat/sub-01_desc-preproc_T1w.nii.gz']
+            }
+        },
     ],
     [
         {'t2w': []},
-        {'t2w_preproc': ['sourcedata/smriprep/sub-01/anat/sub-01_desc-preproc_T2w.nii.gz']},
+        {
+            'images': {
+                't2w_preproc': ['sourcedata/smriprep/sub-01/anat/sub-01_desc-preproc_t2w.nii.gz']
+            }
+        },
     ],
 ]
 
@@ -170,7 +178,7 @@ def test_BIDSSourceFile(bids_info_anat, bids_info_func, precomputed_infos):
     interface.inputs.precomputed = precomputed_infos
     results = interface.run()
 
-    if precomputed_infos:
+    if precomputed_infos['images']:
         bold = (
             'sub-01/func/sub-01_bold.nii.gz'
             if isinstance(bids_info_func['bold'][0], list)
