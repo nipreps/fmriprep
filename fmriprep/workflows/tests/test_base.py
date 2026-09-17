@@ -11,7 +11,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
-from ..base import get_estimator, init_fmriprep_wf
+from ..base import _compose_bids_query_spec, get_estimator, init_fmriprep_wf
 from ..tests import mock_config
 from .layouts import get_layout
 
@@ -110,6 +110,36 @@ def _make_params(
         bids_filters,
         bold_coreg_level,
     )
+
+
+def test_compose_bids_query_spec_reports_final_queries():
+    bids_filters = {
+        'bold': {'run': '01', 'session': 'baseline'},
+        'unknown': {'suffix': 'ignored'},
+    }
+
+    spec = _compose_bids_query_spec(
+        '01',
+        session_id='baseline',
+        task='rest',
+        echo=2,
+        bids_filters=bids_filters,
+    )
+
+    assert spec['bold'] == {
+        'subject': '01',
+        'extension': ['.nii', '.nii.gz'],
+        'session': 'baseline',
+        'datatype': 'func',
+        'suffix': 'bold',
+        'part': ['mag', None],
+        'run': '01',
+        'task': 'rest',
+        'echo': 2,
+    }
+    assert spec['pet']['session'] == 'baseline'
+    assert spec['pet']['task'] == 'rest'
+    assert 'unknown' not in spec
 
 
 @pytest.mark.parametrize('level', ['minimal', 'resampling', 'full'])
