@@ -17,6 +17,10 @@
 #
 #     https://www.nipreps.org/community/licensing/
 #
+from pathlib import Path
+
+import nibabel as nb
+import numpy as np
 import pytest
 
 from fmriprep.utils.bids import is_valid_bold_template
@@ -33,32 +37,56 @@ class _MockLayout:
         return {'PhaseEncodingDirection': pe} if pe is not None else {}
 
 
-# Each case pairs (bold_runs, estimator_map, pe_map) with the expected validity:
-# a template needs >=2 runs, uniform SDC status, and SDC-less runs to share one
-# phase-encoding direction. ``ids`` label the scenario each case exercises.
+TEST_ZOOMS = (2.4, 2.4, 2.4)
+
+
+# Each run is a (fieldmap, phase-encoding direction, voxel size) tuple
 @pytest.mark.parametrize(
-    ('bold_runs', 'estimator_map', 'pe_map', 'expected'),
+    ('runs', 'expected'),
     [
-        ([], {}, {}, False),
-        ([['a.nii']], {}, {'a.nii': 'j'}, False),
-        ([['a.nii'], ['b.nii']], {'a.nii': 'fmap1', 'b.nii': 'fmap2'}, {}, True),
-        ([['a.nii'], ['b.nii']], {'a.nii': 'fmap1'}, {'a.nii': 'j', 'b.nii': 'j'}, False),
-        ([['a.nii'], ['b.nii']], {}, {'a.nii': 'j', 'b.nii': 'j'}, True),
-        ([['a.nii'], ['b.nii']], {}, {'a.nii': 'j', 'b.nii': 'j-'}, False),
-        ([['a.nii'], ['b.nii']], {}, {}, True),
-        ([['a.nii'], ['b.nii']], {}, {'a.nii': 'j'}, False),
-    ],
-    ids=[
-        'false-no_runs',
-        'false-one_run',
-        'true-all_sdc',
-        'false-mixed_sdc',
-        'true-no_sdc_single_pe',
-        'false-no_sdc_opposing_pe',
-        'true-no_sdc_no_pe',
-        'false-no_sdc_missing_pe',
+        pytest.param([], False, id='no_runs'),
+        pytest.param([('fmap1', 'j', TEST_ZOOMS)], False, id='one_run'),
+        pytest.param([('fmap1', 'j', TEST_ZOOMS), ('fmap2', 'j', TEST_ZOOMS)], True, id='all_sdc'),
+        pytest.param([('fmap1', 'j', TEST_ZOOMS), (None, 'j', TEST_ZOOMS)], False, id='mixed_sdc'),
+        pytest.param(
+            [(None, 'j', TEST_ZOOMS), (None, 'j', TEST_ZOOMS)], True, id='no_sdc_single_pe'
+        ),
+        pytest.param(
+            [(None, 'j', TEST_ZOOMS), (None, 'j-', TEST_ZOOMS)], False, id='no_sdc_opposing_pe'
+        ),
+        pytest.param(
+            [(None, None, TEST_ZOOMS), (None, None, TEST_ZOOMS)], True, id='no_sdc_no_pe'
+        ),
+        pytest.param(
+            [(None, 'j', TEST_ZOOMS), (None, None, TEST_ZOOMS)], False, id='no_sdc_missing_pe'
+        ),
+        pytest.param(
+            [('fmap1', 'j', TEST_ZOOMS), ('fmap2', 'j', (0.8, 0.8, 0.8))],
+            False,
+            id='mixed_resolution',
+        ),
+        pytest.param(
+            [('fmap1', 'j', TEST_ZOOMS), ('fmap2', 'j', (2.4, 2.4, 3.0))],
+            False,
+            id='mixed_slice_thickness',
+        ),
+        pytest.param(
+            [('fmap1', 'j', TEST_ZOOMS), ('fmap2', 'j', (2.4002, 2.4002, 2.4002))],
+            True,
+            id='negligible_zoom_difference',
+        ),
     ],
 )
-def test_is_valid_bold_template(bold_runs, estimator_map, pe_map, expected):
+def test_is_valid_bold_template(tmp_path: Path, runs, expected):
+    bold_runs, estimator_map, pe_map = [], {}, {}
+    for i, (fieldmap, pe_dir, zooms) in enumerate(runs):
+        path = str(tmp_path / f'run{i}.nii.gz')
+        nb.Nifti1Image(np.zeros((2, 2, 2), dtype='uint8'), np.diag((*zooms, 1.0))).to_filename(
+            path
+        )
+        bold_runs.append([path])
+        estimator_map[path] = fieldmap
+        pe_map[path] = pe_dir
+
     layout = _MockLayout(pe_map)
     assert is_valid_bold_template(bold_runs, estimator_map, layout) is expected
