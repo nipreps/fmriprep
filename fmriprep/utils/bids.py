@@ -32,6 +32,8 @@ from collections import defaultdict
 from functools import cache
 from pathlib import Path
 
+import nibabel as nb
+import numpy as np
 from bids.layout import BIDSLayout
 from bids.utils import listify
 from packaging.version import Version
@@ -153,7 +155,7 @@ def is_valid_bold_template(
 ) -> bool:
     """Return True if BOLD template creation is possible.
 
-    Three independent conditions are checked:
+    Four independent conditions are checked:
 
     1. **Insufficient runs** -- fewer than two runs cannot form a meaningful
        template.
@@ -164,6 +166,7 @@ def is_valid_bold_template(
        one distinct phase-encoding direction (including ``None`` for runs that
        lack the metadata) implies opposing distortions that rigid/affine
        registration cannot recover.
+    4. **Differing voxel sizes** -- runs must share a voxel size, within 0.001 mm.
 
     Parameters
     ----------
@@ -178,20 +181,26 @@ def is_valid_bold_template(
     Returns
     -------
     bool
-        ``True`` if there are at least two runs, all share the same SDC status,
-        and SDC-less runs span exactly one phase-encoding direction.
+        ``True`` if there are at least two runs, all share the same SDC status
+        and voxel size, and SDC-less runs span exactly one phase-encoding
+        direction.
     """
     if len(bold_runs) < 2:
         return False
 
     sdc_corrected = [bool(estimator_map.get(series[0])) for series in bold_runs]
     if any(sdc_corrected):
-        return all(sdc_corrected)
+        if not all(sdc_corrected):
+            return False
+    else:
+        pe_dirs = {
+            layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
+        }
+        if len(pe_dirs) != 1:
+            return False
 
-    pe_dirs = {
-        layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
-    }
-    return len(pe_dirs) == 1
+    zooms = [nb.load(series[0]).header.get_zooms()[:3] for series in bold_runs]
+    return bool(np.allclose(zooms, zooms[0], rtol=0, atol=0.001))
 
 
 def collect_fieldmaps(
