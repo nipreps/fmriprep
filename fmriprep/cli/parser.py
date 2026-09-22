@@ -437,6 +437,16 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         "template from all of a subject's runs.",
     )
     g_conf.add_argument(
+        '--bold-coreg-upsample',
+        action=BooleanOptionalAction,
+        default=True,
+        help='Upsample run references before building a session- or subject-level BOLD '
+        'template (default: enabled). The template is isotropic at 1.2mm, or at the '
+        'finest acquired voxel size if that is smaller, which reduces interpolation '
+        'error when resampling at the cost of larger BOLD reference outputs. '
+        'Only applies to `--bold-coreg-level session` or `subject`.',
+    )
+    g_conf.add_argument(
         '--force-bbr',
         action=DeprecatedAction,
         help='Deprecated - use `--force bbr` instead.',

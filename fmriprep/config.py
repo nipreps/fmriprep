@@ -578,6 +578,8 @@ class workflow(_Config):
     """Level at which BOLD runs are combined before coregistration to the
     anatomical reference. One of ``'run'`` (default), ``'session'``, or
     ``'subject'``."""
+    bold_coreg_upsample = True
+    """Upsample run references before building a session- or subject-level BOLD template."""
     cifti_output = None
     """Generate HCP Grayordinates, accepts either ``'91k'`` (default) or ``'170k'``."""
     dummy_scans = None
