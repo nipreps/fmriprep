@@ -23,7 +23,7 @@ import nibabel as nb
 import numpy as np
 import pytest
 
-from fmriprep.utils.bids import is_valid_bold_template
+from fmriprep.utils.bids import bold_template_zooms, is_valid_bold_template
 
 
 class _MockLayout:
@@ -90,3 +90,27 @@ def test_is_valid_bold_template(tmp_path: Path, runs, expected):
 
     layout = _MockLayout(pe_map)
     assert is_valid_bold_template(bold_runs, estimator_map, layout) is expected
+
+
+@pytest.mark.parametrize(
+    ('zooms', 'expected'),
+    [
+        pytest.param((2.4, 2.4, 2.4), (1.2, 1.2, 1.2), id='coarse'),
+        pytest.param((4.0, 4.0, 4.0), (1.2, 1.2, 1.2), id='very_coarse'),
+        pytest.param((3.0, 3.0, 4.0), (1.2, 1.2, 1.2), id='anisotropic'),
+        pytest.param((1.0, 1.0, 2.0), (1.0, 1.0, 1.0), id='finest_axis_is_finer'),
+        pytest.param((2.0, 2.0, 0.8), (0.8, 0.8, 0.8), id='finest_axis_is_much_finer'),
+        pytest.param((1.2, 1.2, 1.2), None, id='at_target'),
+        pytest.param((0.8, 0.8, 0.8), None, id='finer_than_target'),
+    ],
+)
+def test_bold_template_zooms(tmp_path: Path, zooms, expected):
+    bold_files = []
+    for i in range(2):
+        path = str(tmp_path / f'run{i}.nii.gz')
+        nb.Nifti1Image(np.zeros((2, 2, 2), dtype='uint8'), np.diag((*zooms, 1.0))).to_filename(
+            path
+        )
+        bold_files.append(path)
+
+    assert bold_template_zooms(bold_files) == expected

@@ -52,6 +52,8 @@ GROUP_DISMISS_ENTITIES = (
     'part',
 )
 
+ZOOM_TOLERANCE = 1e-3
+
 
 @cache
 def _get_layout(derivatives_dir: Path) -> BIDSLayout:
@@ -200,7 +202,20 @@ def is_valid_bold_template(
             return False
 
     zooms = [nb.load(series[0]).header.get_zooms()[:3] for series in bold_runs]
-    return bool(np.allclose(zooms, zooms[0], rtol=0, atol=0.001))
+    return bool(np.allclose(zooms, zooms[0], rtol=0, atol=ZOOM_TOLERANCE))
+
+
+def bold_template_zooms(
+    bold_files: list[str],
+    target_mm: float = 1.2,
+) -> tuple[float, float, float] | None:
+    """Return the zooms to build a BOLD template at, or `None` to use the native resolution."""
+    zooms = np.array([nb.load(bold_file).header.get_zooms()[:3] for bold_file in bold_files])
+    target = round(float(min(target_mm, zooms.min())), 4)
+    if not np.any(zooms > target + ZOOM_TOLERANCE):
+        return None
+    # isotropic template
+    return (target,) * 3
 
 
 def collect_fieldmaps(
