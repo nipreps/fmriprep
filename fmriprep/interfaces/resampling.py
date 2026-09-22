@@ -8,6 +8,7 @@ import nibabel as nb
 import nitransforms as nt
 import nitransforms.resampling
 import numpy as np
+from nipype import logging
 from nipype.interfaces.base import (
     File,
     InputMultiObject,
@@ -23,6 +24,8 @@ from sdcflows.utils.tools import ensure_positive_cosines
 
 from ..utils.asynctools import worker
 from ..utils.transforms import load_transforms
+
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class ResampleSeriesInputSpec(TraitedSpec):
@@ -229,6 +232,61 @@ class DistortionParameters(SimpleInterface):
         except (KeyError, ValueError):
             pass
 
+        return runtime
+
+
+class UpsampleToZoomsInputSpec(TraitedSpec):
+    in_files = InputMultiObject(File(exists=True), mandatory=True, desc='images to upsample')
+    target_zooms = traits.Tuple(
+        (traits.Float, traits.Float, traits.Float),
+        mandatory=True,
+        desc='the resolution to regrid to',
+    )
+    tolerance = traits.Float(
+        1e-3,
+        usedefault=True,
+        desc='voxel sizes within this distance of the target are considered equal',
+    )
+
+
+class UpsampleToZoomsOutputSpec(TraitedSpec):
+    out_files = traits.List(File(exists=True), desc='upsampled images')
+
+
+class UpsampleToZooms(SimpleInterface):
+    """Regrid images up to ``target_zooms``, avoiding downsampling.
+
+    Axes already finer than requested are held at their acquired resolution, so no
+    axis is ever coarsened. Images are regridded as a group, keeping one voxel size
+    across the outputs.
+    """
+
+    input_spec = UpsampleToZoomsInputSpec
+    output_spec = UpsampleToZoomsOutputSpec
+
+    def _run_interface(self, runtime):
+        from niworkflows.utils.images import resample_by_spacing
+
+        zooms = np.array([nb.load(f).header.get_zooms()[:3] for f in self.inputs.in_files])
+        # Hold any axis already finer than requested at its acquired resolution
+        target_zooms = np.minimum(self.inputs.target_zooms, zooms.min(axis=0))
+
+        if not np.any(zooms > target_zooms + self.inputs.tolerance):
+            acquired = tuple(zooms.min(axis=0).astype(float).round(3).tolist())
+            LOGGER.warning(
+                f'Skipping upsampling to {self.inputs.target_zooms}mm: '
+                f'images were acquired at {acquired}mm.'
+            )
+            self._results['out_files'] = list(self.inputs.in_files)
+            return runtime
+
+        out_files = []
+        for in_file in self.inputs.in_files:
+            out_file = fname_presuffix(in_file, suffix='_upsampled', newpath=runtime.cwd)
+            resample_by_spacing(in_file, tuple(target_zooms)).to_filename(out_file)
+            out_files.append(out_file)
+
+        self._results['out_files'] = out_files
         return runtime
 
 
