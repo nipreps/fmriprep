@@ -234,8 +234,9 @@ The coregistration target space is named after ``--bold-coreg-level``:
   from the sbref or a robust average of the BOLD series, and the run's own
   coregistration reference.
 - ``session`` / ``subject``: the template boldref built from all run-level
-  boldrefs in the session (or subject). Produced only with ``--bold-coreg-level session`` or
-  ``subject``.
+  boldrefs in the session (or subject), isotropic at 1.2mm (or at the finest acquired
+  voxel size, where that is smaller) unless ``--no-bold-coreg-upsample`` is given.
+  Produced only with ``--bold-coreg-level session`` or ``subject``.
 - ``anat``: the anatomical reference space (``T1w``).
 
 The transform chain applied during resampling is therefore (``<coreg>`` is
