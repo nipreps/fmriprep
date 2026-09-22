@@ -34,6 +34,7 @@ def init_bold_template_wf(
     *,
     num_bold_runs: int,
     unbiased: bool | None = None,
+    upsample: tuple[float, float, float] | None = None,
     omp_nthreads: int = 1,
     name: str = 'bold_template_wf',
 ) -> Workflow:
@@ -51,6 +52,9 @@ def init_bold_template_wf(
         When ``None`` (default), the strategy is chosen automatically:
         ``False`` (fixed first run as reference) for 2 runs, ``True``
         (iterative mean-shape template) for 3 or more runs.
+    upsample : :obj:`tuple` or None
+        Zooms to upsample the run references to before constructing the template,
+        or ``None`` to construct it at the acquired resolution.
 
     Inputs
     ------
@@ -70,15 +74,24 @@ def init_bold_template_wf(
     from niworkflows.interfaces.freesurfer import StructuralReference
     from niworkflows.interfaces.nitransforms import ConvertAffine
 
+    from fmriprep.interfaces.resampling import UpsampleToZooms
+
     if unbiased is None:
         unbiased = num_bold_runs >= 3
 
     workflow = Workflow(name=name)
-    workflow.__desc__ = f'All BOLD runs ({num_bold_runs}) were coregistered to '
+    workflow.__desc__ = 'All BOLD runs were coregistered to '
     if unbiased:
         workflow.__desc__ += 'an unbiased session-level BOLD reference using an iterative template construction strategy.'
     else:
-        workflow.__desc__ = "the first run's BOLD reference."
+        workflow.__desc__ += "the first run's BOLD reference."
+
+    if upsample:
+        workflow.__desc__ += (
+            f' The run references were upsampled to {upsample[0]:g}mm isotropic resolution '
+            'prior to template construction, to reduce the interpolation error incurred '
+            'when resampling.'
+        )
 
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['boldref_files']),
@@ -112,10 +125,19 @@ def init_bold_template_wf(
         name='to_itk',
     )
 
+    if upsample:
+        upsample_boldrefs = pe.Node(
+            UpsampleToZooms(target_zooms=upsample), name='upsample_boldrefs'
+        )
+
+        workflow.connect([
+            (inputnode, upsample_boldrefs, [('boldref_files', 'in_files')]),
+            (upsample_boldrefs, boldref_template, [('out_files', 'in_files')]),
+        ])  # fmt:skip
+    else:
+        workflow.connect(inputnode, 'boldref_files', boldref_template, 'in_files')
+
     workflow.connect([
-        (inputnode, boldref_template, [
-            ('boldref_files', 'in_files'),
-        ]),
         (boldref_template, outputnode, [
             ('out_file', 'boldref'),
         ]),

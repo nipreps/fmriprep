@@ -871,8 +871,9 @@ tasks and sessions), the following preprocessing was performed.
                 raise RuntimeError(
                     'Cannot build a BOLD coregistration template for '
                     f'--bold-coreg-level {bold_coreg_level}: either only some runs have '
-                    'SDC applied, or SDC-less runs have differing phase-encoding '
-                    f'directions.\nBOLD runs:\n{offending}'
+                    'SDC applied, SDC-less runs have differing phase-encoding '
+                    'directions, or the runs were acquired at differing voxel sizes.'
+                    f'\nBOLD runs:\n{offending}'
                 )
 
     use_bbr = (
