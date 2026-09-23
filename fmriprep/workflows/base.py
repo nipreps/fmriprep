@@ -303,7 +303,10 @@ It is released under the [CC0]\
     )
 
     src_file = pe.Node(
-        BIDSSourceFile(precomputed=anatomical_cache),
+        BIDSSourceFile(
+            precomputed=anatomical_cache,
+            sessionwise=sessionwise,
+        ),
         name='source_anatomical',
     )
 
