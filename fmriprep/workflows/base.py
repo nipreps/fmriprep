@@ -315,9 +315,7 @@ It is released under the [CC0]\
     )
 
     create_fs_id = pe.Node(
-        CreateFreeSurferID(
-            exclude_session=config.workflow.subject_anatomical_reference != 'sessionwise',
-        ),
+        CreateFreeSurferID(exclude_session=not sessionwise),
         name='create_fs_id',
     )
 
@@ -422,9 +420,6 @@ It is released under the [CC0]\
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
-
-    if not config.workflow.track_sessions and not sessionwise:
-        workflow.disconnect(bids_info, 'session', create_fs_id, 'session_id')
 
     # Set up the template iterator once, if used
     template_iterator_wf = None
