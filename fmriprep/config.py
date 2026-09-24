@@ -931,19 +931,17 @@ def _create_processing_groups() -> list[tuple[str, str | list[str] | None]]:
     This function determines how BIDS subjects and sessions should be grouped
     for downstream processing, based on workflow configuration.
 
-    The grouping behavior depends on two workflow settings:
+    The grouping behavior depends on the following settings:
 
     - ``workflow.subject_anatomical_reference == "sessionwise"``
         Each (subject, session) pair is processed independently.
-        If a subject has no sessions, it is treated as a single-session subject.
+        If a subject has no sessions, it will fail.
 
-    - ``workflow.track_sessions == True``
-        Sessions are preserved and returned as a list associated with the subject.
-        This produces session-aware derivatives, such as sub-X-ses-Y FreeSurfer IDs.
+    - ``execution.session_label``
+        The requested sessions are returned as a list associated with the subject,
+        restricting the data to process.
 
-    - Otherwise
-        Session information is discarded and subjects are processed without
-        session differentiation.
+    If no `session_label` is specified, subjects are processed with all available data.
 
     Returns
     -------
@@ -951,13 +949,14 @@ def _create_processing_groups() -> list[tuple[str, str | list[str] | None]]:
         A list of processing groups. Each element is a tuple and can consist of:
 
         - (subject, session) if operating session-wise
-        - (subject, [sessions]) if tracking sessions
-        - (subject, None) if sessions are ignored
+        - (subject, [sessions]) if sessions were requested
+        - (subject, None) otherwise
 
     Raises
     ------
     RuntimeError
-        If the BIDS layout has not been initialized.
+        If the BIDS layout has not been initialized, or a requested session
+        is not found for a subject when operating session-wise.
     """
     layout = execution.layout
     if layout is None:
@@ -966,37 +965,39 @@ def _create_processing_groups() -> list[tuple[str, str | list[str] | None]]:
     from bids.layout import Query
 
     sessionwise = workflow.subject_anatomical_reference == 'sessionwise'
-    track_sessions = workflow.track_sessions
-
-    if not sessionwise and not track_sessions:
-        loggers.cli.warning('Session information will not be preserved.')
-
+    requested_sessions = execution.session_label
     subject_session_list: list[tuple[str, str | list[str] | None]] = []
 
     for subject in execution.participant_label:
-        sessions = (
+        # do not verify since derivatives may be used in place of raw sessions
+        if not sessionwise:
+            subject_session_list.append(
+                (subject, sorted(set(requested_sessions)) if requested_sessions else None)
+            )
+            continue
+
+        # sessionwise is self-contained so requires raw data
+        found_sessions = (
             layout.get_sessions(
                 scope='raw',
                 subject=subject,
-                session=execution.session_label or Query.OPTIONAL,
+                session=requested_sessions or Query.OPTIONAL,
             )
             or None
         )
-
-        if sessionwise:
-            if not sessions:
-                loggers.cli.warning(
-                    '`--subject-anatomical-reference sessionwise` was requested, but '
-                    f'no sessions were found for subject {subject}. Treating as '
-                    'single-session.'
-                )
-                subject_session_list.append((subject, None))
-            else:
-                subject_session_list.extend((subject, ses) for ses in sessions)
-            continue
-
-        # Non-sessionwise processing
-        subject_session_list.append((subject, sessions if track_sessions else None))
+        if requested_sessions and (
+            missing := sorted(set(requested_sessions) - set(found_sessions or []))
+        ):
+            raise RuntimeError(
+                f'Requested session(s) {", ".join(missing)} not found for subject {subject}.'
+            )
+        if found_sessions is None:
+            raise RuntimeError(
+                '`--subject-anatomical-reference sessionwise` was requested, but '
+                f'no sessions were found for subject {subject}.'
+            )
+        else:
+            subject_session_list.extend((subject, ses) for ses in found_sessions)
 
     execution.processing_groups = subject_session_list
     return subject_session_list
