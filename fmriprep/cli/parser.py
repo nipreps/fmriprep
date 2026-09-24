@@ -52,9 +52,13 @@ def _build_parser(**kwargs):
         'force_no_bbr': ('--force no-bbr', '26.0.0'),
         'force_syn': ('--force syn-sdc', '26.0.0'),
         'longitudinal': ('--subject-anatomical-reference unbiased', '26.1.0'),
+        'track_sessions': (None, '27.0.0'),
     }
 
     class DeprecatedAction(Action):
+        def __init__(self, option_strings, dest, nargs=0, **kwargs):
+            super().__init__(option_strings, dest, nargs=nargs, **kwargs)
+
         def __call__(self, parser, namespace, values, option_string=None):
             new_opt, rem_vers = deprecations.get(self.dest, (None, None))
             msg = (
@@ -64,7 +68,7 @@ def _build_parser(**kwargs):
             if new_opt:
                 msg += f' Please use `{new_opt}` instead.'
             print(msg, file=sys.stderr)
-            delattr(namespace, self.dest)
+            setattr(namespace, self.dest, True)
 
     class ToDict(Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -254,10 +258,11 @@ def _build_parser(**kwargs):
     )
     g_bids.add_argument(
         '--track-sessions',
-        action=BooleanOptionalAction,
-        default=True,
-        help='Track and append session IDs. If disabled, sessions will not be '
-        'tracked nor appended to FreeSurfer subject ID.',
+        '--no-track-sessions',
+        dest='track_sessions',
+        action=DeprecatedAction,
+        help='Deprecated - session handling is determined by '
+        '`--subject-anatomical-reference` and `--session-label`.',
     )
     g_bids.add_argument(
         '--bids-filter-file',

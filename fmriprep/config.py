@@ -635,8 +635,6 @@ class workflow(_Config):
     `first-lex` will use the first image in lexicographical order, `unbiased` will
     construct an unbiased template from all available images (previously --longitudinal),
     and `sessionwise` will independently process each session."""
-    track_sessions = True
-    """Propagate sessions within each sub-workflow."""
     use_aroma = None
     """Run ICA-:abbr:`AROMA (automatic removal of motion artifacts)`."""
     use_bbr = None
