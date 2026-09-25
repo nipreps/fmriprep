@@ -30,7 +30,7 @@ dependencies = [
     "nireports >= 25.0.1",
     "nitime >= 0.12",
     "nitransforms >= 25.0.1",
-    "niworkflows >= 1.15.0",
+    "niworkflows @ git+https://github.com/nipreps/niworkflows.git@fix/collect-data-filtering",
     "numpy >= 2.1",
     "packaging >= 24.2",
     "pandas >= 2.2.3",

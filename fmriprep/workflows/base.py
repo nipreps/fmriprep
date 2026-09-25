@@ -276,7 +276,13 @@ It is released under the [CC0]\
 
     anatomical_cache = {}
     if config.execution.derivatives:
+        from bids.layout import Query
         from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
+
+        deriv_session_id = session_id
+        if session_id and not sessionwise:
+            # Anatomical derivatives built from multiple sessions are saved without session
+            deriv_session_id = [*listify(session_id), Query.NONE]
 
         std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
         std_spaces.append('fsnative')
@@ -286,7 +292,7 @@ It is released under the [CC0]\
                     derivatives_dir=deriv_dir,
                     subject_id=subject_id,
                     std_spaces=std_spaces,
-                    session_id=session_id,
+                    session_id=deriv_session_id,
                 )
             )
 
@@ -314,7 +320,10 @@ It is released under the [CC0]\
         BIDSInfo(bids_dir=config.execution.bids_dir, bids_validate=False), name='bids_info'
     )
 
-    create_fs_id = pe.Node(CreateFreeSurferID(), name='create_fs_id')
+    create_fs_id = pe.Node(
+        CreateFreeSurferID(exclude_session=not sessionwise),
+        name='create_fs_id',
+    )
 
     summary = pe.Node(
         SubjectSummary(
@@ -417,9 +426,6 @@ It is released under the [CC0]\
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
-
-    if not config.workflow.track_sessions and not sessionwise:
-        workflow.disconnect(bids_info, 'session', create_fs_id, 'session_id')
 
     # Set up the template iterator once, if used
     template_iterator_wf = None
