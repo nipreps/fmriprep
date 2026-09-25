@@ -276,7 +276,13 @@ It is released under the [CC0]\
 
     anatomical_cache = {}
     if config.execution.derivatives:
+        from bids.layout import Query
         from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
+
+        deriv_session_id = session_id
+        if session_id and not sessionwise:
+            # Anatomical derivatives built from multiple sessions are saved without session
+            deriv_session_id = [*listify(session_id), Query.NONE]
 
         std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
         std_spaces.append('fsnative')
@@ -286,7 +292,7 @@ It is released under the [CC0]\
                     derivatives_dir=deriv_dir,
                     subject_id=subject_id,
                     std_spaces=std_spaces,
-                    session_id=session_id,
+                    session_id=deriv_session_id,
                 )
             )
 
