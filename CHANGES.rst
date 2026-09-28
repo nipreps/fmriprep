@@ -16,6 +16,16 @@ Additionally, several functional outputs have been renamed so the ``space`` and
 ``from``/``to`` entities name the reference explicitly rather than the generic
 ``boldref``.
 
+The ``--[no-]track-sessions`` flag is deprecated and has no effect.
+Instead, use the ``--session-label`` flag to restrict processing to only specific sessions,
+and/or a ``--bids-filter-file`` for finer control.
+Please note the following changes in behavior for multi-session data:
+
+  * Unless processing ``sessionwise``, the FreeSurfer subject ID will not include the session.
+  * BIDS filters selecting sessions outside of ``--session-label`` now raise an error.
+  * ``--subject-anatomical-reference sessionwise`` now raises an error if a requested
+    session is not found, or if a subject has no sessions.
+
 
 25.2.5 (March 10, 2026)
 =======================
