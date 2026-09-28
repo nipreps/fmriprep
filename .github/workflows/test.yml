@@ -34,22 +34,22 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest']
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13']
         dependencies: ['latest']
         include:
           - os: ubuntu-latest
-            python-version: '3.10'
+            python-version: '3.12'
             dependencies: 'min'
 
     env:
       DEPENDS: ${{ matrix.dependencies }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
           fetch-depth: 0
-      - uses: actions/cache@v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/templateflow
           key: templateflow-v1
@@ -58,9 +58,9 @@ jobs:
           sudo apt update
           sudo apt install -y --no-install-recommends graphviz
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
@@ -74,7 +74,7 @@ jobs:
         run: tox run -vv --notest
       - name: Run test suite
         run: tox -v --skip-pkg-install --exit-and-dump-after 1200
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ always() }}
