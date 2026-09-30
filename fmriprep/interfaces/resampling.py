@@ -290,6 +290,68 @@ class UpsampleToZooms(SimpleInterface):
         return runtime
 
 
+class ResampleTemplateInputSpec(TraitedSpec):
+    in_files = InputMultiObject(File(exists=True), mandatory=True, desc='images to average')
+    transforms = InputMultiObject(
+        File(exists=True),
+        mandatory=True,
+        desc='transform files, one per image, from each image to reference',
+    )
+    reference = File(exists=True, mandatory=True, desc='image defining the output grid')
+    intensity_scales = InputMultiObject(
+        File(exists=True),
+        desc='text files with a factor to scale each image by, as written by '
+        '``mri_robust_template --iscaleout``',
+    )
+    indices = traits.List(traits.Int, desc='indices of the images to average (default: all)')
+    order = traits.Int(3, usedefault=True, desc='order of interpolation (0=nearest, 3=cubic)')
+
+
+class ResampleTemplateOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='voxelwise median of the resampled images')
+
+
+class ResampleTemplate(SimpleInterface):
+    """Resample images into a reference grid in a single step.
+
+    Each image is resampled directly from its original grid, and optionally scaled
+    in intensity, before the voxelwise median template is computed.
+    """
+
+    input_spec = ResampleTemplateInputSpec
+    output_spec = ResampleTemplateOutputSpec
+
+    def _run_interface(self, runtime):
+        n_files = len(self.inputs.in_files)
+        scale_files = self.inputs.intensity_scales or []
+        if len(self.inputs.transforms) != n_files or len(scale_files) not in (0, n_files):
+            raise ValueError('Expected one transform, and optionally one scale, per image.')
+
+        scales = [float(np.loadtxt(scale_file)) for scale_file in scale_files] or [1.0] * n_files
+        reference = nb.load(self.inputs.reference)
+
+        resampled = []
+        to_resample = self.inputs.indices or range(n_files)
+        for i in to_resample:
+            xfm = load_transforms([self.inputs.transforms[i]], [False])
+            img = nt.resampling.apply(
+                xfm,
+                self.inputs.in_files[i],
+                reference=reference,
+                order=self.inputs.order,
+                mode='grid-constant',
+                output_dtype='float32',
+            )
+            resampled.append(np.asanyarray(img.dataobj) * scales[i])
+
+        median = nb.Nifti1Image(np.median(resampled, axis=0), reference.affine)
+
+        out_file = fname_presuffix(self.inputs.in_files[0], suffix='_median', newpath=runtime.cwd)
+        median.to_filename(out_file)
+        self._results['out_file'] = out_file
+        return runtime
+
+
 def resample_vol(
     data: np.ndarray,
     coordinates: np.ndarray,
