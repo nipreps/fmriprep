@@ -303,7 +303,9 @@ class ResampleTemplateInputSpec(TraitedSpec):
         desc='text files with a factor to scale each image by, as written by '
         '``mri_robust_template --iscaleout``',
     )
-    indices = traits.List(traits.Int, desc='indices of the images to average (default: all)')
+    indices = traits.List(
+        traits.Bool, desc='boolean mask used to select images to be resampled (default: all)'
+    )
     order = traits.Int(3, usedefault=True, desc='order of interpolation (0=nearest, 3=cubic)')
 
 
@@ -324,15 +326,23 @@ class ResampleTemplate(SimpleInterface):
     def _run_interface(self, runtime):
         n_files = len(self.inputs.in_files)
         scale_files = self.inputs.intensity_scales or []
-        if len(self.inputs.transforms) != n_files or len(scale_files) not in (0, n_files):
-            raise ValueError('Expected one transform, and optionally one scale, per image.')
+        mask = self.inputs.indices or [True] * n_files
+        if (
+            len(self.inputs.transforms) != n_files
+            or len(scale_files) not in (0, n_files)
+            or len(mask) != n_files
+        ):
+            raise ValueError(
+                'Expected one transform, and optionally one scale and one index, per image.'
+            )
+        if not any(mask):
+            raise ValueError('At least one image must be resampled.')
 
         scales = [float(np.loadtxt(scale_file)) for scale_file in scale_files] or [1.0] * n_files
         reference = nb.load(self.inputs.reference)
 
         resampled = []
-        to_resample = self.inputs.indices or range(n_files)
-        for i in to_resample:
+        for i in np.flatnonzero(mask):
             xfm = load_transforms([self.inputs.transforms[i]], [False])
             img = nt.resampling.apply(
                 xfm,
