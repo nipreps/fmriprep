@@ -269,7 +269,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0a/44/89a0a65cbe21e336e59195d781824e7c5e282a7cccecca064942892a0322/sdcflows-2.15.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/13/c3/8ac768b389d5b6dda1c3ce7992b3acd2b46401f9b71439123858b17b1a2c/ci_info-0.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/15/b3/9b1a8074496371342ec1e796a96f99c82c945a339cd81a8e73de28b4cf9e/anyio-4.11.0-py3-none-any.whl
@@ -297,6 +296,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/57/24/12aba2bf71f0ff3415518b5586901a3453d9de4cd2675176722f360bd8ef/indexed_gzip-1.10.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -317,7 +317,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl
@@ -356,6 +355,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/48/1549795ba7742c948d2ad169c1c8cdbae65bc450d6cd753d124b17c8cd32/certifi-2025.8.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f2/a4/cbc6f6b485e8d78043024cf34a70e5f05dfc05422fa9f08e40a1bc142af7/sdcflows-2.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/ed/e97229a566617f2ae958a6b13e7cc0f585470eac730a73e9e82c32a3cdd2/arrow-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f9/41/4b043778cf9c4285d59742281a769eac371b9e47e35f98ad321349cc5d61/pydantic_core-2.33.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -624,7 +624,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0a/44/89a0a65cbe21e336e59195d781824e7c5e282a7cccecca064942892a0322/sdcflows-2.15.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/13/c3/8ac768b389d5b6dda1c3ce7992b3acd2b46401f9b71439123858b17b1a2c/ci_info-0.3.0-py3-none-any.whl
@@ -661,6 +660,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/ee/e97f37023938022e38d3abb28058191025c7a2cb240210e7e016f21fee72/datalad_osf-0.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
@@ -686,7 +686,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/90/a0/eed0f352481cfa22bdbf3e0cf4cab609d878592e140a864e03b5e51a0289/git_annex-10.20250721-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/b6/0d74517d0b33dfe372b47b2ef5781a2231e891f8fe8edea74a447a7f7380/annexremote-1.6.6-py3-none-any.whl
@@ -739,6 +738,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/eb/50/4b6ef8d68f7b5dda0bb13e6a944bcac978d590960b70b5b166c84c3c9b00/datalad_next-1.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f2/a4/cbc6f6b485e8d78043024cf34a70e5f05dfc05422fa9f08e40a1bc142af7/sdcflows-2.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/ed/e97229a566617f2ae958a6b13e7cc0f585470eac730a73e9e82c32a3cdd2/arrow-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f9/41/4b043778cf9c4285d59742281a769eac371b9e47e35f98ad321349cc5d61/pydantic_core-2.33.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -1006,7 +1006,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0a/44/89a0a65cbe21e336e59195d781824e7c5e282a7cccecca064942892a0322/sdcflows-2.15.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/13/c3/8ac768b389d5b6dda1c3ce7992b3acd2b46401f9b71439123858b17b1a2c/ci_info-0.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/15/b3/9b1a8074496371342ec1e796a96f99c82c945a339cd81a8e73de28b4cf9e/anyio-4.11.0-py3-none-any.whl
@@ -1036,6 +1035,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
@@ -1057,7 +1057,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl
@@ -1101,6 +1100,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ee/49/1377b49de7d0c1ce41292161ea0f721913fa8722c19fb9c1e3aa0367eecb/pytest_cov-7.0.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f2/a4/cbc6f6b485e8d78043024cf34a70e5f05dfc05422fa9f08e40a1bc142af7/sdcflows-2.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/ed/e97229a566617f2ae958a6b13e7cc0f585470eac730a73e9e82c32a3cdd2/arrow-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f9/41/4b043778cf9c4285d59742281a769eac371b9e47e35f98ad321349cc5d61/pydantic_core-2.33.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -4692,14 +4692,14 @@ packages:
   - nireports>=24.1.0
   - nitime>=0.9
   - nitransforms>=25.0.1
-  - niworkflows~=1.15.2
+  - niworkflows>=1.14.5,<1.16
   - numpy>=2.0
   - packaging>=24
   - pandas>=2.2
   - psutil>=5.4
   - pybids>=0.16
   - requests>=2.27
-  - sdcflows~=2.15.1
+  - sdcflows~=2.15.2
   - smriprep~=0.19.2
   - tedana>=25.0.0
   - templateflow>=24.2.2
@@ -4791,83 +4791,6 @@ packages:
   version: 0.16.0
   sha256: 63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/0a/44/89a0a65cbe21e336e59195d781824e7c5e282a7cccecca064942892a0322/sdcflows-2.15.1-py3-none-any.whl
-  name: sdcflows
-  version: 2.15.1
-  sha256: 76bfd0e361b5788cab56b2d11f278da743bbea4d75c63118a406d2a782f6aa0c
-  requires_dist:
-  - acres>=0.5.0
-  - attrs>=20.1.0
-  - migas>=0.4.0
-  - nibabel>=5.1.1
-  - nipype>=1.9.0
-  - nireports>=25.0.1
-  - nitransforms>=25.0.1
-  - niworkflows>=1.14.2
-  - numpy>=2.0
-  - pybids>=0.16.4
-  - scikit-image>=0.23
-  - scipy>=1.10
-  - templateflow>=23.1
-  - toml>=0.10
-  - attrs>=20.1.0 ; extra == 'all'
-  - coverage[toml]>=7 ; extra == 'all'
-  - furo ; extra == 'all'
-  - importlib-resources ; extra == 'all'
-  - ipykernel ; extra == 'all'
-  - ipython ; extra == 'all'
-  - nbsphinx ; extra == 'all'
-  - pandoc ; extra == 'all'
-  - pre-commit ; extra == 'all'
-  - psutil ; extra == 'all'
-  - pydot>=1.2.3 ; extra == 'all'
-  - pydotplus ; extra == 'all'
-  - pytest-cov>=2.11 ; extra == 'all'
-  - pytest-env ; extra == 'all'
-  - pytest-xdist>=3.3 ; extra == 'all'
-  - pytest>=8.1 ; extra == 'all'
-  - ruff ; extra == 'all'
-  - sphinx-argparse ; extra == 'all'
-  - sphinx>=7.2.2 ; extra == 'all'
-  - sphinxcontrib-apidoc ; extra == 'all'
-  - pre-commit ; extra == 'dev'
-  - ruff ; extra == 'dev'
-  - attrs>=20.1.0 ; extra == 'doc'
-  - furo ; extra == 'doc'
-  - importlib-resources ; extra == 'doc'
-  - ipykernel ; extra == 'doc'
-  - ipython ; extra == 'doc'
-  - nbsphinx ; extra == 'doc'
-  - pandoc ; extra == 'doc'
-  - pydot>=1.2.3 ; extra == 'doc'
-  - pydotplus ; extra == 'doc'
-  - sphinx-argparse ; extra == 'doc'
-  - sphinx>=7.2.2 ; extra == 'doc'
-  - sphinxcontrib-apidoc ; extra == 'doc'
-  - attrs>=20.1.0 ; extra == 'docs'
-  - furo ; extra == 'docs'
-  - importlib-resources ; extra == 'docs'
-  - ipykernel ; extra == 'docs'
-  - ipython ; extra == 'docs'
-  - nbsphinx ; extra == 'docs'
-  - pandoc ; extra == 'docs'
-  - pydot>=1.2.3 ; extra == 'docs'
-  - pydotplus ; extra == 'docs'
-  - sphinx-argparse ; extra == 'docs'
-  - sphinx>=7.2.2 ; extra == 'docs'
-  - sphinxcontrib-apidoc ; extra == 'docs'
-  - psutil ; extra == 'mem'
-  - coverage[toml]>=7 ; extra == 'test'
-  - pytest-cov>=2.11 ; extra == 'test'
-  - pytest-env ; extra == 'test'
-  - pytest-xdist>=3.3 ; extra == 'test'
-  - pytest>=8.1 ; extra == 'test'
-  - coverage[toml]>=7 ; extra == 'tests'
-  - pytest-cov>=2.11 ; extra == 'tests'
-  - pytest-env ; extra == 'tests'
-  - pytest-xdist>=3.3 ; extra == 'tests'
-  - pytest>=8.1 ; extra == 'tests'
-  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/12/7d/593a5639a6ec09688b7a5ce1a356fdf3e1aa232bb6cacc6fe4e3a697868f/tedana-25.0.1-py3-none-any.whl
   name: tedana
   version: 25.0.1
@@ -5594,6 +5517,66 @@ packages:
   - pyspark[connect]>=3.5.0 ; extra == 'pyspark-connect'
   - sqlframe>=3.22.0,!=3.39.3 ; extra == 'sqlframe'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
+  name: niworkflows
+  version: 1.15.3
+  sha256: 40d705ba8aeba7aefce0bf2c01f9aa5c1f78b934f31e371ea3f7208f83d694bb
+  requires_dist:
+  - acres>=0.5
+  - attrs>=23.1
+  - jinja2>=3
+  - looseversion>=1.3
+  - matplotlib>=3.8
+  - nibabel>=5.2
+  - nilearn>=0.11.1
+  - nipype>=1.12.0
+  - nitransforms>=24.1.1
+  - numpy>=2.2
+  - packaging>=23
+  - pandas>=2.1
+  - pybids>=0.18.1
+  - pyyaml>=6.0.1
+  - scikit-image>=0.25
+  - scipy>=1.12
+  - seaborn>=0.13
+  - svgutils>=0.3.4
+  - templateflow>=24.2
+  - transforms3d>=0.4.2
+  - coverage[toml]>=7 ; extra == 'all'
+  - flake8>=3.7.0 ; extra == 'all'
+  - furo ; extra == 'all'
+  - pydot>=1.2.3 ; extra == 'all'
+  - pydotplus ; extra == 'all'
+  - pyntcloud ; extra == 'all'
+  - pytest-cov>=7 ; extra == 'all'
+  - pytest-env>=1.2.0 ; extra == 'all'
+  - pytest-xdist>=3.8 ; extra == 'all'
+  - pytest-xvfb>=2 ; extra == 'all'
+  - pytest>=8 ; extra == 'all'
+  - sphinx ; extra == 'all'
+  - sphinxcontrib-apidoc ; extra == 'all'
+  - sphinxcontrib-napoleon ; extra == 'all'
+  - furo ; extra == 'doc'
+  - pydot>=1.2.3 ; extra == 'doc'
+  - pydotplus ; extra == 'doc'
+  - sphinx ; extra == 'doc'
+  - sphinxcontrib-apidoc ; extra == 'doc'
+  - sphinxcontrib-napoleon ; extra == 'doc'
+  - furo ; extra == 'docs'
+  - pydot>=1.2.3 ; extra == 'docs'
+  - pydotplus ; extra == 'docs'
+  - sphinx ; extra == 'docs'
+  - sphinxcontrib-apidoc ; extra == 'docs'
+  - sphinxcontrib-napoleon ; extra == 'docs'
+  - pyntcloud ; extra == 'pointclouds'
+  - flake8>=3.7.0 ; extra == 'style'
+  - coverage[toml]>=7 ; extra == 'tests'
+  - pytest-cov>=7 ; extra == 'tests'
+  - pytest-env>=1.2.0 ; extra == 'tests'
+  - pytest-xdist>=3.8 ; extra == 'tests'
+  - pytest-xvfb>=2 ; extra == 'tests'
+  - pytest>=8 ; extra == 'tests'
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
   name: fasteners
   version: '0.20'
@@ -6167,66 +6150,6 @@ packages:
   requires_dist:
   - wcwidth
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
-  name: niworkflows
-  version: 1.15.2
-  sha256: 28b6e4751138f3294a7f4ce56f97715348adb5f4ac4f181d7483c97b9cf090c6
-  requires_dist:
-  - acres>=0.5
-  - attrs>=23.1
-  - jinja2>=3
-  - looseversion>=1.3
-  - matplotlib>=3.8
-  - nibabel>=5.2
-  - nilearn>=0.11.1
-  - nipype>=1.12.0
-  - nitransforms>=24.1.1
-  - numpy>=2.2
-  - packaging>=23
-  - pandas>=2.1
-  - pybids>=0.18.1
-  - pyyaml>=6.0.1
-  - scikit-image>=0.25
-  - scipy>=1.12
-  - seaborn>=0.13
-  - svgutils>=0.3.4
-  - templateflow>=24.2
-  - transforms3d>=0.4.2
-  - coverage[toml]>=7 ; extra == 'all'
-  - flake8>=3.7.0 ; extra == 'all'
-  - furo ; extra == 'all'
-  - pydot>=1.2.3 ; extra == 'all'
-  - pydotplus ; extra == 'all'
-  - pyntcloud ; extra == 'all'
-  - pytest-cov>=7 ; extra == 'all'
-  - pytest-env>=1.2.0 ; extra == 'all'
-  - pytest-xdist>=3.8 ; extra == 'all'
-  - pytest-xvfb>=2 ; extra == 'all'
-  - pytest>=8 ; extra == 'all'
-  - sphinx ; extra == 'all'
-  - sphinxcontrib-apidoc ; extra == 'all'
-  - sphinxcontrib-napoleon ; extra == 'all'
-  - furo ; extra == 'doc'
-  - pydot>=1.2.3 ; extra == 'doc'
-  - pydotplus ; extra == 'doc'
-  - sphinx ; extra == 'doc'
-  - sphinxcontrib-apidoc ; extra == 'doc'
-  - sphinxcontrib-napoleon ; extra == 'doc'
-  - furo ; extra == 'docs'
-  - pydot>=1.2.3 ; extra == 'docs'
-  - pydotplus ; extra == 'docs'
-  - sphinx ; extra == 'docs'
-  - sphinxcontrib-apidoc ; extra == 'docs'
-  - sphinxcontrib-napoleon ; extra == 'docs'
-  - pyntcloud ; extra == 'pointclouds'
-  - flake8>=3.7.0 ; extra == 'style'
-  - coverage[toml]>=7 ; extra == 'tests'
-  - pytest-cov>=7 ; extra == 'tests'
-  - pytest-env>=1.2.0 ; extra == 'tests'
-  - pytest-xdist>=3.8 ; extra == 'tests'
-  - pytest-xvfb>=2 ; extra == 'tests'
-  - pytest>=8 ; extra == 'tests'
-  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
   name: robustica
   version: 0.1.4
@@ -7015,6 +6938,83 @@ packages:
   - pytest-xdist ; extra == 'testing'
   - virtualenv ; extra == 'testing'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/f2/a4/cbc6f6b485e8d78043024cf34a70e5f05dfc05422fa9f08e40a1bc142af7/sdcflows-2.15.2-py3-none-any.whl
+  name: sdcflows
+  version: 2.15.2
+  sha256: 14768c0fb4431e01f1f73053398900f50cdaf7bea0263b7cee22e4fa8d72aabb
+  requires_dist:
+  - acres>=0.5.0
+  - attrs>=20.1.0
+  - migas>=0.4.0
+  - nibabel>=5.1.1
+  - nipype>=1.9.0
+  - nireports>=25.0.1
+  - nitransforms>=25.0.1
+  - niworkflows>=1.14.2
+  - numpy>=2.0
+  - pybids>=0.16.4
+  - scikit-image>=0.23
+  - scipy>=1.10
+  - templateflow>=23.1
+  - toml>=0.10
+  - attrs>=20.1.0 ; extra == 'all'
+  - coverage[toml]>=7 ; extra == 'all'
+  - furo ; extra == 'all'
+  - importlib-resources ; extra == 'all'
+  - ipykernel ; extra == 'all'
+  - ipython ; extra == 'all'
+  - nbsphinx ; extra == 'all'
+  - pandoc ; extra == 'all'
+  - pre-commit ; extra == 'all'
+  - psutil ; extra == 'all'
+  - pydot>=1.2.3 ; extra == 'all'
+  - pydotplus ; extra == 'all'
+  - pytest-cov>=2.11 ; extra == 'all'
+  - pytest-env ; extra == 'all'
+  - pytest-xdist>=3.3 ; extra == 'all'
+  - pytest>=8.1 ; extra == 'all'
+  - ruff ; extra == 'all'
+  - sphinx-argparse ; extra == 'all'
+  - sphinx>=7.2.2 ; extra == 'all'
+  - sphinxcontrib-apidoc ; extra == 'all'
+  - pre-commit ; extra == 'dev'
+  - ruff ; extra == 'dev'
+  - attrs>=20.1.0 ; extra == 'doc'
+  - furo ; extra == 'doc'
+  - importlib-resources ; extra == 'doc'
+  - ipykernel ; extra == 'doc'
+  - ipython ; extra == 'doc'
+  - nbsphinx ; extra == 'doc'
+  - pandoc ; extra == 'doc'
+  - pydot>=1.2.3 ; extra == 'doc'
+  - pydotplus ; extra == 'doc'
+  - sphinx-argparse ; extra == 'doc'
+  - sphinx>=7.2.2 ; extra == 'doc'
+  - sphinxcontrib-apidoc ; extra == 'doc'
+  - attrs>=20.1.0 ; extra == 'docs'
+  - furo ; extra == 'docs'
+  - importlib-resources ; extra == 'docs'
+  - ipykernel ; extra == 'docs'
+  - ipython ; extra == 'docs'
+  - nbsphinx ; extra == 'docs'
+  - pandoc ; extra == 'docs'
+  - pydot>=1.2.3 ; extra == 'docs'
+  - pydotplus ; extra == 'docs'
+  - sphinx-argparse ; extra == 'docs'
+  - sphinx>=7.2.2 ; extra == 'docs'
+  - sphinxcontrib-apidoc ; extra == 'docs'
+  - psutil ; extra == 'mem'
+  - coverage[toml]>=7 ; extra == 'test'
+  - pytest-cov>=2.11 ; extra == 'test'
+  - pytest-env ; extra == 'test'
+  - pytest-xdist>=3.3 ; extra == 'test'
+  - pytest>=8.1 ; extra == 'test'
+  - coverage[toml]>=7 ; extra == 'tests'
+  - pytest-cov>=2.11 ; extra == 'tests'
+  - pytest-env ; extra == 'tests'
+  - pytest-xdist>=3.3 ; extra == 'tests'
+  - pytest>=8.1 ; extra == 'tests'
+  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/f4/af/a6207c730d8cb7bce5acd073f57ea84f51da82e744897ebb06119664aa8f/pybids-0.20.0-py3-none-any.whl
   name: pybids
   version: 0.20.0

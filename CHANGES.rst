@@ -1,3 +1,21 @@
+25.2.7 (October 5, 2026)
+========================
+Bug-fix release in the 25.2.x series.
+
+This release includes a fix for an issue with BOLD mask generation that could
+nondeterministically result in poor contrast for the coregistration references.
+The fix impacts every dataset, but the effect should not be measurable for
+datasets not experiencing this issue.
+
+This release also includes fixes for SyN-SDC when using the ``--bids-filter-file`` flag.
+
+The minimum niworkflows dependency is reduced to 1.14.5, to restore compatibility
+with Python 3.10.
+
+* FIX: Use rigid affine initialization for BOLD mask (nipreps/niworkflows#1064)
+* FIX: Do not apply fieldmap filters to fieldmap-less queries (nipreps/sdcflows#563)
+* FIX: Allow sessionless anatomical references for fieldmap-less estimation (nipreps/sdcflows#562)
+
 25.2.6 (September 28, 2026)
 ===========================
 Bug-fix release in the 25.2.x series.
@@ -5,10 +23,10 @@ Bug-fix release in the 25.2.x series.
 This release updates downstream dependencies to fix how session selection
 interacts with ``--bids-filter-file``.
 
-  * DOC: Add note on StartTime metadata (#3670)
-  * MNT: Bump niworkflows to 1.15.2 (nipreps/niworkflows#1063)
-  * MNT: Bump sdcflows to 2.15.1 (nipreps/sdcflows#559)
-  * MNT: Fix py310-min tests on CI (#3671)
+* DOC: Add note on StartTime metadata (#3670)
+* MNT: Bump niworkflows to 1.15.2 (nipreps/niworkflows#1063)
+* MNT: Bump sdcflows to 2.15.1 (nipreps/sdcflows#559)
+* MNT: Fix py310-min tests on CI (#3671)
 
 25.2.5 (March 10, 2026)
 =======================
