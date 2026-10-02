@@ -1,11 +1,12 @@
 import logging
 
 import nibabel as nb
+import nitransforms as nt
 import numpy as np
 import pytest
 from nipype.pipeline import engine as pe
 
-from fmriprep.interfaces.resampling import UpsampleToZooms
+from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
 
 
 def _image(path, zooms):
@@ -93,3 +94,72 @@ def test_UpsampleToZooms_tolerance(tmp_path, tolerance, upsampled):
     )
 
     assert (upsample.run().outputs.out_files != in_files) is upsampled
+
+
+def _to_itk(path, translation=(0.0, 0.0, 0.0)):
+    matrix = np.eye(4)
+    matrix[:3, 3] = translation
+    nt.linear.Affine(matrix).to_filename(path, fmt='itk')
+    return str(path)
+
+
+@pytest.mark.parametrize(
+    'indices',
+    [
+        pytest.param(None, id='all'),
+        pytest.param([True, False, True, False], id='subset'),
+        pytest.param([False, True, False, False], id='single'),
+    ],
+)
+def test_ResampleTemplate(tmp_path, indices):
+    """Images are scaled, then their voxelwise median is taken on the reference grid."""
+    rng = np.random.default_rng(0)
+    data = rng.random((4, 16, 16, 16), dtype='float32')
+    scales = [2.0, 1.0, 0.5, 4.0]
+
+    in_files, transforms, scale_files = [], [], []
+    for i, (volume, scale) in enumerate(zip(data, scales, strict=True)):
+        in_files.append(str(tmp_path / f'input{i}.nii.gz'))
+        nb.Nifti1Image(volume, np.eye(4)).to_filename(in_files[-1])
+        transforms.append(_to_itk(tmp_path / f'xfm{i}.txt'))
+        scale_files.append(str(tmp_path / f'is{i}.txt'))
+        np.savetxt(scale_files[-1], [scale])
+
+    median = ResampleTemplate(
+        in_files=in_files,
+        transforms=transforms,
+        reference=in_files[0],
+        intensity_scales=scale_files,
+    )
+    if indices is not None:
+        median.inputs.indices = indices
+    out_file = median.run(cwd=tmp_path).outputs.out_file
+
+    selected = np.flatnonzero(indices) if indices is not None else range(len(data))
+    expected = np.median([data[i] * scales[i] for i in selected], axis=0)
+    assert np.allclose(nb.load(out_file).get_fdata(), expected, atol=1e-4)
+
+
+def test_ResampleTemplate_transform(tmp_path):
+    """Transforms map each image onto the reference, as run-to-template transforms do."""
+    data = np.random.default_rng(0).random((16, 16, 16), dtype='float32')
+    reference = str(tmp_path / 'reference.nii.gz')
+    nb.Nifti1Image(data, np.eye(4)).to_filename(reference)
+
+    # The same brain, displaced by 4mm along x
+    shifted = np.eye(4)
+    shifted[0, 3] = 4.0
+    moved = str(tmp_path / 'moved.nii.gz')
+    nb.Nifti1Image(data, shifted).to_filename(moved)
+
+    out_file = (
+        ResampleTemplate(
+            in_files=[moved],
+            transforms=[_to_itk(tmp_path / 'xfm.txt', translation=(4.0, 0.0, 0.0))],
+            reference=reference,
+        )
+        .run(cwd=tmp_path)
+        .outputs.out_file
+    )
+
+    assert np.allclose(nb.load(out_file).get_fdata(), data, atol=1e-4)
