@@ -36,8 +36,10 @@ import warnings
 from copy import deepcopy
 
 import bids
+from bids.layout import Query
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
+from niworkflows.utils.bids import DEFAULT_BIDS_QUERIES
 from niworkflows.utils.connections import listify
 from packaging.version import Version
 
@@ -120,6 +122,60 @@ def init_fmriprep_wf():
         config.to_filename(log_dir / 'fmriprep.toml')
 
     return fmriprep_wf
+
+
+def _compose_bids_query_spec(
+    participant_label: str,
+    session_id: str | list[str] | None = None,
+    task: str | None = None,
+    echo: int | None = None,
+    bids_filters: dict | None = None,
+) -> dict:
+    """Compose the final BIDS query specification used to collect participant data."""
+    queries = deepcopy(DEFAULT_BIDS_QUERIES)
+    session_id = session_id or Query.OPTIONAL
+    common_selectors = {
+        'subject': participant_label,
+        'extension': ['.nii', '.nii.gz'],
+        'session': session_id,
+    }
+    reserved_entities = [('subject', participant_label), ('session', session_id)]
+
+    for acq, entities in (bids_filters or {}).items():
+        if acq not in queries:
+            continue
+
+        for entity, param in reserved_entities:
+            if param == Query.OPTIONAL:
+                continue
+            if entity in entities and listify(param) != listify(entities[entity]):
+                raise ValueError(
+                    f'Conflicting entities for "{entity}" found: {entities[entity]} // {param}'
+                )
+
+        queries[acq].update(entities)
+
+        for entity in list(common_selectors):
+            if entity in {'subject', 'session'}:
+                continue
+            if entity in entities:
+                del common_selectors[entity]
+
+    if task:
+        queries['bold']['task'] = queries['pet']['task'] = task
+
+    if echo:
+        queries['bold']['echo'] = echo
+
+    logged_queries = {
+        acq: {
+            **common_selectors,
+            **entities,
+        }
+        for acq, entities in queries.items()
+    }
+
+    return logged_queries
 
 
 def init_single_subject_wf(
@@ -228,6 +284,17 @@ It is released under the [CC0]\
 ### References
 
 """
+
+    bids_query_spec = _compose_bids_query_spec(
+        subject_id,
+        session_id=session_id,
+        task=config.execution.task_id,
+        echo=config.execution.echo_idx,
+        bids_filters=config.execution.bids_filters,
+    )
+    config.loggers.workflow.info(
+        'Final BIDS query specification for participant %s: %s', subject_id, bids_query_spec
+    )
 
     subject_data = collect_data(
         config.execution.layout,
