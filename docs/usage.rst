@@ -193,13 +193,15 @@ single-run reference.
 This approach, and the upsampling described below, follow the within-individual
 alignment strategy of the iProc_ pipeline.
 
-The session-/subject-level pipeline follows four steps:
+The session-/subject-level pipeline follows five steps:
 
 #. Head-motion correction (HMC) is applied per-volume within each run.
 #. Susceptibility distortion correction (SDC) is applied to each run's BOLD
    reference image.
 #. Each run's SDC-corrected boldref is upsampled and registered to a common BOLD
-   template using FreeSurfer's ``mri_robust_template``.
+   template space using FreeSurfer's ``mri_robust_template``.
+#. The template image is computed as the voxelwise median of the intensity-normalized
+   run references, each resampled once from its acquired grid into the template space.
 #. The template is registered to the anatomical image.
 
 .. note::
