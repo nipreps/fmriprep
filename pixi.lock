@@ -296,6 +296,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/57/24/12aba2bf71f0ff3415518b5586901a3453d9de4cd2675176722f360bd8ef/indexed_gzip-1.10.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -316,7 +317,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl
@@ -660,6 +660,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/ee/e97f37023938022e38d3abb28058191025c7a2cb240210e7e016f21fee72/datalad_osf-0.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
@@ -685,7 +686,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/90/a0/eed0f352481cfa22bdbf3e0cf4cab609d878592e140a864e03b5e51a0289/git_annex-10.20250721-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/91/b6/0d74517d0b33dfe372b47b2ef5781a2231e891f8fe8edea74a447a7f7380/annexremote-1.6.6-py3-none-any.whl
@@ -1035,6 +1035,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
@@ -1056,7 +1057,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/83/27/f997c9da0e179986fadd6c8474d16743f1b3697c129c2fcd1e739cd038c2/etelemetry-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
       - pypi: https://files.pythonhosted.org/packages/91/ed/1e347d85d05b37a8b9a039ca832e5747e1e5248d0bd66042783ef48b4a37/puremagic-1.30-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl
@@ -5517,6 +5517,66 @@ packages:
   - pyspark[connect]>=3.5.0 ; extra == 'pyspark-connect'
   - sqlframe>=3.22.0,!=3.39.3 ; extra == 'sqlframe'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
+  name: niworkflows
+  version: 1.15.3
+  sha256: 40d705ba8aeba7aefce0bf2c01f9aa5c1f78b934f31e371ea3f7208f83d694bb
+  requires_dist:
+  - acres>=0.5
+  - attrs>=23.1
+  - jinja2>=3
+  - looseversion>=1.3
+  - matplotlib>=3.8
+  - nibabel>=5.2
+  - nilearn>=0.11.1
+  - nipype>=1.12.0
+  - nitransforms>=24.1.1
+  - numpy>=2.2
+  - packaging>=23
+  - pandas>=2.1
+  - pybids>=0.18.1
+  - pyyaml>=6.0.1
+  - scikit-image>=0.25
+  - scipy>=1.12
+  - seaborn>=0.13
+  - svgutils>=0.3.4
+  - templateflow>=24.2
+  - transforms3d>=0.4.2
+  - coverage[toml]>=7 ; extra == 'all'
+  - flake8>=3.7.0 ; extra == 'all'
+  - furo ; extra == 'all'
+  - pydot>=1.2.3 ; extra == 'all'
+  - pydotplus ; extra == 'all'
+  - pyntcloud ; extra == 'all'
+  - pytest-cov>=7 ; extra == 'all'
+  - pytest-env>=1.2.0 ; extra == 'all'
+  - pytest-xdist>=3.8 ; extra == 'all'
+  - pytest-xvfb>=2 ; extra == 'all'
+  - pytest>=8 ; extra == 'all'
+  - sphinx ; extra == 'all'
+  - sphinxcontrib-apidoc ; extra == 'all'
+  - sphinxcontrib-napoleon ; extra == 'all'
+  - furo ; extra == 'doc'
+  - pydot>=1.2.3 ; extra == 'doc'
+  - pydotplus ; extra == 'doc'
+  - sphinx ; extra == 'doc'
+  - sphinxcontrib-apidoc ; extra == 'doc'
+  - sphinxcontrib-napoleon ; extra == 'doc'
+  - furo ; extra == 'docs'
+  - pydot>=1.2.3 ; extra == 'docs'
+  - pydotplus ; extra == 'docs'
+  - sphinx ; extra == 'docs'
+  - sphinxcontrib-apidoc ; extra == 'docs'
+  - sphinxcontrib-napoleon ; extra == 'docs'
+  - pyntcloud ; extra == 'pointclouds'
+  - flake8>=3.7.0 ; extra == 'style'
+  - coverage[toml]>=7 ; extra == 'tests'
+  - pytest-cov>=7 ; extra == 'tests'
+  - pytest-env>=1.2.0 ; extra == 'tests'
+  - pytest-xdist>=3.8 ; extra == 'tests'
+  - pytest-xvfb>=2 ; extra == 'tests'
+  - pytest>=8 ; extra == 'tests'
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
   name: fasteners
   version: '0.20'
@@ -6090,66 +6150,6 @@ packages:
   requires_dist:
   - wcwidth
   requires_python: '>=3.8'
-- pypi: https://files.pythonhosted.org/packages/87/16/d80c0513987d5f1730049f55d3bef935fffa8e9fe7ee9744bc46cf3509e5/niworkflows-1.15.2-py3-none-any.whl
-  name: niworkflows
-  version: 1.15.2
-  sha256: 28b6e4751138f3294a7f4ce56f97715348adb5f4ac4f181d7483c97b9cf090c6
-  requires_dist:
-  - acres>=0.5
-  - attrs>=23.1
-  - jinja2>=3
-  - looseversion>=1.3
-  - matplotlib>=3.8
-  - nibabel>=5.2
-  - nilearn>=0.11.1
-  - nipype>=1.12.0
-  - nitransforms>=24.1.1
-  - numpy>=2.2
-  - packaging>=23
-  - pandas>=2.1
-  - pybids>=0.18.1
-  - pyyaml>=6.0.1
-  - scikit-image>=0.25
-  - scipy>=1.12
-  - seaborn>=0.13
-  - svgutils>=0.3.4
-  - templateflow>=24.2
-  - transforms3d>=0.4.2
-  - coverage[toml]>=7 ; extra == 'all'
-  - flake8>=3.7.0 ; extra == 'all'
-  - furo ; extra == 'all'
-  - pydot>=1.2.3 ; extra == 'all'
-  - pydotplus ; extra == 'all'
-  - pyntcloud ; extra == 'all'
-  - pytest-cov>=7 ; extra == 'all'
-  - pytest-env>=1.2.0 ; extra == 'all'
-  - pytest-xdist>=3.8 ; extra == 'all'
-  - pytest-xvfb>=2 ; extra == 'all'
-  - pytest>=8 ; extra == 'all'
-  - sphinx ; extra == 'all'
-  - sphinxcontrib-apidoc ; extra == 'all'
-  - sphinxcontrib-napoleon ; extra == 'all'
-  - furo ; extra == 'doc'
-  - pydot>=1.2.3 ; extra == 'doc'
-  - pydotplus ; extra == 'doc'
-  - sphinx ; extra == 'doc'
-  - sphinxcontrib-apidoc ; extra == 'doc'
-  - sphinxcontrib-napoleon ; extra == 'doc'
-  - furo ; extra == 'docs'
-  - pydot>=1.2.3 ; extra == 'docs'
-  - pydotplus ; extra == 'docs'
-  - sphinx ; extra == 'docs'
-  - sphinxcontrib-apidoc ; extra == 'docs'
-  - sphinxcontrib-napoleon ; extra == 'docs'
-  - pyntcloud ; extra == 'pointclouds'
-  - flake8>=3.7.0 ; extra == 'style'
-  - coverage[toml]>=7 ; extra == 'tests'
-  - pytest-cov>=7 ; extra == 'tests'
-  - pytest-env>=1.2.0 ; extra == 'tests'
-  - pytest-xdist>=3.8 ; extra == 'tests'
-  - pytest-xvfb>=2 ; extra == 'tests'
-  - pytest>=8 ; extra == 'tests'
-  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/87/17/4f0c142525f655729e5710b2763d8306a64b78efaa4488eab5750f45d18d/robustica-0.1.4.tar.gz
   name: robustica
   version: 0.1.4
