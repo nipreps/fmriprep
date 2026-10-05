@@ -268,7 +268,6 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-misc_tcl-2406.0-0.tar.bz2
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=fix%2Fcollect-data-filtering#90c2f32bee2e4d4ec652d652aa92104a7bec195a
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
@@ -299,6 +298,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/57/24/12aba2bf71f0ff3415518b5586901a3453d9de4cd2675176722f360bd8ef/indexed_gzip-1.10.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -626,7 +626,6 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-misc_tcl-2406.0-0.tar.bz2
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=fix%2Fcollect-data-filtering#90c2f32bee2e4d4ec652d652aa92104a7bec195a
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
@@ -666,6 +665,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/ee/e97f37023938022e38d3abb28058191025c7a2cb240210e7e016f21fee72/datalad_osf-0.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
@@ -1011,7 +1011,6 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-misc_tcl-2406.0-0.tar.bz2
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
-      - pypi: git+https://github.com/nipreps/niworkflows.git?rev=fix%2Fcollect-data-filtering#90c2f32bee2e4d4ec652d652aa92104a7bec195a
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/3f/a6ec28c88e2d8e54d32598a1e0b5208a4baa72a8e7f6e241beab5731eb9d/interface_meta-1.3.0-py3-none-any.whl
@@ -1044,6 +1043,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4e/74/d5405b9b3b12e9176dff223576d7090bc161092878f533fd0dc23dd6ae1d/looseversion-1.3.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/3b/0e2c535c3e6970cfc5763b67f6cc31accaab35a7aa3e322fb6a12830450f/narwhals-2.6.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/ba/06e89f886f10f46d70e12c43f541176304d9cbe13d9ab283e1d05990a76b/codecarbon-3.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl
@@ -4735,7 +4735,7 @@ packages:
   - nireports>=25.0.1
   - nitime>=0.12
   - nitransforms>=25.0.1
-  - niworkflows @ git+https://github.com/nipreps/niworkflows.git@fix/collect-data-filtering
+  - niworkflows>=1.15.2
   - numpy>=2.1
   - packaging>=24.2
   - pandas>=2.2.3
@@ -4790,65 +4790,6 @@ packages:
   - pytest-env>=1.1.4 ; extra == 'tests'
   - pytest-xdist>=3.7.0 ; extra == 'tests'
   - pytest>=8.3.3 ; extra == 'tests'
-  requires_python: '>=3.12'
-- pypi: git+https://github.com/nipreps/niworkflows.git?rev=fix%2Fcollect-data-filtering#90c2f32bee2e4d4ec652d652aa92104a7bec195a
-  name: niworkflows
-  version: 1.16.0.dev6+g90c2f32be
-  requires_dist:
-  - acres>=0.5
-  - attrs>=23.1
-  - jinja2>=3
-  - looseversion>=1.3
-  - matplotlib>=3.8
-  - nibabel>=5.2
-  - nilearn>=0.11.1
-  - nipype>=1.12.0
-  - nitransforms>=24.1.1
-  - numpy>=2.2
-  - packaging>=23
-  - pandas>=2.1
-  - pybids>=0.18.1
-  - pyyaml>=6.0.1
-  - scikit-image>=0.25
-  - scipy>=1.12
-  - seaborn>=0.13
-  - svgutils>=0.3.4
-  - templateflow>=24.2
-  - transforms3d>=0.4.2
-  - coverage[toml]>=7 ; extra == 'all'
-  - flake8>=3.7.0 ; extra == 'all'
-  - furo ; extra == 'all'
-  - pydot>=1.2.3 ; extra == 'all'
-  - pydotplus ; extra == 'all'
-  - pyntcloud ; extra == 'all'
-  - pytest-cov>=7 ; extra == 'all'
-  - pytest-env>=1.2.0 ; extra == 'all'
-  - pytest-xdist>=3.8 ; extra == 'all'
-  - pytest-xvfb>=2 ; extra == 'all'
-  - pytest>=8 ; extra == 'all'
-  - sphinx ; extra == 'all'
-  - sphinxcontrib-apidoc ; extra == 'all'
-  - sphinxcontrib-napoleon ; extra == 'all'
-  - furo ; extra == 'doc'
-  - pydot>=1.2.3 ; extra == 'doc'
-  - pydotplus ; extra == 'doc'
-  - sphinx ; extra == 'doc'
-  - sphinxcontrib-apidoc ; extra == 'doc'
-  - sphinxcontrib-napoleon ; extra == 'doc'
-  - furo ; extra == 'docs'
-  - pydot>=1.2.3 ; extra == 'docs'
-  - pydotplus ; extra == 'docs'
-  - sphinx ; extra == 'docs'
-  - sphinxcontrib-apidoc ; extra == 'docs'
-  - sphinxcontrib-napoleon ; extra == 'docs'
-  - pyntcloud ; extra == 'pointclouds'
-  - flake8>=3.7.0 ; extra == 'style'
-  - coverage[toml]>=7 ; extra == 'tests'
-  - pytest-cov>=7 ; extra == 'tests'
-  - pytest-env>=1.2.0 ; extra == 'tests'
-  - pytest-xdist>=3.8 ; extra == 'tests'
-  - pytest-xvfb>=2 ; extra == 'tests'
-  - pytest>=8 ; extra == 'tests'
   requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
   name: typer
@@ -5558,6 +5499,66 @@ packages:
   - pyspark[connect]>=3.5.0 ; extra == 'pyspark-connect'
   - sqlframe>=3.22.0,!=3.39.3 ; extra == 'sqlframe'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/51/1d/99e4007a799d431bc3b4b0f9877dc64b806ffe3fb08ae98667ca3a77a4b1/niworkflows-1.15.3-py3-none-any.whl
+  name: niworkflows
+  version: 1.15.3
+  sha256: 40d705ba8aeba7aefce0bf2c01f9aa5c1f78b934f31e371ea3f7208f83d694bb
+  requires_dist:
+  - acres>=0.5
+  - attrs>=23.1
+  - jinja2>=3
+  - looseversion>=1.3
+  - matplotlib>=3.8
+  - nibabel>=5.2
+  - nilearn>=0.11.1
+  - nipype>=1.12.0
+  - nitransforms>=24.1.1
+  - numpy>=2.2
+  - packaging>=23
+  - pandas>=2.1
+  - pybids>=0.18.1
+  - pyyaml>=6.0.1
+  - scikit-image>=0.25
+  - scipy>=1.12
+  - seaborn>=0.13
+  - svgutils>=0.3.4
+  - templateflow>=24.2
+  - transforms3d>=0.4.2
+  - coverage[toml]>=7 ; extra == 'all'
+  - flake8>=3.7.0 ; extra == 'all'
+  - furo ; extra == 'all'
+  - pydot>=1.2.3 ; extra == 'all'
+  - pydotplus ; extra == 'all'
+  - pyntcloud ; extra == 'all'
+  - pytest-cov>=7 ; extra == 'all'
+  - pytest-env>=1.2.0 ; extra == 'all'
+  - pytest-xdist>=3.8 ; extra == 'all'
+  - pytest-xvfb>=2 ; extra == 'all'
+  - pytest>=8 ; extra == 'all'
+  - sphinx ; extra == 'all'
+  - sphinxcontrib-apidoc ; extra == 'all'
+  - sphinxcontrib-napoleon ; extra == 'all'
+  - furo ; extra == 'doc'
+  - pydot>=1.2.3 ; extra == 'doc'
+  - pydotplus ; extra == 'doc'
+  - sphinx ; extra == 'doc'
+  - sphinxcontrib-apidoc ; extra == 'doc'
+  - sphinxcontrib-napoleon ; extra == 'doc'
+  - furo ; extra == 'docs'
+  - pydot>=1.2.3 ; extra == 'docs'
+  - pydotplus ; extra == 'docs'
+  - sphinx ; extra == 'docs'
+  - sphinxcontrib-apidoc ; extra == 'docs'
+  - sphinxcontrib-napoleon ; extra == 'docs'
+  - pyntcloud ; extra == 'pointclouds'
+  - flake8>=3.7.0 ; extra == 'style'
+  - coverage[toml]>=7 ; extra == 'tests'
+  - pytest-cov>=7 ; extra == 'tests'
+  - pytest-env>=1.2.0 ; extra == 'tests'
+  - pytest-xdist>=3.8 ; extra == 'tests'
+  - pytest-xvfb>=2 ; extra == 'tests'
+  - pytest>=8 ; extra == 'tests'
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/51/ac/e5d886f892666d2d1e5cb8c1a41146e1d79ae8896477b1153a21711d3b44/fasteners-0.20-py3-none-any.whl
   name: fasteners
   version: '0.20'
