@@ -26,6 +26,17 @@ Please note the following changes in behavior for multi-session data:
   * ``--subject-anatomical-reference sessionwise`` now raises an error if a requested
     session is not found, or if a subject has no sessions.
 
+25.2.6 (September 28, 2026)
+===========================
+Bug-fix release in the 25.2.x series.
+
+This release updates downstream dependencies to fix how session selection
+interacts with ``--bids-filter-file``.
+
+  * DOC: Add note on StartTime metadata (#3670)
+  * MNT: Bump niworkflows to 1.15.2 (nipreps/niworkflows#1063)
+  * MNT: Bump sdcflows to 2.15.1 (nipreps/sdcflows#559)
+  * MNT: Fix py310-min tests on CI (#3671)
 
 25.2.5 (March 10, 2026)
 =======================
