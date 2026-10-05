@@ -380,6 +380,7 @@ def test_fmriprep_wf_builds(
     ('subject_anatomical_reference', 'session_label', 'expected'),
     [
         ('first-lex', None, [('01', None)]),
+        # Requested sessions are sorted and deduplicated
         ('first-lex', ['func1', 'anat', 'func1'], [('01', ['anat', 'func1'])]),
         # Requested sessions may only exist in precomputed derivatives
         ('first-lex', ['func1', 'func9'], [('01', ['func1', 'func9'])]),
@@ -414,22 +415,35 @@ def test_processing_groups_sessionwise_error(
             config._create_processing_groups()
 
 
-def _fs_subject_id(wf):
+def _fs_subject_id(wf, base_dir):
     """Run the FreeSurfer subject ID nodes, mirroring their workflow connections."""
-    bidssrc = wf.get_node('bidssrc').interface
-    src_file = wf.get_node('source_anatomical').interface
-    src_file.inputs.bids_info = bidssrc.run().outputs.out_dict
-    bids_info = wf.get_node('bids_info').interface
-    bids_info.inputs.in_file = src_file.run().outputs.source_file
-    info = bids_info.run().outputs
-    create_fs_id = wf.get_node('create_fs_id').interface
-    create_fs_id.inputs.subject_id = info.subject
-    if info.session:
-        create_fs_id.inputs.session_id = info.session
-    return create_fs_id.run().outputs.subject_id
+    subwf = wf.__class__(name=f'{wf.name}_fs_id', base_dir=str(base_dir))
+
+    src_anat = wf.get_node('source_anatomical')
+    bids_info = wf.get_node('bids_info')
+
+    subwf.connect([
+        (wf.get_node('bidssrc'), src_anat, [('out_dict', 'bids_info')]),
+        (src_anat, bids_info, [('source_file', 'in_file')]),
+        (bids_info, wf.get_node('create_fs_id'), [
+            ('subject', 'subject_id'),
+            ('session', 'session_id'),
+        ]),
+    ])  # fmt:skip
+
+    res = subwf.run()
+    nodes = {node.name: node for node in res.nodes}
+    return nodes['create_fs_id'].result.outputs.subject_id
 
 
-@pytest.mark.parametrize('bids_filters', [None, {'bold': {'session': 'func1'}}])
+@pytest.mark.parametrize(
+    'bids_filters',
+    [
+        None,
+        # Regression test for https://github.com/nipreps/fmriprep/issues/3613
+        {'bold': {'session': 'func1'}},
+    ],
+)
 def test_session_label_filters_inputs(bids_root_factory, monkeypatch, bids_filters):
     bids_dir = bids_root_factory('heterogeneous_sessions')
     with mock_config(bids_dir=bids_dir):
@@ -489,12 +503,14 @@ def test_reuse_precomputed_anat(
         ('unbiased', ['sub-01']),
     ],
 )
-def test_freesurfer_subject_id(bids_root_factory, subject_anatomical_reference, expected):
+def test_freesurfer_subject_id(
+    bids_root_factory, tmp_path, subject_anatomical_reference, expected
+):
     bids_dir = bids_root_factory('homogeneous_sessions')
     with mock_config(bids_dir=bids_dir):
         config.workflow.subject_anatomical_reference = subject_anatomical_reference
         fs_subject_ids = [
-            _fs_subject_id(init_single_subject_wf(subject_id, sessions))
+            _fs_subject_id(init_single_subject_wf(subject_id, sessions), tmp_path)
             for subject_id, sessions in config._create_processing_groups()
         ]
 
