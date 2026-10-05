@@ -101,27 +101,33 @@ def _make_homogeneous_sessions():
     }
 
 
+def _make_rest_bold():
+    return {
+        'task': 'rest',
+        'suffix': 'bold',
+        'metadata': {
+            'RepetitionTime': 2.0,
+            'PhaseEncodingDirection': 'j',
+            'TotalReadoutTime': 0.6,
+        },
+    }
+
+
 def _make_heterogeneous_sessions():
     return {
         '01': [
-            {
-                'session': 'anat',
-                'anat': {'suffix': 'T1w'},
-            },
-            {
-                'session': 'fmri',
-                'func': [
-                    {
-                        'task': 'rest',
-                        'suffix': 'bold',
-                        'metadata': {
-                            'RepetitionTime': 2.0,
-                            'PhaseEncodingDirection': 'j',
-                            'TotalReadoutTime': 0.6,
-                        },
-                    }
-                ],
-            },
+            {'session': 'anat', 'anat': {'suffix': 'T1w'}},
+            {'session': 'func1', 'func': [_make_rest_bold()]},
+            {'session': 'func2', 'anat': {'suffix': 'T1w'}, 'func': [_make_rest_bold()]},
+        ]
+    }
+
+
+def _make_func_only_sessions():
+    return {
+        '01': [
+            {'session': 'func1', 'func': [_make_rest_bold()]},
+            {'session': 'func2', 'func': [_make_rest_bold()]},
         ]
     }
 
@@ -131,6 +137,7 @@ _LAYOUT_FACTORIES = {
     'single_session': _make_single_session,
     'homogeneous_sessions': _make_homogeneous_sessions,
     'heterogeneous_sessions': _make_heterogeneous_sessions,
+    'func_only_sessions': _make_func_only_sessions,
 }
 
 
