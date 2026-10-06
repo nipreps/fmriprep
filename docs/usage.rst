@@ -152,6 +152,13 @@ or more times.
 
 This mechanism replaces the earlier, more limited ``--anat-derivatives`` flag.
 
+When several derivatives datasets are given, every dataset is searched, in the order
+provided. For functional derivatives, a later dataset replaces each derivative and
+each transform that it provides. For fieldmaps, a later dataset's files for a fieldmap
+ID replace an earlier dataset's files for that ID entirely. Anatomical derivatives
+follow *sMRIPrep*'s collection rules: a later dataset replaces each image and surface
+that it provides, and each transform for the template spaces it provides.
+
 .. note::
    Derivatives reuse is considered *experimental*.
 
