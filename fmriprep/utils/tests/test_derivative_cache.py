@@ -228,26 +228,34 @@ def test_collect_fmap_derivatives_empty_later_dataset(tmp_path: Path):
     assert list(fmaps) == ['auto00000']
 
 
-def test_aggregate_coreg_precomputed_run():
-    caches = [
-        {'transforms': {'run2anat': '/ra1', 'session2anat': '/sa', 'run2template': '/rb1'}},
-        {'transforms': {'run2anat': '/ra2'}},
+def _run_caches(tmp_path: Path, shared: list[str], per_run: list[str], session='A'):
+    """Collect caches for runs 1 and 2, with ``per_run`` derivatives in a dataset per run."""
+    shared_dir = write_derivatives(tmp_path / 'shared', shared, session=session)
+    run_dirs = [
+        write_derivatives(tmp_path / f'run-{run}', per_run, session=session, run=run)
+        for run in (1, 2)
     ]
+    return [
+        bids.collect_func_derivatives([shared_dir, run_dir], {**_entities(session), 'run': run})
+        for run, run_dir in enumerate(run_dirs, start=1)
+    ]
+
+
+def test_aggregate_coreg_precomputed_run(tmp_path: Path):
+    caches = _run_caches(tmp_path, ['session2anat'], ['run2anat', 'run2template'])
+
     assert bids.aggregate_coreg_precomputed(caches, 'run') == {
-        'template2anat_xfm': ['/ra1', '/ra2'],
+        'template2anat_xfm': [c['transforms']['run2anat'] for c in caches],
     }
 
 
-def test_aggregate_coreg_precomputed_group():
-    caches = [
-        {
-            'transforms': {'session2anat': '/sa', 'run2template': '/rb1'},
-            'session_boldref': '/tpl',
-        },
-        {'transforms': {'session2anat': '/sa', 'run2template': '/rb2'}},
-    ]
+def test_aggregate_coreg_precomputed_group(tmp_path: Path):
+    caches = _run_caches(tmp_path, ['session_boldref', 'session2anat'], ['run2template'])
+    session2anat = caches[0]['transforms']['session2anat']
+
     assert bids.aggregate_coreg_precomputed(caches, 'session') == {
-        'template2anat_xfm': ['/sa', '/sa'],
-        'run2template_xfms': ['/rb1', '/rb2'],
-        'boldref_template': '/tpl',
+        'template2anat_xfm': [session2anat, session2anat],
+        'run2template_xfms': [c['transforms']['run2template'] for c in caches],
+        'boldref_template': caches[0]['session_boldref'],
     }
+    assert caches[0]['transforms']['run2template'] != caches[1]['transforms']['run2template']
