@@ -23,7 +23,9 @@
 """Helpers for writing test datasets."""
 
 import re
+import shutil
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import yaml
 from niworkflows.utils.testing import generate_bids_skeleton
@@ -88,7 +90,8 @@ def write_derivatives(path, include=None, **kwargs) -> Path:
     Parameters
     ----------
     path : :obj:`os.PathLike`
-        Root of the new dataset, which must not exist.
+        Root of the dataset. If it exists, the files are added to it,
+        so that a dataset can hold several runs.
     include, **kwargs
         Passed to :func:`deriv_skeleton`.
 
@@ -98,5 +101,14 @@ def write_derivatives(path, include=None, **kwargs) -> Path:
         ``path``.
 
     """
-    generate_bids_skeleton(path, deriv_skeleton(include, **kwargs))
-    return Path(path)
+    path = Path(path)
+    skeleton = deriv_skeleton(include, **kwargs)
+    if not path.exists():
+        generate_bids_skeleton(path, skeleton)
+        return path
+
+    # generate_bids_skeleton() only writes new datasets
+    with TemporaryDirectory() as tmpdir:
+        generate_bids_skeleton(Path(tmpdir) / 'deriv', skeleton)
+        shutil.copytree(Path(tmpdir) / 'deriv', path, dirs_exist_ok=True)
+    return path

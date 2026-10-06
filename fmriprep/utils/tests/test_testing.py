@@ -92,6 +92,17 @@ def test_deriv_skeleton_empty(tmp_path: Path):
     assert _files(write_derivatives(tmp_path / 'deriv', [])) == ['dataset_description.json']
 
 
+def test_write_derivatives_adds_to_existing(tmp_path: Path):
+    root = write_derivatives(tmp_path / 'deriv', ['session_boldref'], session='A')
+
+    assert write_derivatives(root, ['run2session'], session='A', run=1) == root
+    assert _files(root) == [
+        'dataset_description.json',
+        'sub-01/ses-A/func/sub-01_ses-A_space-session_boldref.nii.gz',
+        'sub-01/ses-A/func/sub-01_ses-A_task-rest_run-1_from-run_to-session_mode-image_desc-coreg_xfm.txt',
+    ]
+
+
 def test_deriv_skeleton_unknown_group():
     with pytest.raises(KeyError, match='nonexistent'):
         deriv_skeleton(['nonexistent'])
