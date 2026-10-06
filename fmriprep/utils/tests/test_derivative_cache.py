@@ -39,10 +39,17 @@ TRANSFORMS = [
     'run2anat_legacy',
     'run2fmap',
     'run2fmap_legacy',
-    'run2template',
+    'run2session',
+    'run2subject',
     'session2anat',
     'subject2anat',
 ]
+# Groups collected under another name
+KEYS = {'run2session': 'run2template', 'run2subject': 'run2template'}
+
+
+def _key(group: str) -> str:
+    return KEYS.get(group, group.removesuffix('_legacy'))
 
 
 @pytest.mark.parametrize('session', [None, 'A'])
@@ -66,12 +73,13 @@ def test_boldref_found_as_str(tmp_path: Path, group: str, session):
 def test_transform_found_as_str(tmp_path: Path, group: str, session):
     """Generate a single transform and verify it's found.
 
-    See above RE legacy derivatives.
+    See above RE legacy derivatives. ``KEYS`` lists the other groups
+    that are collected under another name.
     """
     root = write_derivatives(tmp_path / 'deriv', [group], run=1, session=session)
     [found] = _files(root)
 
-    key = group.removesuffix('_legacy')
+    key = _key(group)
     derivs = bids.collect_func_derivatives([root], _entities(session), fieldmap_id='auto_00000')
     assert derivs == {'transforms': {key: found}}
 
@@ -88,7 +96,7 @@ def test_defaults_collected_once_each(tmp_path: Path, session):
     derivs = bids.collect_func_derivatives([root], _entities(session), fieldmap_id='auto_00000')
     transforms = derivs.pop('transforms')
     assert derivs.keys() == {'hmc_boldref', 'run_boldref', 'session_boldref', 'subject_boldref'}
-    assert transforms.keys() == {group.removesuffix('_legacy') for group in TRANSFORMS}
+    assert transforms.keys() == {_key(group) for group in TRANSFORMS}
     assert {*derivs.values(), *transforms.values()} == set(_files(root))
 
 
@@ -242,7 +250,7 @@ def _run_caches(tmp_path: Path, shared: list[str], per_run: list[str], session='
 
 
 def test_aggregate_coreg_precomputed_run(tmp_path: Path):
-    caches = _run_caches(tmp_path, ['session2anat'], ['run2anat', 'run2template'])
+    caches = _run_caches(tmp_path, ['session2anat'], ['run2anat', 'run2session'])
 
     assert bids.aggregate_coreg_precomputed(caches, 'run') == {
         'template2anat_xfm': [c['transforms']['run2anat'] for c in caches],
@@ -250,7 +258,7 @@ def test_aggregate_coreg_precomputed_run(tmp_path: Path):
 
 
 def test_aggregate_coreg_precomputed_group(tmp_path: Path):
-    caches = _run_caches(tmp_path, ['session_boldref', 'session2anat'], ['run2template'])
+    caches = _run_caches(tmp_path, ['session_boldref', 'session2anat'], ['run2session'])
     session2anat = caches[0]['transforms']['session2anat']
 
     assert bids.aggregate_coreg_precomputed(caches, 'session') == {

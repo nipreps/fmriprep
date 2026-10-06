@@ -3,6 +3,7 @@
 #
 # Files are grouped by the key that collects them, so tests can toggle individual
 # derivatives on and off. Groups ending in ``_legacy`` use fMRIPrep 23.2-25.2 names.
+# ``run2session`` and ``run2subject`` are both collected as ``run2template``.
 # ``defaults`` lists the groups written when no groups are requested.
 # Values of the form ``{name}`` are filled from ``deriv_skeleton()`` keyword arguments,
 # and entities whose value is ``None`` are left out of the filename.
@@ -19,7 +20,7 @@ defaults:
   - hmc
   - run2anat
   - run2fmap
-  - run2template
+  - run2session
   - session2anat
   - subject2anat
   - fieldmap
@@ -129,13 +130,24 @@ groups:
       mode: image
       suffix: xfm
       extension: .txt
-  run2template:
+  run2session:
     - datatype: func
       session: "{session}"
       task: "{task}"
       run: "{run}"
       from: run
       to: session
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  run2subject:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: run
+      to: subject
       mode: image
       desc: coreg
       suffix: xfm

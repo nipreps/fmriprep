@@ -42,6 +42,7 @@ def test_deriv_skeleton_legacy_and_alternatives(tmp_path: Path):
         'hmc_legacy',
         'run2anat_legacy',
         'run2fmap_legacy',
+        'run2subject',
         'coeffs_split',
         'magnitude_epi',
     ]
@@ -56,6 +57,7 @@ def test_deriv_skeleton_legacy_and_alternatives(tmp_path: Path):
             f'sub-01/func/{run}_from-orig_to-boldref_mode-image_desc-hmc_xfm.txt',
             f'sub-01/func/{run}_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt',
             f'sub-01/func/{run}_from-boldref_to-auto00000_mode-image_xfm.txt',
+            f'sub-01/func/{run}_from-run_to-subject_mode-image_desc-coreg_xfm.txt',
             'sub-01/fmap/sub-01_fmapid-auto00000_desc-coeff0_fieldmap.nii.gz',
             'sub-01/fmap/sub-01_fmapid-auto00000_desc-coeff1_fieldmap.nii.gz',
             'sub-01/fmap/sub-01_fmapid-auto00000_desc-epi_fieldmap.nii.gz',
