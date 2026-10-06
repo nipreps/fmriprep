@@ -88,7 +88,6 @@ def _make_params(
     ignore: list[str] | None = None,
     force: list[str] | None = None,
     bids_filters: dict | None = None,
-    bold_coreg_level: str = 'run',
 ):
     if ignore is None:
         ignore = []
@@ -110,7 +109,6 @@ def _make_params(
         ignore,
         force,
         bids_filters,
-        bold_coreg_level,
     )
 
 
@@ -131,7 +129,6 @@ def _make_params(
         'ignore',
         'force',
         'bids_filters',
-        'bold_coreg_level',
     ),
     [
         _make_params(),
@@ -162,8 +159,6 @@ def _make_params(
         # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
-        _make_params(bold_coreg_level='session'),
-        _make_params(bold_coreg_level='subject'),
     ],
 )
 def test_init_fmriprep_wf(
@@ -183,7 +178,6 @@ def test_init_fmriprep_wf(
     ignore: list[str],
     force: list[str],
     bids_filters: dict,
-    bold_coreg_level: str,
 ):
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
@@ -200,7 +194,6 @@ def test_init_fmriprep_wf(
         config.workflow.ignore = ignore
         config.workflow.force = force
         config.workflow.use_syn_sdc = use_syn_sdc
-        config.workflow.bold_coreg_level = bold_coreg_level
         before = config.get(flat=True)
         with patch.dict('fmriprep.config.execution.bids_filters', bids_filters):
             wf = init_fmriprep_wf()
