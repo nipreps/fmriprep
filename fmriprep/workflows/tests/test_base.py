@@ -11,6 +11,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
+from ...utils.testing import deriv_skeleton
 from ..base import get_estimator, init_fmriprep_wf, init_single_subject_wf
 from ..tests import mock_config
 from .layouts import get_layout
@@ -515,3 +516,45 @@ def test_freesurfer_subject_id(
         ]
 
     assert fs_subject_ids == expected
+
+
+def test_collect_from_several_derivative_datasets(bids_root, tmp_path, monkeypatch):
+    first = tmp_path / 'first'
+    skeleton = deriv_skeleton(['hmc'], run=1)
+    skeleton['01'][0]['anat'] = [
+        {
+            'from': 'MNI152NLin2009cAsym',
+            'to': 'T1w',
+            'mode': 'image',
+            'suffix': 'xfm',
+            'extension': '.h5',
+        },
+    ]
+    generate_bids_skeleton(first, skeleton)
+
+    second = tmp_path / 'second'
+    skeleton = deriv_skeleton(['run_boldref'], run=1)
+    skeleton['01'][0]['anat'] = [{'desc': 'preproc', 'suffix': 'T1w'}]
+    generate_bids_skeleton(second, skeleton)
+
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.execution, 'derivatives', {'first': first, 'second': second})
+        wf = init_single_subject_wf('01')
+
+    run = 'sub-01_task-rest_run-1'
+    anat = wf.get_node('source_anatomical').inputs.precomputed
+    assert anat['t1w_preproc'] == str(second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz')
+    assert anat['transforms'] == {
+        'MNI152NLin2009cAsym': {
+            'reverse': str(
+                first / 'sub-01/anat/sub-01_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5'
+            ),
+        },
+    }
+    bold_fit = 'bold_fit_task_rest_run_1_wf'
+    assert wf.get_node(f'{bold_fit}.hmc_buffer').inputs.hmc_xforms == str(
+        first / f'sub-01/func/{run}_from-orig_to-run_mode-image_desc-hmc_xfm.txt'
+    )
+    assert wf.get_node(f'{bold_fit}.regref_buffer').inputs.boldref == str(
+        second / f'sub-01/func/{run}_space-run_boldref.nii.gz'
+    )
