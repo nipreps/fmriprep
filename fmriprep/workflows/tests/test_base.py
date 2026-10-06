@@ -11,7 +11,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
-from ...utils.testing import deriv_skeleton
+from ...utils.testing import deriv_skeleton, write_derivatives
 from ..base import get_estimator, init_fmriprep_wf, init_single_subject_wf
 from ..tests import mock_config
 from .layouts import get_layout
@@ -558,3 +558,50 @@ def test_collect_from_several_derivative_datasets(bids_root, tmp_path, monkeypat
     assert wf.get_node(f'{bold_fit}.regref_buffer').inputs.boldref == str(
         second / f'sub-01/func/{run}_space-run_boldref.nii.gz'
     )
+
+
+def _fieldmap_bids(tmp_path):
+    spec = get_layout('no_session')
+    spec['01']['fmap'][0]['metadata']['IntendedFor'] = 'func/sub-01_task-rest_run-2_bold.nii.gz'
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*.nii.gz'):
+        img.to_filename(img_path)
+    return bids_dir
+
+
+@pytest.mark.parametrize(
+    ('magnitude', 'desc'), [('magnitude', 'magnitude'), ('magnitude_epi', 'epi')]
+)
+def test_reuse_precomputed_fieldmap(tmp_path, monkeypatch, magnitude, desc):
+    bids_dir = _fieldmap_bids(tmp_path)
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'coeffs', magnitude])
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    # The estimator ID is sanitized to find its derivatives
+    fmap = deriv_dir / 'sub-01' / 'fmap'
+    assert wf.get_node('fmap_id_merge').inputs.in1 == ['auto_00000']
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / f'sub-01_fmapid-auto00000_desc-{desc}_fieldmap.nii.gz')
+    ]
+    assert wf.get_node('fmap_coeff_merge').inputs.in1 == [
+        str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')
+    ]
+
+
+@pytest.mark.xfail(raises=KeyError, reason='master indexes fieldmap entries without checking them')
+def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
+    bids_dir = _fieldmap_bids(tmp_path)
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'magnitude'])
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    # Without coefficients, the fieldmap is estimated instead
+    assert wf.get_node('fmap_id_merge').inputs.in1 != ['auto_00000']
