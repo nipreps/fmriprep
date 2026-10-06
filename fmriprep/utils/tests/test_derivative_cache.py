@@ -1,9 +1,11 @@
+import logging
 from pathlib import Path
 
 import pytest
+from niworkflows.utils.testing import generate_bids_skeleton
 
 from fmriprep.utils import bids
-from fmriprep.utils.testing import write_derivatives
+from fmriprep.utils.testing import deriv_skeleton, write_derivatives
 
 ENTITIES = {
     'subject': '01',
@@ -140,6 +142,90 @@ def test_fieldmaps_found(tmp_path: Path, include, expected):
             zip(('fieldmap', 'coeffs', 'magnitude'), map(_path, expected), strict=True)
         ),
     }
+
+
+def _find(root: Path, pattern: str) -> str:
+    [path] = root.rglob(pattern)
+    return str(path)
+
+
+def test_collect_func_derivatives_merges_per_key(tmp_path: Path, caplog):
+    first = write_derivatives(tmp_path / 'first', ['hmc_boldref', 'hmc', 'run2anat'], run=1)
+    second = write_derivatives(tmp_path / 'second', ['run_boldref', 'hmc'], run=1)
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        derivs = bids.collect_func_derivatives([first, second], ENTITIES, fieldmap_id='auto_00000')
+
+    # hmc is overridden
+    assert derivs == {
+        'hmc_boldref': _find(first, '*_desc-hmc_boldref.nii.gz'),
+        'run_boldref': _find(second, '*_space-run_boldref.nii.gz'),
+        'transforms': {
+            'hmc': _find(second, '*_desc-hmc_xfm.txt'),
+            'run2anat': _find(first, '*_to-T1w_*xfm.txt'),
+        },
+    }
+
+    # One DEBUG message about HMC
+    [record] = [r for r in caplog.records if 'replacing' in r.getMessage()]
+    assert record.levelno == logging.DEBUG
+    first_path = _find(first, '*_desc-hmc_xfm.txt')
+    message = f'Precomputed transform hmc found in {second}, replacing {first_path}'
+    assert record.getMessage() == message
+
+
+def test_collect_func_derivatives_empty_later_dataset(tmp_path: Path, caplog):
+    """Empty datasets do not clobber populated keys."""
+    first = write_derivatives(tmp_path / 'first', ['run_boldref', 'hmc'], run=1)
+    empty = write_derivatives(tmp_path / 'empty', [])
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        derivs = bids.collect_func_derivatives([first, empty], ENTITIES)
+    assert derivs == bids.collect_func_derivatives([first], ENTITIES)
+    assert derivs['transforms']
+    assert not [r for r in caplog.records if 'replacing' in r.getMessage()]
+
+
+def test_collect_func_derivatives_nothing():
+    assert bids.collect_func_derivatives([], ENTITIES) == {'transforms': {}}
+
+
+def test_collect_fmap_derivatives_merges_per_fieldmap(tmp_path: Path, caplog):
+    first = write_derivatives(tmp_path / 'first', ['fieldmap', 'coeffs', 'magnitude'])
+    second = tmp_path / 'second'
+    skeleton = deriv_skeleton(['fieldmap'])
+    skeleton['01'][0]['fmap'] += deriv_skeleton(
+        ['fieldmap', 'coeffs', 'magnitude'], fmapid='auto00001'
+    )['01'][0]['fmap']
+    generate_bids_skeleton(second, skeleton)
+
+    def _fmap(fmapid, desc):
+        return str(
+            second / 'sub-01' / 'fmap' / f'sub-01_fmapid-{fmapid}_desc-{desc}_fieldmap.nii.gz'
+        )
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        fmaps = bids.collect_fmap_derivatives([first, second], '01')
+    # The second dataset's entry replaces the first's entirely, even though it is incomplete
+    assert fmaps == {
+        'auto00000': {'fieldmap': _fmap('auto00000', 'preproc')},
+        'auto00001': {
+            'fieldmap': _fmap('auto00001', 'preproc'),
+            'coeffs': _fmap('auto00001', 'coeff'),
+            'magnitude': _fmap('auto00001', 'magnitude'),
+        },
+    }
+    [record] = [r for r in caplog.records if 'replacing' in r.getMessage()]
+    assert 'auto00000' in record.getMessage()
+
+
+def test_collect_fmap_derivatives_empty_later_dataset(tmp_path: Path):
+    first = write_derivatives(tmp_path / 'first', ['fieldmap', 'coeffs', 'magnitude'])
+    empty = write_derivatives(tmp_path / 'empty', [])
+
+    fmaps = bids.collect_fmap_derivatives([first, empty], '01')
+    assert fmaps == bids.collect_fmap_derivatives([first], '01')
+    assert list(fmaps) == ['auto00000']
 
 
 def test_aggregate_coreg_precomputed_run():

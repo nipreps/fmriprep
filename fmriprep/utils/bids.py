@@ -219,6 +219,73 @@ def collect_fieldmaps(
     return fmap_cache
 
 
+def _merge(merged: dict, found: dict, kind: str, deriv_dir) -> None:
+    """Update ``merged`` with ``found``, logging each entry that is replaced."""
+    for name, value in found.items():
+        if name in merged:
+            config.loggers.utils.debug(
+                f'Precomputed {kind} {name} found in {deriv_dir}, replacing {merged[name]}'
+            )
+        merged[name] = value
+
+
+def collect_func_derivatives(
+    derivatives: list[Path],
+    entities: dict,
+    fieldmap_id: str | None = None,
+) -> dict:
+    """Gather precomputed functional derivatives from one or more datasets.
+
+    Parameters
+    ----------
+    derivatives
+        Derivatives datasets to search. Later datasets take precedence for each
+        derivative and each transform they provide.
+        Each derivative a later dataset replaces is logged at DEBUG level.
+    entities
+        BIDS entities of the BOLD series.
+    fieldmap_id
+        Fieldmap estimator ID, used to find the BOLD-to-fieldmap transform.
+
+    Returns
+    -------
+    dict
+        Paths to precomputed derivatives, as returned by :func:`collect_derivatives`.
+    """
+    merged = {}
+    transforms = {}
+    for deriv_dir in derivatives:
+        found = collect_derivatives(deriv_dir, entities, fieldmap_id=fieldmap_id)
+        _merge(transforms, found.pop('transforms', {}), 'transform', deriv_dir)
+        _merge(merged, found, 'derivative', deriv_dir)
+    return {**merged, 'transforms': transforms}
+
+
+def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
+    """Gather precomputed fieldmaps from one or more datasets.
+
+    Parameters
+    ----------
+    derivatives
+        Derivatives datasets to search. A later dataset's files for a fieldmap ID replace
+        any earlier dataset's files for that ID; files for one ID are never combined
+        across datasets. Each replacement is logged at DEBUG level.
+    subject_id
+        Subject label, without ``sub-``.
+
+    Returns
+    -------
+    dict
+        Precomputed fieldmaps by fieldmap ID, as returned by :func:`collect_fieldmaps`.
+    """
+    merged = {}
+    for deriv_dir in derivatives:
+        _merge(
+            merged, collect_fieldmaps(deriv_dir, {'subject': subject_id}), 'fieldmap', deriv_dir
+        )
+    return merged
+
+
 def write_bidsignore(deriv_dir):
     bids_ignore = (
         '*.html',
