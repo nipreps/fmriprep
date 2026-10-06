@@ -5,6 +5,7 @@ import bids
 import nibabel as nb
 import numpy as np
 import pytest
+from nipype.interfaces.base import Undefined
 from nipype.pipeline.engine.utils import generate_expanded_graph
 from niworkflows.utils.testing import generate_bids_skeleton
 from sdcflows.fieldmaps import clear_registry
@@ -605,3 +606,96 @@ def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
 
     # Without coefficients, the fieldmap is estimated instead
     assert wf.get_node('fmap_id_merge').inputs.in1 != ['auto_00000']
+
+
+# BOLD series in each session of the test layouts
+COREG_RUNS = [('nback', None), ('rest', 1), ('rest', 2)]
+
+
+@pytest.mark.parametrize(
+    ('level', 'include'),
+    [
+        (level, (*run2level, *boldref, *level2anat))
+        for level in ('run', 'session', 'subject')
+        for run2level in ([], [f'run2{level}'])
+        if run2level != ['run2run']
+        for boldref in ([], [f'{level}_boldref'])
+        for level2anat in ([], [f'{level}2anat'])
+    ],
+    ids=lambda value: ('+'.join(value) or 'none') if isinstance(value, tuple) else value,
+)
+def test_reuse_precomputed_coreg(bids_root_factory, tmp_path, monkeypatch, level, include):
+    """Precomputed coregistration derivatives skip the stages that would compute them."""
+    deriv_dir = tmp_path / 'derivatives'
+    per_run = [group for group in include if group.startswith('run')]
+    write_derivatives(
+        deriv_dir, [group for group in include if group not in per_run], session='pre'
+    )
+    for task, run in COREG_RUNS:
+        write_derivatives(deriv_dir, per_run, session='pre', task=task, run=run)
+
+    with mock_config(bids_dir=bids_root_factory('single_session')):
+        config.workflow.bold_coreg_level = level
+        monkeypatch.setattr(config.execution, 'derivatives', {'fmriprep': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    coreg_nodes = [name for name in wf.list_node_names() if name.startswith('bold_anat_coreg_')]
+    coreg_wfs = sorted({name.split('.')[0] for name in coreg_nodes})
+
+    n_regs = len(COREG_RUNS) if level == 'run' else 1
+    assert len(coreg_wfs) == n_regs
+
+    def has(stage):
+        return any(name.split('.')[1].startswith(stage) for name in coreg_nodes)
+
+    def found(pattern):
+        return sorted(str(path) for path in deriv_dir.rglob(pattern))
+
+    # Basic facts
+    have_run2template = f'run2{level}' in include or level == 'run'
+    have_boldref = f'{level}_boldref' in include
+    have_template2anat = f'{level}2anat' in include
+
+    # Reuse logic
+    # A boldref without transforms would require a batch of registrations;
+    # simpler (for now) to regenerate the boldref if transforms are missing.
+    reuse_boldref = have_boldref and have_run2template
+    # A full transform chain is usable, independent of whether a template is present.
+    reuse_template2anat = have_template2anat and have_run2template
+    assert has('boldref_reg_') ^ reuse_template2anat
+
+    # Template generation produces run2template transforms
+    assert has('bold_template_wf') ^ have_run2template
+
+    # Found transforms will be populated in subworkflows if reused
+    template2anat_xfms = (
+        found(f'*_from-{level}_to-T1w_*') if reuse_template2anat else [Undefined] * n_regs
+    )
+
+    # Run has a different workflow from subject/session
+    if level == 'run':
+        template2anat = [
+            wf.get_node(f'{name}.merge_template2anat').inputs.in1 for name in coreg_wfs
+        ]
+        assert sorted(template2anat, key=str) == template2anat_xfms
+    else:
+        # Existing transforms can regenerate a final template
+        assert has('warp_template_boldref') == (
+            level != 'run' and have_run2template and not reuse_boldref
+        )
+
+        [coreg_wf] = coreg_wfs
+        template_buffer = wf.get_node(f'{coreg_wf}.template_buffer').inputs
+        reg_buffer = wf.get_node(f'{coreg_wf}.reg_buffer').inputs
+
+        assert template_buffer.run2template_xfms == (
+            found(f'*_from-run_to-{level}_*') if have_run2template else Undefined
+        )
+        # Populated based on presence; overridden by a workflow connection if not reused
+        assert [template_buffer.boldref] == (
+            found(f'*_space-{level}_boldref.nii.gz') if have_boldref else [Undefined]
+        )
+        assert [reg_buffer.template2anat_xfm] == template2anat_xfms
+
+    # The workflow can be run, not only built
+    generate_expanded_graph(wf._create_flat_graph())
