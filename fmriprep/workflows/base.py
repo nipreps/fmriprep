@@ -382,9 +382,10 @@ It is released under the [CC0]\
     )
 
     # allow to run with anat-fast-track on fMRI-only dataset
-    if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
+    anat_images = anatomical_cache.get('images', {})
+    if 't1w_preproc' in anat_images and not subject_data['t1w']:
         config.loggers.workflow.debug(
-            f'No T1w image found; using precomputed T1w image: {anatomical_cache["t1w_preproc"]}',
+            f'No T1w image found; using precomputed T1w image: {anat_images["t1w_preproc"]}',
         )
         workflow.connect([
             (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
@@ -826,7 +827,7 @@ tasks and sessions), the following preprocessing was performed.
     # Before initializing BOLD workflow, select/verify anatomical target for coregistration
     bold2anat_init = config.workflow.bold2anat_init
     if bold2anat_init in ('auto', 't2w'):
-        has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
+        has_t2w = subject_data['t2w'] or 't2w_preproc' in anat_images
         if bold2anat_init == 't2w' and not has_t2w:
             raise OSError(
                 'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
