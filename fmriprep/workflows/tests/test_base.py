@@ -487,7 +487,39 @@ def test_reuse_precomputed_anat(
         wf = init_single_subject_wf('01', sessions)
 
     precomputed = wf.get_node('source_anatomical').inputs.precomputed
-    assert precomputed['t1w_preproc'] == str(deriv_dir / expected)
+    assert precomputed['images']['t1w_preproc'] == str(deriv_dir / expected)
+
+    # Without a raw T1w image, reports describe the precomputed one
+    summary = wf.get_node('summary')
+    sources = [
+        (src_node.name, src)
+        for src_node, _, data in wf._graph.in_edges(summary, data=True)
+        for src, dst in data['connect']
+        if dst == 't1w'
+    ]
+    assert sources == [('anat_fit_wf', 'outputnode.t1w_preproc')]
+
+
+def test_reuse_precomputed_t2w(bids_root_factory, tmp_path, monkeypatch):
+    # The raw dataset has no T2w image, so T2w coregistration must use the precomputed one
+    deriv_dir = tmp_path / 'smriprep'
+    generate_bids_skeleton(
+        deriv_dir,
+        {
+            'dataset_description': {'Name': 'sMRIPrep', 'DatasetType': 'derivative'},
+            '01': {
+                'anat': [
+                    {'desc': 'preproc', 'suffix': 'T1w'},
+                    {'desc': 'preproc', 'suffix': 'T2w'},
+                ]
+            },
+        },
+    )
+
+    with mock_config(bids_dir=bids_root_factory('func_only_sessions')):
+        config.workflow.bold2anat_init = 't2w'
+        monkeypatch.setattr(config.execution, 'derivatives', {'smriprep': deriv_dir})
+        init_single_subject_wf('01', ['func1'])
 
 
 @pytest.mark.parametrize(
@@ -537,7 +569,9 @@ def test_collect_from_several_derivative_datasets(bids_root, tmp_path, monkeypat
 
     run = 'sub-01_task-rest_run-1'
     anat = wf.get_node('source_anatomical').inputs.precomputed
-    assert anat['t1w_preproc'] == str(second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz')
+    assert anat['images']['t1w_preproc'] == str(
+        second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz'
+    )
     assert anat['transforms'] == {
         'MNI152NLin2009cAsym': {
             'reverse': str(
