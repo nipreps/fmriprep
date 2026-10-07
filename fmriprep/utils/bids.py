@@ -180,7 +180,11 @@ def collect_func_derivatives(
     return merged
 
 
-def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
+def collect_fmap_derivatives(
+    derivatives: list[Path],
+    subject_id: str,
+    session_id: str | list[str] | None = None,
+) -> dict:
     """Gather precomputed fieldmaps from one or more datasets.
 
     Parameters
@@ -191,6 +195,9 @@ def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
         across datasets. Each replacement is logged at DEBUG level.
     subject_id
         Subject label, without ``sub-``.
+    session_id
+        Session label(s), without ``ses-``. Fieldmap IDs may repeat across sessions,
+        so only the given sessions are searched. By default, all are searched.
 
     Returns
     -------
@@ -200,9 +207,12 @@ def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
         ``coeffs`` is a list.
     """
     spec = load_spec(load_data('fmap_spec.yml'))
+    entities = {'subject': subject_id}
+    if session_id:
+        entities['session'] = session_id
     merged = {}
     for deriv_dir in derivatives:
-        found = collect_fieldmaps(deriv_dir, entities={'subject': subject_id}, spec=spec)
+        found = collect_fieldmaps(deriv_dir, entities=entities, spec=spec)
         # Keep only the IDs with files
         fmaps = {fmapid: files for fmapid, files in found['fieldmaps'].items() if files}
         _merge(merged, fmaps, 'fieldmap', deriv_dir)

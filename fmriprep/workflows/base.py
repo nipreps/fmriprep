@@ -631,7 +631,9 @@ It is released under the [CC0]\
     if config.execution.derivatives:
         from fmriprep.utils.bids import collect_fmap_derivatives
 
-        fmap_cache = collect_fmap_derivatives(config.execution.derivatives.values(), subject_id)
+        fmap_cache = collect_fmap_derivatives(
+            config.execution.derivatives.values(), subject_id, session_id=session_id
+        )
 
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
