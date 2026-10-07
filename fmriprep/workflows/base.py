@@ -276,25 +276,19 @@ It is released under the [CC0]\
 
     anatomical_cache = {}
     if config.execution.derivatives:
-        from bids.layout import Query
-        from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
+        from smriprep.utils.bids import collect_anat_derivatives
 
         deriv_session_id = session_id
         if session_id and not sessionwise:
             # Anatomical derivatives built from multiple sessions are saved without session
-            deriv_session_id = [*listify(session_id), Query.NONE]
+            deriv_session_id = [*listify(session_id), None]
 
-        std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
-        std_spaces.append('fsnative')
-        for deriv_dir in config.execution.derivatives.values():
-            anatomical_cache.update(
-                collect_anat_derivatives(
-                    derivatives_dir=deriv_dir,
-                    subject_id=subject_id,
-                    std_spaces=std_spaces,
-                    session_id=deriv_session_id,
-                )
-            )
+        anatomical_cache = collect_anat_derivatives(
+            config.execution.derivatives.values(),
+            subject_id,
+            spaces.get_spaces(nonstandard=False, dim=(3,)),
+            session_id=deriv_session_id,
+        )
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
 
@@ -634,17 +628,9 @@ It is released under the [CC0]\
 
     fmap_cache = {}
     if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fieldmaps
+        from fmriprep.utils.bids import collect_fmap_derivatives
 
-        for deriv_dir in config.execution.derivatives.values():
-            fmaps = collect_fieldmaps(
-                derivatives_dir=deriv_dir,
-                entities={'subject': subject_id},
-            )
-            config.loggers.workflow.debug(
-                f'Detected precomputed fieldmaps in {deriv_dir} for fieldmap IDs: {list(fmaps)}',
-            )
-            fmap_cache.update(fmaps)
+        fmap_cache = collect_fmap_derivatives(config.execution.derivatives.values(), subject_id)
 
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
@@ -849,7 +835,7 @@ tasks and sessions), the following preprocessing was performed.
 
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
-        collect_derivatives,
+        collect_func_derivatives,
         extract_entities,
     )
 
@@ -912,14 +898,11 @@ tasks and sessions), the following preprocessing was performed.
                 entities = extract_entities(bold_series)
                 dismiss_entities = dismiss_echo(['part'])
                 entities = {k: v for k, v in entities.items() if k not in dismiss_entities}
-                for deriv_dir in config.execution.derivatives.values():
-                    functional_cache.update(
-                        collect_derivatives(
-                            derivatives_dir=deriv_dir,
-                            entities=entities,
-                            fieldmap_id=estimator_map.get(bold_series[0]),
-                        )
-                    )
+                functional_cache = collect_func_derivatives(
+                    config.execution.derivatives.values(),
+                    entities,
+                    fieldmap_id=estimator_map.get(bold_series[0]),
+                )
             functional_caches.append(functional_cache)
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)

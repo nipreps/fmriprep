@@ -38,7 +38,7 @@ dependencies = [
     "pybids >= 0.21",
     "requests >= 2.32.4",
     "sdcflows >= 2.17.1",
-    "smriprep >= 0.19.2",
+    "smriprep @ git+https://github.com/nipreps/smriprep@master",
     "tedana >= 25.1.0",
     "templateflow >= 24.2.2",
     "transforms3d >= 0.4.2",

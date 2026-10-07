@@ -1,0 +1,206 @@
+# Skeleton of fMRIPrep functional and fieldmap derivatives,
+# for use with ``fmriprep.utils.testing.deriv_skeleton()``.
+#
+# Files are grouped by the key that collects them, so tests can toggle individual
+# derivatives on and off. Groups ending in ``_legacy`` use fMRIPrep 23.2-25.2 names.
+# ``run2session`` and ``run2subject`` are both collected as ``run2template``.
+# ``defaults`` lists the groups written when no groups are requested.
+# Values of the form ``{name}`` are filled from ``deriv_skeleton()`` keyword arguments,
+# and entities whose value is ``None`` are left out of the filename.
+# Entities are listed in filename order.
+dataset_description:
+  Name: fMRIPrep
+  BIDSVersion: 1.9.0
+  DatasetType: derivative
+defaults:
+  - hmc_boldref
+  - run_boldref
+  - session_boldref
+  - subject_boldref
+  - hmc
+  - run2anat
+  - run2fmap
+  - run2session
+  - session2anat
+  - subject2anat
+  - fieldmap
+  - coeffs
+  - magnitude
+groups:
+  hmc_boldref:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      space: orig
+      desc: hmc
+      suffix: boldref
+  hmc_boldref_legacy:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      desc: hmc
+      suffix: boldref
+  run_boldref:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      space: run
+      suffix: boldref
+  run_boldref_legacy:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      desc: coreg
+      suffix: boldref
+  session_boldref:
+    - datatype: func
+      session: "{session}"
+      space: session
+      suffix: boldref
+  subject_boldref:
+    - datatype: func
+      space: subject
+      suffix: boldref
+  hmc:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: orig
+      to: run
+      mode: image
+      desc: hmc
+      suffix: xfm
+      extension: .txt
+  hmc_legacy:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: orig
+      to: boldref
+      mode: image
+      desc: hmc
+      suffix: xfm
+      extension: .txt
+  run2anat:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: run
+      to: T1w
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  run2anat_legacy:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: boldref
+      to: T1w
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  run2fmap:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: run
+      to: "{fmapid}"
+      mode: image
+      desc: fmap
+      suffix: xfm
+      extension: .txt
+  run2fmap_legacy:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: boldref
+      to: "{fmapid}"
+      mode: image
+      suffix: xfm
+      extension: .txt
+  run2session:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: run
+      to: session
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  run2subject:
+    - datatype: func
+      session: "{session}"
+      task: "{task}"
+      run: "{run}"
+      from: run
+      to: subject
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  session2anat:
+    - datatype: func
+      session: "{session}"
+      from: session
+      to: T1w
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  subject2anat:
+    - datatype: func
+      from: subject
+      to: T1w
+      mode: image
+      desc: coreg
+      suffix: xfm
+      extension: .txt
+  fieldmap:
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: preproc
+      suffix: fieldmap
+  coeffs:
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: coeff
+      suffix: fieldmap
+  coeffs_split:
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: coeff0
+      suffix: fieldmap
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: coeff1
+      suffix: fieldmap
+  magnitude:
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: magnitude
+      suffix: fieldmap
+  magnitude_epi:
+    - datatype: fmap
+      session: "{session}"
+      fmapid: "{fmapid}"
+      desc: epi
+      suffix: fieldmap

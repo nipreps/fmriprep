@@ -326,6 +326,8 @@ def init_bold_template_coreg_wf(
         niu.IdentityInterface(fields=['template2anat_xfm', 'fallback']),
         name='reg_buffer',
     )
+    # Connected only when something is computed, but the caller connects to it regardless
+    workflow.add_nodes([inputnode])
 
     # Populate buffers; these can be overridden by connections.
     if boldref_template:
