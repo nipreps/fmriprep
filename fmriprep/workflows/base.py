@@ -30,12 +30,12 @@ fMRIPrep base processing workflows
 """
 
 import os
-import re
 import sys
 import warnings
 from copy import deepcopy
 
 import bids
+from nipost.bids import sanitize_fieldmap_id
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.utils.connections import listify
@@ -655,7 +655,7 @@ It is released under the [CC0]\
         # Find precomputed fieldmaps that apply to this workflow
         pared_cache = {}
         for est in all_estimators:
-            if found := fmap_cache.get(re.sub(r'[^a-zA-Z0-9]', '', est.bids_id)):
+            if found := fmap_cache.get(sanitize_fieldmap_id(est.bids_id)):
                 pared_cache[est.bids_id] = found
             else:
                 fmap_estimators.append(est)
