@@ -618,11 +618,11 @@ def test_reuse_precomputed_fieldmap(tmp_path, monkeypatch, magnitude, desc):
         str(fmap / f'sub-01_fmapid-auto00000_desc-{desc}_fieldmap.nii.gz')
     ]
     assert wf.get_node('fmap_coeff_merge').inputs.in1 == [
-        str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')
+        [str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')]
     ]
 
 
-@pytest.mark.xfail(raises=KeyError, reason='master indexes fieldmap entries without checking them')
+@pytest.mark.xfail(reason='incomplete precomputed fieldmaps are not supported')
 def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
     bids_dir = _fieldmap_bids(tmp_path)
     deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'magnitude'])
