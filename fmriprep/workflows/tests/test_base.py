@@ -622,6 +622,70 @@ def test_reuse_precomputed_fieldmap(tmp_path, monkeypatch, magnitude, desc):
     ]
 
 
+def test_reuse_precomputed_fieldmap_by_session(tmp_path, monkeypatch):
+    # Each session's estimator gets the same ID, so each session's derivatives must be kept apart
+    spec = get_layout('homogeneous_sessions')
+    for session in spec['01']:
+        ses = session['session']
+        session['fmap'][0]['metadata']['IntendedFor'] = (
+            f'ses-{ses}/func/sub-01_ses-{ses}_task-rest_run-2_bold.nii.gz'
+        )
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    groups = ['fieldmap', 'coeffs', 'magnitude']
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', groups, session='pre')
+    write_derivatives(deriv_dir, groups, session='post')
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01', ['pre'])
+
+    fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz')
+    ]
+
+
+def test_reuse_precomputed_fieldmap_from_another_session(tmp_path, monkeypatch):
+    # A B0FieldIdentifier estimator from one session may serve BOLD runs of another
+    spec = get_layout('homogeneous_sessions')
+    for raw in spec['01']:
+        if raw['session'] == 'pre':
+            for fmap in raw['fmap']:
+                if fmap['suffix'] == 'epi':
+                    fmap['metadata']['B0FieldIdentifier'] = 'pepolar'
+        for func in raw['func']:
+            func['metadata']['B0FieldSource'] = 'pepolar'
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    deriv_dir = write_derivatives(
+        tmp_path / 'derivatives',
+        ['fieldmap', 'coeffs', 'magnitude'],
+        session='pre',
+        fmapid='pepolar',
+    )
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01', ['post'])
+
+    fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
+    assert wf.get_node('fmap_id_merge').inputs.in1 == ['pepolar']
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-pepolar_desc-magnitude_fieldmap.nii.gz')
+    ]
+
+
 @pytest.mark.xfail(reason='incomplete precomputed fieldmaps are not supported')
 def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
     bids_dir = _fieldmap_bids(tmp_path)

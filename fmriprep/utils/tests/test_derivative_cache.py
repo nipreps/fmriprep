@@ -258,6 +258,30 @@ def test_collect_fmap_derivatives_empty_later_dataset(tmp_path: Path):
     assert list(fmaps) == ['auto00000']
 
 
+def test_collect_fmap_derivatives_by_session(tmp_path: Path):
+    """Fieldmap IDs may repeat across sessions; only the requested session's are collected."""
+    groups = ['fieldmap', 'coeffs', 'magnitude']
+    root = write_derivatives(tmp_path / 'deriv', groups, session='A')
+    write_derivatives(root, groups, session='B')
+    write_derivatives(root, groups)
+
+    fmaps = bids.collect_fmap_derivatives([root], '01', session_id='A')
+    assert fmaps == bids.collect_fmap_derivatives([root], '01', session_id=['A'])
+    assert set(_files(root / 'sub-01' / 'ses-A', 'fmap')) == {
+        fmaps['auto00000']['fieldmap'],
+        *fmaps['auto00000']['coeffs'],
+        fmaps['auto00000']['magnitude'],
+    }
+
+    # Without a session, only the subject-level fieldmaps are collected
+    fmaps = bids.collect_fmap_derivatives([root], '01')
+    assert {str(p) for p in (root / 'sub-01' / 'fmap').iterdir()} == {
+        fmaps['auto00000']['fieldmap'],
+        *fmaps['auto00000']['coeffs'],
+        fmaps['auto00000']['magnitude'],
+    }
+
+
 def _run_caches(tmp_path: Path, shared: list[str], per_run: list[str], session='A'):
     """Collect caches for runs 1 and 2, with ``per_run`` derivatives in a dataset per run."""
     shared_dir = write_derivatives(tmp_path / 'shared', shared, session=session)
