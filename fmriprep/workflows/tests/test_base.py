@@ -601,31 +601,80 @@ def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
     assert wf.get_node('fmap_id_merge').inputs.in1 != ['auto_00000']
 
 
+### Precomputed coregistration tests
+
 # BOLD series in each session of the test layouts
 COREG_RUNS = [('nback', None), ('rest', 1), ('rest', 2)]
+
+
+def write_precomputed_coreg(
+    deriv_dir: Path, include: list[str], session: str | None = None
+) -> Path:
+    """Write derivatives for the given coreg stages."""
+    per_run = [group for group in include if group.startswith('run')]
+    write_derivatives(
+        deriv_dir, [group for group in include if group not in per_run], session=session
+    )
+    for task, run in COREG_RUNS:
+        write_derivatives(deriv_dir, per_run, session=session, task=task, run=run)
+
+    return deriv_dir
+
+
+def has(node_names: list[str], stage: str) -> bool:
+    """Check if any node name starts with the given stage."""
+    return any(name.split('.')[1].startswith(stage) for name in node_names)
+
+
+def found(deriv_dir: Path, pattern: str) -> list[str]:
+    """Find files matching a pattern in the derivatives directory."""
+    return sorted(str(path) for path in deriv_dir.rglob(pattern))
+
+
+@pytest.mark.parametrize('include', [[], ['run2anat']], ids=['none', 'run2anat'])
+def test_reuse_precomputed_run_coreg(bids_root_factory, tmp_path, monkeypatch, include):
+    """Precomputed coregistration derivatives skip the stages that would compute them."""
+    deriv_dir = write_precomputed_coreg(tmp_path / 'derivatives', include, session='pre')
+
+    with mock_config(bids_dir=bids_root_factory('single_session')):
+        config.workflow.bold_coreg_level = 'run'
+        monkeypatch.setattr(config.execution, 'derivatives', {'fmriprep': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    coreg_nodes = [name for name in wf.list_node_names() if name.startswith('bold_anat_coreg_')]
+    coreg_wfs = sorted({name.split('.')[0] for name in coreg_nodes})
+
+    n_regs = len(COREG_RUNS)
+    assert len(coreg_wfs) == n_regs
+
+    assert has(coreg_nodes, 'boldref_reg_') ^ ('run2anat' in include)
+    assert not has(coreg_nodes, 'bold_template_wf')
+
+    template2anat = [wf.get_node(f'{name}.merge_template2anat').inputs.in1 for name in coreg_wfs]
+    assert sorted(template2anat, key=str) == (
+        found(deriv_dir, '*_from-run_to-T1w_*') if 'run2anat' in include else [Undefined] * n_regs
+    )
+
+    # The workflow can be run, not only built
+    generate_expanded_graph(wf._create_flat_graph())
 
 
 @pytest.mark.parametrize(
     ('level', 'include'),
     [
         (level, (*run2level, *boldref, *level2anat))
-        for level in ('run', 'session', 'subject')
+        for level in ('session', 'subject')
         for run2level in ([], [f'run2{level}'])
-        if run2level != ['run2run']
         for boldref in ([], [f'{level}_boldref'])
         for level2anat in ([], [f'{level}2anat'])
     ],
     ids=lambda value: ('+'.join(value) or 'none') if isinstance(value, tuple) else value,
 )
-def test_reuse_precomputed_coreg(bids_root_factory, tmp_path, monkeypatch, level, include):
+def test_reuse_precomputed_template_coreg(
+    bids_root_factory, tmp_path, monkeypatch, level, include
+):
     """Precomputed coregistration derivatives skip the stages that would compute them."""
-    deriv_dir = tmp_path / 'derivatives'
-    per_run = [group for group in include if group.startswith('run')]
-    write_derivatives(
-        deriv_dir, [group for group in include if group not in per_run], session='pre'
-    )
-    for task, run in COREG_RUNS:
-        write_derivatives(deriv_dir, per_run, session='pre', task=task, run=run)
+    deriv_dir = write_precomputed_coreg(tmp_path / 'derivatives', include, session='pre')
 
     with mock_config(bids_dir=bids_root_factory('single_session')):
         config.workflow.bold_coreg_level = level
@@ -633,19 +682,10 @@ def test_reuse_precomputed_coreg(bids_root_factory, tmp_path, monkeypatch, level
         wf = init_single_subject_wf('01')
 
     coreg_nodes = [name for name in wf.list_node_names() if name.startswith('bold_anat_coreg_')]
-    coreg_wfs = sorted({name.split('.')[0] for name in coreg_nodes})
-
-    n_regs = len(COREG_RUNS) if level == 'run' else 1
-    assert len(coreg_wfs) == n_regs
-
-    def has(stage):
-        return any(name.split('.')[1].startswith(stage) for name in coreg_nodes)
-
-    def found(pattern):
-        return sorted(str(path) for path in deriv_dir.rglob(pattern))
+    [coreg_wf] = {name.split('.')[0] for name in coreg_nodes}
 
     # Basic facts
-    have_run2template = f'run2{level}' in include or level == 'run'
+    have_run2template = f'run2{level}' in include
     have_boldref = f'{level}_boldref' in include
     have_template2anat = f'{level}2anat' in include
 
@@ -655,40 +695,33 @@ def test_reuse_precomputed_coreg(bids_root_factory, tmp_path, monkeypatch, level
     reuse_boldref = have_boldref and have_run2template
     # A full transform chain is usable, independent of whether a template is present.
     reuse_template2anat = have_template2anat and have_run2template
-    assert has('boldref_reg_') ^ reuse_template2anat
+    assert has(coreg_nodes, 'boldref_reg_') ^ reuse_template2anat
 
     # Template generation produces run2template transforms
-    assert has('bold_template_wf') ^ have_run2template
+    assert has(coreg_nodes, 'bold_template_wf') ^ have_run2template
 
     # Found transforms will be populated in subworkflows if reused
-    template2anat_xfms = (
-        found(f'*_from-{level}_to-T1w_*') if reuse_template2anat else [Undefined] * n_regs
+    [template2anat_xfm] = (
+        found(deriv_dir, f'*_from-{level}_to-T1w_*') if reuse_template2anat else [Undefined]
     )
 
-    # Run has a different workflow from subject/session
-    if level == 'run':
-        template2anat = [
-            wf.get_node(f'{name}.merge_template2anat').inputs.in1 for name in coreg_wfs
-        ]
-        assert sorted(template2anat, key=str) == template2anat_xfms
-    else:
-        # Existing transforms can regenerate a final template
-        assert has('warp_template_boldref') == (
-            level != 'run' and have_run2template and not reuse_boldref
-        )
+    # Existing transforms can regenerate a final template
+    assert has(coreg_nodes, 'warp_template_boldref') == (have_run2template and not reuse_boldref)
 
-        [coreg_wf] = coreg_wfs
-        template_buffer = wf.get_node(f'{coreg_wf}.template_buffer').inputs
-        reg_buffer = wf.get_node(f'{coreg_wf}.reg_buffer').inputs
+    template_buffer = wf.get_node(f'{coreg_wf}.template_buffer').inputs
+    reg_buffer = wf.get_node(f'{coreg_wf}.reg_buffer').inputs
 
-        assert template_buffer.run2template_xfms == (
-            found(f'*_from-run_to-{level}_*') if have_run2template else Undefined
-        )
-        # Populated based on presence; overridden by a workflow connection if not reused
-        assert [template_buffer.boldref] == (
-            found(f'*_space-{level}_boldref.nii.gz') if have_boldref else [Undefined]
-        )
-        assert [reg_buffer.template2anat_xfm] == template2anat_xfms
+    assert template_buffer.run2template_xfms == (
+        found(deriv_dir, f'*_from-run_to-{level}_*') if have_run2template else Undefined
+    )
+    # Populated based on presence; overridden by a workflow connection if not reused
+    assert [template_buffer.boldref] == (
+        found(deriv_dir, f'*_space-{level}_boldref.nii.gz') if have_boldref else [Undefined]
+    )
+    assert reg_buffer.template2anat_xfm == template2anat_xfm
 
     # The workflow can be run, not only built
     generate_expanded_graph(wf._create_flat_graph())
+
+
+### /Precomputed coregistration tests
