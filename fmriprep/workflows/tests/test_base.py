@@ -646,8 +646,8 @@ def test_reuse_precomputed_fieldmap_by_session(tmp_path, monkeypatch):
 
     fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
     assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
-    assert wf.get_node('fmap_merge').inputs.in1 == [
-        str(fmap / 'sub-01_ses-pre_fmapid-auto00000_desc-preproc_fieldmap.nii.gz')
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz')
     ]
 
 
