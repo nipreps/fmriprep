@@ -627,12 +627,6 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
-    fmap_cache = {}
-    if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fmap_derivatives
-
-        fmap_cache = collect_fmap_derivatives(config.execution.derivatives.values(), subject_id)
-
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
         subject_id=subject_id,
@@ -652,10 +646,21 @@ It is released under the [CC0]\
     estimator_types = {est.bids_id: est.method for est in all_estimators}
     fmap_estimators = []
     if all_estimators:
-        # Find precomputed fieldmaps that apply to this workflow
+        from fmriprep.utils.bids import collect_fmap_derivatives
+
+        # Find precomputed fieldmaps that apply to this workflow. An estimator may come from
+        # another session than the BOLD runs it serves, so look in its own session.
+        fmap_caches = {}
         pared_cache = {}
         for est in all_estimators:
-            if found := fmap_cache.get(sanitize_fieldmap_id(est.bids_id)):
+            fmap_session = next(
+                f.entities.get('session') for f in est.sources if f.suffix not in ('T1w', 'T2w')
+            )
+            if fmap_session not in fmap_caches:
+                fmap_caches[fmap_session] = collect_fmap_derivatives(
+                    (config.execution.derivatives or {}).values(), subject_id, fmap_session
+                )
+            if found := fmap_caches[fmap_session].get(sanitize_fieldmap_id(est.bids_id)):
                 pared_cache[est.bids_id] = found
             else:
                 fmap_estimators.append(est)
