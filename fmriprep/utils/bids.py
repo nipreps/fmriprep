@@ -29,15 +29,27 @@ import os
 import re
 import sys
 from collections import defaultdict
-from functools import cache
 from pathlib import Path
 
 from bids.layout import BIDSLayout
 from bids.utils import listify
+from nipost.bids import collect_derivatives as _collect_derivatives
+from nipost.bids import collect_fieldmaps as _collect_fieldmaps
+from nipost.bids import load_spec, sanitize_fieldmap_id
 from packaging.version import Version
 
 from .. import config
 from ..data import load as load_data
+
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from typing import NotRequired, TypedDict
+
+    class AggregateCache(TypedDict):
+        template2anat_xfm: list[str]
+        run2template_xfms: NotRequired[list[str]]
+        boldref_template: NotRequired[str | None]
+
 
 GROUP_DISMISS_ENTITIES = (
     'task',
@@ -130,17 +142,19 @@ def collect_derivatives(
     return derivs_cache
 
 
-def aggregate_coreg_precomputed(caches: list[dict], level: str) -> dict:
+def aggregate_coreg_precomputed(caches: list[dict], level: str) -> AggregateCache:
     """Aggregate coregistration precomputed inputs from per-run caches"""
 
     def get_xfm(cache, key):
         return cache.get('transforms', {}).get(key)
 
-    precomputed = {'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]}
+    precomputed: AggregateCache = {
+        'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]
+    }
     if level != 'run':
-        precomputed['run2template_xfms'] = [get_xfm(c, 'run2template') for c in caches]
+        precomputed['run2template_xfms'] = [get_xfm(c, f'run2{level}') for c in caches]
         precomputed['boldref_template'] = next(
-            (c[f'{level}_boldref'] for c in caches if c.get(f'{level}_boldref')),
+            (ref for c in caches if (ref := c.get('boldrefs', {}).get(level))),
             None,
         )
     return precomputed
@@ -246,19 +260,32 @@ def collect_func_derivatives(
         BIDS entities of the BOLD series.
     fieldmap_id
         Fieldmap estimator ID, used to find the BOLD-to-fieldmap transform.
+        Without one, no BOLD-to-fieldmap transform is collected.
 
     Returns
     -------
     dict
-        Paths to precomputed derivatives, as returned by :func:`collect_derivatives`.
+        ``boldrefs`` and ``transforms`` map query names in ``func_spec.yml`` to paths.
+        ``run2fmap``, from the spec's ``fmap_transforms`` group for the requested
+        fieldmap ID, is merged into ``transforms``.
+
+    Raises
+    ------
+    ValueError
+        If a query matches more than one file in a dataset.
     """
-    merged = {}
-    transforms = {}
+    spec = load_spec(load_data('func_spec.yml'))
+    fmapid = sanitize_fieldmap_id(fieldmap_id) if fieldmap_id else None
+    merged = {'boldrefs': {}, 'transforms': {}}
     for deriv_dir in derivatives:
-        found = collect_derivatives(deriv_dir, entities, fieldmap_id=fieldmap_id)
-        _merge(transforms, found.pop('transforms', {}), 'transform', deriv_dir)
-        _merge(merged, found, 'derivative', deriv_dir)
-    return {**merged, 'transforms': transforms}
+        found = _collect_derivatives(
+            deriv_dir, spec=spec, entities=entities, params={'fmapid': fmapid}
+        )
+        # A run has at most one estimator, so its transform joins the others
+        transforms = {**found['transforms'], **found['fmap_transforms'].get(fmapid, {})}
+        _merge(merged['boldrefs'], found['boldrefs'], 'boldref', deriv_dir)
+        _merge(merged['transforms'], transforms, 'transform', deriv_dir)
+    return merged
 
 
 def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
@@ -276,13 +303,17 @@ def collect_fmap_derivatives(derivatives: list[Path], subject_id: str) -> dict:
     Returns
     -------
     dict
-        Precomputed fieldmaps by fieldmap ID, as returned by :func:`collect_fieldmaps`.
+        Precomputed fieldmaps by fieldmap ID, each mapping the queries in ``fmap_spec.yml``
+        (``fieldmap``, ``coeffs`` and ``magnitude``) that found files to those files.
+        ``coeffs`` is a list.
     """
+    spec = load_spec(load_data('fmap_spec.yml'))
     merged = {}
     for deriv_dir in derivatives:
-        _merge(
-            merged, collect_fieldmaps(deriv_dir, {'subject': subject_id}), 'fieldmap', deriv_dir
-        )
+        found = _collect_fieldmaps(deriv_dir, entities={'subject': subject_id}, spec=spec)
+        # Keep only the IDs with files
+        fmaps = {fmapid: files for fmapid, files in found['fieldmaps'].items() if files}
+        _merge(merged, fmaps, 'fieldmap', deriv_dir)
     return merged
 
 
