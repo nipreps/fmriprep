@@ -123,6 +123,15 @@ def test_no_run2fmap_without_fieldmap(tmp_path: Path):
     assert 'run2fmap' not in derivs['transforms']
 
 
+def test_run2fmap_matches_the_estimator(tmp_path: Path):
+    """With transforms to two fieldmaps, a run collects its estimator's."""
+    root = write_derivatives(tmp_path / 'deriv', ['run2fmap'], run=1)
+    write_derivatives(root, ['run2fmap'], run=1, fmapid='auto00001')
+
+    derivs = bids.collect_func_derivatives([root], ENTITIES, fieldmap_id='auto_00001')
+    assert '_to-auto00001_' in derivs['transforms']['run2fmap']
+
+
 def test_ambiguous_derivative_raises(tmp_path: Path):
     """Several files for one derivative are an error, not a list."""
     root = tmp_path / 'deriv'
@@ -139,7 +148,7 @@ def test_ambiguous_derivative_raises(tmp_path: Path):
         },
     )
 
-    with pytest.raises(ValueError, match="'run': expected at most one match"):
+    with pytest.raises(ValueError, match=r'^boldrefs/run in .*expected at most one match'):
         bids.collect_func_derivatives([root], ENTITIES)
 
 
@@ -256,6 +265,15 @@ def test_collect_fmap_derivatives_empty_later_dataset(tmp_path: Path):
     fmaps = bids.collect_fmap_derivatives([first, empty], '01')
     assert fmaps == bids.collect_fmap_derivatives([first], '01')
     assert list(fmaps) == ['auto00000']
+
+
+def test_collect_fmap_derivatives_skips_ids_without_files(tmp_path: Path):
+    root = write_derivatives(tmp_path / 'deriv', ['fieldmap', 'coeffs', 'magnitude'])
+    (root / 'sub-01' / 'fmap' / 'sub-01_fmapid-auto00009_desc-other_fieldmap.nii.gz').write_text(
+        ''
+    )
+
+    assert list(bids.collect_fmap_derivatives([root], '01')) == ['auto00000']
 
 
 def test_collect_fmap_derivatives_by_session(tmp_path: Path):
