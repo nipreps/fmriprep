@@ -733,6 +733,7 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         regressors_all_comps=config.workflow.regressors_all_comps,
         regressors_fd_th=config.workflow.regressors_fd_th,
         regressors_dvars_th=config.workflow.regressors_dvars_th,
+        hmc_method=config.workflow.hmc_method,
         name='bold_confounds_wf',
     )
 
