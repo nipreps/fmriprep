@@ -41,6 +41,7 @@ from templateflow.api import get as get_template
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
+    AFNIMotionParams,
     FilterDropped,
     FMRISummary,
     GatherConfounds,
@@ -159,9 +160,6 @@ def init_bold_confs_wf(
         Mask of brain edge voxels
 
     """
-    if hmc_method == '3dvolreg':
-        raise NotImplementedError
-
     from nireports.interfaces.nuisance import (
         CompCorVariancePlot,
         ConfoundsCorrelationPlot,
@@ -283,8 +281,11 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         mem_gb=mem_gb,
     )
 
-    # Motion parameters
-    motion_params = pe.Node(FSLMotionParams(), name='motion_params')
+    # Motion parameters, in the convention of the head-motion estimator
+    motion_params = pe.Node(
+        AFNIMotionParams() if hmc_method == '3dvolreg' else FSLMotionParams(),
+        name='motion_params',
+    )
 
     # Frame displacement
     fdisp = pe.Node(FramewiseDisplacement(), name='fdisp')
@@ -433,7 +434,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     # Tissue mean time series
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
     # Movement parameters
-    mrg_conf_metadata.inputs.in4 = {
+    motion_metadata = {
         'trans_x': {'Description': 'Translation along left-right axis.', 'Units': 'mm'},
         'trans_y': {'Description': 'Translation along anterior-posterior axis.', 'Units': 'mm'},
         'trans_z': {'Description': 'Translation along superior-inferior axis.', 'Units': 'mm'},
@@ -449,6 +450,37 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
             'Description': 'Rotation about superior-inferior axis. Also known as "yaw".',
             'Units': 'rad',
         },
+    }
+    if hmc_method == '3dvolreg':
+        # 3dvolreg's dL, dP, dS, pitch, yaw and roll, on AFNI's DICOM axes
+        motion_metadata = {
+            'trans_x': {
+                'Description': 'Translation along right-left axis, positive toward left.',
+                'Units': 'mm',
+            },
+            'trans_y': {
+                'Description': 'Translation along anterior-posterior axis, positive toward posterior.',
+                'Units': 'mm',
+            },
+            'trans_z': {
+                'Description': 'Translation along inferior-superior axis, positive toward superior.',
+                'Units': 'mm',
+            },
+            'rot_x': {
+                'Description': 'Rotation about right-left axis. AFNI calls this "pitch".',
+                'Units': 'rad',
+            },
+            'rot_y': {
+                'Description': 'Rotation about anterior-posterior axis. AFNI calls this "yaw".',
+                'Units': 'rad',
+            },
+            'rot_z': {
+                'Description': 'Rotation about inferior-superior axis. AFNI calls this "roll".',
+                'Units': 'rad',
+            },
+        }
+    mrg_conf_metadata.inputs.in4 = {
+        **motion_metadata,
         'framewise_displacement': {'Units': 'mm'},
     }
     mrg_conf_metadata2 = pe.Node(
