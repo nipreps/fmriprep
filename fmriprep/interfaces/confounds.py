@@ -165,11 +165,13 @@ class FSLMotionParams(SimpleInterface):
         boldref = nb.load(self.inputs.boldref_file)
         hmc = nt.linear.load(self.inputs.xfm_file)
 
-        # FSL's "center of gravity" is the center of mass scaled by zooms
-        # No rotation is applied.
-        center_of_gravity = np.matmul(
-            np.diag(boldref.header.get_zooms()),
-            ndi.center_of_mass(np.asanyarray(boldref.dataobj)),
+        # FSL's cog("scaled_mm"): on load, newimage reverses the first voxel axis of
+        # images with a positive determinant, and calc_cog weights voxels by value - min
+        data = boldref.get_fdata()
+        if np.linalg.det(boldref.affine) > 0:
+            data = data[::-1]
+        center_of_gravity = np.diag(boldref.header.get_zooms()[:3]) @ ndi.center_of_mass(
+            data - data.min()
         )
 
         # Revert to vox2vox transforms
@@ -178,13 +180,14 @@ class FSLMotionParams(SimpleInterface):
         )
         fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
 
-        # FSL uses left-handed rotation conventions, so transpose
-        mats = fsl_matrix[:, :3, :3].transpose(0, 2, 1)
+        # Ax = Mx + b
+        M, b = fsl_matrix[:, :3, :3], fsl_matrix[:, :3, 3]
+        # Translation is the displacement of CoG: (Ac - c) = Mc + b - c
+        trans_xyz = M @ center_of_gravity + b - center_of_gravity
 
-        # Rotations are recovered directly
-        rot_xyz = sst.Rotation.from_matrix(mats).as_euler('XYZ')
-        # Translations are recovered by applying the rotation to the center of gravity
-        trans_xyz = fsl_matrix[:, :3, 3] - mats @ center_of_gravity + center_of_gravity
+        # FSL composes M = Rx(-rot_x) @ Ry(-rot_y) @ Rz(-rot_z)
+        # Extracting XYZ retrieves negative rotations, so negate
+        rot_xyz = -sst.Rotation.from_matrix(M).as_euler('XYZ')
 
         params = pd.DataFrame(
             data=np.hstack((trans_xyz, rot_xyz)),
