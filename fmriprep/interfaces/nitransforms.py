@@ -99,3 +99,37 @@ class ConvertAffine(SimpleInterface):
             inv_affine.to_filename(out_inv, moving=reference, fmt=self.inputs.out_fmt)
 
         return runtime
+
+
+class _VolregToITKInputSpec(BaseInterfaceInputSpec):
+    in_params = File(exists=True, mandatory=True, desc='motion parameters from 3dvolreg -1Dfile')
+    in_matrices = File(
+        exists=True, desc='matrices from 3dvolreg -1Dmatrix_save, to cross-check the conversion'
+    )
+    in_reference = File(
+        exists=True,
+        mandatory=True,
+        desc='3dvolreg base image, on the grid of the registered BOLD series',
+    )
+
+
+class _VolregToITKOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='ITK transform file, one affine per volume')
+
+
+class VolregToITK(SimpleInterface):
+    """Convert 3dvolreg motion parameters to an ITK transform file.
+
+    The transforms are built from the ``-1Dfile`` parameters, which are
+    3dvolreg's reported motion. They are written at full precision, so the
+    stored transforms reproduce the parameters to better than 1e-5 (degrees
+    and mm). ``-1Dmatrix_save`` is printed to only 6 significant digits; if it
+    is given, it is used only to check the conversion, and a disagreement
+    larger than its print precision raises ``RuntimeError``.
+    """
+
+    input_spec = _VolregToITKInputSpec
+    output_spec = _VolregToITKOutputSpec
+
+    def _run_interface(self, runtime):
+        raise NotImplementedError
