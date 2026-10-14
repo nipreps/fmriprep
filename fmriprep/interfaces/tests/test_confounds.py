@@ -1,8 +1,11 @@
 from pathlib import Path
 
+import nibabel as nb
 import numpy as np
 import pandas as pd
+import pytest
 from nipype.pipeline import engine as pe
+from niworkflows.interfaces.itk import MCFLIRT2ITK
 
 from fmriprep.interfaces import confounds
 
@@ -85,6 +88,53 @@ def test_FSLMotionParams(tmp_path, data_dir):
     )
     max_diff = (orig_params - derived_params).abs().max()
     assert np.all(max_diff < limits)
+
+
+@pytest.mark.parametrize(
+    ('mcflirt_dir', 'transform'),
+    [
+        pytest.param('mcflirt_large_motion', None, id='las'),
+    ],
+)
+def test_FSLMotionParams_mcflirt(tmp_path, data_dir, mcflirt_dir, transform):
+    """FSLMotionParams reproduces MCFLIRT's .par from MCFLIRT's matrices.
+
+    The fixtures are MCFLIRT outputs for a synthetic series with rotations
+    up to 0.1 rad, registered to the test boldref (or a variant of it).
+    """
+    boldref_file = data_dir / 'sub-01_task-mixedgamblestask_run-01_desc-hmc_boldref.nii.gz'
+    if transform is not None:
+        boldref = transform(nb.load(boldref_file))
+        boldref_file = tmp_path / 'boldref.nii.gz'
+        boldref.to_filename(boldref_file)
+
+    mcflirt_out = data_dir / mcflirt_dir
+    fsl2itk = pe.Node(
+        MCFLIRT2ITK(
+            in_files=[str(mat) for mat in sorted(mcflirt_out.glob('MAT_*'))],
+            in_reference=str(boldref_file),
+            in_source=str(boldref_file),
+        ),
+        name='fsl2itk',
+        base_dir=str(tmp_path),
+    )
+    xfm_file = fsl2itk.run().outputs.out_file
+
+    motion = pe.Node(
+        confounds.FSLMotionParams(xfm_file=xfm_file, boldref_file=str(boldref_file)),
+        name='fsl_motion',
+        base_dir=str(tmp_path),
+    )
+    derived = pd.read_csv(motion.run().outputs.out_file, sep='\t')
+
+    # MCFLIRT's .par columns: rot_x rot_y rot_z (rad), trans_x trans_y trans_z (mm)
+    par = np.loadtxt(mcflirt_out / 'mcf.par')
+    rot = derived[['rot_x', 'rot_y', 'rot_z']].to_numpy()
+    trans = derived[['trans_x', 'trans_y', 'trans_z']].to_numpy()
+
+    # MCFLIRT writes its matrices to 6 decimal places, which leaves about 1e-4 mm
+    assert np.allclose(rot, par[:, :3], atol=1e-5)
+    assert np.allclose(trans, par[:, 3:], atol=1e-3)
 
 
 def test_FramewiseDisplacement(tmp_path, data_dir):
