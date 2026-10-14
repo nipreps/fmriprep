@@ -165,11 +165,13 @@ class FSLMotionParams(SimpleInterface):
         boldref = nb.load(self.inputs.boldref_file)
         hmc = nt.linear.load(self.inputs.xfm_file)
 
-        # FSL's "center of gravity" is the center of mass scaled by zooms
-        # No rotation is applied.
-        center_of_gravity = np.matmul(
-            np.diag(boldref.header.get_zooms()),
-            ndi.center_of_mass(np.asanyarray(boldref.dataobj)),
+        # FSL's cog("scaled_mm"): on load, newimage reverses the first voxel axis of
+        # images with a positive determinant, and calc_cog weights voxels by value - min
+        data = np.float64(boldref.dataobj)
+        if np.linalg.det(boldref.affine) > 0:
+            data = data[::-1]
+        center_of_gravity = np.diag(boldref.header.get_zooms()[:3]) @ ndi.center_of_mass(
+            data - data.min()
         )
 
         # Revert to vox2vox transforms
