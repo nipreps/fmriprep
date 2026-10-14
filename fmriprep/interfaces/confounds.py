@@ -49,6 +49,12 @@ from nipype.interfaces.base import (
 )
 from nipype.utils.filemanip import fname_presuffix
 from nireports.reportlets.modality.func import fMRIPlot
+from niworkflows.interfaces.confounds import (
+    _FSLMotionParamsInputSpec as MotionParamsInputSpec,
+)
+from niworkflows.interfaces.confounds import (
+    _FSLMotionParamsOutputSpec as MotionParamsOutputSpec,
+)
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
 
 LOGGER = logging.getLogger('nipype.interface')
@@ -85,6 +91,27 @@ class aCompCorMasks(SimpleInterface):
             zooms=self.inputs.bold_zooms,
         )
         return runtime
+
+
+class AFNIMotionParams(SimpleInterface):
+    """Reconstruct AFNI 3dvolreg motion parameters from affine transforms.
+
+    The columns follow nipype's ``normalize_mc_params(..., 'AFNI')``:
+    ``trans_x``, ``trans_y`` and ``trans_z`` are 3dvolreg's dL, dP and dS (mm),
+    and ``rot_x``, ``rot_y`` and ``rot_z`` are its pitch, yaw and roll, in radians.
+    Rotations are about the center of AFNI's de-obliqued grid, on AFNI's DICOM
+    axes, so translations are positive toward the left, posterior and superior.
+
+    To recover 3dvolreg's ``-1Dfile`` (``roll pitch yaw dS dL dP``, in degrees
+    and mm), convert ``rot_*`` with :func:`numpy.rad2deg` and take the columns
+    in the order ``rot_z rot_x rot_y trans_z trans_x trans_y``.
+    """
+
+    input_spec = MotionParamsInputSpec
+    output_spec = MotionParamsOutputSpec
+
+    def _run_interface(self, runtime):
+        raise NotImplementedError
 
 
 class _FilterDroppedInputSpec(BaseInterfaceInputSpec):
