@@ -33,7 +33,7 @@ import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
 from nipype.interfaces import afni
-from nipype.interfaces.base import File, traits
+from nipype.interfaces.base import File, Undefined, traits
 from numpy.linalg import LinAlgError
 
 
@@ -118,6 +118,19 @@ class FreeSurferSource(nio.FreeSurferSource):
     output_spec = _FSSourceOutputSpec
 
 
+class _VolregInputSpec(afni.preprocess.VolregInputSpec):
+    # Redefined without argstr or name_template, so -maxdisp1D is never passed
+    md1d_file = File(desc='not used: -maxdisp1D is never passed')
+    twopass = traits.Bool(
+        argstr='-twopass',
+        desc='register in two passes: a coarse pass on blurred images, then a fine pass',
+    )
+
+
+class _VolregOutputSpec(afni.preprocess.VolregOutputSpec):
+    out_file = File(desc="registered file; undefined if ``out_file`` is ``'NULL'``")
+
+
 class Volreg(afni.Volreg):
     """
     Patched to add ``-twopass``, to skip ``-maxdisp1D``, and to accept ``out_file='NULL'``.
@@ -138,3 +151,12 @@ class Volreg(afni.Volreg):
     -twopass -base boldref.nii.gz -zpad 4 bold.nii.gz'
 
     """
+
+    input_spec = _VolregInputSpec
+    output_spec = _VolregOutputSpec
+
+    def _list_outputs(self):
+        outputs = super()._list_outputs()
+        if self.inputs.out_file == 'NULL':
+            outputs['out_file'] = Undefined
+        return outputs
