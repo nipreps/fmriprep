@@ -32,6 +32,7 @@ from time import sleep
 import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
+from nipype.interfaces import afni
 from nipype.interfaces.base import File, traits
 from numpy.linalg import LinAlgError
 
@@ -115,3 +116,25 @@ class FreeSurferSource(nio.FreeSurferSource):
     """
 
     output_spec = _FSSourceOutputSpec
+
+
+class Volreg(afni.Volreg):
+    """
+    Patched to add ``-twopass``, to skip ``-maxdisp1D``, and to accept ``out_file='NULL'``.
+
+    With ``out_file='NULL'``, 3dvolreg estimates motion without writing a
+    registered series, and the ``out_file`` output is undefined.
+
+    >>> volreg = Volreg(
+    ...     in_file='bold.nii.gz',
+    ...     basefile='boldref.nii.gz',
+    ...     interp='heptic',
+    ...     twopass=True,
+    ...     zpad=4,
+    ...     out_file='NULL'
+    ... )
+    >>> volreg.cmdline  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    '3dvolreg -heptic -1Dfile bold.1D -1Dmatrix_save bold.aff12.1D -prefix NULL \
+    -twopass -base boldref.nii.gz -zpad 4 bold.nii.gz'
+
+    """
