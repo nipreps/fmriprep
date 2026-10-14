@@ -167,7 +167,7 @@ class FSLMotionParams(SimpleInterface):
 
         # FSL's cog("scaled_mm"): on load, newimage reverses the first voxel axis of
         # images with a positive determinant, and calc_cog weights voxels by value - min
-        data = np.float64(boldref.dataobj)
+        data = boldref.get_fdata()
         if np.linalg.det(boldref.affine) > 0:
             data = data[::-1]
         center_of_gravity = np.diag(boldref.header.get_zooms()[:3]) @ ndi.center_of_mass(
