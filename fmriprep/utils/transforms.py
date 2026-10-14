@@ -11,6 +11,8 @@ from pathlib import Path
 import nibabel as nb
 import nitransforms as nt
 import numpy as np
+from nitransforms.io.afni import AFNILinearTransform, AFNILinearTransformArray
+from scipy.spatial import transform as sst
 
 LPS = np.diag([-1.0, -1.0, 1.0, 1.0])
 
@@ -73,7 +75,28 @@ def volreg_to_ras(
     True
 
     """
-    raise NotImplementedError
+    if base is None:
+        base = reference
+
+    params = np.asarray(params, dtype=float).reshape(-1, 6)
+    roll, pitch, yaw, dS, dL, dP = params.T
+    c_inp, c_bas = _afni_center(reference), _afni_center(base)
+
+    # The parameters describe the input -> base correction, in AFNI's DICOM frame.
+    # 3dvolreg composes R = Ry(yaw) @ Rx(pitch) @ Rz(roll) (3dvolreg.c VOLREG_MATVEC)
+    correction = np.tile(np.eye(4), (len(params), 1, 1))
+    correction[:, :3, :3] = R = sst.Rotation.from_euler(
+        'YXZ', np.c_[yaw, pitch, roll], degrees=True
+    ).as_matrix()
+    correction[:, :3, 3] = c_bas + np.c_[dL, dP, dS] - R @ c_inp
+
+    # -1Dmatrix_save stores the inverse, base -> input; convert it as nitransforms
+    # converts that file, including AFNI's de-obliquing
+    afni = AFNILinearTransformArray()
+    afni.xforms = [AFNILinearTransform() for _ in params]
+    for xfm, matrix in zip(afni.xforms, np.linalg.inv(correction), strict=True):
+        xfm.structarr['parameters'] = matrix
+    return afni.to_ras(reference=base, moving=reference)
 
 
 def ras_to_volreg(
@@ -105,7 +128,22 @@ def ras_to_volreg(
     as ``3dvolreg -1Dfile`` writes them.
 
     """
-    raise NotImplementedError
+    if base is None:
+        base = reference
+
+    matrices = np.asarray(matrices, dtype=float).reshape(-1, 4, 4)
+    c_inp, c_bas = _afni_center(reference), _afni_center(base)
+
+    afni = AFNILinearTransformArray.from_ras(matrices, reference=base, moving=reference)
+    # -1Dmatrix_save holds base -> input; the parameters describe its inverse,
+    # the input -> base correction
+    correction = np.linalg.inv(np.stack([xfm.structarr['parameters'] for xfm in afni.xforms]))
+    R = correction[:, :3, :3]
+    # 3dvolreg composes R = Ry(yaw) @ Rx(pitch) @ Rz(roll) (3dvolreg.c VOLREG_MATVEC)
+    yaw, pitch, roll = sst.Rotation.from_matrix(R).as_euler('YXZ', degrees=degrees).T
+    # Translations relative to the dataset centers
+    dL, dP, dS = (correction[:, :3, 3] + R @ c_inp - c_bas).T
+    return np.c_[roll, pitch, yaw, dS, dL, dP]
 
 
 def write_itk_affines(matrices: np.typing.ArrayLike, out_file: str | os.PathLike) -> None:
@@ -123,4 +161,50 @@ def write_itk_affines(matrices: np.typing.ArrayLike, out_file: str | os.PathLike
         The file to write. :func:`nitransforms.linear.load` reads it back.
 
     """
-    raise NotImplementedError
+    matrices = np.asarray(matrices, dtype=float).reshape(-1, 4, 4)
+    lines = ['#Insight Transform File V1.0']
+    for i, ras in enumerate(matrices):
+        # ITK transforms are LPS
+        lps = LPS @ ras @ LPS
+        values = [*lps[:3, :3].ravel(), *lps[:3, 3]]
+        lines += [
+            f'#Transform {i}',
+            'Transform: AffineTransform_double_3_3',
+            'Parameters: ' + ' '.join(f'{value:.17g}' for value in values),
+            'FixedParameters: 0 0 0',
+        ]
+    Path(out_file).write_text('\n'.join(lines) + '\n')
+
+
+def _deoblique(oblique: np.ndarray) -> np.ndarray:
+    """Return a copy of ``affine`` with obliquity removed, in AFNI's DICOM frame.
+
+    AFNI drops an image's obliquity by snapping its direction cosines to the
+    nearest axes and rounding its voxel sizes to 4 decimals, keeping the origin.
+    """
+    # Rely on nibabel to stably identify the orientation
+    axes, flips = nb.orientations.io_orientation(oblique).astype(int).T
+    # Voxel axis i points along world axis axes[i], so axis indices permute columns
+    # of an identity rotation matrix, and flips are applied per-column
+    cosines = np.eye(3)[:, axes] * flips
+    zooms = np.round(nb.affines.voxel_sizes(oblique), decimals=4)
+    cardinal = nb.affines.from_matvec(zooms * cosines, oblique[:3, 3])
+    return LPS @ cardinal
+
+
+def _afni_center(img: nb.spatialimages.SpatialImage) -> np.ndarray:
+    """Return the center of ``img``'s grid after AFNI de-obliques it, in AFNI's DICOM frame.
+
+    3dvolreg rotates about this point (``THD_dataset_center``). AFNI drops an
+    image's obliquity by snapping its direction cosines to the nearest axes and
+    rounding its voxel sizes to 4 decimals, keeping the origin. This reproduces
+    ``nitransforms.io.afni._dicom_real_to_card``, which is private API.
+    """
+    oblique = img.affine
+    cardinal = np.eye(4)
+    cardinal[:3, 3] = oblique[:3, 3]
+    cosines = oblique[:3, :3] / np.abs(oblique[:3, :3]).max(0)
+    cosines[np.abs(cosines) < 1.0] = 0
+    cardinal[:3, :3] = np.round(nb.affines.voxel_sizes(oblique), decimals=4) * cosines
+    center_ijk = np.r_[(np.array(img.shape[:3]) - 1) / 2, 1]
+    return (LPS @ cardinal @ center_ijk)[:3]
