@@ -16,8 +16,8 @@ BOLDREF = 'sub-01_task-mixedgamblestask_run-01_desc-hmc_boldref.nii.gz'
 @pytest.mark.parametrize(
     ('hmc_method', 'nodes', 'tool'),
     [
-        ('mcflirt', ['mcflirt', 'fsl2itk'], '`mcflirt`'),
-        ('3dvolreg', ['volreg', 'volreg2itk'], '`3dvolreg`'),
+        ('mcflirt', ['mcflirt', 'mcflirt2itk'], '`mcflirt`'),
+        ('3dvolreg', ['volreg', '3dvolreg2itk'], '`3dvolreg`'),
     ],
 )
 def test_bold_hmc_wf(hmc_method, nodes, tool):
@@ -73,8 +73,8 @@ def test_bold_hmc_wf_3dvolreg_run(tmp_path, oblique):
     wf.inputs.inputnode.raw_ref_image = str(boldref_file)
     result = wf.run()
 
-    (volreg2itk,) = [node for node in result.nodes() if node.name == 'volreg2itk']
-    xforms = nt.linear.load(volreg2itk.result.outputs.out_file).matrix
+    (motion2itk,) = [node for node in result.nodes() if node.name == '3dvolreg2itk']
+    xforms = nt.linear.load(motion2itk.result.outputs.out_file).matrix
 
     # Displacement of the field-of-view corners; 3dvolreg gets within about 0.2 mm
     corners = np.array(
