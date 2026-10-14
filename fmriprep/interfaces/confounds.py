@@ -178,13 +178,14 @@ class FSLMotionParams(SimpleInterface):
         )
         fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
 
-        # FSL uses left-handed rotation conventions, so transpose
-        mats = fsl_matrix[:, :3, :3].transpose(0, 2, 1)
+        # Ax = Mx + b
+        M, b = fsl_matrix[:, :3, :3], fsl_matrix[:, :3, 3]
+        # Translation is the displacement of CoG: (Ac - c) = Mc + b - c
+        trans_xyz = M @ center_of_gravity + b - center_of_gravity
 
-        # Rotations are recovered directly
-        rot_xyz = sst.Rotation.from_matrix(mats).as_euler('XYZ')
-        # Translations are recovered by applying the rotation to the center of gravity
-        trans_xyz = fsl_matrix[:, :3, 3] - mats @ center_of_gravity + center_of_gravity
+        # FSL composes M = Rx(-rot_x) @ Ry(-rot_y) @ Rz(-rot_z)
+        # Extracting XYZ retrieves negative rotations, so negate
+        rot_xyz = -sst.Rotation.from_matrix(M).as_euler('XYZ')
 
         params = pd.DataFrame(
             data=np.hstack((trans_xyz, rot_xyz)),
