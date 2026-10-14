@@ -56,6 +56,7 @@ def init_bold_confs_wf(
     regressors_dvars_th: float,
     regressors_fd_th: float,
     freesurfer: bool = False,
+    hmc_method: str = 'mcflirt',
     name: str = 'bold_confs_wf',
 ):
     """
@@ -119,6 +120,10 @@ def init_bold_confs_wf(
         Set to ``True`` if the input volume fractions for the anatomical
         component-based noise correction maps come from FreeSurfer's ``aseg``.
         sMRIPrep always uses FAST for tissue probability maps, so we always set this to False.
+    hmc_method : :obj:`str`
+        Head-motion estimator whose parameter convention the motion parameters follow:
+        ``'mcflirt'`` (default, FSL's) or ``'3dvolreg'`` (AFNI's, see
+        :class:`~fmriprep.interfaces.confounds.AFNIMotionParams`)
     name : :obj:`str`
         Name of workflow (default: ``bold_confs_wf``)
 
@@ -154,6 +159,9 @@ def init_bold_confs_wf(
         Mask of brain edge voxels
 
     """
+    if hmc_method == '3dvolreg':
+        raise NotImplementedError
+
     from nireports.interfaces.nuisance import (
         CompCorVariancePlot,
         ConfoundsCorrelationPlot,
