@@ -4,6 +4,7 @@ import nibabel as nb
 import numpy as np
 import pandas as pd
 import pytest
+from nibabel.orientations import axcodes2ornt, io_orientation, ornt_transform
 from nipype.pipeline import engine as pe
 from niworkflows.interfaces.itk import MCFLIRT2ITK
 
@@ -90,10 +91,24 @@ def test_FSLMotionParams(tmp_path, data_dir):
     assert np.all(max_diff < limits)
 
 
+def _add_offset(img):
+    """The image with 200 added to every voxel, as float32."""
+    data = np.float32(img.dataobj) + 200
+    return nb.Nifti1Image(data, img.affine, img.header)
+
+
+def _as_ail(img):
+    """The image stored as AIL: L/R on the last voxel axis, with a positive determinant."""
+    return img.as_reoriented(ornt_transform(io_orientation(img.affine), axcodes2ornt('AIL')))
+
+
 @pytest.mark.parametrize(
     ('mcflirt_dir', 'transform'),
     [
         pytest.param('mcflirt_large_motion', None, id='las'),
+        pytest.param('mcflirt_large_motion', nb.as_closest_canonical, id='ras'),
+        pytest.param('mcflirt_large_motion_offset', _add_offset, id='offset'),
+        pytest.param('mcflirt_large_motion_ail', _as_ail, id='ail'),
     ],
 )
 def test_FSLMotionParams_mcflirt(tmp_path, data_dir, mcflirt_dir, transform):
