@@ -34,6 +34,7 @@ import os
 import re
 
 import nibabel as nb
+import nitransforms as nt
 import numpy as np
 import pandas as pd
 from nipype import logging
@@ -56,6 +57,8 @@ from niworkflows.interfaces.confounds import (
     _FSLMotionParamsOutputSpec as MotionParamsOutputSpec,
 )
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
+
+from ..utils.transforms import ras_to_volreg
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -111,7 +114,27 @@ class AFNIMotionParams(SimpleInterface):
     output_spec = MotionParamsOutputSpec
 
     def _run_interface(self, runtime):
-        raise NotImplementedError
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
+        )
+
+        boldref = nb.load(self.inputs.boldref_file)
+        hmc = nt.linear.load(self.inputs.xfm_file)
+        roll, pitch, yaw, dS, dL, dP = ras_to_volreg(hmc.matrix, boldref, degrees=False).T
+
+        params = pd.DataFrame(
+            {
+                'trans_x': dL,
+                'trans_y': dP,
+                'trans_z': dS,
+                'rot_x': pitch,
+                'rot_y': yaw,
+                'rot_z': roll,
+            }
+        )
+        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
+
+        return runtime
 
 
 class _FilterDroppedInputSpec(BaseInterfaceInputSpec):
