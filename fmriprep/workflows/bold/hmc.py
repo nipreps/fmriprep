@@ -33,7 +33,12 @@ from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 
-def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
+def init_bold_hmc_wf(
+    mem_gb: float,
+    omp_nthreads: int,
+    hmc_method: str = 'mcflirt',
+    name: str = 'bold_hmc_wf',
+):
     """
     Build a workflow to estimate head-motion parameters.
 
@@ -57,6 +62,8 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
         Size of BOLD file in GB
     omp_nthreads : :obj:`int`
         Maximum number of threads an individual process may use
+    hmc_method : :obj:`str`
+        Head-motion estimator: ``'mcflirt'`` (default) or ``'3dvolreg'``
     name : :obj:`str`
         Name of workflow (default: ``bold_hmc_wf``)
 
@@ -75,6 +82,9 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.itk import MCFLIRT2ITK
+
+    if hmc_method == '3dvolreg':
+        raise NotImplementedError
 
     workflow = Workflow(name=name)
     workflow.__desc__ = f"""\
