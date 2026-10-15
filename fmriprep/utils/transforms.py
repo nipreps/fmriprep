@@ -195,16 +195,6 @@ def _deoblique(oblique: np.ndarray) -> np.ndarray:
 def _afni_center(img: nb.spatialimages.SpatialImage) -> np.ndarray:
     """Return the center of ``img``'s grid after AFNI de-obliques it, in AFNI's DICOM frame.
 
-    3dvolreg rotates about this point (``THD_dataset_center``). AFNI drops an
-    image's obliquity by snapping its direction cosines to the nearest axes and
-    rounding its voxel sizes to 4 decimals, keeping the origin. This reproduces
-    ``nitransforms.io.afni._dicom_real_to_card``, which is private API.
+    3dvolreg rotates about this point (``THD_dataset_center``).
     """
-    oblique = img.affine
-    cardinal = np.eye(4)
-    cardinal[:3, 3] = oblique[:3, 3]
-    cosines = oblique[:3, :3] / np.abs(oblique[:3, :3]).max(0)
-    cosines[np.abs(cosines) < 1.0] = 0
-    cardinal[:3, :3] = np.round(nb.affines.voxel_sizes(oblique), decimals=4) * cosines
-    center_ijk = np.r_[(np.array(img.shape[:3]) - 1) / 2, 1]
-    return (LPS @ cardinal @ center_ijk)[:3]
+    return nb.affines.apply_affine(_deoblique(img.affine), (np.array(img.shape[:3]) - 1) / 2)
