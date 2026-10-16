@@ -487,7 +487,39 @@ def test_reuse_precomputed_anat(
         wf = init_single_subject_wf('01', sessions)
 
     precomputed = wf.get_node('source_anatomical').inputs.precomputed
-    assert precomputed['t1w_preproc'] == str(deriv_dir / expected)
+    assert precomputed['images']['t1w_preproc'] == str(deriv_dir / expected)
+
+    # Without a raw T1w image, reports describe the precomputed one
+    summary = wf.get_node('summary')
+    sources = [
+        (src_node.name, src)
+        for src_node, _, data in wf._graph.in_edges(summary, data=True)
+        for src, dst in data['connect']
+        if dst == 't1w'
+    ]
+    assert sources == [('anat_fit_wf', 'outputnode.t1w_preproc')]
+
+
+def test_reuse_precomputed_t2w(bids_root_factory, tmp_path, monkeypatch):
+    # The raw dataset has no T2w image, so T2w coregistration must use the precomputed one
+    deriv_dir = tmp_path / 'smriprep'
+    generate_bids_skeleton(
+        deriv_dir,
+        {
+            'dataset_description': {'Name': 'sMRIPrep', 'DatasetType': 'derivative'},
+            '01': {
+                'anat': [
+                    {'desc': 'preproc', 'suffix': 'T1w'},
+                    {'desc': 'preproc', 'suffix': 'T2w'},
+                ]
+            },
+        },
+    )
+
+    with mock_config(bids_dir=bids_root_factory('func_only_sessions')):
+        config.workflow.bold2anat_init = 't2w'
+        monkeypatch.setattr(config.execution, 'derivatives', {'smriprep': deriv_dir})
+        init_single_subject_wf('01', ['func1'])
 
 
 @pytest.mark.parametrize(
@@ -537,7 +569,9 @@ def test_collect_from_several_derivative_datasets(bids_root, tmp_path, monkeypat
 
     run = 'sub-01_task-rest_run-1'
     anat = wf.get_node('source_anatomical').inputs.precomputed
-    assert anat['t1w_preproc'] == str(second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz')
+    assert anat['images']['t1w_preproc'] == str(
+        second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz'
+    )
     assert anat['transforms'] == {
         'MNI152NLin2009cAsym': {
             'reverse': str(
@@ -584,11 +618,40 @@ def test_reuse_precomputed_fieldmap(tmp_path, monkeypatch, magnitude, desc):
         str(fmap / f'sub-01_fmapid-auto00000_desc-{desc}_fieldmap.nii.gz')
     ]
     assert wf.get_node('fmap_coeff_merge').inputs.in1 == [
-        str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')
+        [str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')]
     ]
 
 
-@pytest.mark.xfail(raises=KeyError, reason='master indexes fieldmap entries without checking them')
+def test_reuse_precomputed_fieldmap_by_session(tmp_path, monkeypatch):
+    # Each session's estimator gets the same ID, so each session's derivatives must be kept apart
+    spec = get_layout('homogeneous_sessions')
+    for session in spec['01']:
+        ses = session['session']
+        session['fmap'][0]['metadata']['IntendedFor'] = (
+            f'ses-{ses}/func/sub-01_ses-{ses}_task-rest_run-2_bold.nii.gz'
+        )
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    groups = ['fieldmap', 'coeffs', 'magnitude']
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', groups, session='pre')
+    write_derivatives(deriv_dir, groups, session='post')
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01', ['pre'])
+
+    fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz')
+    ]
+
+
+@pytest.mark.xfail(reason='incomplete precomputed fieldmaps are not supported')
 def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
     bids_dir = _fieldmap_bids(tmp_path)
     deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'magnitude'])
