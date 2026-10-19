@@ -341,8 +341,9 @@ class ResampleTemplate(SimpleInterface):
         scales = [float(np.loadtxt(scale_file)) for scale_file in scale_files] or [1.0] * n_files
         reference = nb.load(self.inputs.reference)
 
+        selected = np.flatnonzero(mask)
         resampled = []
-        for i in np.flatnonzero(mask):
+        for i in selected:
             xfm = load_transforms([self.inputs.transforms[i]], [False])
             img = nt.resampling.apply(
                 xfm,
@@ -356,7 +357,9 @@ class ResampleTemplate(SimpleInterface):
 
         median = nb.Nifti1Image(np.median(resampled, axis=0), reference.affine)
 
-        out_file = fname_presuffix(self.inputs.in_files[0], suffix='_median', newpath=runtime.cwd)
+        out_file = fname_presuffix(
+            self.inputs.in_files[selected[0]], suffix='_median', newpath=runtime.cwd
+        )
         median.to_filename(out_file)
         self._results['out_file'] = out_file
         return runtime
