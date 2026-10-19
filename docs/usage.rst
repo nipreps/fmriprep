@@ -216,7 +216,7 @@ The session-/subject-level pipeline follows five steps:
    template construction and larger BOLD reference outputs.
    The template is isotropic at 1.2mm, or at the finest acquired voxel size if that
    is smaller.
-   Acquisitions already at or finer than 1.2mm along every axis are left as acquired.
+   Acquisitions already isotropic at or finer than 1.2mm are left as acquired.
    To disable the upsampling, use the ``--no-bold-coreg-upsample`` flag.
 
 The full transform chain applied during resampling is therefore (``<coreg>`` is

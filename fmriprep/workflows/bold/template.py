@@ -54,8 +54,8 @@ def init_bold_template_wf(
         ``False`` (fixed first run as reference) for 2 runs, ``True``
         (iterative mean-shape template) for 3 or more runs.
     upsample : :obj:`tuple` or None
-        Zooms to upsample the run references to before constructing the template,
-        or ``None`` to construct it at the acquired resolution.
+        Isotropic zooms to upsample the run references to before constructing the
+        template, or ``None`` to construct it at the acquired resolution.
     template_runs : :obj:`list` of :obj:`bool` or None
         Whether each run's reference is averaged into the template image, one per run,
         or ``None`` (default) to average all runs. All runs define the template space.
@@ -69,8 +69,6 @@ def init_bold_template_wf(
     -------
     boldref
         The computed BOLD template reference.
-    boldref_files
-        List of BOLD reference files (same as input).
     run2template_xfms
         Transforms from each run's original space to the boldref template
 
