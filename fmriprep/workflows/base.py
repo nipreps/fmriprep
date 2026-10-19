@@ -30,12 +30,12 @@ fMRIPrep base processing workflows
 """
 
 import os
-import re
 import sys
 import warnings
 from copy import deepcopy
 
 import bids
+from nipost.bids import sanitize_fieldmap_id
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.utils.connections import listify
@@ -382,9 +382,10 @@ It is released under the [CC0]\
     )
 
     # allow to run with anat-fast-track on fMRI-only dataset
-    if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
+    anat_images = anatomical_cache.get('images', {})
+    if 't1w_preproc' in anat_images and not subject_data['t1w']:
         config.loggers.workflow.debug(
-            f'No T1w image found; using precomputed T1w image: {anatomical_cache["t1w_preproc"]}',
+            f'No T1w image found; using precomputed T1w image: {anat_images["t1w_preproc"]}',
         )
         workflow.connect([
             (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
@@ -626,12 +627,6 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
-    fmap_cache = {}
-    if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fmap_derivatives
-
-        fmap_cache = collect_fmap_derivatives(config.execution.derivatives.values(), subject_id)
-
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
         subject_id=subject_id,
@@ -651,10 +646,21 @@ It is released under the [CC0]\
     estimator_types = {est.bids_id: est.method for est in all_estimators}
     fmap_estimators = []
     if all_estimators:
-        # Find precomputed fieldmaps that apply to this workflow
+        from fmriprep.utils.bids import collect_fmap_derivatives
+
+        # Find precomputed fieldmaps that apply to this workflow. An estimator may come from
+        # another session than the BOLD runs it serves, so look in its own session.
+        fmap_caches = {}
         pared_cache = {}
         for est in all_estimators:
-            if found := fmap_cache.get(re.sub(r'[^a-zA-Z0-9]', '', est.bids_id)):
+            fmap_session = next(
+                f.entities.get('session') for f in est.sources if f.suffix not in ('T1w', 'T2w')
+            )
+            if fmap_session not in fmap_caches:
+                fmap_caches[fmap_session] = collect_fmap_derivatives(
+                    (config.execution.derivatives or {}).values(), subject_id, fmap_session
+                )
+            if found := fmap_caches[fmap_session].get(sanitize_fieldmap_id(est.bids_id)):
                 pared_cache[est.bids_id] = found
             else:
                 fmap_estimators.append(est)
@@ -826,7 +832,7 @@ tasks and sessions), the following preprocessing was performed.
     # Before initializing BOLD workflow, select/verify anatomical target for coregistration
     bold2anat_init = config.workflow.bold2anat_init
     if bold2anat_init in ('auto', 't2w'):
-        has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
+        has_t2w = subject_data['t2w'] or 't2w_preproc' in anat_images
         if bold2anat_init == 't2w' and not has_t2w:
             raise OSError(
                 'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
