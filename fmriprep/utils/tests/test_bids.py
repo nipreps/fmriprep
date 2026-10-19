@@ -79,13 +79,13 @@ TEST_ZOOMS = (2.4, 2.4, 2.4)
 )
 def test_is_valid_bold_template(tmp_path: Path, runs, expected):
     bold_runs, estimator_map, pe_map = [], {}, {}
-    for i, (fieldmap, pe_dir, zooms) in enumerate(runs):
+    for i, (fmapid, pe_dir, zooms) in enumerate(runs):
         path = str(tmp_path / f'run{i}.nii.gz')
         nb.Nifti1Image(np.zeros((2, 2, 2), dtype='uint8'), np.diag((*zooms, 1.0))).to_filename(
             path
         )
         bold_runs.append([path])
-        estimator_map[path] = fieldmap
+        estimator_map[path] = fmapid
         pe_map[path] = pe_dir
 
     layout = _MockLayout(pe_map)

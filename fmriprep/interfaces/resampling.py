@@ -355,7 +355,7 @@ class ResampleTemplate(SimpleInterface):
             )
             resampled.append(np.asanyarray(img.dataobj) * scales[i])
 
-        median = nb.Nifti1Image(np.median(resampled, axis=0), reference.affine)
+        median = nb.Nifti1Image(np.median(resampled, axis=0), reference.affine, reference.header, dtype='float32')
 
         out_file = fname_presuffix(
             self.inputs.in_files[selected[0]], suffix='_median', newpath=runtime.cwd

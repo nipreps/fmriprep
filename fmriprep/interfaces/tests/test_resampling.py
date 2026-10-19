@@ -56,6 +56,8 @@ def test_UpsampleToZooms(tmp_path, natives, requested, expected):
         zooms = np.array(out_img.header.get_zooms()[:3])
         assert np.allclose(zooms, expected)
         # The field of view is covered, to within a voxel of the finer grid
+        # No new behavior here; just verifying that niworkflows' resample_by_spacing
+        # meets our needs
         assert np.allclose(zooms * out_img.shape, extent, atol=zooms)
 
 

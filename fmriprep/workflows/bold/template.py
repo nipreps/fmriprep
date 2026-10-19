@@ -91,8 +91,7 @@ def init_bold_template_wf(
     if upsample:
         workflow.__desc__ += (
             f' The run references were upsampled to {upsample[0]:g}mm isotropic resolution '
-            'prior to template construction, to reduce the interpolation error incurred '
-            'when resampling.'
+            'prior to template construction.'
         )
     workflow.__desc__ += (
         ' The template image was computed as the voxelwise median of the '
