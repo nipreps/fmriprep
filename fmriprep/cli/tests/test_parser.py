@@ -279,6 +279,9 @@ def test_derivatives(tmp_path):
         (['--submm-recon'], 'hires', True),
         ([], 'hires', True),
         (['--no-msm'], 'run_msmsulc', False),
+        (['--bold-coreg-upsample'], 'bold_coreg_upsample', True),
+        (['--no-bold-coreg-upsample'], 'bold_coreg_upsample', False),
+        ([], 'bold_coreg_upsample', True),
     ],
 )
 def test_optional_booleans(tmp_path, supp_args, opt, expected):
