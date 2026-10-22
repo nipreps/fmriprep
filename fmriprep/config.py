@@ -574,6 +574,10 @@ class workflow(_Config):
     """Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used
     if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of
     the T2w, and `header` uses the BOLD header information without an initial registration."""
+    bold2anat_method = 'auto'
+    """Method of BOLD to anatomical coregistration: `bbregister` (FreeSurfer), `fsl` (FSL
+    `flirt`), or `cat` (CAT-Surface, on the white-matter surfaces in T1w space). If `auto`,
+    `bbregister` is used if there is a FreeSurfer subject, otherwise `fsl`."""
     bold_coreg_level = 'run'
     """Level at which BOLD runs are combined before coregistration to the
     anatomical reference. One of ``'run'`` (default), ``'session'``, or
@@ -595,6 +599,8 @@ class workflow(_Config):
     This may be a number or the string "estimated"."""
     hires = None
     """Run FreeSurfer ``recon-all`` with the ``-hires`` flag."""
+    hmc_method = 'mcflirt'
+    """Head-motion correction: `mcflirt` (FSL) or `cat` (CAT-Surface ``CAT_VolRealign``)."""
     fs_no_resume = None
     """Adjust pipeline to reuse base template of existing longitudinal freesurfer"""
     ignore = None

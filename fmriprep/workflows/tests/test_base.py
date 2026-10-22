@@ -787,8 +787,9 @@ def _fs_subject(path):
         (path / name).touch()
 
 
+@pytest.mark.parametrize('bbr_method', ['auto', 'cat'])
 @pytest.mark.parametrize('fs_subject', [False, True])
-def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject):
+def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject, bbr_method):
     """Without a FreeSurfer subject nothing reads one; an existing subject is still used."""
     subjects_dir = tmp_path / 'freesurfer'
     subjects_dir.mkdir()
@@ -802,6 +803,7 @@ def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject):
         monkeypatch.setattr(config.execution, 'output_spaces', 'MNI152NLin2009cAsym:res-2')
         # FreeSurfer-derived outputs are only written at the full level
         monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.workflow, 'bold2anat_method', bbr_method)
         config.init_spaces()
         wf = init_single_subject_wf('01')
 
@@ -809,7 +811,7 @@ def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject):
     # All derivatives are precomputed, so recon-all is skipped either way
     assert not any(node.endswith('surface_recon_wf.autorecon1') for node in nodes)
     assert any(node.startswith('surface_derivatives_wf.') for node in nodes) is fs_subject
-    method = 'bbreg_wf' if fs_subject else 'fsl_bbr_wf'
+    method = 'cat_bbr_wf' if bbr_method == 'cat' else 'bbreg_wf' if fs_subject else 'fsl_bbr_wf'
     assert any(f'.{method}.' in node for node in nodes)
 
     # The summary only inspects a FreeSurfer subject that exists
@@ -832,6 +834,16 @@ def test_precomputed_surfaces_fs_spaces(bids_root, tmp_path, monkeypatch):
         assert config.workflow.spaces.get_fs_spaces()
         with pytest.raises(RuntimeError, match='require a FreeSurfer subject'):
             init_single_subject_wf('01')
+
+
+def test_hmc_method_cat(bids_root, monkeypatch):
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'hmc_method', 'cat')
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    assert any(node.endswith('bold_hmc_wf.cat_realign') for node in nodes)
+    assert not any(node.endswith('bold_hmc_wf.mcflirt') for node in nodes)
 
 
 ### /Precomputed surfaces tests

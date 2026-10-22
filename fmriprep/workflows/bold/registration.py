@@ -27,6 +27,7 @@ Registration workflows
 .. autofunction:: init_bold_reg_wf
 .. autofunction:: init_bbreg_wf
 .. autofunction:: init_fsl_bbr_wf
+.. autofunction:: init_cat_bbr_wf
 
 """
 
@@ -46,6 +47,10 @@ LOGGER = config.loggers.workflow
 
 AffineDOF = ty.Literal[6, 9, 12]
 RegistrationInit = ty.Literal['t1w', 't2w', 'header']
+BBRMethod = ty.Literal['auto', 'bbregister', 'fsl', 'cat']
+
+# Anatomical surfaces used by CAT-Surface's BBR, one file per hemisphere
+SURFACE_FIELDS = ['white', 'cortex_mask', 'thickness']
 
 
 def init_bold_reg_wf(
@@ -58,6 +63,7 @@ def init_bold_reg_wf(
     omp_nthreads: int,
     name: str = 'bold_reg_wf',
     sloppy: bool = False,
+    bbr_method: BBRMethod = 'auto',
 ):
     """
     Build a workflow to run same-subject, BOLD-to-T1w image-registration.
@@ -102,6 +108,10 @@ def init_bold_reg_wf(
         Maximum number of threads an individual process may use
     name : :obj:`str`
         Name of workflow (default: ``bold_reg_wf``)
+    bbr_method : :obj:`str`
+        ``'bbregister'`` (FreeSurfer), ``'fsl'`` (FSL ``flirt``), or ``'cat'``
+        (CAT-Surface, on the white-matter surfaces in T1w space).
+        ``'auto'`` (default) uses ``bbregister`` with ``freesurfer``, otherwise ``flirt``.
 
     Inputs
     ------
@@ -119,6 +129,9 @@ def init_bold_reg_wf(
         FreeSurfer subject ID
     fsnative2t1w_xfm
         LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    white, cortex_mask, thickness
+        Left and right white-matter surfaces, cortex masks and cortical thickness
+        (GIFTI, used by ``bbr_method='cat'`` only)
 
     Outputs
     -------
@@ -135,6 +148,7 @@ def init_bold_reg_wf(
     --------
       * :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`
       * :py:func:`~fmriprep.workflows.bold.registration.init_fsl_bbr_wf`
+      * :py:func:`~fmriprep.workflows.bold.registration.init_cat_bbr_wf`
 
     """
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
@@ -150,6 +164,7 @@ def init_bold_reg_wf(
                 'subjects_dir',
                 'subject_id',
                 'fsnative2t1w_xfm',
+                *SURFACE_FIELDS,
             ]
         ),
         name='inputnode',
@@ -160,7 +175,20 @@ def init_bold_reg_wf(
         name='outputnode',
     )
 
-    if freesurfer:
+    if bbr_method == 'auto':
+        bbr_method = 'bbregister' if freesurfer else 'fsl'
+
+    if bbr_method == 'cat':
+        bbr_wf = init_cat_bbr_wf(
+            use_bbr=use_bbr,
+            bold2anat_dof=bold2anat_dof,
+            bold2anat_init=bold2anat_init,
+            omp_nthreads=omp_nthreads,
+        )
+        workflow.connect([
+            (inputnode, bbr_wf, [(field, f'inputnode.{field}') for field in SURFACE_FIELDS]),
+        ])  # fmt:skip
+    elif bbr_method == 'bbregister':
         bbr_wf = init_bbreg_wf(
             use_bbr=use_bbr,
             bold2anat_dof=bold2anat_dof,
@@ -718,6 +746,142 @@ Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
         (select_transform, xfm2itk, [('out', 'in_xfm')]),
         # Select metadata
         (compare_transforms, select_meta, [('out', 'index')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
+def init_cat_bbr_wf(
+    use_bbr: bool | None,
+    bold2anat_dof: AffineDOF,
+    bold2anat_init: RegistrationInit,
+    omp_nthreads: int,
+    name: str = 'cat_bbr_wf',
+):
+    """
+    Build a workflow to run CAT-Surface's boundary-based registration (BBR).
+
+    The BOLD reference is registered to the white-matter surfaces of the anatomical
+    reference, which are in T1w space.  Unlike ``bbregister``, this needs no FreeSurfer
+    subject, so it also works with surfaces from other pipelines; unlike FSL's BBR, the
+    boundary is the surface rather than the edge of a voxel-wise white-matter mask.
+    The registration is initialized by maximizing the normalized mutual information with
+    the T1w image, and is rigid.
+
+    Workflow Graph
+        .. workflow::
+            :graph2use: orig
+            :simple_form: yes
+
+            from fmriprep.workflows.bold.registration import init_cat_bbr_wf
+            wf = init_cat_bbr_wf(use_bbr=True, bold2anat_dof=6, bold2anat_init='t1w',
+                                 omp_nthreads=1)
+
+    Parameters
+    ----------
+    use_bbr : :obj:`bool` or None
+        Enable/disable boundary-based registration refinement.
+        If ``None``, test BBR result for distortion before accepting.
+    bold2anat_dof : 6
+        Degrees-of-freedom for BOLD-anatomical registration; only rigid is available
+    bold2anat_init : str, 't1w', 't2w' or 'header'
+        If ``'header'``, start from the image headers instead of registering to the T1w.
+        ``'t2w'`` is not implemented, and registers to the T1w instead.
+    omp_nthreads : :obj:`int`
+        Maximum number of threads an individual process may use
+    name : :obj:`str`, optional
+        Workflow name (default: cat_bbr_wf)
+
+    Inputs
+    ------
+    in_file
+        Reference BOLD image to be registered
+    t1w_preproc
+        Unmasked T1-weighted structural image
+    white, cortex_mask, thickness
+        Left and right white-matter surfaces, cortex masks and cortical thickness (GIFTI)
+    t1w_mask, t1w_dseg, fsnative2t1w_xfm, subjects_dir, subject_id
+        Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
+
+    Outputs
+    -------
+    itk_bold_to_t1
+        Affine transform from ``ref_bold_brain`` to T1w space (ITK format)
+    itk_t1_to_bold
+        Affine transform from T1 space to BOLD space (ITK format)
+    fallback
+        Boolean indicating whether BBR was rejected (volume registration returned)
+    metadata
+        Output metadata from the registration workflow
+
+    """
+    from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+
+    from fmriprep.interfaces.catsurf import CATBBReg, cat_surf_version
+
+    if bold2anat_dof != 6:
+        raise ValueError(
+            'CAT-Surface boundary-based registration is rigid; use --bold2anat-dof 6 '
+            'or another --bold2anat-method.'
+        )
+    if bold2anat_init == 't2w':
+        LOGGER.warning(
+            'T2w intermediate for CAT-Surface BBR is not implemented, registering with T1w '
+            'instead.'
+        )
+
+    workflow = Workflow(name=name)
+    init_text = (
+        'starting from the image headers'
+        if bold2anat_init == 'header'
+        else 'initialized by maximizing their normalized mutual information'
+    )
+    workflow.__desc__ = f"""\
+The BOLD reference was then co-registered to the T1w reference with the
+boundary-based registration [@bbr] of CAT-Surface {cat_surf_version() or '<ver>'}
+[@cat12], which aligns the BOLD contrast across the white-matter surfaces,
+{init_text}.
+Co-registration was configured with six degrees of freedom.
+"""
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(
+            [
+                'in_file',
+                'fsnative2t1w_xfm',  # BBRegister
+                'subjects_dir',
+                'subject_id',
+                't1w_preproc',
+                't1w_mask',  # FLIRT BBR
+                't1w_dseg',
+                *SURFACE_FIELDS,
+            ]
+        ),
+        name='inputnode',
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(['itk_bold_to_t1', 'itk_t1_to_bold', 'fallback', 'metadata']),
+        name='outputnode',
+    )
+
+    cat_bbreg = pe.Node(
+        CATBBReg(use_bbr=use_bbr, init='header' if bold2anat_init == 'header' else 't1w'),
+        name='cat_bbreg',
+        mem_gb=2,
+    )
+
+    workflow.connect([
+        (inputnode, cat_bbreg, [
+            ('in_file', 'in_file'),
+            ('t1w_preproc', 't1w_preproc'),
+            *((field, field) for field in SURFACE_FIELDS),
+        ]),
+        (cat_bbreg, outputnode, [
+            ('itk_bold_to_t1', 'itk_bold_to_t1'),
+            ('itk_t1_to_bold', 'itk_t1_to_bold'),
+            ('fallback', 'fallback'),
+            ('metadata', 'metadata'),
+        ]),
     ])  # fmt:skip
 
     return workflow

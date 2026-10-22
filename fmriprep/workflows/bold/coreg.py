@@ -40,6 +40,9 @@ INPUT_FIELDS = [
     'subjects_dir',
     'subject_id',
     'fsnative2t1w_xfm',
+    'white',
+    'cortex_mask',
+    'thickness',
 ]
 OUTPUT_FIELDS = [
     'template_boldrefs',
@@ -55,6 +58,9 @@ ANAT_REG_INPUTS = [
     ('subjects_dir', 'inputnode.subjects_dir'),
     ('subject_id', 'inputnode.subject_id'),
     ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
+    ('white', 'inputnode.white'),
+    ('cortex_mask', 'inputnode.cortex_mask'),
+    ('thickness', 'inputnode.thickness'),
 ]
 
 
@@ -76,6 +82,7 @@ def init_bold_anat_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_anat_coreg_wf',
 ) -> Workflow:
     """
@@ -114,6 +121,9 @@ def init_bold_anat_coreg_wf(
             alongside a complete set of ``run2template_xfms``, it is reused directly
             instead of reconstructing the reference from run 0. The template brain
             mask is always derived from the run references.
+    bbr_method
+        Registration method passed to
+        :func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`.
 
     Inputs
     ------
@@ -131,6 +141,9 @@ def init_bold_anat_coreg_wf(
         FreeSurfer subject ID (may be undefined).
     fsnative2t1w_xfm
         Transform from FreeSurfer native to anatomical space (may be undefined).
+    white, cortex_mask, thickness
+        Left and right white-matter surfaces, cortex masks and cortical thickness
+        (used by ``bbr_method='cat'``; may be undefined otherwise).
 
     Outputs
     -------
@@ -162,6 +175,7 @@ def init_bold_anat_coreg_wf(
         output_dir=output_dir,
         reference_anat=reference_anat,
         precomputed=precomputed,
+        bbr_method=bbr_method,
         name=name,
     )
 
@@ -180,6 +194,7 @@ def init_bold_run_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_run_coreg_wf',
 ) -> Workflow:
     """Register each BOLD run reference to the anatomical independently.
@@ -231,6 +246,7 @@ def init_bold_run_coreg_wf(
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
             sloppy=sloppy,
+            bbr_method=bbr_method,
         )
         ds_template2anat_wf = init_ds_registration_wf(
             bids_root=bids_root,
@@ -282,6 +298,7 @@ def init_bold_template_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_template_coreg_wf',
 ) -> Workflow:
     """Coregister BOLD runs through a common template to the anatomical.
@@ -490,6 +507,7 @@ def init_bold_template_coreg_wf(
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
             sloppy=sloppy,
+            bbr_method=bbr_method,
         )
 
         # Single template->anat transform is written

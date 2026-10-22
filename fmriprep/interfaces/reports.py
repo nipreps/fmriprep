@@ -207,6 +207,7 @@ class FunctionalSummaryInputSpec(TraitedSpec):
     registration = traits.Enum(
         'FSL',
         'FreeSurfer',
+        'CAT-Surface',
         'Precomputed',
         mandatory=True,
         desc='Functional/anatomical registration method',
@@ -260,6 +261,13 @@ class FunctionalSummary(SummaryInterface):
                     'FreeSurfer <code>bbregister</code> '
                     f'(boundary-based registration, BBR) - {dof} dof',
                     f'FreeSurfer <code>mri_coreg</code> - {dof} dof',
+                ],
+                'CAT-Surface': [
+                    (
+                        'CAT-Surface boundary-based registration (BBR) to the white-matter '
+                        'surfaces - 6 dof'
+                    ),
+                    'CAT-Surface volume registration (normalized mutual information) - 6 dof',
                 ],
             }[self.inputs.registration][self.inputs.fallback]
 

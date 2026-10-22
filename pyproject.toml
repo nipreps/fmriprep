@@ -67,6 +67,8 @@ dev = [
     "pre-commit",
 ]
 duecredit = ["duecredit"]
+# Registration and head-motion correction with CAT-Surface (--bold2anat-method/--hmc-method cat)
+cat = ["cat-surf >= 1.1.0"]
 resmon = []
 container = [
     "fmriprep[telemetry]",

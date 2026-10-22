@@ -372,7 +372,10 @@ def init_bold_fit_wf(
     if not hmc_xforms:
         config.loggers.workflow.info('Stage 2: Adding motion correction workflow')
         bold_hmc_wf = init_bold_hmc_wf(
-            name='bold_hmc_wf', mem_gb=mem_gb['filesize'], omp_nthreads=omp_nthreads
+            name='bold_hmc_wf',
+            mem_gb=mem_gb['filesize'],
+            omp_nthreads=omp_nthreads,
+            method=config.workflow.hmc_method,
         )
 
         ds_hmc_wf = init_ds_hmc_wf(

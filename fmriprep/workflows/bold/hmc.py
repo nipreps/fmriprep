@@ -28,12 +28,20 @@ Head-Motion Estimation and Correction (HMC) of BOLD images
 
 """
 
+import typing as ty
+
 from nipype.interfaces import fsl
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 
-def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
+def init_bold_hmc_wf(
+    mem_gb: float,
+    omp_nthreads: int,
+    name: str = 'bold_hmc_wf',
+    *,
+    method: ty.Literal['mcflirt', 'cat'] = 'mcflirt',
+):
     """
     Build a workflow to estimate head-motion parameters.
 
@@ -59,6 +67,9 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
         Maximum number of threads an individual process may use
     name : :obj:`str`
         Name of workflow (default: ``bold_hmc_wf``)
+    method : :obj:`str`
+        ``'mcflirt'`` (FSL, default) or ``'cat'`` (``CAT_VolRealign`` from CAT-Surface,
+        which writes mcflirt's matrices and needs no FSL installation)
 
     Inputs
     ------
@@ -77,11 +88,26 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
     from niworkflows.interfaces.itk import MCFLIRT2ITK
 
     workflow = Workflow(name=name)
+    if method == 'cat':
+        from fmriprep.interfaces.catsurf import CATVolRealign, cat_surf_version
+
+        tool = (
+            f'`CAT_VolRealign` [CAT-Surface {cat_surf_version() or "<ver>"}, @cat12], '
+            'which estimates them with a robust registration in the conventions of '
+            '`mcflirt` [@mcflirt]'
+        )
+        # Registers outward from the middle volume on two threads
+        realign = pe.Node(
+            CATVolRealign(save_mats=True), name='cat_realign', mem_gb=mem_gb * 3, n_procs=2
+        )
+    else:
+        tool = f'`mcflirt` [FSL {fsl.Info().version() or "<ver>"}, @mcflirt]'
+        realign = pe.Node(fsl.MCFLIRT(save_mats=True), name='mcflirt', mem_gb=mem_gb * 3)
     workflow.__desc__ = f"""\
 Head-motion parameters with respect to the BOLD reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
-`mcflirt` [FSL {fsl.Info().version() or '<ver>'}, @mcflirt].
+{tool}.
 """
 
     inputnode = pe.Node(
@@ -89,17 +115,14 @@ parameters) are estimated before any spatiotemporal filtering using
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
-    # Head motion correction (hmc)
-    mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True), name='mcflirt', mem_gb=mem_gb * 3)
-
     fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
 
     workflow.connect([
-        (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
+        (inputnode, realign, [('raw_ref_image', 'ref_file'),
                               ('bold_file', 'in_file')]),
         (inputnode, fsl2itk, [('raw_ref_image', 'in_source'),
                               ('raw_ref_image', 'in_reference')]),
-        (mcflirt, fsl2itk, [('mat_file', 'in_files')]),
+        (realign, fsl2itk, [('mat_file', 'in_files')]),
         (fsl2itk, outputnode, [('out_file', 'xforms')]),
     ])  # fmt:skip
 

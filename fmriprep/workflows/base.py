@@ -873,6 +873,20 @@ tasks and sessions), the following preprocessing was performed.
             )
         bold2anat_init = 't2w' if has_t2w else 't1w'
 
+    bbr_method = config.workflow.bold2anat_method
+    if bbr_method == 'auto':
+        bbr_method = 'bbregister' if fs_subject else 'fsl'
+    elif bbr_method == 'bbregister' and not fs_subject:
+        raise RuntimeError(
+            f'--bold2anat-method bbregister requires a FreeSurfer subject for sub-{subject_id}.'
+        )
+    elif bbr_method == 'cat' and not freesurfer:
+        raise RuntimeError(
+            '--bold2anat-method cat registers to the white-matter surfaces, which are not '
+            'created with --fs-no-reconall. Surface reconstruction is skipped anyway if all '
+            'surface derivatives are precomputed.'
+        )
+
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
         collect_func_derivatives,
@@ -961,6 +975,7 @@ tasks and sessions), the following preprocessing was performed.
             output_dir=fmriprep_dir,
             reference_anat='T1w',
             precomputed=coreg_precomputed,
+            bbr_method=bbr_method,
             name=f'bold_anat_coreg_{group_id}_wf',
         )
 
@@ -980,6 +995,14 @@ tasks and sessions), the following preprocessing was performed.
             ]),
             (merge_fit_boldrefs, bold_anat_coreg_wf, [('out', 'inputnode.run_boldrefs')]),
         ])  # fmt:skip
+        if bbr_method == 'cat':
+            workflow.connect([
+                (anat_fit_wf, bold_anat_coreg_wf, [
+                    ('outputnode.white', 'inputnode.white'),
+                    ('outputnode.cortex_mask', 'inputnode.cortex_mask'),
+                    ('outputnode.thickness', 'inputnode.thickness'),
+                ]),
+            ])  # fmt:skip
 
         for i, bold_series in enumerate(group):
             bold_file = bold_series[0]
@@ -1030,7 +1053,11 @@ tasks and sessions), the following preprocessing was performed.
             func_fit_summary = pe.Node(
                 FunctionalSummary(
                     distortion_correction='None',  # Can override with connection
-                    registration='FreeSurfer' if fs_subject else 'FSL',
+                    registration={
+                        'bbregister': 'FreeSurfer',
+                        'fsl': 'FSL',
+                        'cat': 'CAT-Surface',
+                    }[bbr_method],
                     registration_dof=config.workflow.bold2anat_dof,
                     registration_init=bold2anat_init,
                     pe_direction=metadata.get('PhaseEncodingDirection'),
