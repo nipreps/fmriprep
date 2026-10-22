@@ -725,3 +725,113 @@ def test_reuse_precomputed_template_coreg(
 
 
 ### /Precomputed coregistration tests
+
+### Precomputed surfaces tests
+
+# Every anatomical derivative that sMRIPrep would otherwise read from a FreeSurfer subject
+PRECOMPUTED_ANAT = [
+    {'desc': 'preproc', 'suffix': 'T1w'},
+    {'desc': 'preproc', 'suffix': 'T2w'},
+    {'desc': 'brain', 'suffix': 'mask'},
+    {'desc': 'ribbon', 'suffix': 'mask'},
+    {'suffix': 'dseg'},
+    *({'label': label, 'suffix': 'probseg'} for label in ('GM', 'WM', 'CSF')),
+    *(
+        {'from': src, 'to': dst, 'mode': 'image', 'suffix': 'xfm', 'extension': ext}
+        for src, dst, ext in (
+            ('T1w', 'MNI152NLin2009cAsym', '.h5'),
+            ('MNI152NLin2009cAsym', 'T1w', '.h5'),
+            ('T1w', 'fsnative', '.txt'),
+            ('fsnative', 'T1w', '.txt'),
+        )
+    ),
+    *(
+        {'hemi': hemi, **entities}
+        for hemi in ('L', 'R')
+        for entities in (
+            *(
+                {'suffix': surf, 'extension': '.surf.gii'}
+                for surf in ('white', 'pial', 'midthickness', 'sphere')
+            ),
+            {'space': 'fsaverage', 'desc': 'reg', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            {'space': 'fsLR', 'desc': 'reg', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            {'space': 'fsLR', 'desc': 'msmsulc', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            *(
+                {'suffix': metric, 'extension': '.shape.gii'}
+                for metric in ('thickness', 'sulc', 'curv')
+            ),
+            {'desc': 'cortex', 'suffix': 'mask', 'extension': '.label.gii'},
+        )
+    ),
+]
+
+
+def _precomputed_anat(path):
+    description = {'Name': 'anat', 'BIDSVersion': '1.10.0', 'DatasetType': 'derivative'}
+    generate_bids_skeleton(
+        path, {'dataset_description': description, '01': [{'anat': PRECOMPUTED_ANAT}]}
+    )
+    return path
+
+
+def _fs_subject(path):
+    """Create the files of a reconstructed FreeSurfer subject that fMRIPrep reads."""
+    surfaces = ('white', 'pial', 'sphere.reg', 'inflated', 'curv', 'thickness')
+    for name in (
+        'mri/orig.mgz',
+        'mri/aseg.mgz',
+        'mri/aparc+aseg.mgz',
+        *(f'surf/{hemi}.{surf}' for hemi in ('lh', 'rh') for surf in surfaces),
+    ):
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).touch()
+
+
+@pytest.mark.parametrize('fs_subject', [False, True])
+def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject):
+    """Without a FreeSurfer subject nothing reads one; an existing subject is still used."""
+    subjects_dir = tmp_path / 'freesurfer'
+    subjects_dir.mkdir()
+    if fs_subject:
+        _fs_subject(subjects_dir / 'sub-01')
+
+    with mock_config(bids_dir=bids_root):
+        deriv_dir = _precomputed_anat(tmp_path / 'anat')
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': deriv_dir})
+        monkeypatch.setattr(config.execution, 'fs_subjects_dir', subjects_dir)
+        monkeypatch.setattr(config.execution, 'output_spaces', 'MNI152NLin2009cAsym:res-2')
+        # FreeSurfer-derived outputs are only written at the full level
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        config.init_spaces()
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    # All derivatives are precomputed, so recon-all is skipped either way
+    assert not any(node.endswith('surface_recon_wf.autorecon1') for node in nodes)
+    assert any(node.startswith('surface_derivatives_wf.') for node in nodes) is fs_subject
+    method = 'bbreg_wf' if fs_subject else 'fsl_bbr_wf'
+    assert any(f'.{method}.' in node for node in nodes)
+
+    # The summary only inspects a FreeSurfer subject that exists
+    summary = wf.get_node('summary')
+    fields = {
+        dest for *_, data in wf._graph.in_edges(summary, data=True) for _, dest in data['connect']
+    }
+    assert ('subjects_dir' in fields) is fs_subject
+
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_precomputed_surfaces_fs_spaces(bids_root, tmp_path, monkeypatch):
+    """fsnative and fsaverage outputs fail early without a FreeSurfer subject."""
+    with mock_config(bids_dir=bids_root):
+        deriv_dir = _precomputed_anat(tmp_path / 'anat')
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': deriv_dir})
+        monkeypatch.setattr(config.execution, 'fs_subjects_dir', tmp_path / 'freesurfer')
+        # The test configuration requests fsaverage spaces
+        assert config.workflow.spaces.get_fs_spaces()
+        with pytest.raises(RuntimeError, match='require a FreeSurfer subject'):
+            init_single_subject_wf('01')
+
+
+### /Precomputed surfaces tests
