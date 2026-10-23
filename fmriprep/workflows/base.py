@@ -1207,7 +1207,6 @@ tasks and sessions), the following preprocessing was performed.
                         f'outputnode.sphere_reg_{"msm" if msm_sulc else "fsLR"}',
                         'inputnode.sphere_reg_fsLR',
                     ),
-                    ('outputnode.sphere_reg', 'inputnode.sphere_reg'),
                 ]),
                 (bold_fit_wf, bold_apply_wf, [
                     ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
@@ -1224,6 +1223,11 @@ tasks and sessions), the following preprocessing was performed.
                     ('run2anat_xfm', 'inputnode.run2anat_xfm'),
                 ]),
             ])  # fmt:skip
+            # Only fsaverage sampled with Workbench reads the fsaverage registration sphere
+            if not fs_subject and config.workflow.run_reconall and spaces.get_fs_spaces():
+                workflow.connect(
+                    anat_fit_wf, 'outputnode.sphere_reg', bold_apply_wf, 'inputnode.sphere_reg'
+                )
 
             if fieldmap_id:
                 workflow.connect([

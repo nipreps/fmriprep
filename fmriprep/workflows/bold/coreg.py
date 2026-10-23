@@ -59,6 +59,9 @@ ANAT_REG_INPUTS = [
     ('subjects_dir', 'inputnode.subjects_dir'),
     ('subject_id', 'inputnode.subject_id'),
     ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
+]
+# Read only by CAT-Surface's boundary-based registration
+CAT_REG_INPUTS = [
     ('white', 'inputnode.white'),
     ('cortex_mask', 'inputnode.cortex_mask'),
     ('thickness', 'inputnode.thickness'),
@@ -220,6 +223,7 @@ def init_bold_run_coreg_wf(
     workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
+    reg_inputs = ANAT_REG_INPUTS + (CAT_REG_INPUTS if bbr_method == 'cat' else [])
 
     template2anat_xfm = precomputed.get('template2anat_xfm') or [None] * n_runs
     outputnode.inputs.run2template_xfms = [Undefined] * n_runs
@@ -264,7 +268,7 @@ def init_bold_run_coreg_wf(
         )
 
         workflow.connect([
-            (inputnode, reg_wf, list(ANAT_REG_INPUTS)),
+            (inputnode, reg_wf, reg_inputs),
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
             (select_boldref, ds_template2anat_wf, [('out', 'inputnode.source_files')]),
             (reg_wf, ds_template2anat_wf, [
@@ -329,6 +333,7 @@ def init_bold_template_coreg_wf(
     workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
+    reg_inputs = ANAT_REG_INPUTS + (CAT_REG_INPUTS if bbr_method == 'cat' else [])
 
     _dismiss = list(GROUP_DISMISS_ENTITIES)
     if coreg_space == 'subject':
@@ -527,7 +532,7 @@ def init_bold_template_coreg_wf(
             name='ds_template2anat_wf',
         )
         workflow.connect([
-            (inputnode, boldref_reg_wf, list(ANAT_REG_INPUTS)),
+            (inputnode, boldref_reg_wf, reg_inputs),
             (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
             (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
             (boldref_reg_wf, ds_template2anat_wf, [
