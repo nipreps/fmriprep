@@ -839,15 +839,30 @@ def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject, bbr_
 
 
 def test_precomputed_surfaces_fs_spaces(bids_root, tmp_path, monkeypatch):
-    """fsnative and fsaverage outputs fail early without a FreeSurfer subject."""
+    """Without a FreeSurfer subject, fsaverage outputs are sampled with Workbench."""
     with mock_config(bids_dir=bids_root):
         deriv_dir = _precomputed_anat(tmp_path / 'anat')
         monkeypatch.setattr(config.execution, 'derivatives', {'anat': deriv_dir})
         monkeypatch.setattr(config.execution, 'fs_subjects_dir', tmp_path / 'freesurfer')
-        # The test configuration requests fsaverage spaces
-        assert config.workflow.spaces.get_fs_spaces()
-        with pytest.raises(RuntimeError, match='require a FreeSurfer subject'):
-            init_single_subject_wf('01')
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        # The test configuration requests fsaverage5
+        assert config.workflow.spaces.get_fs_spaces() == ['fsaverage5']
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    assert not any('.bold_surf_wf.' in node for node in nodes)
+    assert any(node.endswith('.ds_bold_fsaverage5_wb') for node in nodes)
+
+    # The precomputed registration to fsaverage reaches the BOLD workflows
+    anat_fit_wf = wf.get_node('anat_fit_wf')
+    apply_wfs = {
+        wf.get_node(node.split('.')[0]) for node in nodes if '.ds_bold_fsaverage5_wb' in node
+    }
+    for apply_wf in apply_wfs:
+        edges = wf._graph.get_edge_data(anat_fit_wf, apply_wf)['connect']
+        assert ('outputnode.sphere_reg', 'inputnode.sphere_reg') in edges
+
+    generate_expanded_graph(wf._create_flat_graph())
 
 
 def test_hmc_method_cat(bids_root, monkeypatch):

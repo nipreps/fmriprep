@@ -79,3 +79,68 @@ def test_bold_apply_wf(
 
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)
+
+
+@pytest.fixture
+def rest_bold(bids_root):
+    bold_file = bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz'
+    nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4)).to_filename(bold_file)
+    return [str(bold_file)]
+
+
+@pytest.mark.parametrize('medial_surface_nan', [False, True])
+def test_bold_apply_wf_fs_spaces_workbench(bids_root, rest_bold, monkeypatch, medial_surface_nan):
+    """Without a FreeSurfer subject, fsnative and fsaverage are sampled with Workbench."""
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.workflow, 'medial_surface_nan', medial_surface_nan)
+        monkeypatch.setattr(
+            config.execution, 'output_spaces', 'MNI152NLin2009cAsym fsnative fsaverage5 fsaverage4'
+        )
+        config.init_spaces()
+        wf = init_bold_apply_wf(bold_series=rest_bold, freesurfer=False)
+
+    nodes = wf.list_node_names()
+    assert not any(node.startswith('bold_surf_wf.') for node in nodes)
+    assert any(node.startswith('wb_vol_surf_wf.') for node in nodes)
+    assert 'ds_bold_fsnative_wb' in nodes
+    # fsaverage4 is TemplateFlow's den-3k
+    for space, density in (('fsaverage5', '10k'), ('fsaverage4', '3k')):
+        assert f'ds_bold_{space}_wb' in nodes
+        assert any(node.startswith(f'wb_surf_native_fsaverage_{density}_wf.') for node in nodes)
+        assert (f'medial_nans_{space}' in nodes) is medial_surface_nan
+
+    # The subject's registration to fsaverage drives the resampling
+    resample = wf.get_node('resample_surfaces_wf_fsaverage5')
+    edges = wf._graph.get_edge_data(wf.get_node('inputnode'), resample)['connect']
+    assert ('sphere_reg', 'inputnode.sphere_reg_fsaverage') in edges
+
+    # Surfaces, as the anatomical workflow provides them
+    for surf in ('white', 'pial', 'midthickness', 'space-fsaverage_desc-reg_sphere'):
+        field = 'sphere_reg' if surf.endswith('sphere') else surf
+        setattr(
+            wf.inputs.inputnode, field, [f'sub-01_hemi-{hemi}_{surf}.surf.gii' for hemi in 'LR']
+        )
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_bold_apply_wf_fs_spaces_freesurfer(bids_root, rest_bold, monkeypatch):
+    """With a FreeSurfer subject, fsnative and fsaverage are sampled with mri_vol2surf."""
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.execution, 'output_spaces', 'fsnative fsaverage5')
+        config.init_spaces()
+        wf = init_bold_apply_wf(bold_series=rest_bold, freesurfer=True)
+
+    nodes = wf.list_node_names()
+    assert any(node.startswith('bold_surf_wf.') for node in nodes)
+    assert not any(node.startswith('wb_vol_surf_wf.') for node in nodes)
+
+
+def test_bold_apply_wf_fsaverage3_needs_subject(bids_root, rest_bold, monkeypatch):
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.execution, 'output_spaces', 'fsaverage3')
+        config.init_spaces()
+        with pytest.raises(RuntimeError, match='fsaverage3 requires a FreeSurfer subject'):
+            init_bold_apply_wf(bold_series=rest_bold, freesurfer=False)

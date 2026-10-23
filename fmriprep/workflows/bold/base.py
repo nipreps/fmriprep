@@ -56,6 +56,7 @@ def init_bold_apply_wf(
     bold_series: list[str],
     fieldmap_id: str | None = None,
     jacobian: bool = False,
+    freesurfer: bool | None = None,
     name: str = 'bold_apply_wf',
 ) -> pe.Workflow:
     """
@@ -86,6 +87,12 @@ def init_bold_apply_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    freesurfer
+        Whether a FreeSurfer subject exists to sample the ``fsnative`` and ``fsaverage``
+        output spaces with ``mri_vol2surf``.  Without one (sMRIPrep skipped surface
+        reconstruction) they are sampled with the Connectome Workbench on the anatomical
+        surfaces, and resampled to ``fsaverage`` along ``sphere_reg``.  If :obj:`None`,
+        ``config.workflow.run_reconall``.
 
     Inputs
     ------
@@ -112,6 +119,8 @@ def init_bold_apply_wf(
         FreeSurfer pial surfaces, in T1w space, collated left, then right
     sphere_reg_fsLR
         Registration spheres from fsnative to fsLR space, collated left, then right
+    sphere_reg
+        Registration spheres from fsnative to fsaverage space, collated left, then right
     anat_ribbon
         Binary cortical ribbon mask in T1w space
     fmap_id
@@ -211,6 +220,7 @@ configured with cubic B-spline interpolation.
                 'midthickness',
                 'pial',
                 'sphere_reg_fsLR',
+                'sphere_reg',
                 'midthickness_fsLR',
                 'cortex_mask',
                 'anat_ribbon',
@@ -240,6 +250,10 @@ configured with cubic B-spline interpolation.
     nonstd_spaces = set(spaces.get_nonstandard())
     freesurfer_spaces = spaces.get_fs_spaces()
     surf_std = [x for x in spaces.get_standard(dim=(2,)) if x.space != 'fsaverage']
+    if freesurfer is None:
+        freesurfer = config.workflow.run_reconall
+    # Surfaces without a FreeSurfer subject: sample fsnative and fsaverage with Workbench
+    fs_workbench = bool(freesurfer_spaces) and config.workflow.run_reconall and not freesurfer
 
     #
     # Resampling outputs workflow:
@@ -463,7 +477,9 @@ configured with cubic B-spline interpolation.
         ])  # fmt:skip
 
     # Goodvoxels mask might be needed in any surface resampling
-    if config.workflow.project_goodvoxels and (config.workflow.cifti_output or surf_std):
+    if config.workflow.project_goodvoxels and (
+        config.workflow.cifti_output or surf_std or fs_workbench
+    ):
         from .resampling import init_goodvoxels_bold_mask_wf
 
         goodvoxels_bold_mask_wf = init_goodvoxels_bold_mask_wf(mem_gb['resampled'])
@@ -495,7 +511,39 @@ voxels whose time-series have a locally high coefficient of variation.
                 ]),
         ])  # fmt:skip
 
-    if config.workflow.run_reconall and freesurfer_spaces:
+    # Volume-to-surface sampling with the Connectome Workbench, shared by the fsLR/onavg
+    # outputs and, without a FreeSurfer subject, the fsnative/fsaverage ones
+    wb_vol_surf_wf = None
+    if (config.workflow.cifti_output and surf_std) or fs_workbench:
+        from .resampling import init_wb_vol_surf_wf
+
+        workflow.__postdesc__ += (
+            'Non-gridded (surface) resamplings were performed using the Connectome Workbench.'
+        )
+        wb_vol_surf_wf = init_wb_vol_surf_wf(
+            omp_nthreads=omp_nthreads,
+            mem_gb=mem_gb['resampled'],
+            dilate=True,
+        )
+        workflow.connect([
+            (inputnode, wb_vol_surf_wf,[
+                ('white', 'inputnode.white'),
+                ('pial', 'inputnode.pial'),
+                ('midthickness', 'inputnode.midthickness'),
+            ]),
+            (bold_anat_wf, wb_vol_surf_wf, [
+                ('outputnode.bold_file', 'inputnode.bold_file'),
+            ]),
+        ])  # fmt:skip
+
+        if config.workflow.project_goodvoxels:
+            workflow.connect([
+                (goodvoxels_bold_mask_wf, wb_vol_surf_wf, [
+                    ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
+                ]),
+            ])  # fmt:skip
+
+    if freesurfer and freesurfer_spaces:
         workflow.__postdesc__ += """\
 Non-gridded (surface) resamplings were performed using `mri_vol2surf`
 (FreeSurfer).
@@ -535,6 +583,138 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         ])  # fmt:skip
 
         workflow.connect([(merge_surface_sources, bold_surf_wf, [('out', 'inputnode.sources')])])
+
+    if fs_workbench:
+        from niworkflows.interfaces.freesurfer import MedialNaNs
+        from smriprep.workflows.surfaces import init_resample_surfaces_wf
+
+        from ...interfaces.bids import BIDSURI
+        from .resampling import init_wb_surf_surf_wf
+
+        resampled = (
+            ', and resampled to *fsaverage* along the surface registration to it'
+            if any(space != 'fsnative' for space in freesurfer_spaces)
+            else ''
+        )
+        workflow.__postdesc__ += f"""\
+Without a FreeSurfer reconstruction, the BOLD time-series were sampled onto the
+anatomical surfaces for the FreeSurfer surface spaces
+{', '.join(f'*{s}*' for s in freesurfer_spaces)}{resampled}.
+"""
+        config.loggers.workflow.debug('Sampling FreeSurfer surface spaces with Workbench.')
+
+        merge_wb_sources = pe.Node(
+            niu.Merge(4), name='merge_wb_sources', run_without_submitting=True
+        )
+        merge_wb_sources.inputs.in1 = bold_file
+        wb_sources = pe.Node(
+            BIDSURI(
+                numinputs=1,
+                dataset_links=config.execution.dataset_links,
+                out_dir=str(fmriprep_dir),
+            ),
+            name='wb_sources',
+        )
+        workflow.connect([
+            (inputnode, merge_wb_sources, [
+                ('motion_xfm', 'in2'),
+                ('run2template_xfm', 'in3'),
+                ('template2anat_xfm', 'in4'),
+            ]),
+            (merge_wb_sources, wb_sources, [('out', 'in1')]),
+        ])  # fmt:skip
+
+        # The spaces of get_fs_spaces(); TemplateFlow calls fsaverage4 den-3k
+        for ref_ in spaces.references:
+            if not (ref_.legacyname or ref_.space == 'fsnative'):
+                continue
+            space = ref_.legacyname or ref_.space
+
+            ds_bold_fs_wb = pe.Node(
+                DerivativesDataSink(
+                    base_directory=fmriprep_dir,
+                    hemi=['L', 'R'],
+                    dismiss_entities=dismiss_echo(),
+                    space=space,
+                    suffix='bold',
+                    TaskName=all_metadata[0].get('TaskName'),
+                    extension='.func.gii',
+                    **prepare_timing_parameters(all_metadata[0]),
+                ),
+                name=f'ds_bold_{space}_wb',
+                run_without_submitting=True,
+            )
+            ds_bold_fs_wb.inputs.source_file = bold_file
+            workflow.connect(wb_sources, 'out', ds_bold_fs_wb, 'Sources')
+
+            if space == 'fsnative':
+                workflow.connect(
+                    wb_vol_surf_wf, 'outputnode.bold_fsnative', ds_bold_fs_wb, 'in_file'
+                )
+                continue
+
+            density = {'2562': '3k'}.get(ref_.spec['den'], ref_.spec['den'])
+            if density not in ('3k', '10k', '41k', '164k'):
+                raise RuntimeError(
+                    f'Output space {space} requires a FreeSurfer subject: TemplateFlow '
+                    'has no fsaverage surface of that density.'
+                )
+
+            resample_surfaces_wf = init_resample_surfaces_wf(
+                name=f'resample_surfaces_wf_{space}',
+                surfaces=['midthickness'],
+                template='fsaverage',
+                space='fsaverage',
+                density=density,
+            )
+            wb_surf_surf_wf = init_wb_surf_surf_wf(
+                space='fsaverage',
+                template='fsaverage',
+                density=density,
+                omp_nthreads=omp_nthreads,
+                mem_gb=mem_gb['resampled'],
+            )
+            workflow.connect([
+                (inputnode, resample_surfaces_wf, [
+                    ('midthickness', 'inputnode.midthickness'),
+                    ('sphere_reg', 'inputnode.sphere_reg_fsaverage'),
+                ]),
+                (wb_vol_surf_wf, wb_surf_surf_wf, [
+                    ('outputnode.bold_fsnative', 'inputnode.bold_fsnative'),
+                ]),
+                (inputnode, wb_surf_surf_wf, [
+                    ('midthickness', 'inputnode.midthickness'),
+                    ('sphere_reg', 'inputnode.sphere_reg_fsLR'),
+                ]),
+                (resample_surfaces_wf, wb_surf_surf_wf, [
+                    ('outputnode.midthickness_fsaverage', 'inputnode.midthickness_resampled'),
+                ]),
+            ])  # fmt:skip
+
+            if not config.workflow.medial_surface_nan:
+                workflow.connect(
+                    wb_surf_surf_wf, 'outputnode.bold_resampled', ds_bold_fs_wb, 'in_file'
+                )
+                continue
+
+            # MedialNaNs reads the fsaverage cortex labels of the FreeSurfer subjects
+            # directory, and the hemisphere and target from FreeSurfer-style names
+            fs_names = pe.MapNode(
+                niu.Rename(keep_ext=True),
+                iterfield=['in_file', 'format_string'],
+                name=f'fs_names_{space}',
+                run_without_submitting=True,
+            )
+            fs_names.inputs.format_string = [f'lh.{space}', f'rh.{space}']
+            medial_nans = pe.MapNode(
+                MedialNaNs(), iterfield=['in_file'], name=f'medial_nans_{space}'
+            )
+            workflow.connect([
+                (wb_surf_surf_wf, fs_names, [('outputnode.bold_resampled', 'in_file')]),
+                (fs_names, medial_nans, [('out_file', 'in_file')]),
+                (inputnode, medial_nans, [('subjects_dir', 'subjects_dir')]),
+                (medial_nans, ds_bold_fs_wb, [('out_file', 'in_file')]),
+            ])  # fmt:skip
 
     if config.workflow.cifti_output:
         from .resampling import (
@@ -630,38 +810,9 @@ Non-gridded (surface) resamplings were performed using `mri_vol2surf`
         if surf_std:
             from smriprep.workflows.surfaces import init_resample_surfaces_wf
 
-            from .resampling import (
-                init_wb_surf_surf_wf,
-                init_wb_vol_surf_wf,
-            )
+            from .resampling import init_wb_surf_surf_wf
 
-            workflow.__postdesc__ += (
-                'Non-gridded (surface) resamplings were performed using the Connectome Workbench.'
-            )
             config.loggers.workflow.debug('Creating BOLD surface workbench resampling workflow.')
-
-            wb_vol_surf_wf = init_wb_vol_surf_wf(
-                omp_nthreads=omp_nthreads,
-                mem_gb=mem_gb['resampled'],
-                dilate=True,
-            )
-            workflow.connect([
-                (inputnode, wb_vol_surf_wf,[
-                    ('white', 'inputnode.white'),
-                    ('pial', 'inputnode.pial'),
-                    ('midthickness', 'inputnode.midthickness'),
-                ]),
-                (bold_anat_wf, wb_vol_surf_wf, [
-                    ('outputnode.bold_file', 'inputnode.bold_file'),
-                ]),
-            ])  # fmt:skip
-
-            if config.workflow.project_goodvoxels:
-                workflow.connect([
-                    (goodvoxels_bold_mask_wf, wb_vol_surf_wf, [
-                        ('outputnode.goodvoxels_mask', 'inputnode.volume_roi'),
-                    ]),
-                ])  # fmt:skip
 
             for ref_ in surf_std:
                 template = ref_.space

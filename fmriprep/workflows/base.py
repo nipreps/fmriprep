@@ -306,12 +306,9 @@ It is released under the [CC0]\
             'no FreeSurfer subject: running without one.'
         )
         if fs_spaces := spaces.get_fs_spaces():
-            raise RuntimeError(
-                f'Output spaces {", ".join(fs_spaces)} require a FreeSurfer subject, but '
-                f'surface reconstruction is skipped for sub-{subject_id} because all '
-                'anatomical derivatives that depend on it were precomputed, and none was found '
-                f'in {config.execution.fs_subjects_dir}. Request fsLR or onavg surfaces '
-                '(or --cifti-output) instead, or provide a subject with --fs-subjects-dir.'
+            config.loggers.workflow.info(
+                f'Output spaces {", ".join(fs_spaces)} are sampled with the Connectome '
+                'Workbench on the precomputed surfaces.'
             )
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
@@ -1189,6 +1186,7 @@ tasks and sessions), the following preprocessing was performed.
                 bold_series=bold_series,
                 fieldmap_id=fieldmap_id,
                 jacobian=jacobian,
+                freesurfer=fs_subject,
                 name=f'bold_apply_{bold_id}_wf',
             )
 
@@ -1209,6 +1207,7 @@ tasks and sessions), the following preprocessing was performed.
                         f'outputnode.sphere_reg_{"msm" if msm_sulc else "fsLR"}',
                         'inputnode.sphere_reg_fsLR',
                     ),
+                    ('outputnode.sphere_reg', 'inputnode.sphere_reg'),
                 ]),
                 (bold_fit_wf, bold_apply_wf, [
                     ('outputnode.hmc_boldref', 'inputnode.hmc_boldref'),
