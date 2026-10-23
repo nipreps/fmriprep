@@ -211,8 +211,9 @@ class CATBBReg(SimpleInterface):
             lh, rh = per_hemi(self.inputs.white, surface=True)
             lh_mask, rh_mask = per_hemi(self.inputs.cortex_mask)
             lh_thick, rh_thick = per_hemi(self.inputs.thickness)
-            # bbregister's sampling for BOLD: 2 mm into white matter, half the
-            # thickness into grey matter (or 0.5 mm without thickness)
+            # grey matter at half the thickness (or 0.5 mm without thickness), as
+            # bbregister samples it, but white matter 0.5 mm inside the surface rather
+            # than bbregister's 2 mm, which was less accurate with T1Prep's surfaces
             matrix, _ = cat_surf.bbreg(
                 self.inputs.in_file,
                 lh_surface=lh,
@@ -223,7 +224,7 @@ class CATBBReg(SimpleInterface):
                 lh_thickness=lh_thick,
                 rh_thickness=rh_thick,
                 gm_proj_frac=0.5 if lh_thick is not None else 0.0,
-                wm_dist=2.0,
+                wm_dist=0.5,
                 invert_contrast=1,
                 dof=self.inputs.dof,
             )

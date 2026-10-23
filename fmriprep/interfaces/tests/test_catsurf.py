@@ -111,9 +111,9 @@ def test_cat_bbreg_fallback(tmp_path, monkeypatch, bbreg_inputs, use_bbr, bbr_sh
     bbr_calls = [call for call in calls if 'lh_mask' in call]
     assert len(bbr_calls) == (use_bbr is not False)
     for call in bbr_calls:
-        # bbregister's sampling for BOLD contrast
+        # BOLD contrast, sampled 0.5 mm into white matter and half the thickness into grey
         assert call['invert_contrast'] == 1
-        assert call['wm_dist'] == 2.0
+        assert call['wm_dist'] == 0.5
         assert call['gm_proj_frac'] == 0.5
 
 
