@@ -97,6 +97,7 @@ def test_bold_apply_wf_fs_spaces_workbench(bids_root, rest_bold, monkeypatch, me
         monkeypatch.setattr(
             config.execution, 'output_spaces', 'MNI152NLin2009cAsym fsnative fsaverage5 fsaverage4'
         )
+        monkeypatch.setenv('FREESURFER_HOME', '/opt/freesurfer')
         config.init_spaces()
         wf = init_bold_apply_wf(bold_series=rest_bold, freesurfer=False)
 
@@ -109,6 +110,10 @@ def test_bold_apply_wf_fs_spaces_workbench(bids_root, rest_bold, monkeypatch, me
         assert f'ds_bold_{space}_wb' in nodes
         assert any(node.startswith(f'wb_surf_native_fsaverage_{density}_wf.') for node in nodes)
         assert (f'medial_nans_{space}' in nodes) is medial_surface_nan
+        if medial_surface_nan:
+            # FreeSurfer's own fsaverage labels, not a copy in the outputs
+            medial_nans = wf.get_node(f'medial_nans_{space}')
+            assert medial_nans.inputs.subjects_dir == '/opt/freesurfer/subjects'
 
     # The subject's registration to fsaverage drives the resampling
     resample = wf.get_node('resample_surfaces_wf_fsaverage5')

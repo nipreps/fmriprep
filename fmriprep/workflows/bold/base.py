@@ -29,6 +29,8 @@ Orchestrating the BOLD-preprocessing workflow
 
 """
 
+import os
+
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.utils.connections import listify
@@ -697,8 +699,9 @@ anatomical surfaces for the FreeSurfer surface spaces
                 )
                 continue
 
-            # MedialNaNs reads the fsaverage cortex labels of the FreeSurfer subjects
-            # directory, and the hemisphere and target from FreeSurfer-style names
+            # MedialNaNs reads the fsaverage cortex labels of a FreeSurfer subjects
+            # directory, and the hemisphere and target from FreeSurfer-style names.
+            # FreeSurfer's own is read, so that fsaverage need not be copied to the outputs.
             fs_names = pe.MapNode(
                 niu.Rename(keep_ext=True),
                 iterfield=['in_file', 'format_string'],
@@ -707,12 +710,15 @@ anatomical surfaces for the FreeSurfer surface spaces
             )
             fs_names.inputs.format_string = [f'lh.{space}', f'rh.{space}']
             medial_nans = pe.MapNode(
-                MedialNaNs(), iterfield=['in_file'], name=f'medial_nans_{space}'
+                MedialNaNs(
+                    subjects_dir=os.path.join(os.getenv('FREESURFER_HOME', ''), 'subjects')
+                ),
+                iterfield=['in_file'],
+                name=f'medial_nans_{space}',
             )
             workflow.connect([
                 (wb_surf_surf_wf, fs_names, [('outputnode.bold_resampled', 'in_file')]),
                 (fs_names, medial_nans, [('out_file', 'in_file')]),
-                (inputnode, medial_nans, [('subjects_dir', 'subjects_dir')]),
                 (medial_nans, ds_bold_fs_wb, [('out_file', 'in_file')]),
             ])  # fmt:skip
 

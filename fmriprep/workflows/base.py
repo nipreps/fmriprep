@@ -110,7 +110,9 @@ def init_fmriprep_wf():
         single_subject_wf.config['execution']['crashdump_dir'] = str(log_dir)
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
-        if freesurfer:
+        # Only subjects with a FreeSurfer subject take the subjects directory, so fsaverage
+        # is not copied into it when every subject's surfaces are precomputed
+        if freesurfer and single_subject_wf.get_node('inputnode'):
             fmriprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
         else:
             fmriprep_wf.add_nodes([single_subject_wf])
@@ -311,8 +313,6 @@ It is released under the [CC0]\
                 'Workbench on the precomputed surfaces.'
             )
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
-
     bidssrc = pe.Node(
         BIDSDataGrabber(
             subject_data=subject_data,
@@ -420,7 +420,6 @@ It is released under the [CC0]\
         ])  # fmt:skip
 
     workflow.connect([
-        (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
         (bidssrc, anat_fit_wf, [
             ('t1w', 'inputnode.t1w'),
             ('t2w', 'inputnode.t2w'),
@@ -440,9 +439,14 @@ It is released under the [CC0]\
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
-    # Without a FreeSurfer subject, the summary reports FreeSurfer as not run
+    # Only a FreeSurfer subject needs the subjects directory; without one, the summary
+    # reports FreeSurfer as not run
     if fs_subject:
-        workflow.connect([(inputnode, summary, [('subjects_dir', 'subjects_dir')])])
+        inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
+        workflow.connect([
+            (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
+        ])  # fmt:skip
 
     # Set up the template iterator once, if used
     template_iterator_wf = None

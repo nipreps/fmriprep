@@ -834,6 +834,9 @@ def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject, bbr_
         dest for *_, data in wf._graph.in_edges(summary, data=True) for _, dest in data['connect']
     }
     assert ('subjects_dir' in fields) is fs_subject
+    # Nor does the subject take a subjects directory without one, so that
+    # init_fmriprep_wf does not copy fsaverage into the outputs
+    assert (wf.get_node('inputnode') is not None) is fs_subject
 
     generate_expanded_graph(wf._create_flat_graph())
 
