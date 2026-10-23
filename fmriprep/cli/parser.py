@@ -440,8 +440,7 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         help='Method of BOLD to anatomical coregistration. `auto` uses FreeSurfer `bbregister` '
         'if there is a FreeSurfer subject, otherwise FSL `flirt`. `cat` uses the boundary-based '
         'registration of CAT-Surface on the white-matter surfaces in T1w space, so it needs '
-        'neither a FreeSurfer subject nor FSL, and the `cat-surf` package (with affine BBR '
-        'for `--bold2anat-dof 9` or `12`).',
+        'neither a FreeSurfer subject nor FSL, and the `cat-surf` package.',
     )
     g_conf.add_argument(
         '--hmc-method',
@@ -895,24 +894,13 @@ def parse_args(args=None, namespace=None):
             cat_surf_version = Version(version('cat-surf'))
         except PackageNotFoundError:
             cat_surf_version = None
-        if cat_surf_version is None or cat_surf_version < Version('1.1.0'):
+        # 1.1.4: affine BBR, the command line's BBR defaults, damped head-motion correction
+        if cat_surf_version is None or cat_surf_version < Version('1.1.4'):
             msg = (
                 '`--bold2anat-method cat` and `--hmc-method cat` require CAT-Surface '
-                '(cat-surf >= 1.1.0), e.g. `pip install "fmriprep[cat]"`.'
+                '(cat-surf >= 1.1.4), e.g. `pip install "fmriprep[cat]"`.'
             )
             raise ValueError(msg)
-        if config.workflow.bold2anat_method == 'cat' and config.workflow.bold2anat_dof != 6:
-            import inspect
-
-            import cat_surf
-
-            if 'dof' not in inspect.signature(cat_surf.bbreg).parameters:
-                msg = (
-                    f'`--bold2anat-dof {config.workflow.bold2anat_dof}` with '
-                    '`--bold2anat-method cat` requires a CAT-Surface with affine '
-                    'boundary-based registration; update cat-surf or use `--bold2anat-dof 6`.'
-                )
-                raise ValueError(msg)
 
     if not config.execution.notrack:
         import importlib.util

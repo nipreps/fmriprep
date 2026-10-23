@@ -135,8 +135,7 @@ def test_cat_bbreg_init_dof(tmp_path, monkeypatch, bbreg_inputs, init, dof):
 
     reference = {'t1w': bbreg_inputs['t1w_preproc'], 't2w': str(t2w), 'header': None}[init]
     assert [call['ref_file'] for call in calls] == [reference] * (1 if init == 'header' else 2)
-    # an older cat-surf without affine BBR does not take dof
-    assert calls[-1].get('dof') == (None if dof == 6 else dof)
+    assert calls[-1]['dof'] == dof
 
 
 def test_cat_bbreg_t2w_required(tmp_path, monkeypatch, bbreg_inputs):

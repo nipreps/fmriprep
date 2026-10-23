@@ -211,8 +211,6 @@ class CATBBReg(SimpleInterface):
             lh, rh = per_hemi(self.inputs.white, surface=True)
             lh_mask, rh_mask = per_hemi(self.inputs.cortex_mask)
             lh_thick, rh_thick = per_hemi(self.inputs.thickness)
-            # cat-surf before affine BBR has no dof argument
-            affine = {'dof': self.inputs.dof} if self.inputs.dof != 6 else {}
             # bbregister's sampling for BOLD: 2 mm into white matter, half the
             # thickness into grey matter (or 0.5 mm without thickness)
             matrix, _ = cat_surf.bbreg(
@@ -227,7 +225,7 @@ class CATBBReg(SimpleInterface):
                 gm_proj_frac=0.5 if lh_thick is not None else 0.0,
                 wm_dist=2.0,
                 invert_contrast=1,
-                **affine,
+                dof=self.inputs.dof,
             )
             if self.inputs.use_bbr is None:
                 norm, _ = _calc_norm_affine([init, matrix], use_differences=True)
