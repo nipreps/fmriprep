@@ -440,8 +440,8 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         help='Method of BOLD to anatomical coregistration. `auto` uses FreeSurfer `bbregister` '
         'if there is a FreeSurfer subject, otherwise FSL `flirt`. `cat` uses the boundary-based '
         'registration of CAT-Surface on the white-matter surfaces in T1w space, so it needs '
-        'neither a FreeSurfer subject nor FSL; it is rigid (`--bold2anat-dof 6`) and needs '
-        'the `cat-surf` package.',
+        'neither a FreeSurfer subject nor FSL, and the `cat-surf` package (with affine BBR '
+        'for `--bold2anat-dof 9` or `12`).',
     )
     g_conf.add_argument(
         '--hmc-method',
@@ -901,12 +901,18 @@ def parse_args(args=None, namespace=None):
                 '(cat-surf >= 1.1.0), e.g. `pip install "fmriprep[cat]"`.'
             )
             raise ValueError(msg)
-    if config.workflow.bold2anat_method == 'cat' and config.workflow.bold2anat_dof != 6:
-        msg = (
-            'CAT-Surface boundary-based registration is rigid: '
-            'use `--bold2anat-dof 6` with `--bold2anat-method cat`.'
-        )
-        raise ValueError(msg)
+        if config.workflow.bold2anat_method == 'cat' and config.workflow.bold2anat_dof != 6:
+            import inspect
+
+            import cat_surf
+
+            if 'dof' not in inspect.signature(cat_surf.bbreg).parameters:
+                msg = (
+                    f'`--bold2anat-dof {config.workflow.bold2anat_dof}` with '
+                    '`--bold2anat-method cat` requires a CAT-Surface with affine '
+                    'boundary-based registration; update cat-surf or use `--bold2anat-dof 6`.'
+                )
+                raise ValueError(msg)
 
     if not config.execution.notrack:
         import importlib.util

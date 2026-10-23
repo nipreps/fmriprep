@@ -106,6 +106,9 @@ class CATVolRealign(SimpleInterface):
 class _CATBBRegInputSpec(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc='BOLD reference image (moving)')
     t1w_preproc = File(exists=True, mandatory=True, desc='T1w reference image (fixed)')
+    t2w_preproc = File(
+        exists=True, desc='T2w image in T1w space, the reference of the initialization for t2w'
+    )
     white = InputMultiObject(
         File(exists=True),
         mandatory=True,
@@ -128,10 +131,19 @@ class _CATBBRegInputSpec(BaseInterfaceInputSpec):
     )
     init = traits.Enum(
         't1w',
+        't2w',
         'header',
         usedefault=True,
-        desc='initialize by registering to the T1w (normalized mutual information), or from '
-        'the image headers',
+        desc='initialize by registering to the T1w or the T2w (normalized mutual information), '
+        'or from the image headers',
+    )
+    dof = traits.Enum(
+        6,
+        9,
+        12,
+        usedefault=True,
+        desc='degrees of freedom of BBR: rigid, with scales, or with scales and shears; the '
+        'initialization is rigid',
     )
     fallback_threshold = traits.Float(
         15.0,
@@ -151,7 +163,9 @@ class CATBBReg(SimpleInterface):
     """Register a BOLD reference to the white-matter surfaces with CAT-Surface's BBR.
 
     The surfaces are in T1w space, so no FreeSurfer subject is involved.  The transform
-    is rigid.  With ``use_bbr=None``, BBR is rejected, as by
+    is rigid unless ``dof`` is 9 or 12.  The initialization registers the BOLD reference to
+    the T1w, or to the T2w in T1w space (``t2w_preproc``), whose contrast is closer to that
+    of BOLD.  With ``use_bbr=None``, BBR is rejected, as by
     :py:func:`~fmriprep.workflows.bold.registration.compare_xforms`, when it moves
     more than ``fallback_threshold`` from the initialization.
     """
@@ -165,7 +179,13 @@ class CATBBReg(SimpleInterface):
         import numpy as np
         from nipype.algorithms.rapidart import _calc_norm_affine
 
-        ref_file = self.inputs.t1w_preproc if self.inputs.init == 't1w' else None
+        ref_file = None
+        if self.inputs.init == 't1w':
+            ref_file = self.inputs.t1w_preproc
+        elif self.inputs.init == 't2w':
+            if not isdefined(self.inputs.t2w_preproc):
+                raise ValueError('Initializing with the T2w requires t2w_preproc.')
+            ref_file = self.inputs.t2w_preproc
 
         def per_hemi(files, *, surface=False):
             if not isdefined(files):
@@ -191,6 +211,8 @@ class CATBBReg(SimpleInterface):
             lh, rh = per_hemi(self.inputs.white, surface=True)
             lh_mask, rh_mask = per_hemi(self.inputs.cortex_mask)
             lh_thick, rh_thick = per_hemi(self.inputs.thickness)
+            # cat-surf before affine BBR has no dof argument
+            affine = {'dof': self.inputs.dof} if self.inputs.dof != 6 else {}
             # bbregister's sampling for BOLD: 2 mm into white matter, half the
             # thickness into grey matter (or 0.5 mm without thickness)
             matrix, _ = cat_surf.bbreg(
@@ -205,6 +227,7 @@ class CATBBReg(SimpleInterface):
                 gm_proj_frac=0.5 if lh_thick is not None else 0.0,
                 wm_dist=2.0,
                 invert_contrast=1,
+                **affine,
             )
             if self.inputs.use_bbr is None:
                 norm, _ = _calc_norm_affine([init, matrix], use_differences=True)

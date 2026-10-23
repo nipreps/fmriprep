@@ -43,6 +43,7 @@ INPUT_FIELDS = [
     'white',
     'cortex_mask',
     'thickness',
+    't2w_preproc',
 ]
 OUTPUT_FIELDS = [
     'template_boldrefs',
@@ -61,6 +62,7 @@ ANAT_REG_INPUTS = [
     ('white', 'inputnode.white'),
     ('cortex_mask', 'inputnode.cortex_mask'),
     ('thickness', 'inputnode.thickness'),
+    ('t2w_preproc', 'inputnode.t2w_preproc'),
 ]
 
 
@@ -144,6 +146,9 @@ def init_bold_anat_coreg_wf(
     white, cortex_mask, thickness
         Left and right white-matter surfaces, cortex masks and cortical thickness
         (used by ``bbr_method='cat'``; may be undefined otherwise).
+    t2w_preproc
+        T2w image in T1w space (used by ``bbr_method='cat'`` with ``bold2anat_init='t2w'``;
+        may be undefined otherwise).
 
     Outputs
     -------

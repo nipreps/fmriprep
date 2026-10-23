@@ -1001,6 +1001,7 @@ tasks and sessions), the following preprocessing was performed.
                     ('outputnode.white', 'inputnode.white'),
                     ('outputnode.cortex_mask', 'inputnode.cortex_mask'),
                     ('outputnode.thickness', 'inputnode.thickness'),
+                    ('outputnode.t2w_preproc', 'inputnode.t2w_preproc'),
                 ]),
             ])  # fmt:skip
 

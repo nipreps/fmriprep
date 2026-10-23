@@ -53,17 +53,27 @@ def test_bold_reg_wf_method(freesurfer, bbr_method, expected, use_bbr):
     assert subworkflows == {'inputnode', 'outputnode', expected}
 
 
-def test_cat_bbr_wf_is_rigid():
-    with pytest.raises(ValueError, match='rigid'):
-        init_bold_reg_wf(
-            freesurfer=False,
-            use_bbr=None,
-            bold2anat_dof=9,
-            bold2anat_init='t1w',
-            mem_gb=1,
-            omp_nthreads=1,
-            bbr_method='cat',
-        )
+@pytest.mark.parametrize('bold2anat_dof', [6, 9, 12])
+@pytest.mark.parametrize('bold2anat_init', ['t1w', 't2w', 'header'])
+def test_cat_bbr_wf(bold2anat_dof, bold2anat_init):
+    """CAT-Surface BBR takes every dof and initialization, and the T2w only to initialize."""
+    wf = init_bold_reg_wf(
+        freesurfer=False,
+        use_bbr=None,
+        bold2anat_dof=bold2anat_dof,
+        bold2anat_init=bold2anat_init,
+        mem_gb=1,
+        omp_nthreads=1,
+        bbr_method='cat',
+    )
+    cat_bbr_wf = wf.get_node('cat_bbr_wf')
+    cat_bbreg = cat_bbr_wf.get_node('cat_bbreg')
+    assert cat_bbreg.inputs.dof == bold2anat_dof
+    assert cat_bbreg.inputs.init == bold2anat_init
+    assert {6: 'six', 9: 'nine', 12: 'twelve'}[bold2anat_dof] in cat_bbr_wf.__desc__
+
+    edges = cat_bbr_wf._graph.get_edge_data(cat_bbr_wf.get_node('inputnode'), cat_bbreg)
+    assert (('t2w_preproc', 't2w_preproc') in edges['connect']) is (bold2anat_init == 't2w')
 
 
 @pytest.mark.parametrize(('method', 'node'), [('mcflirt', 'mcflirt'), ('cat', 'cat_realign')])

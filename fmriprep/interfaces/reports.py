@@ -265,7 +265,7 @@ class FunctionalSummary(SummaryInterface):
                 'CAT-Surface': [
                     (
                         'CAT-Surface boundary-based registration (BBR) to the white-matter '
-                        'surfaces - 6 dof'
+                        f'surfaces - {dof} dof'
                     ),
                     'CAT-Surface volume registration (normalized mutual information) - 6 dof',
                 ],

@@ -117,6 +117,37 @@ def test_cat_bbreg_fallback(tmp_path, monkeypatch, bbreg_inputs, use_bbr, bbr_sh
         assert call['gm_proj_frac'] == 0.5
 
 
+@pytest.mark.parametrize('dof', [6, 9, 12])
+@pytest.mark.parametrize('init', ['t1w', 't2w', 'header'])
+def test_cat_bbreg_init_dof(tmp_path, monkeypatch, bbreg_inputs, init, dof):
+    """The initialization registers to the chosen image, and dof reaches BBR."""
+    calls = []
+
+    def bbreg(volume_file, lh_surface=None, **kwargs):
+        calls.append(kwargs)
+        return _translation(1.0), 0.0
+
+    t2w = tmp_path / 't2w.nii.gz'
+    nb.Nifti1Image(np.zeros((4, 4, 4), dtype='float32'), np.eye(4)).to_filename(t2w)
+    monkeypatch.setitem(sys.modules, 'cat_surf', types.SimpleNamespace(bbreg=bbreg))
+    monkeypatch.chdir(tmp_path)
+    CATBBReg(init=init, dof=dof, t2w_preproc=str(t2w), **bbreg_inputs).run()
+
+    reference = {'t1w': bbreg_inputs['t1w_preproc'], 't2w': str(t2w), 'header': None}[init]
+    assert [call['ref_file'] for call in calls] == [reference] * (1 if init == 'header' else 2)
+    # an older cat-surf without affine BBR does not take dof
+    assert calls[-1].get('dof') == (None if dof == 6 else dof)
+
+
+def test_cat_bbreg_t2w_required(tmp_path, monkeypatch, bbreg_inputs):
+    monkeypatch.setitem(
+        sys.modules, 'cat_surf', types.SimpleNamespace(bbreg=lambda *a, **k: (np.eye(4), 0.0))
+    )
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match='t2w_preproc'):
+        CATBBReg(init='t2w', **bbreg_inputs).run()
+
+
 def test_cat_vol_realign(tmp_path, monkeypatch):
     """Outputs are named and counted as mcflirt's."""
     pytest.importorskip('cat_surf')

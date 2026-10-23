@@ -814,6 +814,20 @@ def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject, bbr_
     method = 'cat_bbr_wf' if bbr_method == 'cat' else 'bbreg_wf' if fs_subject else 'fsl_bbr_wf'
     assert any(f'.{method}.' in node for node in nodes)
 
+    if bbr_method == 'cat':
+        # The precomputed T2w initializes CAT-Surface's registration
+        anat_fit_wf = wf.get_node('anat_fit_wf')
+        t2w = anat_fit_wf.get_node('outputnode').inputs.t2w_preproc
+        assert t2w.endswith('sub-01_desc-preproc_T2w.nii.gz')
+        coreg_wf = next(
+            wf.get_node(node.split('.')[0]) for node in nodes if '.cat_bbr_wf.' in node
+        )
+        assert ('outputnode.t2w_preproc', 'inputnode.t2w_preproc') in wf._graph.get_edge_data(
+            anat_fit_wf, coreg_wf
+        )['connect']
+        cat_bbreg = wf.get_node(next(node for node in nodes if node.endswith('.cat_bbreg')))
+        assert cat_bbreg.inputs.init == 't2w'
+
     # The summary only inspects a FreeSurfer subject that exists
     summary = wf.get_node('summary')
     fields = {

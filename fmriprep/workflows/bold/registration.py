@@ -49,8 +49,9 @@ AffineDOF = ty.Literal[6, 9, 12]
 RegistrationInit = ty.Literal['t1w', 't2w', 'header']
 BBRMethod = ty.Literal['auto', 'bbregister', 'fsl', 'cat']
 
-# Anatomical surfaces used by CAT-Surface's BBR, one file per hemisphere
-SURFACE_FIELDS = ['white', 'cortex_mask', 'thickness']
+# Anatomical inputs of CAT-Surface's BBR: white-matter surfaces, cortex masks and thickness,
+# one file per hemisphere, and the T2w in T1w space to initialize with
+CAT_FIELDS = ['white', 'cortex_mask', 'thickness', 't2w_preproc']
 
 
 def init_bold_reg_wf(
@@ -132,6 +133,8 @@ def init_bold_reg_wf(
     white, cortex_mask, thickness
         Left and right white-matter surfaces, cortex masks and cortical thickness
         (GIFTI, used by ``bbr_method='cat'`` only)
+    t2w_preproc
+        T2w image in T1w space (used by ``bbr_method='cat'`` with ``bold2anat_init='t2w'``)
 
     Outputs
     -------
@@ -164,7 +167,7 @@ def init_bold_reg_wf(
                 'subjects_dir',
                 'subject_id',
                 'fsnative2t1w_xfm',
-                *SURFACE_FIELDS,
+                *CAT_FIELDS,
             ]
         ),
         name='inputnode',
@@ -186,7 +189,7 @@ def init_bold_reg_wf(
             omp_nthreads=omp_nthreads,
         )
         workflow.connect([
-            (inputnode, bbr_wf, [(field, f'inputnode.{field}') for field in SURFACE_FIELDS]),
+            (inputnode, bbr_wf, [(field, f'inputnode.{field}') for field in CAT_FIELDS]),
         ])  # fmt:skip
     elif bbr_method == 'bbregister':
         bbr_wf = init_bbreg_wf(
@@ -766,7 +769,8 @@ def init_cat_bbr_wf(
     subject, so it also works with surfaces from other pipelines; unlike FSL's BBR, the
     boundary is the surface rather than the edge of a voxel-wise white-matter mask.
     The registration is initialized by maximizing the normalized mutual information with
-    the T1w image, and is rigid.
+    the T1w image, or with the T2w image in T1w space.  With 9 or 12 degrees of freedom
+    the rigid BBR result is refined with scales (and shears).
 
     Workflow Graph
         .. workflow::
@@ -774,7 +778,7 @@ def init_cat_bbr_wf(
             :simple_form: yes
 
             from fmriprep.workflows.bold.registration import init_cat_bbr_wf
-            wf = init_cat_bbr_wf(use_bbr=True, bold2anat_dof=6, bold2anat_init='t1w',
+            wf = init_cat_bbr_wf(use_bbr=True, bold2anat_dof=6, bold2anat_init='t2w',
                                  omp_nthreads=1)
 
     Parameters
@@ -782,11 +786,12 @@ def init_cat_bbr_wf(
     use_bbr : :obj:`bool` or None
         Enable/disable boundary-based registration refinement.
         If ``None``, test BBR result for distortion before accepting.
-    bold2anat_dof : 6
-        Degrees-of-freedom for BOLD-anatomical registration; only rigid is available
+    bold2anat_dof : 6, 9 or 12
+        Degrees-of-freedom for BOLD-anatomical registration
     bold2anat_init : str, 't1w', 't2w' or 'header'
-        If ``'header'``, start from the image headers instead of registering to the T1w.
-        ``'t2w'`` is not implemented, and registers to the T1w instead.
+        If ``'header'``, start from the image headers instead of a volume registration.
+        If ``'t1w'``, initialize by registering to the T1w image.
+        If ``'t2w'``, initialize by registering to the T2w image in T1w space.
     omp_nthreads : :obj:`int`
         Maximum number of threads an individual process may use
     name : :obj:`str`, optional
@@ -800,6 +805,8 @@ def init_cat_bbr_wf(
         Unmasked T1-weighted structural image
     white, cortex_mask, thickness
         Left and right white-matter surfaces, cortex masks and cortical thickness (GIFTI)
+    t2w_preproc
+        T2w image in T1w space, the reference of the initialization for ``'t2w'``
     t1w_mask, t1w_dseg, fsnative2t1w_xfm, subjects_dir, subject_id
         Unused (see :py:func:`~fmriprep.workflows.bold.registration.init_bbreg_wf`)
 
@@ -819,29 +826,26 @@ def init_cat_bbr_wf(
 
     from fmriprep.interfaces.catsurf import CATBBReg, cat_surf_version
 
-    if bold2anat_dof != 6:
-        raise ValueError(
-            'CAT-Surface boundary-based registration is rigid; use --bold2anat-dof 6 '
-            'or another --bold2anat-method.'
-        )
-    if bold2anat_init == 't2w':
-        LOGGER.warning(
-            'T2w intermediate for CAT-Surface BBR is not implemented, registering with T1w '
-            'instead.'
-        )
+    if bold2anat_init not in ty.get_args(RegistrationInit):
+        raise ValueError(f'Unknown BOLD-to-anatomical initialization option: {bold2anat_init}')
 
     workflow = Workflow(name=name)
-    init_text = (
-        'starting from the image headers'
-        if bold2anat_init == 'header'
-        else 'initialized by maximizing their normalized mutual information'
+    dof_text = {6: 'six', 9: 'nine', 12: 'twelve'}[bold2anat_dof]
+    reason_text = (
+        '' if bold2anat_dof == 6 else ' to account for distortions remaining in the BOLD reference'
     )
+    init_text = {
+        'header': 'starting from the image headers',
+        't1w': 'initialized by maximizing their normalized mutual information',
+        't2w': 'initialized by maximizing the normalized mutual information with the aligned '
+        'T2w image',
+    }[bold2anat_init]
     workflow.__desc__ = f"""\
 The BOLD reference was then co-registered to the T1w reference with the
 boundary-based registration [@bbr] of CAT-Surface {cat_surf_version() or '<ver>'}
 [@cat12], which aligns the BOLD contrast across the white-matter surfaces,
 {init_text}.
-Co-registration was configured with six degrees of freedom.
+Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
 """
 
     inputnode = pe.Node(
@@ -854,7 +858,7 @@ Co-registration was configured with six degrees of freedom.
                 't1w_preproc',
                 't1w_mask',  # FLIRT BBR
                 't1w_dseg',
-                *SURFACE_FIELDS,
+                *CAT_FIELDS,
             ]
         ),
         name='inputnode',
@@ -865,7 +869,7 @@ Co-registration was configured with six degrees of freedom.
     )
 
     cat_bbreg = pe.Node(
-        CATBBReg(use_bbr=use_bbr, init='header' if bold2anat_init == 'header' else 't1w'),
+        CATBBReg(use_bbr=use_bbr, init=bold2anat_init, dof=bold2anat_dof),
         name='cat_bbreg',
         mem_gb=2,
     )
@@ -874,7 +878,9 @@ Co-registration was configured with six degrees of freedom.
         (inputnode, cat_bbreg, [
             ('in_file', 'in_file'),
             ('t1w_preproc', 't1w_preproc'),
-            *((field, field) for field in SURFACE_FIELDS),
+            ('white', 'white'),
+            ('cortex_mask', 'cortex_mask'),
+            ('thickness', 'thickness'),
         ]),
         (cat_bbreg, outputnode, [
             ('itk_bold_to_t1', 'itk_bold_to_t1'),
@@ -883,6 +889,8 @@ Co-registration was configured with six degrees of freedom.
             ('metadata', 'metadata'),
         ]),
     ])  # fmt:skip
+    if bold2anat_init == 't2w':
+        workflow.connect(inputnode, 't2w_preproc', cat_bbreg, 't2w_preproc')
 
     return workflow
 
