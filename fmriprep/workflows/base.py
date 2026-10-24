@@ -110,7 +110,9 @@ def init_fmriprep_wf():
         single_subject_wf.config['execution']['crashdump_dir'] = str(log_dir)
         for node in single_subject_wf._get_all_nodes():
             node.config = deepcopy(single_subject_wf.config)
-        if freesurfer:
+        # Only subjects with a FreeSurfer subject take the subjects directory, so fsaverage
+        # is not copied into it when every subject's surfaces are precomputed
+        if freesurfer and single_subject_wf.get_node('inputnode'):
             fmriprep_wf.connect(fsdir, 'subjects_dir', single_subject_wf, 'inputnode.subjects_dir')
         else:
             fmriprep_wf.add_nodes([single_subject_wf])
@@ -171,7 +173,7 @@ def init_single_subject_wf(
     from niworkflows.interfaces.utility import KeySelect
     from niworkflows.utils.bids import collect_data
     from niworkflows.utils.spaces import Reference
-    from smriprep.workflows.anatomical import init_anat_fit_wf
+    from smriprep.workflows.anatomical import init_anat_fit_wf, needs_reconall
     from smriprep.workflows.outputs import (
         init_ds_anat_volumes_wf,
         init_ds_grayord_metrics_wf,
@@ -185,7 +187,7 @@ def init_single_subject_wf(
         init_resample_surfaces_wf,
     )
 
-    from fmriprep.interfaces.bids import BIDSSourceFile, CreateFreeSurferID
+    from fmriprep.interfaces.bids import BIDSSourceFile, CreateFreeSurferID, _create_fs_id
     from fmriprep.interfaces.reports import FunctionalSummary
     from fmriprep.utils.bids import is_valid_bold_template
     from fmriprep.utils.misc import get_wf_name
@@ -290,7 +292,26 @@ It is released under the [CC0]\
             session_id=deriv_session_id,
         )
 
-    inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
+    # sMRIPrep skips surface reconstruction if every derivative it would read from the
+    # FreeSurfer subject was precomputed.  Steps that read the subject themselves can then
+    # only run if one exists already, e.g. from an earlier run (--fs-subjects-dir).
+    fs_subject = freesurfer and (
+        needs_reconall(anatomical_cache, t2w=bool(subject_data['t2w']))
+        or _has_fs_subject(
+            config.execution.fs_subjects_dir,
+            _create_fs_id(subject_id, session_id, exclude_session=not sessionwise),
+        )
+    )
+    if freesurfer and not fs_subject:
+        config.loggers.workflow.info(
+            'All anatomical derivatives that depend on FreeSurfer were found, and there is '
+            'no FreeSurfer subject: running without one.'
+        )
+        if fs_spaces := spaces.get_fs_spaces():
+            config.loggers.workflow.info(
+                f'Output spaces {", ".join(fs_spaces)} are sampled with the Connectome '
+                'Workbench on the precomputed surfaces.'
+            )
 
     bidssrc = pe.Node(
         BIDSDataGrabber(
@@ -399,7 +420,6 @@ It is released under the [CC0]\
         ])  # fmt:skip
 
     workflow.connect([
-        (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
         (bidssrc, anat_fit_wf, [
             ('t1w', 'inputnode.t1w'),
             ('t2w', 'inputnode.t2w'),
@@ -414,12 +434,19 @@ It is released under the [CC0]\
         ]),
         (create_fs_id, anat_fit_wf, [('subject_id', 'inputnode.subject_id')]),
         # Reporting connections
-        (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
         (bidssrc, summary, [('t2w', 't2w'), ('bold', 'bold')]),
         (bids_info, summary, [('subject', 'subject_id')]),
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
+    # Only a FreeSurfer subject needs the subjects directory; without one, the summary
+    # reports FreeSurfer as not run
+    if fs_subject:
+        inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
+        workflow.connect([
+            (inputnode, anat_fit_wf, [('subjects_dir', 'inputnode.subjects_dir')]),
+            (inputnode, summary, [('subjects_dir', 'subjects_dir')]),
+        ])  # fmt:skip
 
     # Set up the template iterator once, if used
     template_iterator_wf = None
@@ -467,7 +494,8 @@ It is released under the [CC0]\
                 ]),
             ])  # fmt:skip
 
-        if freesurfer:
+        # Segmentations and surfaces that are read from the FreeSurfer subject
+        if fs_subject:
             from smriprep.workflows.outputs import init_ds_fs_segs_wf, init_ds_surface_metrics_wf
             from smriprep.workflows.surfaces import init_surface_derivatives_wf
 
@@ -536,7 +564,6 @@ It is released under the [CC0]\
             ])  # fmt:skip
 
             # Create CIFTI morphometrics
-            curv_wf = init_gifti_morphometrics_wf(morphometrics=['curv'], name='curv_wf')
             hcp_morphometrics_wf = init_hcp_morphometrics_wf(omp_nthreads=omp_nthreads)
             morph_grayords_wf = init_morph_grayords_wf(
                 grayord_density=config.workflow.cifti_output,
@@ -563,19 +590,33 @@ It is released under the [CC0]\
                 name='ds_fsLR_surfaces_wf',
             )
 
+            # Curvature comes from the FreeSurfer subject or, without one, the derivatives
+            if fs_subject:
+                curv_wf = init_gifti_morphometrics_wf(morphometrics=['curv'], name='curv_wf')
+                workflow.connect([
+                    (anat_fit_wf, curv_wf, [
+                        ('outputnode.subject_id', 'inputnode.subject_id'),
+                        ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
+                    ]),
+                    (curv_wf, hcp_morphometrics_wf, [
+                        ('outputnode.curv', 'inputnode.curv'),
+                    ]),
+                ])  # fmt:skip
+            elif len(anatomical_cache.get('curv', [])) == 2:
+                hcp_morphometrics_wf.inputs.inputnode.curv = sorted(anatomical_cache['curv'])
+            else:
+                raise RuntimeError(
+                    'CIFTI morphometrics require curvature (hemi-{L,R}_curv.shape.gii), which '
+                    'cannot be computed without a FreeSurfer subject. Provide it with the '
+                    'precomputed surfaces, or disable --cifti-output.'
+                )
+
             workflow.connect([
-                (anat_fit_wf, curv_wf, [
-                    ('outputnode.subject_id', 'inputnode.subject_id'),
-                    ('outputnode.subjects_dir', 'inputnode.subjects_dir'),
-                ]),
                 (anat_fit_wf, hcp_morphometrics_wf, [
                     ('outputnode.subject_id', 'inputnode.subject_id'),
                     ('outputnode.thickness', 'inputnode.thickness'),
                     ('outputnode.sulc', 'inputnode.sulc'),
                     ('outputnode.midthickness', 'inputnode.midthickness'),
-                ]),
-                (curv_wf, hcp_morphometrics_wf, [
-                    ('outputnode.curv', 'inputnode.curv'),
                 ]),
                 (anat_fit_wf, resample_surfaces_wf, [
                     ('outputnode.white', 'inputnode.white'),
@@ -833,6 +874,20 @@ tasks and sessions), the following preprocessing was performed.
             )
         bold2anat_init = 't2w' if has_t2w else 't1w'
 
+    bbr_method = config.workflow.bold2anat_method
+    if bbr_method == 'auto':
+        bbr_method = 'bbregister' if fs_subject else 'fsl'
+    elif bbr_method == 'bbregister' and not fs_subject:
+        raise RuntimeError(
+            f'--bold2anat-method bbregister requires a FreeSurfer subject for sub-{subject_id}.'
+        )
+    elif bbr_method == 'cat' and not freesurfer:
+        raise RuntimeError(
+            '--bold2anat-method cat registers to the white-matter surfaces, which are not '
+            'created with --fs-no-reconall. Surface reconstruction is skipped anyway if all '
+            'surface derivatives are precomputed.'
+        )
+
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
         collect_func_derivatives,
@@ -914,13 +969,14 @@ tasks and sessions), the following preprocessing was performed.
             bold2anat_dof=config.workflow.bold2anat_dof,
             bold2anat_init=bold2anat_init,
             use_bbr=use_bbr,
-            freesurfer=freesurfer,
+            freesurfer=fs_subject,
             omp_nthreads=omp_nthreads,
             mem_gb=2,  # Estimated
             sloppy=config.execution.sloppy,
             output_dir=fmriprep_dir,
             reference_anat='T1w',
             precomputed=coreg_precomputed,
+            bbr_method=bbr_method,
             name=f'bold_anat_coreg_{group_id}_wf',
         )
 
@@ -940,6 +996,15 @@ tasks and sessions), the following preprocessing was performed.
             ]),
             (merge_fit_boldrefs, bold_anat_coreg_wf, [('out', 'inputnode.run_boldrefs')]),
         ])  # fmt:skip
+        if bbr_method == 'cat':
+            workflow.connect([
+                (anat_fit_wf, bold_anat_coreg_wf, [
+                    ('outputnode.white', 'inputnode.white'),
+                    ('outputnode.cortex_mask', 'inputnode.cortex_mask'),
+                    ('outputnode.thickness', 'inputnode.thickness'),
+                    ('outputnode.t2w_preproc', 'inputnode.t2w_preproc'),
+                ]),
+            ])  # fmt:skip
 
         for i, bold_series in enumerate(group):
             bold_file = bold_series[0]
@@ -990,7 +1055,11 @@ tasks and sessions), the following preprocessing was performed.
             func_fit_summary = pe.Node(
                 FunctionalSummary(
                     distortion_correction='None',  # Can override with connection
-                    registration='FreeSurfer' if freesurfer else 'FSL',
+                    registration={
+                        'bbregister': 'FreeSurfer',
+                        'fsl': 'FSL',
+                        'cat': 'CAT-Surface',
+                    }[bbr_method],
                     registration_dof=config.workflow.bold2anat_dof,
                     registration_init=bold2anat_init,
                     pe_direction=metadata.get('PhaseEncodingDirection'),
@@ -1008,7 +1077,7 @@ tasks and sessions), the following preprocessing was performed.
             func_fit_reports_wf = init_func_fit_reports_wf(
                 source_file=bold_file,
                 sdc_correction=fieldmap_id is not None,
-                freesurfer=freesurfer,
+                freesurfer=fs_subject,
                 output_dir=fmriprep_dir,
                 name=f'func_fit_reports_{bold_id}_wf',
             )
@@ -1121,6 +1190,7 @@ tasks and sessions), the following preprocessing was performed.
                 bold_series=bold_series,
                 fieldmap_id=fieldmap_id,
                 jacobian=jacobian,
+                freesurfer=fs_subject,
                 name=f'bold_apply_{bold_id}_wf',
             )
 
@@ -1157,6 +1227,11 @@ tasks and sessions), the following preprocessing was performed.
                     ('run2anat_xfm', 'inputnode.run2anat_xfm'),
                 ]),
             ])  # fmt:skip
+            # Only fsaverage sampled with Workbench reads the fsaverage registration sphere
+            if not fs_subject and config.workflow.run_reconall and spaces.get_fs_spaces():
+                workflow.connect(
+                    anat_fit_wf, 'outputnode.sphere_reg', bold_apply_wf, 'inputnode.sphere_reg'
+                )
 
             if fieldmap_id:
                 workflow.connect([
@@ -1308,3 +1383,22 @@ def get_estimator(layout, fname):
         field_source = get_identifier(intended_rel)
 
     return field_source
+
+
+def _has_fs_subject(subjects_dir, subject_id):
+    """Whether ``subjects_dir`` holds a reconstructed FreeSurfer subject ``subject_id``.
+
+    Checks the files read by ``bbregister``, surface sampling and the FreeSurfer-derived
+    outputs, so that a subject from an earlier run is used when recon-all is skipped.
+    """
+    if subjects_dir is None:
+        return False
+    surfaces = ('white', 'pial', 'sphere.reg', 'inflated', 'curv', 'thickness')
+    required = [
+        'mri/orig.mgz',
+        'mri/aseg.mgz',
+        'mri/aparc+aseg.mgz',
+        *(f'surf/{hemi}.{surf}' for hemi in ('lh', 'rh') for surf in surfaces),
+    ]
+    subject = os.path.join(subjects_dir, subject_id)
+    return all(os.path.isfile(os.path.join(subject, path)) for path in required)

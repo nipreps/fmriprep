@@ -434,6 +434,23 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         '6 degrees (rotation and translation) are used by default.',
     )
     g_conf.add_argument(
+        '--bold2anat-method',
+        choices=['auto', 'bbregister', 'fsl', 'cat'],
+        default='auto',
+        help='Method of BOLD to anatomical coregistration. `auto` uses FreeSurfer `bbregister` '
+        'if there is a FreeSurfer subject, otherwise FSL `flirt`. `cat` uses the boundary-based '
+        'registration of CAT-Surface on the white-matter surfaces in T1w space, so it needs '
+        'neither a FreeSurfer subject nor FSL, and the `cat-surf` package.',
+    )
+    g_conf.add_argument(
+        '--hmc-method',
+        choices=['mcflirt', 'cat'],
+        default='mcflirt',
+        help='Method of head-motion correction: FSL `mcflirt` (default), or `CAT_VolRealign` '
+        "from CAT-Surface, which writes mcflirt's transforms without FSL and needs the "
+        '`cat-surf` package.',
+    )
+    g_conf.add_argument(
         '--bold-coreg-level',
         action='store',
         choices=('run', 'session', 'subject'),
@@ -868,6 +885,22 @@ def parse_args(args=None, namespace=None):
             'Remove `fmap-jacobian` from either the `--force` or the `--ignore` option.'
         )
         raise ValueError(msg)
+    if 'cat' in (config.workflow.bold2anat_method, config.workflow.hmc_method):
+        from importlib.metadata import PackageNotFoundError, version
+
+        from packaging.version import Version
+
+        try:
+            cat_surf_version = Version(version('cat-surf'))
+        except PackageNotFoundError:
+            cat_surf_version = None
+        # 1.1.4: affine BBR, the command line's BBR defaults, damped head-motion correction
+        if cat_surf_version is None or cat_surf_version < Version('1.1.4'):
+            msg = (
+                '`--bold2anat-method cat` and `--hmc-method cat` require CAT-Surface '
+                '(cat-surf >= 1.1.4), e.g. `pip install "fmriprep[cat]"`.'
+            )
+            raise ValueError(msg)
 
     if not config.execution.notrack:
         import importlib.util

@@ -40,6 +40,10 @@ INPUT_FIELDS = [
     'subjects_dir',
     'subject_id',
     'fsnative2t1w_xfm',
+    'white',
+    'cortex_mask',
+    'thickness',
+    't2w_preproc',
 ]
 OUTPUT_FIELDS = [
     'template_boldrefs',
@@ -55,6 +59,13 @@ ANAT_REG_INPUTS = [
     ('subjects_dir', 'inputnode.subjects_dir'),
     ('subject_id', 'inputnode.subject_id'),
     ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
+]
+# Read only by CAT-Surface's boundary-based registration
+CAT_REG_INPUTS = [
+    ('white', 'inputnode.white'),
+    ('cortex_mask', 'inputnode.cortex_mask'),
+    ('thickness', 'inputnode.thickness'),
+    ('t2w_preproc', 'inputnode.t2w_preproc'),
 ]
 
 
@@ -76,6 +87,7 @@ def init_bold_anat_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_anat_coreg_wf',
 ) -> Workflow:
     """
@@ -114,6 +126,9 @@ def init_bold_anat_coreg_wf(
             alongside a complete set of ``run2template_xfms``, it is reused directly
             instead of reconstructing the reference from run 0. The template brain
             mask is always derived from the run references.
+    bbr_method
+        Registration method passed to
+        :func:`~fmriprep.workflows.bold.registration.init_bold_reg_wf`.
 
     Inputs
     ------
@@ -131,6 +146,12 @@ def init_bold_anat_coreg_wf(
         FreeSurfer subject ID (may be undefined).
     fsnative2t1w_xfm
         Transform from FreeSurfer native to anatomical space (may be undefined).
+    white, cortex_mask, thickness
+        Left and right white-matter surfaces, cortex masks and cortical thickness
+        (used by ``bbr_method='cat'``; may be undefined otherwise).
+    t2w_preproc
+        T2w image in T1w space (used by ``bbr_method='cat'`` with ``bold2anat_init='t2w'``;
+        may be undefined otherwise).
 
     Outputs
     -------
@@ -162,6 +183,7 @@ def init_bold_anat_coreg_wf(
         output_dir=output_dir,
         reference_anat=reference_anat,
         precomputed=precomputed,
+        bbr_method=bbr_method,
         name=name,
     )
 
@@ -180,6 +202,7 @@ def init_bold_run_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_run_coreg_wf',
 ) -> Workflow:
     """Register each BOLD run reference to the anatomical independently.
@@ -200,6 +223,7 @@ def init_bold_run_coreg_wf(
     workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
+    reg_inputs = ANAT_REG_INPUTS + (CAT_REG_INPUTS if bbr_method == 'cat' else [])
 
     template2anat_xfm = precomputed.get('template2anat_xfm') or [None] * n_runs
     outputnode.inputs.run2template_xfms = [Undefined] * n_runs
@@ -231,6 +255,7 @@ def init_bold_run_coreg_wf(
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
             sloppy=sloppy,
+            bbr_method=bbr_method,
         )
         ds_template2anat_wf = init_ds_registration_wf(
             bids_root=bids_root,
@@ -243,7 +268,7 @@ def init_bold_run_coreg_wf(
         )
 
         workflow.connect([
-            (inputnode, reg_wf, list(ANAT_REG_INPUTS)),
+            (inputnode, reg_wf, reg_inputs),
             (select_boldref, reg_wf, [('out', 'inputnode.ref_bold_brain')]),
             (select_boldref, ds_template2anat_wf, [('out', 'inputnode.source_files')]),
             (reg_wf, ds_template2anat_wf, [
@@ -282,6 +307,7 @@ def init_bold_template_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    bbr_method: str = 'auto',
     name: str = 'bold_template_coreg_wf',
 ) -> Workflow:
     """Coregister BOLD runs through a common template to the anatomical.
@@ -307,6 +333,7 @@ def init_bold_template_coreg_wf(
     workflow = Workflow(name=name)
     inputnode = pe.Node(niu.IdentityInterface(fields=INPUT_FIELDS), name='inputnode')
     outputnode = pe.Node(niu.IdentityInterface(fields=OUTPUT_FIELDS), name='outputnode')
+    reg_inputs = ANAT_REG_INPUTS + (CAT_REG_INPUTS if bbr_method == 'cat' else [])
 
     _dismiss = list(GROUP_DISMISS_ENTITIES)
     if coreg_space == 'subject':
@@ -490,6 +517,7 @@ def init_bold_template_coreg_wf(
             omp_nthreads=omp_nthreads,
             mem_gb=mem_gb,
             sloppy=sloppy,
+            bbr_method=bbr_method,
         )
 
         # Single template->anat transform is written
@@ -504,7 +532,7 @@ def init_bold_template_coreg_wf(
             name='ds_template2anat_wf',
         )
         workflow.connect([
-            (inputnode, boldref_reg_wf, list(ANAT_REG_INPUTS)),
+            (inputnode, boldref_reg_wf, reg_inputs),
             (inputnode, ds_template2anat_wf, [('run_boldrefs', 'inputnode.source_files')]),
             (template_buffer, boldref_reg_wf, [('boldref', 'inputnode.ref_bold_brain')]),
             (boldref_reg_wf, ds_template2anat_wf, [

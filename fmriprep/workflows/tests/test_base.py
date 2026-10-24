@@ -725,3 +725,157 @@ def test_reuse_precomputed_template_coreg(
 
 
 ### /Precomputed coregistration tests
+
+### Precomputed surfaces tests
+
+# Every anatomical derivative that sMRIPrep would otherwise read from a FreeSurfer subject
+PRECOMPUTED_ANAT = [
+    {'desc': 'preproc', 'suffix': 'T1w'},
+    {'desc': 'preproc', 'suffix': 'T2w'},
+    {'desc': 'brain', 'suffix': 'mask'},
+    {'desc': 'ribbon', 'suffix': 'mask'},
+    {'suffix': 'dseg'},
+    *({'label': label, 'suffix': 'probseg'} for label in ('GM', 'WM', 'CSF')),
+    *(
+        {'from': src, 'to': dst, 'mode': 'image', 'suffix': 'xfm', 'extension': ext}
+        for src, dst, ext in (
+            ('T1w', 'MNI152NLin2009cAsym', '.h5'),
+            ('MNI152NLin2009cAsym', 'T1w', '.h5'),
+            ('T1w', 'fsnative', '.txt'),
+            ('fsnative', 'T1w', '.txt'),
+        )
+    ),
+    *(
+        {'hemi': hemi, **entities}
+        for hemi in ('L', 'R')
+        for entities in (
+            *(
+                {'suffix': surf, 'extension': '.surf.gii'}
+                for surf in ('white', 'pial', 'midthickness', 'sphere')
+            ),
+            {'space': 'fsaverage', 'desc': 'reg', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            {'space': 'fsLR', 'desc': 'reg', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            {'space': 'fsLR', 'desc': 'msmsulc', 'suffix': 'sphere', 'extension': '.surf.gii'},
+            *(
+                {'suffix': metric, 'extension': '.shape.gii'}
+                for metric in ('thickness', 'sulc', 'curv')
+            ),
+            {'desc': 'cortex', 'suffix': 'mask', 'extension': '.label.gii'},
+        )
+    ),
+]
+
+
+def _precomputed_anat(path):
+    description = {'Name': 'anat', 'BIDSVersion': '1.10.0', 'DatasetType': 'derivative'}
+    generate_bids_skeleton(
+        path, {'dataset_description': description, '01': [{'anat': PRECOMPUTED_ANAT}]}
+    )
+    return path
+
+
+def _fs_subject(path):
+    """Create the files of a reconstructed FreeSurfer subject that fMRIPrep reads."""
+    surfaces = ('white', 'pial', 'sphere.reg', 'inflated', 'curv', 'thickness')
+    for name in (
+        'mri/orig.mgz',
+        'mri/aseg.mgz',
+        'mri/aparc+aseg.mgz',
+        *(f'surf/{hemi}.{surf}' for hemi in ('lh', 'rh') for surf in surfaces),
+    ):
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).touch()
+
+
+@pytest.mark.parametrize('bbr_method', ['auto', 'cat'])
+@pytest.mark.parametrize('fs_subject', [False, True])
+def test_precomputed_surfaces(bids_root, tmp_path, monkeypatch, fs_subject, bbr_method):
+    """Without a FreeSurfer subject nothing reads one; an existing subject is still used."""
+    subjects_dir = tmp_path / 'freesurfer'
+    subjects_dir.mkdir()
+    if fs_subject:
+        _fs_subject(subjects_dir / 'sub-01')
+
+    with mock_config(bids_dir=bids_root):
+        deriv_dir = _precomputed_anat(tmp_path / 'anat')
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': deriv_dir})
+        monkeypatch.setattr(config.execution, 'fs_subjects_dir', subjects_dir)
+        monkeypatch.setattr(config.execution, 'output_spaces', 'MNI152NLin2009cAsym:res-2')
+        # FreeSurfer-derived outputs are only written at the full level
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.workflow, 'bold2anat_method', bbr_method)
+        config.init_spaces()
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    # All derivatives are precomputed, so recon-all is skipped either way
+    assert not any(node.endswith('surface_recon_wf.autorecon1') for node in nodes)
+    assert any(node.startswith('surface_derivatives_wf.') for node in nodes) is fs_subject
+    method = 'cat_bbr_wf' if bbr_method == 'cat' else 'bbreg_wf' if fs_subject else 'fsl_bbr_wf'
+    assert any(f'.{method}.' in node for node in nodes)
+
+    if bbr_method == 'cat':
+        # The precomputed T2w initializes CAT-Surface's registration
+        anat_fit_wf = wf.get_node('anat_fit_wf')
+        t2w = anat_fit_wf.get_node('outputnode').inputs.t2w_preproc
+        assert t2w.endswith('sub-01_desc-preproc_T2w.nii.gz')
+        coreg_wf = next(
+            wf.get_node(node.split('.')[0]) for node in nodes if '.cat_bbr_wf.' in node
+        )
+        assert ('outputnode.t2w_preproc', 'inputnode.t2w_preproc') in wf._graph.get_edge_data(
+            anat_fit_wf, coreg_wf
+        )['connect']
+        cat_bbreg = wf.get_node(next(node for node in nodes if node.endswith('.cat_bbreg')))
+        assert cat_bbreg.inputs.init == 't2w'
+
+    # The summary only inspects a FreeSurfer subject that exists
+    summary = wf.get_node('summary')
+    fields = {
+        dest for *_, data in wf._graph.in_edges(summary, data=True) for _, dest in data['connect']
+    }
+    assert ('subjects_dir' in fields) is fs_subject
+    # Nor does the subject take a subjects directory without one, so that
+    # init_fmriprep_wf does not copy fsaverage into the outputs
+    assert (wf.get_node('inputnode') is not None) is fs_subject
+
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_precomputed_surfaces_fs_spaces(bids_root, tmp_path, monkeypatch):
+    """Without a FreeSurfer subject, fsaverage outputs are sampled with Workbench."""
+    with mock_config(bids_dir=bids_root):
+        deriv_dir = _precomputed_anat(tmp_path / 'anat')
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': deriv_dir})
+        monkeypatch.setattr(config.execution, 'fs_subjects_dir', tmp_path / 'freesurfer')
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        # The test configuration requests fsaverage5
+        assert config.workflow.spaces.get_fs_spaces() == ['fsaverage5']
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    assert not any('.bold_surf_wf.' in node for node in nodes)
+    assert any(node.endswith('.ds_bold_fsaverage5_wb') for node in nodes)
+
+    # The precomputed registration to fsaverage reaches the BOLD workflows
+    anat_fit_wf = wf.get_node('anat_fit_wf')
+    apply_wfs = {
+        wf.get_node(node.split('.')[0]) for node in nodes if '.ds_bold_fsaverage5_wb' in node
+    }
+    for apply_wf in apply_wfs:
+        edges = wf._graph.get_edge_data(anat_fit_wf, apply_wf)['connect']
+        assert ('outputnode.sphere_reg', 'inputnode.sphere_reg') in edges
+
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_hmc_method_cat(bids_root, monkeypatch):
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'hmc_method', 'cat')
+        wf = init_single_subject_wf('01')
+
+    nodes = wf.list_node_names()
+    assert any(node.endswith('bold_hmc_wf.cat_realign') for node in nodes)
+    assert not any(node.endswith('bold_hmc_wf.mcflirt') for node in nodes)
+
+
+### /Precomputed surfaces tests
