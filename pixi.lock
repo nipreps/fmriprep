@@ -4761,6 +4761,7 @@ packages:
   - sphinx-argparse!=0.5.0 ; extra == 'all'
   - sphinx-rtd-theme>=0.5.2 ; extra == 'all'
   - sphinx>=5 ; extra == 'all'
+  - cat-surf>=1.1.4 ; extra == 'cat'
   - datalad ; extra == 'container'
   - datalad-osf ; extra == 'container'
   - migas>=0.4.0 ; extra == 'container'
