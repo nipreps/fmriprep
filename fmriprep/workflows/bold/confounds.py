@@ -31,6 +31,11 @@ Calculate BOLD confounds
 from nipype.algorithms import confounds as nac
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
+from niworkflows.interfaces.confounds import (
+    FramewiseDisplacement,
+    FSLMotionParams,
+    FSLRMSDeviation,
+)
 from templateflow.api import get as get_template
 
 from ...config import DEFAULT_MEMORY_MIN_GB
@@ -38,9 +43,6 @@ from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
     FilterDropped,
     FMRISummary,
-    FramewiseDisplacement,
-    FSLMotionParams,
-    FSLRMSDeviation,
     GatherConfounds,
     RenameACompCor,
 )
