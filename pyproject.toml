@@ -45,6 +45,7 @@ dependencies = [
     "toml >= 0.10",
     "codecarbon >= 2.7.0",
     "APScheduler >= 3.11.0",
+    "nipost[bids] >= 0.1.0",
 ]
 dynamic = ["version"]
 
@@ -279,4 +280,9 @@ omit = [
 source = [
   "fmriprep",
   "**/site-packages/fmriprep"
+]
+
+[tool.coverage.report]
+exclude-also = [
+  "if .*TYPE_CHECKING:",
 ]

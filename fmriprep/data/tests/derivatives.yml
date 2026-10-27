@@ -3,7 +3,7 @@
 #
 # Files are grouped by the key that collects them, so tests can toggle individual
 # derivatives on and off. Groups ending in ``_legacy`` use fMRIPrep 23.2-25.2 names.
-# ``run2session`` and ``run2subject`` are both collected as ``run2template``.
+# Groups are collected under ``boldrefs`` (``<level>_boldref``) or ``transforms`` (the rest).
 # ``defaults`` lists the groups written when no groups are requested.
 # Values of the form ``{name}`` are filled from ``deriv_skeleton()`` keyword arguments,
 # and entities whose value is ``None`` are left out of the filename.
