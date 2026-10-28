@@ -34,7 +34,6 @@ import os
 import re
 
 import nibabel as nb
-import nitransforms as nt
 import numpy as np
 import pandas as pd
 from nipype import logging
@@ -51,8 +50,6 @@ from nipype.interfaces.base import (
 from nipype.utils.filemanip import fname_presuffix
 from nireports.reportlets.modality.func import fMRIPlot
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
-from scipy import ndimage as ndi
-from scipy.spatial import transform as sst
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -87,148 +84,6 @@ class aCompCorMasks(SimpleInterface):
             is_aseg=self.inputs.is_aseg,
             zooms=self.inputs.bold_zooms,
         )
-        return runtime
-
-
-class _FSLRMSDeviationInputSpec(BaseInterfaceInputSpec):
-    xfm_file = File(exists=True, mandatory=True, desc='Head motion transform file')
-    boldref_file = File(exists=True, mandatory=True, desc='BOLD reference file')
-
-
-class _FSLRMSDeviationOutputSpec(TraitedSpec):
-    out_file = File(desc='Output motion parameters file')
-
-
-class FSLRMSDeviation(SimpleInterface):
-    """Reconstruct FSL root mean square deviation from affine transforms."""
-
-    input_spec = _FSLRMSDeviationInputSpec
-    output_spec = _FSLRMSDeviationOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_file'] = fname_presuffix(
-            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
-        )
-
-        boldref = nb.load(self.inputs.boldref_file)
-        hmc = nt.linear.load(self.inputs.xfm_file)
-
-        center = 0.5 * (np.array(boldref.shape[:3]) - 1) * boldref.header.get_zooms()[:3]
-
-        # Revert to vox2vox transforms
-        fsl_hmc = nt.io.fsl.FSLLinearTransformArray.from_ras(
-            hmc.matrix, reference=boldref, moving=boldref
-        )
-        fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
-
-        diff = fsl_matrix[1:] @ np.linalg.inv(fsl_matrix[:-1]) - np.eye(4)
-        M = diff[:, :3, :3]
-        t = diff[:, :3, 3] + M @ center
-        Rmax = 80.0
-
-        rmsd = np.concatenate(
-            [
-                [np.nan],
-                np.sqrt(
-                    np.diag(t @ t.T)
-                    + np.trace(M.transpose(0, 2, 1) @ M, axis1=1, axis2=2) * Rmax**2 / 5
-                ),
-            ]
-        )
-
-        params = pd.DataFrame(data=rmsd, columns=['rmsd'])
-        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
-
-        return runtime
-
-
-class _FSLMotionParamsInputSpec(BaseInterfaceInputSpec):
-    xfm_file = File(exists=True, desc='Head motion transform file')
-    boldref_file = File(exists=True, desc='BOLD reference file')
-
-
-class _FSLMotionParamsOutputSpec(TraitedSpec):
-    out_file = File(desc='Output motion parameters file')
-
-
-class FSLMotionParams(SimpleInterface):
-    """Reconstruct FSL motion parameters from affine transforms."""
-
-    input_spec = _FSLMotionParamsInputSpec
-    output_spec = _FSLMotionParamsOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_file'] = fname_presuffix(
-            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
-        )
-
-        boldref = nb.load(self.inputs.boldref_file)
-        hmc = nt.linear.load(self.inputs.xfm_file)
-
-        # FSL's cog("scaled_mm"): on load, newimage reverses the first voxel axis of
-        # images with a positive determinant, and calc_cog weights voxels by value - min
-        data = boldref.get_fdata()
-        if np.linalg.det(boldref.affine) > 0:
-            data = data[::-1]
-        center_of_gravity = np.diag(boldref.header.get_zooms()[:3]) @ ndi.center_of_mass(
-            data - data.min()
-        )
-
-        # Revert to vox2vox transforms
-        fsl_hmc = nt.io.fsl.FSLLinearTransformArray.from_ras(
-            hmc.matrix, reference=boldref, moving=boldref
-        )
-        fsl_matrix = np.stack([xfm['parameters'] for xfm in fsl_hmc.xforms])
-
-        # Ax = Mx + b
-        M, b = fsl_matrix[:, :3, :3], fsl_matrix[:, :3, 3]
-        # Translation is the displacement of CoG: (Ac - c) = Mc + b - c
-        trans_xyz = M @ center_of_gravity + b - center_of_gravity
-
-        # FSL composes M = Rx(-rot_x) @ Ry(-rot_y) @ Rz(-rot_z)
-        # Extracting XYZ retrieves negative rotations, so negate
-        rot_xyz = -sst.Rotation.from_matrix(M).as_euler('XYZ')
-
-        params = pd.DataFrame(
-            data=np.hstack((trans_xyz, rot_xyz)),
-            columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z'],
-        )
-
-        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
-
-        return runtime
-
-
-class _FramewiseDisplacementInputSpec(BaseInterfaceInputSpec):
-    in_file = File(exists=True, desc='Head motion transform file')
-    radius = traits.Float(50, usedefault=True, desc='Radius of the head in mm')
-
-
-class _FramewiseDisplacementOutputSpec(TraitedSpec):
-    out_file = File(desc='Output framewise displacement file')
-
-
-class FramewiseDisplacement(SimpleInterface):
-    """Calculate framewise displacement estimates."""
-
-    input_spec = _FramewiseDisplacementInputSpec
-    output_spec = _FramewiseDisplacementOutputSpec
-
-    def _run_interface(self, runtime):
-        self._results['out_file'] = fname_presuffix(
-            self.inputs.in_file, suffix='_fd.tsv', newpath=runtime.cwd
-        )
-
-        motion = pd.read_csv(self.inputs.in_file, delimiter='\t')
-
-        # Filter and ensure we have all parameters
-        diff = motion[['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']].diff()
-        diff[['rot_x', 'rot_y', 'rot_z']] *= self.inputs.radius
-
-        fd = pd.DataFrame(diff.abs().sum(axis=1, skipna=False), columns=['FramewiseDisplacement'])
-
-        fd.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
-
         return runtime
 
 
