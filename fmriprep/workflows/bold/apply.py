@@ -7,6 +7,7 @@ from niworkflows.interfaces.nibabel import GenerateSamplingReference
 from ...interfaces.resampling import (
     DistortionParameters,
     ReconstructFieldmap,
+    ReconstructGradient,
     ResampleSeries,
 )
 
@@ -128,7 +129,7 @@ def init_bold_volumetric_resample_wf(
     run2target = pe.Node(niu.Merge(3), name='run2target', run_without_submitting=True)
     bold2target = pe.Node(niu.Merge(2), name='bold2target', run_without_submitting=True)
     resample = pe.Node(
-        ResampleSeries(jacobian=jacobian),
+        ResampleSeries(),
         name='resample',
         n_procs=omp_nthreads,
         mem_gb=mem_gb['resampled'],
@@ -193,6 +194,20 @@ def init_bold_volumetric_resample_wf(
         ]),
         (fmap_recon, resample, [('out_file', 'fieldmap')]),
     ])  # fmt:skip
+
+    if jacobian:
+        fmap_grad = pe.Node(ReconstructGradient(), name='fmap_grad', mem_gb=1)
+
+        workflow.connect([
+            (inputnode, fmap_grad, [
+                ('fmap_coeff', 'in_coeffs'),
+                ('run2fmap_xfm', 'epi2fmap_xfm'),
+            ]),
+            (gen_ref, fmap_grad, [('out_file', 'target_ref_file')]),
+            (fmap2target, fmap_grad, [('out', 'transforms')]),
+            (inverses, fmap_grad, [('out', 'inverse')]),
+            (fmap_grad, resample, [('out_file', 'fieldmap_gradient')]),
+        ])  # fmt:skip
 
     return workflow
 

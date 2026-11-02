@@ -44,7 +44,11 @@ class ResampleSeriesInputSpec(TraitedSpec):
         'k-',
         desc='the phase-encoding direction corresponding to in_data',
     )
-    jacobian = traits.Bool(mandatory=True, desc='Whether to apply Jacobian correction')
+    fieldmap_gradient = File(
+        exists=True,
+        desc='Fieldmap gradient (Hz/mm) in reference space, from ReconstructGradient. '
+        'If provided, intensities are modulated by the Jacobian of the distortion.',
+    )
     num_threads = traits.Int(1, usedefault=True, desc='Number of threads to use for resampling')
     output_data_type = traits.Str('float32', usedefault=True, desc='Data type of output image')
     order = traits.Int(3, usedefault=True, desc='Order of interpolation (0=nearest, 3=cubic)')
@@ -83,6 +87,9 @@ class ResampleSeries(SimpleInterface):
         source = nb.load(self.inputs.in_file)
         target = nb.load(self.inputs.ref_file)
         fieldmap = nb.load(self.inputs.fieldmap) if self.inputs.fieldmap else None
+        fieldmap_gradient = (
+            nb.load(self.inputs.fieldmap_gradient) if self.inputs.fieldmap_gradient else None
+        )
 
         nvols = source.shape[3] if source.ndim > 3 else 1
 
@@ -109,7 +116,7 @@ class ResampleSeries(SimpleInterface):
             transforms=transforms,
             fieldmap=fieldmap,
             pe_info=pe_info,
-            jacobian=self.inputs.jacobian,
+            fieldmap_gradient=fieldmap_gradient,
             nthreads=self.inputs.num_threads,
             output_dtype=self.inputs.output_data_type,
             order=self.inputs.order,
