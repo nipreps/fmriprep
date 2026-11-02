@@ -176,6 +176,37 @@ class ReconstructFieldmap(SimpleInterface):
         return runtime
 
 
+class ReconstructGradientInputSpec(ReconstructFieldmapInputSpec):
+    # If we need to accommodate fmap2epi transforms, add another field and set `xor`
+    # Currently, we always have run2fmap, so no need to duplicate.
+    epi2fmap_xfm = File(
+        exists=True,
+        mandatory=True,
+        desc='Affine mapping EPI reference images into the fieldmap space. '
+        'Used to map the fieldmap gradient into EPI.'
+        'Note that this transform is not inverted based on the `inverse` input.',
+    )
+
+
+class ReconstructGradientOutputSpec(TraitedSpec):
+    out_file = File(desc='Fieldmap gradient (Hz/mm) in target_ref_file space')
+
+
+class ReconstructGradient(SimpleInterface):
+    """Evaluate the analytic gradient of a B-spline fieldmap in a target space.
+
+    The gradient is taken along the world axes of the BOLD reference, so that
+    :class:`ResampleSeries` can use it to modulate intensities by the Jacobian
+    of the distortion.
+    """
+
+    input_spec = ReconstructGradientInputSpec
+    output_spec = ReconstructGradientOutputSpec
+
+    def _run_interface(self, runtime):
+        raise NotImplementedError
+
+
 class DistortionParametersInputSpec(TraitedSpec):
     in_file = File(exists=True, desc='EPI image corresponding to the metadata')
     metadata = traits.Dict(mandatory=True, desc='metadata corresponding to the inputs')

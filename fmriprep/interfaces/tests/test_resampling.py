@@ -8,6 +8,7 @@ from nipype.pipeline import engine as pe
 
 from fmriprep.interfaces.resampling import (
     ReconstructFieldmap,
+    ReconstructGradient,
     ResampleTemplate,
     UpsampleToZooms,
 )
@@ -213,3 +214,47 @@ def test_ReconstructFieldmap(tmp_path):
     assert fieldmap.shape == target.shape
     assert np.allclose(fieldmap.affine, target.affine)
     np.testing.assert_allclose(np.asanyarray(fieldmap.dataobj), _ras(target)[..., 0], atol=1e-4)
+
+
+def _rot_z(theta):
+    c, s = np.cos(theta), np.sin(theta)
+    matrix = np.eye(4)
+    matrix[:2, :2] = [[c, -s], [s, c]]
+    return matrix
+
+
+@pytest.mark.parametrize(
+    ('theta', 'expected'),
+    [
+        pytest.param(0.0, (1.0, 0.0, 0.0), id='aligned'),
+        pytest.param(np.pi / 6, (np.cos(np.pi / 6), -np.sin(np.pi / 6), 0.0), id='rotated'),
+    ],
+)
+def test_ReconstructGradient(tmp_path, theta, expected):
+    """The gradient of a ramp is its slope, expressed along the BOLD reference's axes."""
+    target = _grid(span=20.0, zoom=2.0)
+    target.to_filename(tmp_path / 'target.nii.gz')
+    # The file holds the inverse of the transform mapping BOLD reference points into the fieldmap
+    epi2fmap = nt.linear.Affine(_rot_z(theta))
+    nt.linear.Affine(np.linalg.inv(epi2fmap.matrix)).to_filename(
+        tmp_path / 'run2fmap.txt', fmt='itk'
+    )
+
+    node = pe.Node(
+        ReconstructGradient(
+            in_coeffs=[_ramp_coefficients(tmp_path / 'coeffs.nii.gz')],
+            target_ref_file=str(tmp_path / 'target.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+            epi2fmap_xfm=str(tmp_path / 'run2fmap.txt'),
+        ),
+        name='gradient',
+        base_dir=tmp_path,
+    )
+    gradient = nb.load(node.run().outputs.out_file)
+
+    assert gradient.shape == (*target.shape, 1, 3)
+    interior = np.abs(_ras(target)).max(axis=-1) <= 30.0
+    data = gradient.dataobj[..., 0, :]
+    np.testing.assert_allclose(
+        data[interior], np.broadcast_to(expected, (interior.sum(), 3)), atol=1e-4
+    )
