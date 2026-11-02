@@ -6,7 +6,11 @@ import numpy as np
 import pytest
 from nipype.pipeline import engine as pe
 
-from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
+from fmriprep.interfaces.resampling import (
+    ReconstructFieldmap,
+    ResampleTemplate,
+    UpsampleToZooms,
+)
 
 
 def _image(path, zooms):
@@ -165,3 +169,47 @@ def test_ResampleTemplate_transform(tmp_path):
     )
 
     assert np.allclose(nb.load(out_file).get_fdata(), data, atol=1e-4)
+
+
+def _ras(img):
+    """RAS coordinates of every voxel of an image, along a trailing axis."""
+    ijk = np.indices(img.shape[:3], dtype=float).reshape(3, -1).T
+    return nb.affines.apply_affine(img.affine, ijk).reshape(*img.shape[:3], 3)
+
+
+def _grid(span, zoom):
+    """Isotropic RAS grid spanning -span..+span mm."""
+    affine = nb.affines.from_matvec(np.eye(3) * zoom, np.full(3, -span))
+    return nb.Nifti1Image(np.zeros((int(2 * span / zoom) + 1,) * 3, dtype='f4'), affine)
+
+
+def _ramp_coefficients(path):
+    """Write coefficients equal to each knot's x coordinate, on 4 mm knots over -40..+40 mm.
+
+    Cubic B-splines reproduce linear functions, so the field is f(x, y, z) = x
+    (Hz) for points more than one knot spacing inside the lattice.
+    """
+    knots = _grid(span=40.0, zoom=4.0)
+    nb.Nifti1Image(_ras(knots)[..., 0].astype('f4'), knots.affine).to_filename(path)
+    return str(path)
+
+
+def test_ReconstructFieldmap(tmp_path):
+    """A linear coefficient grid yields the linear field in the interior of the lattice."""
+    target = _grid(span=20.0, zoom=2.0)
+    target.to_filename(tmp_path / 'target.nii.gz')
+
+    node = pe.Node(
+        ReconstructFieldmap(
+            in_coeffs=[_ramp_coefficients(tmp_path / 'coeffs.nii.gz')],
+            target_ref_file=str(tmp_path / 'target.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+        ),
+        name='reconstruct',
+        base_dir=tmp_path,
+    )
+    fieldmap = nb.load(node.run().outputs.out_file)
+
+    assert fieldmap.shape == target.shape
+    assert np.allclose(fieldmap.affine, target.affine)
+    np.testing.assert_allclose(np.asanyarray(fieldmap.dataobj), _ras(target)[..., 0], atol=1e-4)
