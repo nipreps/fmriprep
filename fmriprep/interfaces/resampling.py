@@ -129,9 +129,6 @@ class ReconstructFieldmapInputSpec(TraitedSpec):
     target_ref_file = File(
         exists=True, mandatory=True, desc='Image to reconstruct the field in alignment with'
     )
-    fmap_ref_file = File(
-        exists=True, mandatory=True, desc='Reference file aligned with coefficients'
-    )
     transforms = InputMultiObject(
         File(exists=True),
         mandatory=True,
@@ -152,10 +149,9 @@ class ReconstructFieldmapOutputSpec(TraitedSpec):
 class ReconstructFieldmap(SimpleInterface):
     """Reconstruct a fieldmap from B-spline coefficients in a target space.
 
-    If the target reference does not have an aligned grid (guaranteed if
-    transforms include a warp), then a reference file describing the space
-    where it is valid to extrapolate the field will be used as an intermediate
-    step.
+    The field is evaluated directly at the voxels of the target reference,
+    mapped into the coefficients' space by the transforms. It is zero beyond
+    the support of the coefficients.
     """
 
     input_spec = ReconstructFieldmapInputSpec
@@ -166,13 +162,11 @@ class ReconstructFieldmap(SimpleInterface):
 
         coefficients = [nb.load(coeff_file) for coeff_file in self.inputs.in_coeffs]
         target = nb.load(self.inputs.target_ref_file)
-        fmapref = nb.load(self.inputs.fmap_ref_file)
 
         transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
 
         fieldmap = reconstruct_fieldmap(
             coefficients=coefficients,
-            fmap_reference=fmapref,
             target=target,
             transforms=transforms,
         )

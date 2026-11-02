@@ -403,7 +403,6 @@ def init_bold_fit_wf(
         workflow.connect([
             (inputnode, boldref_fmap, [
                 ('fmap_coeff', 'in_coeffs'),
-                ('fmap_ref', 'fmap_ref_file'),
             ]),
             (fmapref_buffer, boldref_fmap, [('out', 'target_ref_file')]),
             (fmapreg_buffer, boldref_fmap, [('run2fmap_xfm', 'transforms')]),
@@ -797,7 +796,6 @@ def init_bold_native_wf(
                 ('run_boldref', 'target_ref_file'),
                 ('run2fmap_xfm', 'transforms'),
                 ('fmap_coeff', 'in_coeffs'),
-                ('fmap_ref', 'fmap_ref_file'),
             ]),
             (boldref_fmap, boldref_bold, [('out_file', 'fieldmap')]),
         ])  # fmt:skip

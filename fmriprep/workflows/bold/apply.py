@@ -180,7 +180,6 @@ def init_bold_volumetric_resample_wf(
         (inputnode, fmap2target, [('run2fmap_xfm', 'in1')]),
         (inputnode, fmap_recon, [
             ('fmap_coeff', 'in_coeffs'),
-            ('fmap_ref', 'fmap_ref_file'),
         ]),
         (gen_ref, fmap_recon, [('out_file', 'target_ref_file')]),
         (run2target, fmap2target, [('out', 'in2')]),
