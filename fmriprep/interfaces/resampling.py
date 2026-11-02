@@ -6,6 +6,7 @@ import nitransforms.resampling
 import numpy as np
 from nipost import load_transforms, reconstruct_fieldmap, resample_image
 from nipost.epi import ensure_positive_cosines, get_trt
+from nipost.fieldmap import reconstruct_gradient
 from nipype import logging
 from nipype.interfaces.base import (
     File,
@@ -204,7 +205,24 @@ class ReconstructGradient(SimpleInterface):
     output_spec = ReconstructGradientOutputSpec
 
     def _run_interface(self, runtime):
-        raise NotImplementedError
+        out_path = fname_presuffix(self.inputs.in_coeffs[-1], suffix='grad', newpath=runtime.cwd)
+
+        coefficients = [nb.load(coeff_file) for coeff_file in self.inputs.in_coeffs]
+        target = nb.load(self.inputs.target_ref_file)
+
+        transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
+        fmap2epi = load_transforms([self.inputs.epi2fmap_xfm], [True])
+
+        gradient = reconstruct_gradient(
+            coefficients=coefficients,
+            target=target,
+            fmap2target=transforms,
+            fmap2epi=fmap2epi,
+        )
+        gradient.to_filename(out_path)
+
+        self._results['out_file'] = out_path
+        return runtime
 
 
 class DistortionParametersInputSpec(TraitedSpec):
