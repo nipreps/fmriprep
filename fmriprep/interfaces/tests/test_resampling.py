@@ -9,6 +9,7 @@ from nipype.pipeline import engine as pe
 from fmriprep.interfaces.resampling import (
     ReconstructFieldmap,
     ReconstructGradient,
+    ResampleSeries,
     ResampleTemplate,
     UpsampleToZooms,
 )
@@ -257,4 +258,62 @@ def test_ReconstructGradient(tmp_path, theta, expected):
     data = gradient.dataobj[..., 0, :]
     np.testing.assert_allclose(
         data[interior], np.broadcast_to(expected, (interior.sum(), 3)), atol=1e-4
+    )
+
+
+def _series(tmp_path):
+    """A small positive 4D series, a zero fieldmap and a constant gradient along j."""
+    rng = np.random.default_rng(1)
+    affine = np.diag([2.0, 2.0, 2.0, 1.0])
+    shape = (12, 12, 12)
+    nb.Nifti1Image(1 + rng.random((*shape, 3), dtype='float32'), affine).to_filename(
+        tmp_path / 'bold.nii.gz'
+    )
+    nb.Nifti1Image(np.zeros(shape, dtype='f4'), affine).to_filename(tmp_path / 'ref.nii.gz')
+    nb.Nifti1Image(np.zeros(shape, dtype='f4'), affine).to_filename(tmp_path / 'fmap.nii.gz')
+    gradient = np.zeros((*shape, 1, 3), dtype='f4')
+    gradient[..., 0, 1] = 0.02  # Hz/mm along j
+    nb.Nifti1Image(gradient, affine).to_filename(tmp_path / 'grad.nii.gz')
+
+
+def _resample(tmp_path, **kwargs):
+    node = pe.Node(
+        ResampleSeries(
+            in_file=str(tmp_path / 'bold.nii.gz'),
+            ref_file=str(tmp_path / 'ref.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+            fieldmap=str(tmp_path / 'fmap.nii.gz'),
+            pe_dir='j',
+            ro_time=0.05,
+            order=1,
+            **kwargs,
+        ),
+        name='resample',
+        base_dir=tmp_path,
+    )
+    return np.asanyarray(nb.load(node.run().outputs.out_file).dataobj)
+
+
+def test_ResampleSeries_fieldmap_gradient(tmp_path):
+    """A fieldmap gradient scales each voxel by 1 + readout time * gradient (Hz/mm * mm)."""
+    _series(tmp_path)
+    original = np.asanyarray(nb.load(tmp_path / 'bold.nii.gz').dataobj)
+
+    modulated = _resample(tmp_path, fieldmap_gradient=str(tmp_path / 'grad.nii.gz'))
+
+    # 0.05 s * 0.02 Hz/mm * 2 mm per voxel
+    np.testing.assert_allclose(
+        modulated[2:-2, 2:-2, 2:-2], original[2:-2, 2:-2, 2:-2] * 1.002, rtol=1e-4
+    )
+
+
+def test_ResampleSeries_no_gradient(tmp_path):
+    """Without a fieldmap gradient, a zero fieldmap leaves the series unmodulated."""
+    _series(tmp_path)
+    original = np.asanyarray(nb.load(tmp_path / 'bold.nii.gz').dataobj)
+
+    unmodulated = _resample(tmp_path)
+
+    np.testing.assert_allclose(
+        unmodulated[2:-2, 2:-2, 2:-2], original[2:-2, 2:-2, 2:-2], rtol=1e-4
     )
