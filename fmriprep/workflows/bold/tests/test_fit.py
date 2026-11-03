@@ -8,6 +8,8 @@ from nipype.pipeline.engine.utils import generate_expanded_graph
 from niworkflows.utils.testing import generate_bids_skeleton
 
 from .... import config
+from ....utils.bids import collect_func_derivatives, dismiss_echo, extract_entities
+from ....utils.testing import write_derivatives
 from ...tests import mock_config
 from ...tests.layouts import get_layout
 from ..fit import get_sbrefs, init_bold_fit_wf, init_bold_native_wf
@@ -30,20 +32,6 @@ def bids_root(tmp_path_factory):
     bids_dir = base / 'bids'
     generate_bids_skeleton(bids_dir, get_layout('no_session'))
     return bids_dir
-
-
-def _make_params(
-    have_hmcref: bool = True,
-    have_coregref: bool = True,
-    have_hmc_xfms: bool = True,
-    have_run2fmap_xfm: bool = True,
-):
-    return (
-        have_hmcref,
-        have_coregref,
-        have_hmc_xfms,
-        have_run2fmap_xfm,
-    )
 
 
 def test_get_sbrefs_rejects_missing_echo_time(caplog):
@@ -92,36 +80,22 @@ def test_get_sbrefs_preserves_single_missing_echo_time():
     assert found == [sbref_file]
 
 
+DERIV_GROUPS = ['hmc_boldref', 'run_boldref', 'hmc', 'run2fmap']
+
+
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
-@pytest.mark.parametrize(
-    (
-        'have_hmcref',
-        'have_coregref',
-        'have_hmc_xfms',
-        'have_run2fmap_xfm',
-    ),
-    [
-        (True, True, True, True),
-        (False, False, False, False),
-        _make_params(have_hmcref=False),
-        _make_params(have_hmc_xfms=False),
-        _make_params(have_coregref=False),
-        _make_params(have_coregref=False, have_run2fmap_xfm=False),
-    ],
-)
+@pytest.mark.parametrize('group', [None, *DERIV_GROUPS])
+@pytest.mark.parametrize('mode', ['include', 'omit'])
 def test_bold_fit_precomputes(
     bids_root: Path,
     tmp_path: Path,
     task: str,
     fieldmap_id: str | None,
-    have_hmcref: bool,
-    have_coregref: bool,
-    have_hmc_xfms: bool,
-    have_run2fmap_xfm: bool,
+    group: str | None,
+    mode: str,
 ):
-    """Test as many combinations of precomputed files and input
-    configurations as possible."""
+    """Test precomputed inputs one-by-one with a few configurations."""
     output_dir = tmp_path / 'output'
     output_dir.mkdir()
 
@@ -145,21 +119,28 @@ def test_bold_fit_precomputes(
     # Single volume sbref; multi-volume tested in test_base
     img.slicer[:, :, :, 0].to_filename(sbref)
 
-    dummy_nifti = str(tmp_path / 'dummy.nii')
-    dummy_affine = str(tmp_path / 'dummy.txt')
-    img.to_filename(dummy_nifti)
-    np.savetxt(dummy_affine, np.eye(4))
+    # Collect precomputed files from a derivatives dataset
+    if group is None:
+        include = [] if mode == 'include' else DERIV_GROUPS
+    else:
+        include = [group] if mode == 'include' else [g for g in DERIV_GROUPS if g != group]
 
-    # Construct precomputed files
-    precomputed = {'transforms': {}}
-    if have_hmcref:
-        precomputed['hmc_boldref'] = dummy_nifti
-    if have_coregref:
-        precomputed['run_boldref'] = dummy_nifti
-    if have_hmc_xfms:
-        precomputed['transforms']['hmc'] = dummy_affine
-    if have_run2fmap_xfm:
-        precomputed['transforms']['run2fmap'] = dummy_affine
+    deriv_dir = write_derivatives(
+        tmp_path / 'derivatives',
+        include,
+        task=task,
+        run=1 if task == 'rest' else None,
+        fmapid=fieldmap_id or 'auto00000',
+    )
+    for path in deriv_dir.rglob('*.nii.gz'):
+        img.to_filename(path)
+    for path in deriv_dir.rglob('*.txt'):
+        np.savetxt(path, np.eye(4))
+
+    # Mirrors how init_single_subject_wf selects entities before collecting derivatives
+    entities = extract_entities(bold_series)
+    entities = {k: v for k, v in entities.items() if k not in dismiss_echo(['part'])}
+    precomputed = collect_func_derivatives([deriv_dir], entities, fieldmap_id=fieldmap_id)
 
     with mock_config(bids_dir=bids_root):
         config.workflow.bold2anat_init = 't1w'
@@ -170,6 +151,12 @@ def test_bold_fit_precomputes(
             omp_nthreads=1,
         )
 
+    # Precomputed derivatives skip the stages that would produce them
+    assert (wf.get_node('hmc_boldref_wf') is None) == ('hmc_boldref' in include)
+    assert (wf.get_node('bold_hmc_wf') is None) == ('hmc' in include)
+    assert (wf.get_node('ds_run_boldref_wf') is None) == ('run_boldref' in include)
+    assert (wf.get_node('fmapreg_wf') is None) == (fieldmap_id is None or 'run2fmap' in include)
+
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)
 
@@ -177,15 +164,13 @@ def test_bold_fit_precomputes(
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize('run_stc', [True, False])
-def test_bold_native_precomputes(
+def test_bold_native(
     bids_root: Path,
     tmp_path: Path,
     task: str,
     fieldmap_id: str | None,
     run_stc: bool,
 ):
-    """Test as many combinations of precomputed files and input
-    configurations as possible."""
     output_dir = tmp_path / 'output'
     output_dir.mkdir()
 

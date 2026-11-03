@@ -1,13 +1,12 @@
 """Interfaces for resampling images in a single shot"""
 
-import asyncio
-import os
-from functools import partial
-
 import nibabel as nb
 import nitransforms as nt
 import nitransforms.resampling
 import numpy as np
+from nipost import load_transforms, reconstruct_fieldmap, resample_image
+from nipost.epi import ensure_positive_cosines, get_trt
+from nipype import logging
 from nipype.interfaces.base import (
     File,
     InputMultiObject,
@@ -16,13 +15,8 @@ from nipype.interfaces.base import (
     traits,
 )
 from nipype.utils.filemanip import fname_presuffix
-from scipy import ndimage as ndi
-from scipy.sparse import hstack as sparse_hstack
-from sdcflows.transform import grid_bspline_weights
-from sdcflows.utils.tools import ensure_positive_cosines
 
-from ..utils.asynctools import worker
-from ..utils.transforms import load_transforms
+LOGGER = logging.getLogger('nipype.interface')
 
 
 class ResampleSeriesInputSpec(TraitedSpec):
@@ -216,8 +210,6 @@ class DistortionParameters(SimpleInterface):
     output_spec = DistortionParametersOutputSpec
 
     def _run_interface(self, runtime):
-        from sdcflows.utils.epimanip import get_trt
-
         try:
             self._results['readout_time'] = get_trt(
                 self.inputs.metadata,
@@ -232,494 +224,133 @@ class DistortionParameters(SimpleInterface):
         return runtime
 
 
-def resample_vol(
-    data: np.ndarray,
-    coordinates: np.ndarray,
-    pe_info: tuple[int, float],
-    jacobian: bool,
-    hmc_xfm: np.ndarray | None,
-    fmap_hz: np.ndarray,
-    output: np.dtype | np.ndarray | None = None,
-    order: int = 3,
-    mode: str = 'constant',
-    cval: float = 0.0,
-    prefilter: bool = True,
-) -> np.ndarray:
-    """Resample a volume at specified coordinates
-
-    This function implements simultaneous head-motion correction and
-    susceptibility-distortion correction. It accepts coordinates in
-    the source voxel space. It is the responsibility of the caller to
-    transform coordinates from any other target space.
-
-    Parameters
-    ----------
-    data
-        The data array to resample
-    coordinates
-        The first-approximation voxel coordinates to sample from ``data``
-        The first dimension should have length ``data.ndim``. The further
-        dimensions have the shape of the target array.
-    pe_info
-        The readout vector in the form of (axis, signed-readout-time)
-        ``(1, -0.04)`` becomes ``[0, -0.04, 0]``, which indicates that a
-        +1 Hz deflection in the field shifts 0.04 voxels toward the start
-        of the data array in the second dimension.
-    hmc_xfm
-        Affine transformation accounting for head motion from the individual
-        volume into the BOLD reference space. This affine must be in VOX2VOX
-        form.
-    fmap_hz
-        The fieldmap, sampled to the target space, in Hz
-    output
-        The dtype or a pre-allocated array for sampling into the target space.
-        If pre-allocated, ``output.shape == coordinates.shape[1:]``.
-    order
-        Order of interpolation (default: 3 = cubic)
-    mode
-        How ``data`` is extended beyond its boundaries. See
-        :func:`scipy.ndimage.map_coordinates` for more details.
-    cval
-        Value to fill past edges of ``data`` if ``mode`` is ``'constant'``.
-    prefilter
-        Determines if ``data`` is pre-filtered before interpolation.
-
-    Returns
-    -------
-    resampled_array
-        The resampled array, with shape ``coordinates.shape[1:]``.
-    """
-    if hmc_xfm is not None:
-        # Move image with the head
-        coords_shape = coordinates.shape
-        coordinates = nb.affines.apply_affine(
-            hmc_xfm, coordinates.reshape(coords_shape[0], -1).T
-        ).T.reshape(coords_shape)
-    else:
-        # Copy coordinates to avoid interfering with other calls
-        coordinates = coordinates.copy()
-
-    vsm = fmap_hz * pe_info[1]
-    coordinates[pe_info[0], ...] += vsm
-
-    result = ndi.map_coordinates(
-        data,
-        coordinates,
-        output=output,
-        order=order,
-        mode=mode,
-        cval=cval,
-        prefilter=prefilter,
+class UpsampleToZoomsInputSpec(TraitedSpec):
+    in_files = InputMultiObject(File(exists=True), mandatory=True, desc='images to upsample')
+    target_zooms = traits.Tuple(
+        (traits.Float, traits.Float, traits.Float),
+        mandatory=True,
+        desc='the resolution to regrid to',
+    )
+    tolerance = traits.Float(
+        1e-3,
+        usedefault=True,
+        desc='voxel sizes within this distance of the target are considered equal',
     )
 
-    if jacobian:
-        result *= 1 + np.gradient(vsm, axis=pe_info[0])
 
-    return result
+class UpsampleToZoomsOutputSpec(TraitedSpec):
+    out_files = traits.List(File(exists=True), desc='upsampled images')
 
 
-async def resample_series_async(
-    data: np.ndarray,
-    coordinates: np.ndarray,
-    pe_info: list[tuple[int, float]],
-    jacobian: bool,
-    hmc_xfms: list[np.ndarray] | None,
-    fmap_hz: np.ndarray,
-    output_dtype: np.dtype | None = None,
-    order: int = 3,
-    mode: str = 'constant',
-    cval: float = 0.0,
-    prefilter: bool = True,
-    max_concurrent: int = min(os.cpu_count(), 12),
-) -> np.ndarray:
-    """Resample a 4D time series at specified coordinates
+class UpsampleToZooms(SimpleInterface):
+    """Regrid images up to ``target_zooms``, avoiding downsampling.
 
-    This function implements simultaneous head-motion correction and
-    susceptibility-distortion correction. It accepts coordinates in
-    the source voxel space. It is the responsibility of the caller to
-    transform coordinates from any other target space.
-
-    Parameters
-    ----------
-    data
-        The data array to resample
-    coordinates
-        The first-approximation voxel coordinates to sample from ``data``.
-        The first dimension should have length 3.
-        The further dimensions determine the shape of the target array.
-    pe_info
-        A list of readout vectors in the form of (axis, signed-readout-time)
-        ``(1, -0.04)`` becomes ``[0, -0.04, 0]``, which indicates that a
-        +1 Hz deflection in the field shifts 0.04 voxels toward the start
-        of the data array in the second dimension.
-    hmc_xfm
-        A sequence of affine transformations accounting for head motion from
-        the individual volume into the BOLD reference space.
-        These affines must be in VOX2VOX form.
-    fmap_hz
-        The fieldmap, sampled to the target space, in Hz
-    output_dtype
-        The dtype of the output array.
-    order
-        Order of interpolation (default: 3 = cubic)
-    mode
-        How ``data`` is extended beyond its boundaries. See
-        :func:`scipy.ndimage.map_coordinates` for more details.
-    cval
-        Value to fill past edges of ``data`` if ``mode`` is ``'constant'``.
-    prefilter
-        Determines if ``data`` is pre-filtered before interpolation.
-    max_concurrent
-        Maximum number of volumes to resample concurrently
-
-    Returns
-    -------
-    resampled_array
-        The resampled array, with shape ``coordinates.shape[1:] + (N,)``,
-        where N is the number of volumes in ``data``.
+    Axes already finer than requested are held at their acquired resolution, so no
+    axis is ever coarsened. Images are regridded as a group, keeping one voxel size
+    across the outputs.
     """
-    if data.ndim == 3:
-        return resample_vol(
-            data,
-            coordinates,
-            pe_info[0],
-            jacobian,
-            hmc_xfms[0] if hmc_xfms else None,
-            fmap_hz,
-            output_dtype,
-            order,
-            mode,
-            cval,
-            prefilter,
-        )
 
-    semaphore = asyncio.Semaphore(max_concurrent)
+    input_spec = UpsampleToZoomsInputSpec
+    output_spec = UpsampleToZoomsOutputSpec
 
-    # Order F ensures individual volumes are contiguous in memory
-    # Also matches NIfTI, making final save more efficient
-    out_array = np.zeros(coordinates.shape[1:] + data.shape[-1:], dtype=output_dtype, order='F')
+    def _run_interface(self, runtime):
+        from niworkflows.utils.images import resample_by_spacing
 
-    tasks = [
-        asyncio.create_task(
-            worker(
-                partial(
-                    resample_vol,
-                    data=volume,
-                    coordinates=coordinates,
-                    pe_info=pe_info[volid],
-                    jacobian=jacobian,
-                    hmc_xfm=hmc_xfms[volid] if hmc_xfms else None,
-                    fmap_hz=fmap_hz,
-                    output=out_array[..., volid],
-                    order=order,
-                    mode=mode,
-                    cval=cval,
-                    prefilter=prefilter,
-                ),
-                semaphore,
+        zooms = np.array([nb.load(f).header.get_zooms()[:3] for f in self.inputs.in_files])
+        # Hold any axis already finer than requested at its acquired resolution
+        target_zooms = np.minimum(self.inputs.target_zooms, zooms.min(axis=0))
+
+        if not np.any(zooms > target_zooms + self.inputs.tolerance):
+            acquired = tuple(zooms.min(axis=0).astype(float).round(3).tolist())
+            LOGGER.warning(
+                f'Skipping upsampling to {self.inputs.target_zooms}mm: '
+                f'images were acquired at {acquired}mm.'
             )
-        )
-        for volid, volume in enumerate(np.rollaxis(data, -1, 0))
-    ]
+            self._results['out_files'] = list(self.inputs.in_files)
+            return runtime
 
-    await asyncio.gather(*tasks)
+        out_files = []
+        for in_file in self.inputs.in_files:
+            out_file = fname_presuffix(in_file, suffix='_upsampled', newpath=runtime.cwd)
+            resample_by_spacing(in_file, tuple(target_zooms)).to_filename(out_file)
+            out_files.append(out_file)
 
-    return out_array
+        self._results['out_files'] = out_files
+        return runtime
 
 
-def resample_series(
-    data: np.ndarray,
-    coordinates: np.ndarray,
-    pe_info: list[tuple[int, float]],
-    jacobian: bool,
-    hmc_xfms: list[np.ndarray] | None,
-    fmap_hz: np.ndarray,
-    output_dtype: np.dtype | None = None,
-    order: int = 3,
-    mode: str = 'constant',
-    cval: float = 0.0,
-    prefilter: bool = True,
-    nthreads: int = 1,
-) -> np.ndarray:
-    """Resample a 4D time series at specified coordinates
-
-    This function implements simultaneous head-motion correction and
-    susceptibility-distortion correction. It accepts coordinates in
-    the source voxel space. It is the responsibility of the caller to
-    transform coordinates from any other target space.
-
-    Parameters
-    ----------
-    data
-        The data array to resample
-    coordinates
-        The first-approximation voxel coordinates to sample from ``data``.
-        The first dimension should have length 3.
-        The further dimensions determine the shape of the target array.
-    pe_info
-        A list of readout vectors in the form of (axis, signed-readout-time)
-        ``(1, -0.04)`` becomes ``[0, -0.04, 0]``, which indicates that a
-        +1 Hz deflection in the field shifts 0.04 voxels toward the start
-        of the data array in the second dimension.
-    hmc_xfm
-        A sequence of affine transformations accounting for head motion from
-        the individual volume into the BOLD reference space.
-        These affines must be in VOX2VOX form.
-    fmap_hz
-        The fieldmap, sampled to the target space, in Hz
-    output_dtype
-        The dtype of the output array.
-    order
-        Order of interpolation (default: 3 = cubic)
-    mode
-        How ``data`` is extended beyond its boundaries. See
-        :func:`scipy.ndimage.map_coordinates` for more details.
-    cval
-        Value to fill past edges of ``data`` if ``mode`` is ``'constant'``.
-    prefilter
-        Determines if ``data`` is pre-filtered before interpolation.
-    nthreads
-        Number of threads to use for parallel resampling
-
-    Returns
-    -------
-    resampled_array
-        The resampled array, with shape ``coordinates.shape[1:] + (N,)``,
-        where N is the number of volumes in ``data``.
-    """
-    return asyncio.run(
-        resample_series_async(
-            data=data,
-            coordinates=coordinates,
-            pe_info=pe_info,
-            jacobian=jacobian,
-            hmc_xfms=hmc_xfms,
-            fmap_hz=fmap_hz,
-            output_dtype=output_dtype,
-            order=order,
-            mode=mode,
-            cval=cval,
-            prefilter=prefilter,
-            max_concurrent=nthreads,
-        )
+class ResampleTemplateInputSpec(TraitedSpec):
+    in_files = InputMultiObject(File(exists=True), mandatory=True, desc='images to average')
+    transforms = InputMultiObject(
+        File(exists=True),
+        mandatory=True,
+        desc='transform files, one per image, from each image to reference',
     )
-
-
-def resample_image(
-    source: nb.Nifti1Image,
-    target: nb.Nifti1Image,
-    transforms: nt.TransformChain,
-    fieldmap: nb.Nifti1Image | None,
-    pe_info: list[tuple[int, float]] | None,
-    jacobian: bool = True,
-    nthreads: int = 1,
-    output_dtype: np.dtype | str | None = 'f4',
-    order: int = 3,
-    mode: str = 'constant',
-    cval: float = 0.0,
-    prefilter: bool = True,
-) -> nb.Nifti1Image:
-    """Resample a 3- or 4D image into a target space, applying head-motion
-    and susceptibility-distortion correction simultaneously.
-
-    Parameters
-    ----------
-    source
-        The 3D bold image or 4D bold series to resample.
-    target
-        An image sampled in the target space.
-    transforms
-        A nitransforms TransformChain that maps images from the individual
-        BOLD volume space into the target space.
-    fieldmap
-        The fieldmap, in Hz, sampled in the target space
-    pe_info
-        A list of readout vectors in the form of (axis, signed-readout-time)
-        ``(1, -0.04)`` becomes ``[0, -0.04, 0]``, which indicates that a
-        +1 Hz deflection in the field shifts 0.04 voxels toward the start
-        of the data array in the second dimension.
-    nthreads
-        Number of threads to use for parallel resampling
-    output_dtype
-        The dtype of the output array.
-    order
-        Order of interpolation (default: 3 = cubic)
-    mode
-        How ``data`` is extended beyond its boundaries. See
-        :func:`scipy.ndimage.map_coordinates` for more details.
-    cval
-        Value to fill past edges of ``data`` if ``mode`` is ``'constant'``.
-    prefilter
-        Determines if ``data`` is pre-filtered before interpolation.
-
-    Returns
-    -------
-    resampled_bold
-        The BOLD series resampled into the target space
-    """
-    if not isinstance(transforms, nt.TransformChain):
-        transforms = nt.TransformChain([transforms])
-    if isinstance(transforms[-1], nt.linear.LinearTransformsMapping):
-        transform_list, hmc = transforms[:-1], transforms[-1]
-    else:
-        if any(isinstance(xfm, nt.linear.LinearTransformsMapping) for xfm in transforms):
-            classes = [xfm.__class__.__name__ for xfm in transforms]
-            raise ValueError(f'HMC transforms must come last. Found sequence: {classes}')
-        transform_list: list = transforms.transforms
-        hmc = []
-
-    # Retrieve the RAS coordinates of the target space
-    coordinates = nt.base.SpatialReference.factory(target).ndcoords.astype('f4')
-
-    # We will operate in voxel space, so get the source affine
-    vox2ras = source.affine
-    ras2vox = np.linalg.inv(vox2ras)
-    # Transform RAS2RAS head motion transforms to VOX2VOX
-    hmc_xfms = [ras2vox @ xfm.matrix @ vox2ras for xfm in hmc]
-
-    # After removing the head-motion transforms, add a mapping from boldref
-    # world space to voxels. This new transform maps from world coordinates
-    # in the target space to voxel coordinates in the source space.
-    ref2vox = nt.TransformChain(transform_list + [nt.Affine(ras2vox)])
-    mapped_coordinates = ref2vox.map(coordinates)
-
-    # Some identities to reduce special casing downstream
-    if fieldmap is None:
-        fieldmap = nb.Nifti1Image(np.zeros(target.shape[:3], dtype='f4'), target.affine)
-    if pe_info is None:
-        pe_info = [[0, 0] for _ in range(source.shape[-1])]
-
-    resampled_data = resample_series(
-        data=source.get_fdata(dtype='f4'),
-        coordinates=mapped_coordinates.T.reshape((3, *target.shape[:3])),
-        pe_info=pe_info,
-        jacobian=jacobian,
-        hmc_xfms=hmc_xfms,
-        fmap_hz=fieldmap.get_fdata(dtype='f4'),
-        output_dtype=output_dtype,
-        nthreads=nthreads,
-        order=order,
-        mode=mode,
-        cval=cval,
-        prefilter=prefilter,
+    reference = File(exists=True, mandatory=True, desc='image defining the output grid')
+    intensity_scales = InputMultiObject(
+        File(exists=True),
+        desc='text files with a factor to scale each image by, as written by '
+        '``mri_robust_template --iscaleout``',
     )
-    resampled_img = nb.Nifti1Image(resampled_data, target.affine, target.header)
-    resampled_img.set_data_dtype('f4')
-    # Preserve zooms of additional dimensions
-    resampled_img.header.set_zooms(target.header.get_zooms()[:3] + source.header.get_zooms()[3:])
-
-    return resampled_img
-
-
-def aligned(aff1: np.ndarray, aff2: np.ndarray) -> bool:
-    """Determine if two affines have aligned grids"""
-    return np.allclose(
-        np.linalg.norm(np.cross(aff1[:-1, :-1].T, aff2[:-1, :-1].T), axis=1),
-        0,
-        atol=1e-3,
+    indices = traits.List(
+        traits.Bool, desc='boolean mask used to select images to be resampled (default: all)'
     )
+    order = traits.Int(3, usedefault=True, desc='order of interpolation (0=nearest, 3=cubic)')
 
 
-def as_affine(xfm: nt.base.TransformBase) -> nt.Affine | None:
-    # Identity transform
-    if type(xfm) is nt.base.TransformBase:
-        return nt.Affine()
-
-    if isinstance(xfm, nt.Affine):
-        return xfm
-
-    if isinstance(xfm, nt.TransformChain) and all(isinstance(x, nt.Affine) for x in xfm):
-        return xfm.asaffine()
-
-    return None
+class ResampleTemplateOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='voxelwise median of the resampled images')
 
 
-def reconstruct_fieldmap(
-    coefficients: list[nb.Nifti1Image],
-    fmap_reference: nb.Nifti1Image,
-    target: nb.Nifti1Image,
-    transforms: nt.TransformChain,
-) -> nb.Nifti1Image:
-    """Resample a fieldmap from B-Spline coefficients into a target space
+class ResampleTemplate(SimpleInterface):
+    """Resample images into a reference grid in a single step.
 
-    If the coefficients and target are aligned, the field is reconstructed
-    directly in the target space.
-    If not, then the field is reconstructed to the ``fmap_reference``
-    resolution, and then resampled according to transforms.
-
-    The former method only applies if the transform chain can be
-    collapsed to a single affine transform.
-
-    Parameters
-    ----------
-    coefficients
-        list of B-spline coefficient files. The affine matrices are used
-        to reconstruct the knot locations.
-    fmap_reference
-        The intermediate reference to reconstruct the fieldmap in, if
-        it cannot be reconstructed directly in the target space.
-    target
-        The target space to to resample the fieldmap into.
-    transforms
-        A nitransforms TransformChain that maps images from the fieldmap
-        space into the target space.
-
-    Returns
-    -------
-    fieldmap
-        The fieldmap encoded in ``coefficients``, resampled in the same
-        space as ``target``
+    Each image is resampled directly from its original grid, and optionally scaled
+    in intensity, before the voxelwise median template is computed.
     """
 
-    direct = False
-    affine_xfm = as_affine(transforms)
-    if affine_xfm is not None:
-        # Transforms maps RAS coordinates in the target to RAS coordinates in
-        # the fieldmap space. Composed with target.affine, we have a target voxel
-        # to fieldmap RAS affine. Hence, this is projected into fieldmap space.
-        projected_affine = affine_xfm.matrix @ target.affine
-        # If the coordinates have the same rotation from voxels, we can construct
-        # bspline weights efficiently.
-        direct = aligned(projected_affine, coefficients[-1].affine)
+    input_spec = ResampleTemplateInputSpec
+    output_spec = ResampleTemplateOutputSpec
 
-    if direct:
-        reference, _ = ensure_positive_cosines(
-            target.__class__(target.dataobj, projected_affine, target.header),
-        )
-    else:
-        # Hack. Sometimes the reference array is rotated relative to the fieldmap
-        # and coefficient grids. As far as I know, coefficients are always RAS,
-        # but good to check before doing this.
+    def _run_interface(self, runtime):
+        n_files = len(self.inputs.in_files)
+        scale_files = self.inputs.intensity_scales or []
+        mask = self.inputs.indices or [True] * n_files
         if (
-            nb.aff2axcodes(coefficients[-1].affine)
-            == ('R', 'A', 'S')
-            != nb.aff2axcodes(fmap_reference.affine)
+            len(self.inputs.transforms) != n_files
+            or len(scale_files) not in (0, n_files)
+            or len(mask) != n_files
         ):
-            fmap_reference = nb.as_closest_canonical(fmap_reference)
-        if not aligned(fmap_reference.affine, coefficients[-1].affine):
-            raise ValueError('Reference passed is not aligned with spline grids')
-        reference, _ = ensure_positive_cosines(fmap_reference)
+            raise ValueError(
+                'Expected one transform, and optionally one scale and one index, per image.'
+            )
+        if not any(mask):
+            raise ValueError('At least one image must be resampled.')
 
-    # Generate tensor-product B-Spline weights
-    colmat = sparse_hstack(
-        [grid_bspline_weights(reference, level) for level in coefficients]
-    ).tocsr()
-    coefficients = np.hstack(
-        [level.get_fdata(dtype='float32').reshape(-1) for level in coefficients]
-    )
+        scales = [float(np.loadtxt(scale_file)) for scale_file in scale_files] or [1.0] * n_files
+        reference = nb.load(self.inputs.reference)
 
-    # Reconstruct the fieldmap (in Hz) from coefficients
-    fmap_img = nb.Nifti1Image(
-        np.reshape(colmat @ coefficients, reference.shape[:3]),
-        reference.affine,
-    )
+        selected = np.flatnonzero(mask)
+        resampled = []
+        for i in selected:
+            xfm = load_transforms([self.inputs.transforms[i]], [False])
+            img = nt.resampling.apply(
+                xfm,
+                self.inputs.in_files[i],
+                reference=reference,
+                order=self.inputs.order,
+                mode='grid-constant',
+                output_dtype='float32',
+            )
+            resampled.append(np.asanyarray(img.dataobj) * scales[i])
 
-    if not direct:
-        fmap_img = nt.resampling.apply(transforms, fmap_img, reference=target)
+        median = nb.Nifti1Image(
+            np.median(resampled, axis=0), reference.affine, reference.header, dtype='float32'
+        )
 
-    fmap_img.header.set_intent('estimate', name='fieldmap Hz')
-    fmap_img.header.set_data_dtype('float32')
-    fmap_img.header['cal_max'] = max((abs(fmap_img.dataobj.min()), fmap_img.dataobj.max()))
-    fmap_img.header['cal_min'] = -fmap_img.header['cal_max']
-
-    return fmap_img
+        out_file = fname_presuffix(
+            self.inputs.in_files[selected[0]], suffix='_median', newpath=runtime.cwd
+        )
+        median.to_filename(out_file)
+        self._results['out_file'] = out_file
+        return runtime

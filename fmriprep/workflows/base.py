@@ -30,13 +30,13 @@ fMRIPrep base processing workflows
 """
 
 import os
-import re
 import sys
 import warnings
 from copy import deepcopy
 
 import bids
 from bids.layout import Query
+from nipost.bids import sanitize_fieldmap_id
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 from niworkflows.utils.bids import DEFAULT_BIDS_QUERIES
@@ -343,19 +343,19 @@ It is released under the [CC0]\
 
     anatomical_cache = {}
     if config.execution.derivatives:
-        from smriprep.utils.bids import collect_derivatives as collect_anat_derivatives
+        from smriprep.utils.bids import collect_anat_derivatives
 
-        std_spaces = spaces.get_spaces(nonstandard=False, dim=(3,))
-        std_spaces.append('fsnative')
-        for deriv_dir in config.execution.derivatives.values():
-            anatomical_cache.update(
-                collect_anat_derivatives(
-                    derivatives_dir=deriv_dir,
-                    subject_id=subject_id,
-                    std_spaces=std_spaces,
-                    session_id=session_id,
-                )
-            )
+        deriv_session_id = session_id
+        if session_id and not sessionwise:
+            # Anatomical derivatives built from multiple sessions are saved without session
+            deriv_session_id = [*listify(session_id), None]
+
+        anatomical_cache = collect_anat_derivatives(
+            config.execution.derivatives.values(),
+            subject_id,
+            spaces.get_spaces(nonstandard=False, dim=(3,)),
+            session_id=deriv_session_id,
+        )
 
     inputnode = pe.Node(niu.IdentityInterface(fields=['subjects_dir']), name='inputnode')
 
@@ -381,7 +381,10 @@ It is released under the [CC0]\
         BIDSInfo(bids_dir=config.execution.bids_dir, bids_validate=False), name='bids_info'
     )
 
-    create_fs_id = pe.Node(CreateFreeSurferID(), name='create_fs_id')
+    create_fs_id = pe.Node(
+        CreateFreeSurferID(exclude_session=not sessionwise),
+        name='create_fs_id',
+    )
 
     summary = pe.Node(
         SubjectSummary(
@@ -446,9 +449,10 @@ It is released under the [CC0]\
     )
 
     # allow to run with anat-fast-track on fMRI-only dataset
-    if 't1w_preproc' in anatomical_cache and not subject_data['t1w']:
+    anat_images = anatomical_cache.get('images', {})
+    if 't1w_preproc' in anat_images and not subject_data['t1w']:
         config.loggers.workflow.debug(
-            f'No T1w image found; using precomputed T1w image: {anatomical_cache["t1w_preproc"]}',
+            f'No T1w image found; using precomputed T1w image: {anat_images["t1w_preproc"]}',
         )
         workflow.connect([
             (anat_fit_wf, summary, [('outputnode.t1w_preproc', 't1w')]),
@@ -484,9 +488,6 @@ It is released under the [CC0]\
         (summary, ds_report_summary, [('out_report', 'in_file')]),
         (about, ds_report_about, [('out_report', 'in_file')]),
     ])  # fmt:skip
-
-    if not config.workflow.track_sessions and not sessionwise:
-        workflow.disconnect(bids_info, 'session', create_fs_id, 'session_id')
 
     # Set up the template iterator once, if used
     template_iterator_wf = None
@@ -693,20 +694,6 @@ It is released under the [CC0]\
     if config.workflow.anat_only:
         return clean_datasinks(workflow)
 
-    fmap_cache = {}
-    if config.execution.derivatives:
-        from fmriprep.utils.bids import collect_fieldmaps
-
-        for deriv_dir in config.execution.derivatives.values():
-            fmaps = collect_fieldmaps(
-                derivatives_dir=deriv_dir,
-                entities={'subject': subject_id},
-            )
-            config.loggers.workflow.debug(
-                f'Detected precomputed fieldmaps in {deriv_dir} for fieldmap IDs: {list(fmaps)}',
-            )
-            fmap_cache.update(fmaps)
-
     all_estimators, estimator_map = map_fieldmap_estimation(
         layout=config.execution.layout,
         subject_id=subject_id,
@@ -726,10 +713,21 @@ It is released under the [CC0]\
     estimator_types = {est.bids_id: est.method for est in all_estimators}
     fmap_estimators = []
     if all_estimators:
-        # Find precomputed fieldmaps that apply to this workflow
+        from fmriprep.utils.bids import collect_fmap_derivatives
+
+        # Find precomputed fieldmaps that apply to this workflow. An estimator may come from
+        # another session than the BOLD runs it serves, so look in its own session.
+        fmap_caches = {}
         pared_cache = {}
         for est in all_estimators:
-            if found := fmap_cache.get(re.sub(r'[^a-zA-Z0-9]', '', est.bids_id)):
+            fmap_session = next(
+                f.entities.get('session') for f in est.sources if f.suffix not in ('T1w', 'T2w')
+            )
+            if fmap_session not in fmap_caches:
+                fmap_caches[fmap_session] = collect_fmap_derivatives(
+                    (config.execution.derivatives or {}).values(), subject_id, fmap_session
+                )
+            if found := fmap_caches[fmap_session].get(sanitize_fieldmap_id(est.bids_id)):
                 pared_cache[est.bids_id] = found
             else:
                 fmap_estimators.append(est)
@@ -899,17 +897,18 @@ tasks and sessions), the following preprocessing was performed.
 """
 
     # Before initializing BOLD workflow, select/verify anatomical target for coregistration
-    if config.workflow.bold2anat_init in ('auto', 't2w'):
-        has_t2w = subject_data['t2w'] or 't2w_preproc' in anatomical_cache
-        if config.workflow.bold2anat_init == 't2w' and not has_t2w:
+    bold2anat_init = config.workflow.bold2anat_init
+    if bold2anat_init in ('auto', 't2w'):
+        has_t2w = subject_data['t2w'] or 't2w_preproc' in anat_images
+        if bold2anat_init == 't2w' and not has_t2w:
             raise OSError(
                 'A T2w image is expected for BOLD-to-anatomical coregistration and was not found'
             )
-        config.workflow.bold2anat_init = 't2w' if has_t2w else 't1w'
+        bold2anat_init = 't2w' if has_t2w else 't1w'
 
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
-        collect_derivatives,
+        collect_func_derivatives,
         extract_entities,
     )
 
@@ -937,8 +936,9 @@ tasks and sessions), the following preprocessing was performed.
                 raise RuntimeError(
                     'Cannot build a BOLD coregistration template for '
                     f'--bold-coreg-level {bold_coreg_level}: either only some runs have '
-                    'SDC applied, or SDC-less runs have differing phase-encoding '
-                    f'directions.\nBOLD runs:\n{offending}'
+                    'SDC applied, SDC-less runs have differing phase-encoding '
+                    'directions, or the runs were acquired at differing voxel sizes.'
+                    f'\nBOLD runs:\n{offending}'
                 )
 
     use_bbr = (
@@ -972,14 +972,11 @@ tasks and sessions), the following preprocessing was performed.
                 entities = extract_entities(bold_series)
                 dismiss_entities = dismiss_echo(['part'])
                 entities = {k: v for k, v in entities.items() if k not in dismiss_entities}
-                for deriv_dir in config.execution.derivatives.values():
-                    functional_cache.update(
-                        collect_derivatives(
-                            derivatives_dir=deriv_dir,
-                            entities=entities,
-                            fieldmap_id=estimator_map.get(bold_series[0]),
-                        )
-                    )
+                functional_cache = collect_func_derivatives(
+                    config.execution.derivatives.values(),
+                    entities,
+                    fieldmap_id=estimator_map.get(bold_series[0]),
+                )
             functional_caches.append(functional_cache)
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
@@ -988,7 +985,7 @@ tasks and sessions), the following preprocessing was performed.
             bold_files=group_bold_files,
             coreg_space=bold_coreg_level,
             bold2anat_dof=config.workflow.bold2anat_dof,
-            bold2anat_init=config.workflow.bold2anat_init,
+            bold2anat_init=bold2anat_init,
             use_bbr=use_bbr,
             freesurfer=freesurfer,
             omp_nthreads=omp_nthreads,
@@ -1068,7 +1065,7 @@ tasks and sessions), the following preprocessing was performed.
                     distortion_correction='None',  # Can override with connection
                     registration='FreeSurfer' if freesurfer else 'FSL',
                     registration_dof=config.workflow.bold2anat_dof,
-                    registration_init=config.workflow.bold2anat_init,
+                    registration_init=bold2anat_init,
                     pe_direction=metadata.get('PhaseEncodingDirection'),
                     echo_idx=entities.get('echo', []),
                     tr=metadata['RepetitionTime'],

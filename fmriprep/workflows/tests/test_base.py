@@ -5,13 +5,15 @@ import bids
 import nibabel as nb
 import numpy as np
 import pytest
+from nipype.interfaces.base import Undefined
 from nipype.pipeline.engine.utils import generate_expanded_graph
 from niworkflows.utils.testing import generate_bids_skeleton
 from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
-from ..base import _compose_bids_query_spec, get_estimator, init_fmriprep_wf
+from ...utils.testing import deriv_skeleton, write_derivatives
+from ..base import _compose_bids_query_spec, get_estimator, init_fmriprep_wf, init_single_subject_wf
 from ..tests import mock_config
 from .layouts import get_layout
 
@@ -86,7 +88,6 @@ def _make_params(
     ignore: list[str] | None = None,
     force: list[str] | None = None,
     bids_filters: dict | None = None,
-    bold_coreg_level: str = 'run',
 ):
     if ignore is None:
         ignore = []
@@ -108,7 +109,6 @@ def _make_params(
         ignore,
         force,
         bids_filters,
-        bold_coreg_level,
     )
 
 
@@ -159,7 +159,6 @@ def test_compose_bids_query_spec_reports_final_queries():
         'ignore',
         'force',
         'bids_filters',
-        'bold_coreg_level',
     ),
     [
         _make_params(),
@@ -190,8 +189,6 @@ def test_compose_bids_query_spec_reports_final_queries():
         # _make_params(freesurfer=False, bold2anat_init="header", force=['no-bbr']),
         # Regression test for gh-3154:
         _make_params(bids_filters={'sbref': {'suffix': 'sbref'}}),
-        _make_params(bold_coreg_level='session'),
-        _make_params(bold_coreg_level='subject'),
     ],
 )
 def test_init_fmriprep_wf(
@@ -211,7 +208,6 @@ def test_init_fmriprep_wf(
     ignore: list[str],
     force: list[str],
     bids_filters: dict,
-    bold_coreg_level: str,
 ):
     with mock_config(bids_dir=bids_root):
         config.workflow.level = level
@@ -228,9 +224,10 @@ def test_init_fmriprep_wf(
         config.workflow.ignore = ignore
         config.workflow.force = force
         config.workflow.use_syn_sdc = use_syn_sdc
-        config.workflow.bold_coreg_level = bold_coreg_level
+        before = config.get(flat=True)
         with patch.dict('fmriprep.config.execution.bids_filters', bids_filters):
             wf = init_fmriprep_wf()
+        assert config.get(flat=True) == before
 
     generate_expanded_graph(wf._create_flat_graph())
 
@@ -394,6 +391,8 @@ def test_fmriprep_wf_builds(
 ):
     if bold_coreg_level == 'subject' and subject_anatomical_reference == 'sessionwise':
         pytest.skip('`subject` coregistration is rejected with sessionwise anatomical reference')
+    if layout_id == 'no_session' and subject_anatomical_reference == 'sessionwise':
+        pytest.skip('sessionwise anatomical reference requires sessions')
     bids_dir = bids_root_factory(layout_id)
     with mock_config(bids_dir=bids_dir):
         config.workflow.subject_anatomical_reference = subject_anatomical_reference
@@ -402,19 +401,455 @@ def test_fmriprep_wf_builds(
         assert init_fmriprep_wf()
 
 
-def test_fmriprep_wf_heterogeneous_sessions(bids_root_factory):
-    """Test on a heterogeneous sessions layout, and test track_sessions behavior"""
+@pytest.mark.parametrize(
+    ('subject_anatomical_reference', 'session_label', 'expected'),
+    [
+        ('first-lex', None, [('01', None)]),
+        # Requested sessions are sorted and deduplicated
+        ('first-lex', ['func1', 'anat', 'func1'], [('01', ['anat', 'func1'])]),
+        # Requested sessions may only exist in precomputed derivatives
+        ('first-lex', ['func1', 'func9'], [('01', ['func1', 'func9'])]),
+        ('sessionwise', None, [('01', 'anat'), ('01', 'func1'), ('01', 'func2')]),
+        ('sessionwise', ['func1'], [('01', 'func1')]),
+    ],
+)
+def test_processing_groups(
+    bids_root_factory, monkeypatch, subject_anatomical_reference, session_label, expected
+):
+    with mock_config(bids_dir=bids_root_factory('heterogeneous_sessions')):
+        config.workflow.subject_anatomical_reference = subject_anatomical_reference
+        monkeypatch.setattr(config.execution, 'session_label', session_label)
+        assert config._create_processing_groups() == expected
+
+
+@pytest.mark.parametrize(
+    ('layout_id', 'session_label', 'match'),
+    [
+        ('heterogeneous_sessions', ['func1', 'func9'], 'func9 not found for subject 01'),
+        ('no_session', None, 'no sessions were found for subject 01'),
+    ],
+    ids=['missing_session', 'no_session'],
+)
+def test_processing_groups_sessionwise_error(
+    bids_root_factory, monkeypatch, layout_id, session_label, match
+):
+    with mock_config(bids_dir=bids_root_factory(layout_id)):
+        config.workflow.subject_anatomical_reference = 'sessionwise'
+        monkeypatch.setattr(config.execution, 'session_label', session_label)
+        with pytest.raises(RuntimeError, match=match):
+            config._create_processing_groups()
+
+
+def _fs_subject_id(wf, base_dir):
+    """Run the FreeSurfer subject ID nodes, mirroring their workflow connections."""
+    subwf = wf.__class__(name=f'{wf.name}_fs_id', base_dir=str(base_dir))
+
+    src_anat = wf.get_node('source_anatomical')
+    bids_info = wf.get_node('bids_info')
+
+    subwf.connect([
+        (wf.get_node('bidssrc'), src_anat, [('out_dict', 'bids_info')]),
+        (src_anat, bids_info, [('source_file', 'in_file')]),
+        (bids_info, wf.get_node('create_fs_id'), [
+            ('subject', 'subject_id'),
+            ('session', 'session_id'),
+        ]),
+    ])  # fmt:skip
+
+    res = subwf.run()
+    nodes = {node.name: node for node in res.nodes}
+    return nodes['create_fs_id'].result.outputs.subject_id
+
+
+@pytest.mark.parametrize(
+    'bids_filters',
+    [
+        None,
+        # Regression test for https://github.com/nipreps/fmriprep/issues/3613
+        {'bold': {'session': 'func1'}},
+    ],
+)
+def test_session_label_filters_inputs(bids_root_factory, monkeypatch, bids_filters):
     bids_dir = bids_root_factory('heterogeneous_sessions')
     with mock_config(bids_dir=bids_dir):
-        config.workflow.bold2anat_init = 't1w'
-        config.workflow.track_sessions = True
-        procs = config._create_processing_groups()
-        assert procs == [('01', ['anat', 'fmri'])]
-        wf = init_fmriprep_wf()
-        assert wf.get_node('sub_01_ses_anat-fmri_wf')
+        monkeypatch.setattr(config.execution, 'bids_filters', bids_filters)
+        wf = init_single_subject_wf('01', ['anat', 'func1'])
+        subject_data = wf.get_node('bidssrc').inputs.subject_data
 
-        config.workflow.track_sessions = False
-        procs = config._create_processing_groups()
-        assert procs == [('01', None)]
-        wf = init_fmriprep_wf()
-        assert wf.get_node('sub_01_wf')
+    assert subject_data['t1w'] == [
+        str(bids_dir / 'sub-01/ses-anat/anat/sub-01_ses-anat_T1w.nii.gz')
+    ]
+    assert subject_data['bold'] == [
+        str(bids_dir / 'sub-01/ses-func1/func/sub-01_ses-func1_task-rest_bold.nii.gz')
+    ]
+
+
+@pytest.mark.parametrize(
+    ('deriv_sessions', 'sessions', 'expected'),
+    [
+        (
+            ['anat', 'func2'],
+            ['anat', 'func1'],
+            'sub-01/ses-anat/anat/sub-01_ses-anat_desc-preproc_T1w.nii.gz',
+        ),
+        ([None], ['func1'], 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz'),
+    ],
+    ids=['session', 'sessionless'],
+)
+def test_reuse_precomputed_anat(
+    bids_root_factory, tmp_path, monkeypatch, deriv_sessions, sessions, expected
+):
+    # The raw dataset has no anatomical images, so these must come from the derivatives
+    deriv_dir = tmp_path / 'smriprep'
+    generate_bids_skeleton(
+        deriv_dir,
+        {
+            'dataset_description': {'Name': 'sMRIPrep', 'DatasetType': 'derivative'},
+            '01': [
+                {'session': session, 'anat': {'desc': 'preproc', 'suffix': 'T1w'}}
+                for session in deriv_sessions
+            ],
+        },
+    )
+
+    with mock_config(bids_dir=bids_root_factory('func_only_sessions')):
+        monkeypatch.setattr(config.execution, 'derivatives', {'smriprep': deriv_dir})
+        wf = init_single_subject_wf('01', sessions)
+
+    precomputed = wf.get_node('source_anatomical').inputs.precomputed
+    assert precomputed['images']['t1w_preproc'] == str(deriv_dir / expected)
+
+    # Without a raw T1w image, reports describe the precomputed one
+    summary = wf.get_node('summary')
+    sources = [
+        (src_node.name, src)
+        for src_node, _, data in wf._graph.in_edges(summary, data=True)
+        for src, dst in data['connect']
+        if dst == 't1w'
+    ]
+    assert sources == [('anat_fit_wf', 'outputnode.t1w_preproc')]
+
+
+def test_reuse_precomputed_t2w(bids_root_factory, tmp_path, monkeypatch):
+    # The raw dataset has no T2w image, so T2w coregistration must use the precomputed one
+    deriv_dir = tmp_path / 'smriprep'
+    generate_bids_skeleton(
+        deriv_dir,
+        {
+            'dataset_description': {'Name': 'sMRIPrep', 'DatasetType': 'derivative'},
+            '01': {
+                'anat': [
+                    {'desc': 'preproc', 'suffix': 'T1w'},
+                    {'desc': 'preproc', 'suffix': 'T2w'},
+                ]
+            },
+        },
+    )
+
+    with mock_config(bids_dir=bids_root_factory('func_only_sessions')):
+        config.workflow.bold2anat_init = 't2w'
+        monkeypatch.setattr(config.execution, 'derivatives', {'smriprep': deriv_dir})
+        init_single_subject_wf('01', ['func1'])
+
+
+@pytest.mark.parametrize(
+    ('subject_anatomical_reference', 'expected'),
+    [
+        ('sessionwise', ['sub-01_ses-post', 'sub-01_ses-pre']),
+        ('first-lex', ['sub-01']),
+        ('unbiased', ['sub-01']),
+    ],
+)
+def test_freesurfer_subject_id(
+    bids_root_factory, tmp_path, subject_anatomical_reference, expected
+):
+    bids_dir = bids_root_factory('homogeneous_sessions')
+    with mock_config(bids_dir=bids_dir):
+        config.workflow.subject_anatomical_reference = subject_anatomical_reference
+        fs_subject_ids = [
+            _fs_subject_id(init_single_subject_wf(subject_id, sessions), tmp_path)
+            for subject_id, sessions in config._create_processing_groups()
+        ]
+
+    assert fs_subject_ids == expected
+
+
+def test_collect_from_several_derivative_datasets(bids_root, tmp_path, monkeypatch):
+    first = tmp_path / 'first'
+    skeleton = deriv_skeleton(['hmc'], run=1)
+    skeleton['01'][0]['anat'] = [
+        {
+            'from': 'MNI152NLin2009cAsym',
+            'to': 'T1w',
+            'mode': 'image',
+            'suffix': 'xfm',
+            'extension': '.h5',
+        },
+    ]
+    generate_bids_skeleton(first, skeleton)
+
+    second = tmp_path / 'second'
+    skeleton = deriv_skeleton(['run_boldref'], run=1)
+    skeleton['01'][0]['anat'] = [{'desc': 'preproc', 'suffix': 'T1w'}]
+    generate_bids_skeleton(second, skeleton)
+
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.execution, 'derivatives', {'first': first, 'second': second})
+        wf = init_single_subject_wf('01')
+
+    run = 'sub-01_task-rest_run-1'
+    anat = wf.get_node('source_anatomical').inputs.precomputed
+    assert anat['images']['t1w_preproc'] == str(
+        second / 'sub-01/anat/sub-01_desc-preproc_T1w.nii.gz'
+    )
+    assert anat['transforms'] == {
+        'MNI152NLin2009cAsym': {
+            'reverse': str(
+                first / 'sub-01/anat/sub-01_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5'
+            ),
+        },
+    }
+    bold_fit = 'bold_fit_task_rest_run_1_wf'
+    assert wf.get_node(f'{bold_fit}.hmc_buffer').inputs.hmc_xforms == str(
+        first / f'sub-01/func/{run}_from-orig_to-run_mode-image_desc-hmc_xfm.txt'
+    )
+    assert wf.get_node(f'{bold_fit}.regref_buffer').inputs.boldref == str(
+        second / f'sub-01/func/{run}_space-run_boldref.nii.gz'
+    )
+
+
+def _fieldmap_bids(tmp_path):
+    spec = get_layout('no_session')
+    spec['01']['fmap'][0]['metadata']['IntendedFor'] = 'func/sub-01_task-rest_run-2_bold.nii.gz'
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*.nii.gz'):
+        img.to_filename(img_path)
+    return bids_dir
+
+
+@pytest.mark.parametrize(
+    ('magnitude', 'desc'), [('magnitude', 'magnitude'), ('magnitude_epi', 'epi')]
+)
+def test_reuse_precomputed_fieldmap(tmp_path, monkeypatch, magnitude, desc):
+    bids_dir = _fieldmap_bids(tmp_path)
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'coeffs', magnitude])
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    # The estimator ID is sanitized to find its derivatives
+    fmap = deriv_dir / 'sub-01' / 'fmap'
+    assert wf.get_node('fmap_id_merge').inputs.in1 == ['auto_00000']
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / f'sub-01_fmapid-auto00000_desc-{desc}_fieldmap.nii.gz')
+    ]
+    assert wf.get_node('fmap_coeff_merge').inputs.in1 == [
+        [str(fmap / 'sub-01_fmapid-auto00000_desc-coeff_fieldmap.nii.gz')]
+    ]
+
+
+def test_reuse_precomputed_fieldmap_by_session(tmp_path, monkeypatch):
+    # Each session's estimator gets the same ID, so each session's derivatives must be kept apart
+    spec = get_layout('homogeneous_sessions')
+    for session in spec['01']:
+        ses = session['session']
+        session['fmap'][0]['metadata']['IntendedFor'] = (
+            f'ses-{ses}/func/sub-01_ses-{ses}_task-rest_run-2_bold.nii.gz'
+        )
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    groups = ['fieldmap', 'coeffs', 'magnitude']
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', groups, session='pre')
+    write_derivatives(deriv_dir, groups, session='post')
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01', ['pre'])
+
+    fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-auto00000_desc-magnitude_fieldmap.nii.gz')
+    ]
+
+
+def test_reuse_precomputed_fieldmap_from_another_session(tmp_path, monkeypatch):
+    # A B0FieldIdentifier estimator from one session may serve BOLD runs of another
+    spec = get_layout('homogeneous_sessions')
+    for raw in spec['01']:
+        if raw['session'] == 'pre':
+            for fmap in raw['fmap']:
+                if fmap['suffix'] == 'epi':
+                    fmap['metadata']['B0FieldIdentifier'] = 'pepolar'
+        for func in raw['func']:
+            func['metadata']['B0FieldSource'] = 'pepolar'
+    bids_dir = tmp_path / 'bids'
+    generate_bids_skeleton(bids_dir, spec)
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    for img_path in bids_dir.glob('sub-01/*/*/*.nii.gz'):
+        img.to_filename(img_path)
+
+    deriv_dir = write_derivatives(
+        tmp_path / 'derivatives',
+        ['fieldmap', 'coeffs', 'magnitude'],
+        session='pre',
+        fmapid='pepolar',
+    )
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01', ['post'])
+
+    fmap = deriv_dir / 'sub-01' / 'ses-pre' / 'fmap'
+    assert wf.get_node('fmap_id_merge').inputs.in1 == ['pepolar']
+    assert wf.get_node('sdc_method_merge').inputs.in1 == ['precomputed']
+    assert wf.get_node('fmap_ref_merge').inputs.in1 == [
+        str(fmap / 'sub-01_ses-pre_fmapid-pepolar_desc-magnitude_fieldmap.nii.gz')
+    ]
+
+
+@pytest.mark.xfail(reason='incomplete precomputed fieldmaps are not supported')
+def test_reuse_incomplete_precomputed_fieldmap(tmp_path, monkeypatch):
+    bids_dir = _fieldmap_bids(tmp_path)
+    deriv_dir = write_derivatives(tmp_path / 'derivatives', ['fieldmap', 'magnitude'])
+
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.execution, 'derivatives', {'sdcflows': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    # Without coefficients, the fieldmap is estimated instead
+    assert wf.get_node('fmap_id_merge').inputs.in1 != ['auto_00000']
+
+
+### Precomputed coregistration tests
+
+# BOLD series in each session of the test layouts
+COREG_RUNS = [('nback', None), ('rest', 1), ('rest', 2)]
+
+
+def write_precomputed_coreg(
+    deriv_dir: Path, include: list[str], session: str | None = None
+) -> Path:
+    """Write derivatives for the given coreg stages."""
+    per_run = [group for group in include if group.startswith('run')]
+    write_derivatives(
+        deriv_dir, [group for group in include if group not in per_run], session=session
+    )
+    for task, run in COREG_RUNS:
+        write_derivatives(deriv_dir, per_run, session=session, task=task, run=run)
+
+    return deriv_dir
+
+
+def has(node_names: list[str], stage: str) -> bool:
+    """Check if any node name starts with the given stage."""
+    return any(name.split('.')[1].startswith(stage) for name in node_names)
+
+
+def found(deriv_dir: Path, pattern: str) -> list[str]:
+    """Find files matching a pattern in the derivatives directory."""
+    return sorted(str(path) for path in deriv_dir.rglob(pattern))
+
+
+@pytest.mark.parametrize('include', [[], ['run2anat']], ids=['none', 'run2anat'])
+def test_reuse_precomputed_run_coreg(bids_root_factory, tmp_path, monkeypatch, include):
+    """Precomputed coregistration derivatives skip the stages that would compute them."""
+    deriv_dir = write_precomputed_coreg(tmp_path / 'derivatives', include, session='pre')
+
+    with mock_config(bids_dir=bids_root_factory('single_session')):
+        config.workflow.bold_coreg_level = 'run'
+        monkeypatch.setattr(config.execution, 'derivatives', {'fmriprep': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    coreg_nodes = [name for name in wf.list_node_names() if name.startswith('bold_anat_coreg_')]
+    coreg_wfs = sorted({name.split('.')[0] for name in coreg_nodes})
+
+    n_regs = len(COREG_RUNS)
+    assert len(coreg_wfs) == n_regs
+
+    assert has(coreg_nodes, 'boldref_reg_') ^ ('run2anat' in include)
+    assert not has(coreg_nodes, 'bold_template_wf')
+
+    template2anat = [wf.get_node(f'{name}.merge_template2anat').inputs.in1 for name in coreg_wfs]
+    assert sorted(template2anat, key=str) == (
+        found(deriv_dir, '*_from-run_to-T1w_*') if 'run2anat' in include else [Undefined] * n_regs
+    )
+
+    # The workflow can be run, not only built
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+@pytest.mark.parametrize(
+    ('level', 'include'),
+    [
+        (level, (*run2level, *boldref, *level2anat))
+        for level in ('session', 'subject')
+        for run2level in ([], [f'run2{level}'])
+        for boldref in ([], [f'{level}_boldref'])
+        for level2anat in ([], [f'{level}2anat'])
+    ],
+    ids=lambda value: ('+'.join(value) or 'none') if isinstance(value, tuple) else value,
+)
+def test_reuse_precomputed_template_coreg(
+    bids_root_factory, tmp_path, monkeypatch, level, include
+):
+    """Precomputed coregistration derivatives skip the stages that would compute them."""
+    deriv_dir = write_precomputed_coreg(tmp_path / 'derivatives', include, session='pre')
+
+    with mock_config(bids_dir=bids_root_factory('single_session')):
+        config.workflow.bold_coreg_level = level
+        monkeypatch.setattr(config.execution, 'derivatives', {'fmriprep': deriv_dir})
+        wf = init_single_subject_wf('01')
+
+    coreg_nodes = [name for name in wf.list_node_names() if name.startswith('bold_anat_coreg_')]
+    [coreg_wf] = {name.split('.')[0] for name in coreg_nodes}
+
+    # Basic facts
+    have_run2template = f'run2{level}' in include
+    have_boldref = f'{level}_boldref' in include
+    have_template2anat = f'{level}2anat' in include
+
+    # Reuse logic
+    # A boldref without transforms would require a batch of registrations;
+    # simpler (for now) to regenerate the boldref if transforms are missing.
+    reuse_boldref = have_boldref and have_run2template
+    # A full transform chain is usable, independent of whether a template is present.
+    reuse_template2anat = have_template2anat and have_run2template
+    assert has(coreg_nodes, 'boldref_reg_') ^ reuse_template2anat
+
+    # Template generation produces run2template transforms
+    assert has(coreg_nodes, 'bold_template_wf') ^ have_run2template
+
+    # Found transforms will be populated in subworkflows if reused
+    [template2anat_xfm] = (
+        found(deriv_dir, f'*_from-{level}_to-T1w_*') if reuse_template2anat else [Undefined]
+    )
+
+    # Existing transforms can regenerate a final template
+    assert has(coreg_nodes, 'warp_template_boldref') == (have_run2template and not reuse_boldref)
+
+    template_buffer = wf.get_node(f'{coreg_wf}.template_buffer').inputs
+    reg_buffer = wf.get_node(f'{coreg_wf}.reg_buffer').inputs
+
+    assert template_buffer.run2template_xfms == (
+        found(deriv_dir, f'*_from-run_to-{level}_*') if have_run2template else Undefined
+    )
+    # Populated based on presence; overridden by a workflow connection if not reused
+    assert [template_buffer.boldref] == (
+        found(deriv_dir, f'*_space-{level}_boldref.nii.gz') if have_boldref else [Undefined]
+    )
+    assert reg_buffer.template2anat_xfm == template2anat_xfm
+
+    # The workflow can be run, not only built
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+### /Precomputed coregistration tests

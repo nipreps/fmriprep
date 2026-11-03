@@ -293,7 +293,7 @@ def init_bold_template_coreg_wf(
     """
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 
-    from fmriprep.utils.bids import GROUP_DISMISS_ENTITIES
+    from fmriprep.utils.bids import GROUP_DISMISS_ENTITIES, bold_template_zooms
     from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
     from fmriprep.workflows.bold.registration import init_bold_reg_wf
@@ -326,6 +326,8 @@ def init_bold_template_coreg_wf(
         niu.IdentityInterface(fields=['template2anat_xfm', 'fallback']),
         name='reg_buffer',
     )
+    # Connected only when something is computed, but the caller connects to it regardless
+    workflow.add_nodes([inputnode])
 
     # Populate buffers; these can be overridden by connections.
     if boldref_template:
@@ -383,7 +385,15 @@ def init_bold_template_coreg_wf(
     if not have_run2template_xfms:
         logger.info('Constructing BOLD template from run references.')
 
-        bold_template_wf = init_bold_template_wf(num_bold_runs=n_runs, omp_nthreads=omp_nthreads)
+        upsample = None
+        if config.workflow.bold_coreg_upsample:
+            upsample = bold_template_zooms(bold_files)
+
+        bold_template_wf = init_bold_template_wf(
+            num_bold_runs=n_runs,
+            upsample=upsample,
+            omp_nthreads=omp_nthreads,
+        )
 
         template_sources = pe.Node(
             BIDSURI(
@@ -448,7 +458,7 @@ def init_bold_template_coreg_wf(
         from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
 
         logger.info(
-            'Found precomputed run2template transforms; '
+            f'Found precomputed run2{coreg_space} transforms; '
             'reconstructing boldref template from run references.'
         )
         select_boldref0 = pe.Node(

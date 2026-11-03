@@ -81,8 +81,6 @@ def init_bold_apply_wf(
     ----------
     bold_series
         List of paths to NIfTI files.
-    precomputed
-        Dictionary containing precomputed derivatives to reuse, if possible.
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.

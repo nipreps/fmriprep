@@ -1,145 +1,333 @@
+import logging
 from pathlib import Path
 
 import pytest
+from niworkflows.utils.testing import generate_bids_skeleton
 
 from fmriprep.utils import bids
+from fmriprep.utils.testing import deriv_skeleton, write_derivatives
+
+ENTITIES = {
+    'subject': '01',
+    'task': 'rest',
+    'run': 1,
+    'suffix': 'bold',
+    'extension': '.nii.gz',
+}
 
 
-@pytest.mark.parametrize(
-    ('key', 'ents'),
-    [
-        ('hmc', 'space-orig_desc-hmc'),
-        ('run', 'space-run'),
-        # legacy space-less names
-        ('hmc', 'desc-hmc'),
-        ('run', 'desc-coreg'),
-    ],
-)
-def test_baseline_found_as_str(tmp_path: Path, key: str, ents: str):
-    subject = '0'
-    task = 'rest'
-
-    to_find = tmp_path.joinpath(
-        f'sub-{subject}', 'func', f'sub-{subject}_task-{task}_{ents}_boldref.nii.gz'
-    )
-    to_find.parent.mkdir(parents=True)
-    to_find.touch()
-
-    entities = {
-        'subject': subject,
-        'task': task,
-        'suffix': 'bold',
-        'extension': '.nii.gz',
-    }
-
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert dict(derivs) == {f'{key}_boldref': str(to_find), 'transforms': {}}
+def _files(root: Path, datatype: str = 'func') -> list[str]:
+    return sorted(str(p) for p in root.rglob(f'{datatype}/*') if p.is_file())
 
 
-@pytest.mark.parametrize(('level', 'ses_ents'), [('session', '_ses-A'), ('subject', '')])
-def test_group_boldref_found(tmp_path: Path, level: str, ses_ents: str):
-    subject = '0'
-    task = 'rest'
-
-    func = tmp_path.joinpath(f'sub-{subject}', *(['ses-A'] if ses_ents else []), 'func')
-    func.mkdir(parents=True)
-    to_find = func / f'sub-{subject}{ses_ents}_space-{level}_boldref.nii.gz'
-    to_find.touch()
-
-    entities = {
-        'subject': subject,
-        'session': 'A',
-        'task': task,
-        'run': '01',
-        'suffix': 'bold',
-        'extension': '.nii.gz',
-    }
-
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert derivs == {f'{level}_boldref': str(to_find), 'transforms': {}}
+def _entities(session):
+    return {**ENTITIES, 'session': session} if session else ENTITIES
 
 
-@pytest.mark.parametrize(
-    ('xfm', 'fromto'),
-    [
-        ('hmc', 'from-orig_to-boldref'),
-        ('run2fmap', 'from-run_to-auto00000'),
-        ('run2anat', 'from-run_to-anat'),
-        # legacy from-boldref names
-        ('run2fmap', 'from-boldref_to-auto00000'),
-        ('run2anat', 'from-boldref_to-anat'),
-    ],
-)
-def test_transforms_found_as_str(tmp_path: Path, xfm: str, fromto: str):
-    subject = '0'
-    task = 'rest'
-
-    to_find = tmp_path.joinpath(
-        f'sub-{subject}', 'func', f'sub-{subject}_task-{task}_{fromto}_mode-image_xfm.txt'
-    )
-    to_find.parent.mkdir(parents=True)
-    to_find.touch()
-
-    entities = {
-        'subject': subject,
-        'task': task,
-        'suffix': 'bold',
-        'extension': '.nii.gz',
-    }
-
-    derivs = bids.collect_derivatives(
-        derivatives_dir=tmp_path,
-        entities=entities,
-        fieldmap_id='auto_00000',
-    )
-    assert derivs == {'transforms': {xfm: str(to_find)}}
+BOLDREFS = [
+    'hmc_boldref',
+    'hmc_boldref_legacy',
+    'run_boldref',
+    'run_boldref_legacy',
+    'session_boldref',
+    'subject_boldref',
+]
+TRANSFORMS = [
+    'hmc',
+    'hmc_legacy',
+    'run2anat',
+    'run2anat_legacy',
+    'run2fmap',
+    'run2fmap_legacy',
+    'run2session',
+    'run2subject',
+    'session2anat',
+    'subject2anat',
+]
 
 
-@pytest.mark.parametrize(('coreg_space', 'ses_ents'), [('session', '_ses-A'), ('subject', '')])
-def test_group_xfm_found_for_run(tmp_path: Path, coreg_space: str, ses_ents: str):
-    subject = '0'
-    task = 'rest'
-
-    func = tmp_path.joinpath(f'sub-{subject}', *(['ses-A'] if ses_ents else []), 'func')
-    func.mkdir(parents=True)
-    to_find = func / (
-        f'sub-{subject}{ses_ents}_from-{coreg_space}_to-anat_mode-image_desc-coreg_xfm.txt'
-    )
-    to_find.touch()
-
-    entities = {
-        'subject': subject,
-        'session': 'A',
-        'task': task,
-        'run': '01',
-        'suffix': 'bold',
-        'extension': '.nii.gz',
-    }
-
-    derivs = bids.collect_derivatives(derivatives_dir=tmp_path, entities=entities)
-    assert derivs == {'transforms': {f'{coreg_space}2anat': str(to_find)}}
+def _path(group: str) -> tuple[str, str]:
+    """Group and key a derivatives.yml group is collected under."""
+    name = group.removesuffix('_legacy')
+    if name.endswith('_boldref'):
+        return 'boldrefs', name.removesuffix('_boldref')
+    return 'transforms', name
 
 
-def test_aggregate_coreg_precomputed_run():
-    caches = [
-        {'transforms': {'run2anat': '/ra1', 'session2anat': '/sa', 'run2template': '/rb1'}},
-        {'transforms': {'run2anat': '/ra2'}},
-    ]
-    assert bids.aggregate_coreg_precomputed(caches, 'run') == {
-        'template2anat_xfm': ['/ra1', '/ra2'],
-    }
+@pytest.mark.parametrize('session', [None, 'A'])
+@pytest.mark.parametrize('group', BOLDREFS)
+def test_boldref_found_as_str(tmp_path: Path, group: str, session):
+    """Generate a single boldref and verify it's found.
+
+    `<x>_legacy` is defined in data/tests/derivatives.yml to generate files,
+    but the collector loads `<x>` and `<x>_legacy` as `<x>`.
+    """
+    root = write_derivatives(tmp_path / 'deriv', [group], run=1, session=session)
+    [found] = _files(root)
+
+    _, key = _path(group)
+    derivs = bids.collect_func_derivatives([root], _entities(session), fieldmap_id='auto_00000')
+    assert derivs == {'boldrefs': {key: found}, 'transforms': {}}
 
 
-def test_aggregate_coreg_precomputed_group():
-    caches = [
+@pytest.mark.parametrize('session', [None, 'A'])
+@pytest.mark.parametrize('group', TRANSFORMS)
+def test_transform_found_as_str(tmp_path: Path, group: str, session):
+    """Generate a single transform and verify it's found.
+
+    See above RE legacy derivatives.
+    """
+    root = write_derivatives(tmp_path / 'deriv', [group], run=1, session=session)
+    [found] = _files(root)
+
+    _, key = _path(group)
+    derivs = bids.collect_func_derivatives([root], _entities(session), fieldmap_id='auto_00000')
+    assert derivs == {'boldrefs': {}, 'transforms': {key: found}}
+
+    # Collector function normalizes fieldmap IDs internally
+    if key == 'run2fmap':
+        assert '_to-auto00000_' in found
+
+
+@pytest.mark.parametrize('session', [None, 'A'])
+def test_defaults_collected_once_each(tmp_path: Path, session):
+    """Default (None) includes loads all keys."""
+    root = write_derivatives(tmp_path / 'deriv', None, run=1, session=session)
+
+    derivs = bids.collect_func_derivatives([root], _entities(session), fieldmap_id='auto_00000')
+    assert derivs['boldrefs'].keys() == {'hmc', 'run', 'session', 'subject'}
+    # The defaults write run2session but not run2subject
+    expected = {_path(group)[1] for group in TRANSFORMS if group != 'run2subject'}
+    assert derivs['transforms'].keys() == expected
+    assert {*derivs['boldrefs'].values(), *derivs['transforms'].values()} == set(_files(root))
+
+
+@pytest.mark.parametrize('group', ['hmc_boldref', 'run_boldref', 'hmc', 'run2anat', 'run2fmap'])
+def test_current_name_preferred_over_legacy(tmp_path: Path, group: str):
+    """Generate current and legacy files and verify only current is returned."""
+    # Each current-name group is collected under its own name
+    [current] = _files(write_derivatives(tmp_path / 'current', [group], run=1))
+    root = write_derivatives(tmp_path / 'deriv', [group, f'{group}_legacy'], run=1)
+
+    derivs = bids.collect_func_derivatives([root], ENTITIES, fieldmap_id='auto_00000')
+    kind, key = _path(group)
+    assert derivs[kind][key] == str(root / 'sub-01' / 'func' / Path(current).name)
+
+
+def test_no_run2fmap_without_fieldmap(tmp_path: Path):
+    """A run without an estimator ignores transforms to any fieldmap."""
+    root = write_derivatives(tmp_path / 'deriv', ['run2anat', 'run2fmap'], run=1)
+    write_derivatives(root, ['run2fmap'], run=1, fmapid='auto00001')
+
+    derivs = bids.collect_func_derivatives([root], ENTITIES)
+    assert 'run2fmap' not in derivs['transforms']
+
+
+def test_run2fmap_matches_the_estimator(tmp_path: Path):
+    """With transforms to two fieldmaps, a run collects its estimator's."""
+    root = write_derivatives(tmp_path / 'deriv', ['run2fmap'], run=1)
+    write_derivatives(root, ['run2fmap'], run=1, fmapid='auto00001')
+
+    derivs = bids.collect_func_derivatives([root], ENTITIES, fieldmap_id='auto_00001')
+    assert '_to-auto00001_' in derivs['transforms']['run2fmap']
+
+
+def test_ambiguous_derivative_raises(tmp_path: Path):
+    """Several files for one derivative are an error, not a list."""
+    root = tmp_path / 'deriv'
+    generate_bids_skeleton(
+        root,
         {
-            'transforms': {'session2anat': '/sa', 'run2template': '/rb1'},
-            'session_boldref': '/tpl',
+            'dataset_description': {'Name': 'fMRIPrep', 'DatasetType': 'derivative'},
+            '01': {
+                'func': [
+                    {'task': 'rest', 'run': 1, 'echo': echo, 'space': 'run', 'suffix': 'boldref'}
+                    for echo in (1, 2)
+                ]
+            },
         },
-        {'transforms': {'session2anat': '/sa', 'run2template': '/rb2'}},
-    ]
-    assert bids.aggregate_coreg_precomputed(caches, 'session') == {
-        'template2anat_xfm': ['/sa', '/sa'],
-        'run2template_xfms': ['/rb1', '/rb2'],
-        'boldref_template': '/tpl',
+    )
+
+    with pytest.raises(ValueError, match=r'^boldrefs/run in .*expected at most one match'):
+        bids.collect_func_derivatives([root], ENTITIES)
+
+
+@pytest.mark.parametrize(
+    ('include', 'expected'),
+    [
+        (['fieldmap', 'coeffs', 'magnitude'], ('preproc', ['coeff'], 'magnitude')),
+        (['fieldmap', 'coeffs', 'magnitude_epi'], ('preproc', ['coeff'], 'epi')),
+        (
+            ['fieldmap', 'coeffs_split', 'magnitude'],
+            ('preproc', ['coeff0', 'coeff1'], 'magnitude'),
+        ),
+    ],
+    ids=['magnitude', 'epi', 'split-coeffs'],
+)
+def test_fieldmaps_found(tmp_path: Path, include, expected):
+    root = write_derivatives(tmp_path / 'deriv', include, run=1)
+    fmap = root / 'sub-01' / 'fmap'
+
+    def _path(desc):
+        if isinstance(desc, list):
+            return [_path(d) for d in desc]
+        return str(fmap / f'sub-01_fmapid-auto00000_desc-{desc}_fieldmap.nii.gz')
+
+    fmaps = bids.collect_fmap_derivatives([root], '01')
+    assert fmaps == {
+        'auto00000': dict(
+            zip(('fieldmap', 'coeffs', 'magnitude'), map(_path, expected), strict=True)
+        ),
     }
+
+
+def _find(root: Path, pattern: str) -> str:
+    [path] = root.rglob(pattern)
+    return str(path)
+
+
+def test_collect_func_derivatives_merges_per_key(tmp_path: Path, caplog):
+    first = write_derivatives(tmp_path / 'first', ['hmc_boldref', 'hmc', 'run2anat'], run=1)
+    second = write_derivatives(tmp_path / 'second', ['run_boldref', 'hmc'], run=1)
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        derivs = bids.collect_func_derivatives([first, second], ENTITIES, fieldmap_id='auto_00000')
+
+    # hmc is overridden
+    assert derivs == {
+        'boldrefs': {
+            'hmc': _find(first, '*_desc-hmc_boldref.nii.gz'),
+            'run': _find(second, '*_space-run_boldref.nii.gz'),
+        },
+        'transforms': {
+            'hmc': _find(second, '*_desc-hmc_xfm.txt'),
+            'run2anat': _find(first, '*_to-T1w_*xfm.txt'),
+        },
+    }
+
+    # One DEBUG message about HMC
+    [record] = [r for r in caplog.records if 'replacing' in r.getMessage()]
+    assert record.levelno == logging.DEBUG
+    first_path = _find(first, '*_desc-hmc_xfm.txt')
+    message = f'Precomputed transform hmc found in {second}, replacing {first_path}'
+    assert record.getMessage() == message
+
+
+def test_collect_func_derivatives_empty_later_dataset(tmp_path: Path, caplog):
+    """Empty datasets do not clobber populated keys."""
+    first = write_derivatives(tmp_path / 'first', ['run_boldref', 'hmc'], run=1)
+    empty = write_derivatives(tmp_path / 'empty', [])
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        derivs = bids.collect_func_derivatives([first, empty], ENTITIES)
+    assert derivs == bids.collect_func_derivatives([first], ENTITIES)
+    assert derivs['transforms']
+    assert not [r for r in caplog.records if 'replacing' in r.getMessage()]
+
+
+def test_collect_func_derivatives_nothing():
+    assert bids.collect_func_derivatives([], ENTITIES) == {'boldrefs': {}, 'transforms': {}}
+
+
+def test_collect_fmap_derivatives_merges_per_fieldmap(tmp_path: Path, caplog):
+    first = write_derivatives(tmp_path / 'first', ['fieldmap', 'coeffs', 'magnitude'])
+    second = tmp_path / 'second'
+    skeleton = deriv_skeleton(['fieldmap'])
+    skeleton['01'][0]['fmap'] += deriv_skeleton(
+        ['fieldmap', 'coeffs', 'magnitude'], fmapid='auto00001'
+    )['01'][0]['fmap']
+    generate_bids_skeleton(second, skeleton)
+
+    def _fmap(fmapid, desc):
+        return str(
+            second / 'sub-01' / 'fmap' / f'sub-01_fmapid-{fmapid}_desc-{desc}_fieldmap.nii.gz'
+        )
+
+    with caplog.at_level(logging.DEBUG, logger='nipype.utils'):
+        fmaps = bids.collect_fmap_derivatives([first, second], '01')
+    # The second dataset's entry replaces the first's entirely, even though it is incomplete
+    assert fmaps == {
+        'auto00000': {'fieldmap': _fmap('auto00000', 'preproc')},
+        'auto00001': {
+            'fieldmap': _fmap('auto00001', 'preproc'),
+            'coeffs': [_fmap('auto00001', 'coeff')],
+            'magnitude': _fmap('auto00001', 'magnitude'),
+        },
+    }
+    [record] = [r for r in caplog.records if 'replacing' in r.getMessage()]
+    assert 'auto00000' in record.getMessage()
+
+
+def test_collect_fmap_derivatives_empty_later_dataset(tmp_path: Path):
+    first = write_derivatives(tmp_path / 'first', ['fieldmap', 'coeffs', 'magnitude'])
+    empty = write_derivatives(tmp_path / 'empty', [])
+
+    fmaps = bids.collect_fmap_derivatives([first, empty], '01')
+    assert fmaps == bids.collect_fmap_derivatives([first], '01')
+    assert list(fmaps) == ['auto00000']
+
+
+def test_collect_fmap_derivatives_skips_ids_without_files(tmp_path: Path):
+    root = write_derivatives(tmp_path / 'deriv', ['fieldmap', 'coeffs', 'magnitude'])
+    (root / 'sub-01' / 'fmap' / 'sub-01_fmapid-auto00009_desc-other_fieldmap.nii.gz').write_text(
+        ''
+    )
+
+    assert list(bids.collect_fmap_derivatives([root], '01')) == ['auto00000']
+
+
+def test_collect_fmap_derivatives_by_session(tmp_path: Path):
+    """Fieldmap IDs may repeat across sessions; only the requested session's are collected."""
+    groups = ['fieldmap', 'coeffs', 'magnitude']
+    root = write_derivatives(tmp_path / 'deriv', groups, session='A')
+    write_derivatives(root, groups, session='B')
+    write_derivatives(root, groups)
+
+    fmaps = bids.collect_fmap_derivatives([root], '01', session_id='A')
+    assert fmaps == bids.collect_fmap_derivatives([root], '01', session_id=['A'])
+    assert set(_files(root / 'sub-01' / 'ses-A', 'fmap')) == {
+        fmaps['auto00000']['fieldmap'],
+        *fmaps['auto00000']['coeffs'],
+        fmaps['auto00000']['magnitude'],
+    }
+
+    # Without a session, only the subject-level fieldmaps are collected
+    fmaps = bids.collect_fmap_derivatives([root], '01')
+    assert {str(p) for p in (root / 'sub-01' / 'fmap').iterdir()} == {
+        fmaps['auto00000']['fieldmap'],
+        *fmaps['auto00000']['coeffs'],
+        fmaps['auto00000']['magnitude'],
+    }
+
+
+def _run_caches(tmp_path: Path, shared: list[str], per_run: list[str], session='A'):
+    """Collect caches for runs 1 and 2, with ``per_run`` derivatives in a dataset per run."""
+    shared_dir = write_derivatives(tmp_path / 'shared', shared, session=session)
+    run_dirs = [
+        write_derivatives(tmp_path / f'run-{run}', per_run, session=session, run=run)
+        for run in (1, 2)
+    ]
+    return [
+        bids.collect_func_derivatives([shared_dir, run_dir], {**_entities(session), 'run': run})
+        for run, run_dir in enumerate(run_dirs, start=1)
+    ]
+
+
+def test_aggregate_coreg_precomputed_run(tmp_path: Path):
+    caches = _run_caches(tmp_path, ['session2anat'], ['run2anat', 'run2session'])
+
+    assert bids.aggregate_coreg_precomputed(caches, 'run') == {
+        'template2anat_xfm': [c['transforms']['run2anat'] for c in caches],
+    }
+
+
+def test_aggregate_coreg_precomputed_group(tmp_path: Path):
+    caches = _run_caches(tmp_path, ['session_boldref', 'session2anat'], ['run2session'])
+    session2anat = caches[0]['transforms']['session2anat']
+
+    assert bids.aggregate_coreg_precomputed(caches, 'session') == {
+        'template2anat_xfm': [session2anat, session2anat],
+        'run2template_xfms': [c['transforms']['run2session'] for c in caches],
+        'boldref_template': caches[0]['boldrefs']['session'],
+    }
+    assert caches[0]['transforms']['run2session'] != caches[1]['transforms']['run2session']

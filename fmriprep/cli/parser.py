@@ -52,9 +52,13 @@ def _build_parser(**kwargs):
         'force_no_bbr': ('--force no-bbr', '26.0.0'),
         'force_syn': ('--force syn-sdc', '26.0.0'),
         'longitudinal': ('--subject-anatomical-reference unbiased', '26.1.0'),
+        'track_sessions': (None, '27.0.0'),
     }
 
     class DeprecatedAction(Action):
+        def __init__(self, option_strings, dest, nargs=0, **kwargs):
+            super().__init__(option_strings, dest, nargs=nargs, **kwargs)
+
         def __call__(self, parser, namespace, values, option_string=None):
             new_opt, rem_vers = deprecations.get(self.dest, (None, None))
             msg = (
@@ -64,7 +68,7 @@ def _build_parser(**kwargs):
             if new_opt:
                 msg += f' Please use `{new_opt}` instead.'
             print(msg, file=sys.stderr)
-            delattr(namespace, self.dest)
+            setattr(namespace, self.dest, True)
 
     class ToDict(Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -254,10 +258,11 @@ def _build_parser(**kwargs):
     )
     g_bids.add_argument(
         '--track-sessions',
-        action=BooleanOptionalAction,
-        default=True,
-        help='Track and append session IDs. If disabled, sessions will not be '
-        'tracked nor appended to FreeSurfer subject ID.',
+        '--no-track-sessions',
+        dest='track_sessions',
+        action=DeprecatedAction,
+        help='Deprecated - session handling is determined by '
+        '`--subject-anatomical-reference` and `--session-label`.',
     )
     g_bids.add_argument(
         '--bids-filter-file',
@@ -280,7 +285,9 @@ def _build_parser(**kwargs):
         help=(
             'Search PATH(s) for pre-computed derivatives. '
             'These may be provided as named folders '
-            '(e.g., `--derivatives smriprep=/path/to/smriprep`).'
+            '(e.g., `--derivatives smriprep=/path/to/smriprep`). '
+            'When several PATHs are given, all are searched, and a later one takes '
+            'precedence for the derivatives it provides.'
         ),
     )
     g_bids.add_argument(
@@ -435,6 +442,16 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         'anatomical reference. `run` (default) registers each run independently. '
         '`session` builds one BOLD template per session; `subject` builds a single '
         "template from all of a subject's runs.",
+    )
+    g_conf.add_argument(
+        '--bold-coreg-upsample',
+        action=BooleanOptionalAction,
+        default=True,
+        help='Upsample run references before building a session- or subject-level BOLD '
+        'template (default: enabled). The template is isotropic at 1.2mm, or at the '
+        'finest acquired voxel size if that is smaller, which reduces interpolation '
+        'error when resampling at the cost of larger BOLD reference outputs. '
+        'Only applies to `--bold-coreg-level session` or `subject`.',
     )
     g_conf.add_argument(
         '--force-bbr',

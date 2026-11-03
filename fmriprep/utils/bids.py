@@ -26,18 +26,28 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from collections import defaultdict
-from functools import cache
 from pathlib import Path
 
-from bids.layout import BIDSLayout
+import nibabel as nb
+import numpy as np
 from bids.utils import listify
+from nipost.bids import collect_derivatives, collect_fieldmaps, load_spec, sanitize_fieldmap_id
 from packaging.version import Version
 
 from .. import config
 from ..data import load as load_data
+
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from typing import NotRequired, TypedDict
+
+    class AggregateCache(TypedDict):
+        template2anat_xfm: list[str]
+        run2template_xfms: NotRequired[list[str]]
+        boldref_template: NotRequired[str | None]
+
 
 GROUP_DISMISS_ENTITIES = (
     'task',
@@ -50,97 +60,22 @@ GROUP_DISMISS_ENTITIES = (
     'part',
 )
 
-
-@cache
-def _get_layout(derivatives_dir: Path) -> BIDSLayout:
-    import niworkflows.data
-
-    return BIDSLayout(
-        derivatives_dir, config=[niworkflows.data.load('nipreps.json')], validate=False
-    )
+ZOOM_TOLERANCE = 1e-3
 
 
-def collect_derivatives(
-    derivatives_dir: Path,
-    entities: dict,
-    fieldmap_id: str | None = None,
-    spec: dict | None = None,
-    patterns: list[str] | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None or patterns is None:
-        _spec, _patterns = tuple(
-            json.loads(load_data.readable('io_spec.json').read_text()).values()
-        )
-
-        if spec is None:
-            spec = _spec
-        if patterns is None:
-            patterns = _patterns
-
-    derivs_cache = defaultdict(list, {})
-    layout = _get_layout(derivatives_dir)
-
-    # Session- and subject-level templates are written once
-    # TODO: Move towards expected filenames for these group-level files
-    level_relax = {
-        'run': (),
-        'session': GROUP_DISMISS_ENTITIES,
-        'subject': (*GROUP_DISMISS_ENTITIES, 'session'),
-    }
-
-    def _query(q, relax=()):
-        query = {k: v for k, v in {**entities, **q}.items() if k not in relax}
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            return None
-        return item[0] if len(item) == 1 else item
-
-    for level, relax in level_relax.items():
-        for name, q in spec.get(level, {}).items():
-            if q.get('suffix') != 'boldref':
-                continue
-            item = _query(q, relax)
-            if not item:
-                continue
-            derivs_cache['hmc_boldref' if name == 'hmc' else f'{level}_boldref'] = item
-
-    transforms_cache = {}
-    # Per-run transforms. Transform extensions/suffixes will not match the provided
-    #   entities (e.g., ".txt" vs ".nii.gz", "xfm" vs "bold"); the queries override them.
-    for xfm, q in spec['transforms'].items():
-        query = {**entities, **q}
-        if xfm == 'run2fmap' and fieldmap_id:
-            # fieldmaps have non-alphanumeric characters removed from their IDs in filenames
-            query['to'] = re.sub(r'[^a-zA-Z0-9]', '', fieldmap_id)
-        item = layout.get(return_type='filename', **query)
-        if not item:
-            continue
-        transforms_cache[xfm] = item[0] if len(item) == 1 else item
-
-    for level in ('session', 'subject'):
-        xfm_q = spec.get(level, {}).get('xfm')
-        if not xfm_q:
-            continue
-        item = _query(xfm_q, level_relax[level])
-        if item:
-            transforms_cache[f'{level}2anat'] = item
-
-    derivs_cache['transforms'] = transforms_cache
-    return derivs_cache
-
-
-def aggregate_coreg_precomputed(caches: list[dict], level: str) -> dict:
+def aggregate_coreg_precomputed(caches: list[dict], level: str) -> AggregateCache:
     """Aggregate coregistration precomputed inputs from per-run caches"""
 
     def get_xfm(cache, key):
         return cache.get('transforms', {}).get(key)
 
-    precomputed = {'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]}
+    precomputed: AggregateCache = {
+        'template2anat_xfm': [get_xfm(c, f'{level}2anat') for c in caches]
+    }
     if level != 'run':
-        precomputed['run2template_xfms'] = [get_xfm(c, 'run2template') for c in caches]
+        precomputed['run2template_xfms'] = [get_xfm(c, f'run2{level}') for c in caches]
         precomputed['boldref_template'] = next(
-            (c[f'{level}_boldref'] for c in caches if c.get(f'{level}_boldref')),
+            (ref for c in caches if (ref := c.get('boldrefs', {}).get(level))),
             None,
         )
     return precomputed
@@ -153,7 +88,7 @@ def is_valid_bold_template(
 ) -> bool:
     """Return True if BOLD template creation is possible.
 
-    Three independent conditions are checked:
+    Four independent conditions are checked:
 
     1. **Insufficient runs** -- fewer than two runs cannot form a meaningful
        template.
@@ -164,6 +99,7 @@ def is_valid_bold_template(
        one distinct phase-encoding direction (including ``None`` for runs that
        lack the metadata) implies opposing distortions that rigid/affine
        registration cannot recover.
+    4. **Differing voxel sizes** -- runs must share a voxel size, within 0.001 mm.
 
     Parameters
     ----------
@@ -178,45 +114,132 @@ def is_valid_bold_template(
     Returns
     -------
     bool
-        ``True`` if there are at least two runs, all share the same SDC status,
-        and SDC-less runs span exactly one phase-encoding direction.
+        ``True`` if there are at least two runs, all share the same SDC status
+        and voxel size, and SDC-less runs span exactly one phase-encoding
+        direction.
     """
     if len(bold_runs) < 2:
         return False
 
     sdc_corrected = [bool(estimator_map.get(series[0])) for series in bold_runs]
     if any(sdc_corrected):
-        return all(sdc_corrected)
+        if not all(sdc_corrected):
+            return False
+    else:
+        pe_dirs = {
+            layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
+        }
+        if len(pe_dirs) != 1:
+            return False
 
-    pe_dirs = {
-        layout.get_metadata(series[0]).get('PhaseEncodingDirection') for series in bold_runs
-    }
-    return len(pe_dirs) == 1
+    zooms = [nb.load(series[0]).header.get_zooms()[:3] for series in bold_runs]
+    return bool(np.allclose(zooms, zooms[0], rtol=0, atol=ZOOM_TOLERANCE))
 
 
-def collect_fieldmaps(
-    derivatives_dir: Path,
+def bold_template_zooms(
+    bold_files: list[str],
+    target_mm: float = 1.2,
+) -> tuple[float, float, float] | None:
+    """Return the zooms to build a BOLD template at, or `None` to use the native resolution."""
+    zooms = np.array([nb.load(bold_file).header.get_zooms()[:3] for bold_file in bold_files])
+    target = round(float(min(target_mm, zooms.min())), 4)
+    if not np.any(zooms > target + ZOOM_TOLERANCE):
+        return None
+    # isotropic template
+    return (target,) * 3
+
+
+def _merge(merged: dict, found: dict, kind: str, deriv_dir) -> None:
+    """Update ``merged`` with ``found``, logging each entry that is replaced."""
+    for name, value in found.items():
+        if name in merged:
+            config.loggers.utils.debug(
+                f'Precomputed {kind} {name} found in {deriv_dir}, replacing {merged[name]}'
+            )
+        merged[name] = value
+
+
+def collect_func_derivatives(
+    derivatives: list[Path],
     entities: dict,
-    spec: dict | None = None,
-):
-    """Gather existing derivatives and compose a cache."""
-    if spec is None:
-        spec = json.loads(load_data.readable('fmap_spec.json').read_text())['queries']
+    fieldmap_id: str | None = None,
+) -> dict:
+    """Gather precomputed functional derivatives from one or more datasets.
 
-    fmap_cache = defaultdict(dict, {})
-    layout = _get_layout(derivatives_dir)
+    Parameters
+    ----------
+    derivatives
+        Derivatives datasets to search. Later datasets take precedence for each
+        derivative and each transform they provide.
+        Each derivative a later dataset replaces is logged at DEBUG level.
+    entities
+        BIDS entities of the BOLD series.
+    fieldmap_id
+        Fieldmap estimator ID, used to find the BOLD-to-fieldmap transform.
+        Without one, no BOLD-to-fieldmap transform is collected.
 
-    fmapids = layout.get_fmapids(**entities)
+    Returns
+    -------
+    dict
+        ``boldrefs`` and ``transforms`` map query names in ``func_spec.yml`` to paths.
+        ``run2fmap``, from the spec's ``fmap_transforms`` group for the requested
+        fieldmap ID, is merged into ``transforms``.
 
-    for fmapid in fmapids:
-        for k, q in spec['fieldmaps'].items():
-            query = {**entities, **q}
-            item = layout.get(return_type='filename', fmapid=fmapid, **query)
-            if not item:
-                continue
-            fmap_cache[fmapid][k] = item[0] if len(item) == 1 else item
+    Raises
+    ------
+    ValueError
+        If a query matches more than one file in a dataset.
+    """
+    spec = load_spec(load_data('func_spec.yml'))
+    fmapid = sanitize_fieldmap_id(fieldmap_id) if fieldmap_id else None
+    merged = {'boldrefs': {}, 'transforms': {}}
+    for deriv_dir in derivatives:
+        found = collect_derivatives(
+            deriv_dir, spec=spec, entities=entities, params={'fmapid': fmapid}
+        )
+        # A run has at most one estimator, so its transform joins the others
+        transforms = {**found['transforms'], **found['fmap_transforms'].get(fmapid, {})}
+        _merge(merged['boldrefs'], found['boldrefs'], 'boldref', deriv_dir)
+        _merge(merged['transforms'], transforms, 'transform', deriv_dir)
+    return merged
 
-    return fmap_cache
+
+def collect_fmap_derivatives(
+    derivatives: list[Path],
+    subject_id: str,
+    session_id: str | list[str] | None = None,
+) -> dict:
+    """Gather precomputed fieldmaps from one or more datasets.
+
+    Parameters
+    ----------
+    derivatives
+        Derivatives datasets to search. A later dataset's files for a fieldmap ID replace
+        any earlier dataset's files for that ID; files for one ID are never combined
+        across datasets. Each replacement is logged at DEBUG level.
+    subject_id
+        Subject label, without ``sub-``.
+    session_id
+        Session label(s), without ``ses-``. Fieldmap IDs may repeat across sessions,
+        so only the given sessions are searched. By default, only fieldmaps without
+        a session are.
+
+    Returns
+    -------
+    dict
+        Precomputed fieldmaps by fieldmap ID, each mapping the queries in ``fmap_spec.yml``
+        (``fieldmap``, ``coeffs`` and ``magnitude``) that found files to those files.
+        ``coeffs`` is a list.
+    """
+    spec = load_spec(load_data('fmap_spec.yml'))
+    entities = {'subject': subject_id, 'session': session_id}
+    merged = {}
+    for deriv_dir in derivatives:
+        found = collect_fieldmaps(deriv_dir, entities=entities, spec=spec)
+        # Keep only the IDs with files
+        fmaps = {fmapid: files for fmapid, files in found['fieldmaps'].items() if files}
+        _merge(merged, fmaps, 'fieldmap', deriv_dir)
+    return merged
 
 
 def write_bidsignore(deriv_dir):
@@ -460,7 +483,6 @@ def extract_entities(file_list):
     {'subject': '01', 'run': [1, 2], 'suffix': 'T1w', 'datatype': 'anat', 'extension': '.nii.gz'}
 
     """
-    from collections import defaultdict
 
     from bids.layout import parse_file_entities
 
