@@ -119,7 +119,7 @@ def _make_params(
 
 def test_compose_bids_query_spec_reports_final_queries():
     bids_filters = {
-        'bold': {'run': '01', 'session': 'baseline'},
+        'bold': {'run': '01'},
         'unknown': {'suffix': 'ignored'},
     }
 
