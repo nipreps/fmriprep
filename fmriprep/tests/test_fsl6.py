@@ -23,8 +23,10 @@ TEMPLATE = tf.get('MNI152NLin2009cAsym', resolution=2, desc=None, suffix='T1w')
             'supercalifragilisticexpialidocious.nii.gz',
         ),
         (
-            'pneumonoultramicroscopicsilicovolcanoconiosis/floccinaucinihilipilification/'
-            'antidisestablishmentarianism/pseudopseudohypoparathyroidism/sesquipedalian',
+            (
+                'pneumonoultramicroscopicsilicovolcanoconiosis/floccinaucinihilipilification/'
+                'antidisestablishmentarianism/pseudopseudohypoparathyroidism/sesquipedalian'
+            ),
             'brain.nii.gz',
         ),
     ],
