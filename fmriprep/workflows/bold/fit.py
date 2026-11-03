@@ -38,6 +38,7 @@ from ... import config
 from ...interfaces.resampling import (
     DistortionParameters,
     ReconstructFieldmap,
+    ReconstructGradient,
     ResampleSeries,
 )
 from ...utils.bids import extract_entities
@@ -403,7 +404,6 @@ def init_bold_fit_wf(
         workflow.connect([
             (inputnode, boldref_fmap, [
                 ('fmap_coeff', 'in_coeffs'),
-                ('fmap_ref', 'fmap_ref_file'),
             ]),
             (fmapref_buffer, boldref_fmap, [('out', 'target_ref_file')]),
             (fmapreg_buffer, boldref_fmap, [('run2fmap_xfm', 'transforms')]),
@@ -508,13 +508,27 @@ def init_bold_fit_wf(
             )
 
             unwarp_boldref = pe.Node(
-                ResampleSeries(jacobian=jacobian),
+                ResampleSeries(),
                 name='unwarp_boldref',
                 n_procs=omp_nthreads,
                 mem_gb=mem_gb['resampled'],
             )
 
             skullstrip_bold_wf = init_skullstrip_bold_wf()
+
+            if jacobian:
+                boldref_grad = pe.Node(
+                    ReconstructGradient(inverse=[True]), name='boldref_grad', mem_gb=1
+                )
+                workflow.connect([
+                    (inputnode, boldref_grad, [('fmap_coeff', 'in_coeffs')]),
+                    (fmapref_buffer, boldref_grad, [('out', 'target_ref_file')]),
+                    (fmapreg_buffer, boldref_grad, [
+                        ('run2fmap_xfm', 'transforms'),
+                        ('run2fmap_xfm', 'epi2fmap_xfm'),
+                    ]),
+                    (boldref_grad, unwarp_boldref, [('out_file', 'fieldmap_gradient')]),
+                ])  # fmt:skip
 
             workflow.connect([
                 (fmapref_buffer, unwarp_boldref, [('out', 'ref_file')]),
@@ -772,7 +786,7 @@ def init_bold_native_wf(
 
     # Resample to boldref
     boldref_bold = pe.Node(
-        ResampleSeries(jacobian=jacobian),
+        ResampleSeries(),
         name='boldref_bold',
         n_procs=omp_nthreads,
         mem_gb=mem_gb['resampled'],
@@ -797,10 +811,23 @@ def init_bold_native_wf(
                 ('run_boldref', 'target_ref_file'),
                 ('run2fmap_xfm', 'transforms'),
                 ('fmap_coeff', 'in_coeffs'),
-                ('fmap_ref', 'fmap_ref_file'),
             ]),
             (boldref_fmap, boldref_bold, [('out_file', 'fieldmap')]),
         ])  # fmt:skip
+
+        if jacobian:
+            boldref_grad = pe.Node(
+                ReconstructGradient(inverse=[True]), name='boldref_grad', mem_gb=1
+            )
+            workflow.connect([
+                (inputnode, boldref_grad, [
+                    ('run_boldref', 'target_ref_file'),
+                    ('run2fmap_xfm', 'transforms'),
+                    ('run2fmap_xfm', 'epi2fmap_xfm'),
+                    ('fmap_coeff', 'in_coeffs'),
+                ]),
+                (boldref_grad, boldref_bold, [('out_file', 'fieldmap_gradient')]),
+            ])  # fmt:skip
 
     if multiecho:
         join_echos = pe.JoinNode(

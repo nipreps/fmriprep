@@ -6,7 +6,13 @@ import numpy as np
 import pytest
 from nipype.pipeline import engine as pe
 
-from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
+from fmriprep.interfaces.resampling import (
+    ReconstructFieldmap,
+    ReconstructGradient,
+    ResampleSeries,
+    ResampleTemplate,
+    UpsampleToZooms,
+)
 
 
 def _image(path, zooms):
@@ -165,3 +171,149 @@ def test_ResampleTemplate_transform(tmp_path):
     )
 
     assert np.allclose(nb.load(out_file).get_fdata(), data, atol=1e-4)
+
+
+def _ras(img):
+    """RAS coordinates of every voxel of an image, along a trailing axis."""
+    ijk = np.indices(img.shape[:3], dtype=float).reshape(3, -1).T
+    return nb.affines.apply_affine(img.affine, ijk).reshape(*img.shape[:3], 3)
+
+
+def _grid(span, zoom):
+    """Isotropic RAS grid spanning -span..+span mm."""
+    affine = nb.affines.from_matvec(np.eye(3) * zoom, np.full(3, -span))
+    return nb.Nifti1Image(np.zeros((int(2 * span / zoom) + 1,) * 3, dtype='f4'), affine)
+
+
+def _ramp_coefficients(path):
+    """Write coefficients equal to each knot's x coordinate, on 4 mm knots over -40..+40 mm.
+
+    Cubic B-splines reproduce linear functions, so the field is f(x, y, z) = x
+    (Hz) for points more than one knot spacing inside the lattice.
+    """
+    knots = _grid(span=40.0, zoom=4.0)
+    nb.Nifti1Image(_ras(knots)[..., 0].astype('f4'), knots.affine).to_filename(path)
+    return str(path)
+
+
+def test_ReconstructFieldmap(tmp_path):
+    """A linear coefficient grid yields the linear field in the interior of the lattice."""
+    target = _grid(span=20.0, zoom=2.0)
+    target.to_filename(tmp_path / 'target.nii.gz')
+
+    node = pe.Node(
+        ReconstructFieldmap(
+            in_coeffs=[_ramp_coefficients(tmp_path / 'coeffs.nii.gz')],
+            target_ref_file=str(tmp_path / 'target.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+        ),
+        name='reconstruct',
+        base_dir=tmp_path,
+    )
+    fieldmap = nb.load(node.run().outputs.out_file)
+
+    assert fieldmap.shape == target.shape
+    assert np.allclose(fieldmap.affine, target.affine)
+    np.testing.assert_allclose(np.asanyarray(fieldmap.dataobj), _ras(target)[..., 0], atol=1e-4)
+
+
+def _rot_z(theta):
+    c, s = np.cos(theta), np.sin(theta)
+    matrix = np.eye(4)
+    matrix[:2, :2] = [[c, -s], [s, c]]
+    return matrix
+
+
+@pytest.mark.parametrize(
+    ('theta', 'expected'),
+    [
+        pytest.param(0.0, (1.0, 0.0, 0.0), id='aligned'),
+        pytest.param(np.pi / 6, (np.cos(np.pi / 6), -np.sin(np.pi / 6), 0.0), id='rotated'),
+    ],
+)
+def test_ReconstructGradient(tmp_path, theta, expected):
+    """The gradient of a ramp is its slope, expressed along the BOLD reference's axes."""
+    target = _grid(span=20.0, zoom=2.0)
+    target.to_filename(tmp_path / 'target.nii.gz')
+    # The file holds the inverse of the transform mapping BOLD reference points into the fieldmap
+    epi2fmap = nt.linear.Affine(_rot_z(theta))
+    nt.linear.Affine(np.linalg.inv(epi2fmap.matrix)).to_filename(
+        tmp_path / 'run2fmap.txt', fmt='itk'
+    )
+
+    node = pe.Node(
+        ReconstructGradient(
+            in_coeffs=[_ramp_coefficients(tmp_path / 'coeffs.nii.gz')],
+            target_ref_file=str(tmp_path / 'target.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+            epi2fmap_xfm=str(tmp_path / 'run2fmap.txt'),
+        ),
+        name='gradient',
+        base_dir=tmp_path,
+    )
+    gradient = nb.load(node.run().outputs.out_file)
+
+    assert gradient.shape == (*target.shape, 1, 3)
+    interior = np.abs(_ras(target)).max(axis=-1) <= 30.0
+    data = gradient.dataobj[..., 0, :]
+    np.testing.assert_allclose(
+        data[interior], np.broadcast_to(expected, (interior.sum(), 3)), atol=1e-4
+    )
+
+
+def _series(tmp_path):
+    """A small positive 4D series, a zero fieldmap and a constant gradient along j."""
+    rng = np.random.default_rng(1)
+    affine = np.diag([2.0, 2.0, 2.0, 1.0])
+    shape = (12, 12, 12)
+    nb.Nifti1Image(1 + rng.random((*shape, 3), dtype='float32'), affine).to_filename(
+        tmp_path / 'bold.nii.gz'
+    )
+    nb.Nifti1Image(np.zeros(shape, dtype='f4'), affine).to_filename(tmp_path / 'ref.nii.gz')
+    nb.Nifti1Image(np.zeros(shape, dtype='f4'), affine).to_filename(tmp_path / 'fmap.nii.gz')
+    gradient = np.zeros((*shape, 1, 3), dtype='f4')
+    gradient[..., 0, 1] = 0.02  # Hz/mm along j
+    nb.Nifti1Image(gradient, affine).to_filename(tmp_path / 'grad.nii.gz')
+
+
+def _resample(tmp_path, **kwargs):
+    node = pe.Node(
+        ResampleSeries(
+            in_file=str(tmp_path / 'bold.nii.gz'),
+            ref_file=str(tmp_path / 'ref.nii.gz'),
+            transforms=[_to_itk(tmp_path / 'identity.txt')],
+            fieldmap=str(tmp_path / 'fmap.nii.gz'),
+            pe_dir='j',
+            ro_time=0.05,
+            order=1,
+            **kwargs,
+        ),
+        name='resample',
+        base_dir=tmp_path,
+    )
+    return np.asanyarray(nb.load(node.run().outputs.out_file).dataobj)
+
+
+def test_ResampleSeries_fieldmap_gradient(tmp_path):
+    """A fieldmap gradient scales each voxel by 1 + readout time * gradient (Hz/mm * mm)."""
+    _series(tmp_path)
+    original = np.asanyarray(nb.load(tmp_path / 'bold.nii.gz').dataobj)
+
+    modulated = _resample(tmp_path, fieldmap_gradient=str(tmp_path / 'grad.nii.gz'))
+
+    # 0.05 s * 0.02 Hz/mm * 2 mm per voxel
+    np.testing.assert_allclose(
+        modulated[2:-2, 2:-2, 2:-2], original[2:-2, 2:-2, 2:-2] * 1.002, rtol=1e-4
+    )
+
+
+def test_ResampleSeries_no_gradient(tmp_path):
+    """Without a fieldmap gradient, a zero fieldmap leaves the series unmodulated."""
+    _series(tmp_path)
+    original = np.asanyarray(nb.load(tmp_path / 'bold.nii.gz').dataobj)
+
+    unmodulated = _resample(tmp_path)
+
+    np.testing.assert_allclose(
+        unmodulated[2:-2, 2:-2, 2:-2], original[2:-2, 2:-2, 2:-2], rtol=1e-4
+    )

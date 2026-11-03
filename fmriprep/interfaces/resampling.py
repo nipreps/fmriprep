@@ -6,6 +6,7 @@ import nitransforms.resampling
 import numpy as np
 from nipost import load_transforms, reconstruct_fieldmap, resample_image
 from nipost.epi import ensure_positive_cosines, get_trt
+from nipost.fieldmap import reconstruct_gradient
 from nipype import logging
 from nipype.interfaces.base import (
     File,
@@ -43,7 +44,11 @@ class ResampleSeriesInputSpec(TraitedSpec):
         'k-',
         desc='the phase-encoding direction corresponding to in_data',
     )
-    jacobian = traits.Bool(mandatory=True, desc='Whether to apply Jacobian correction')
+    fieldmap_gradient = File(
+        exists=True,
+        desc='Fieldmap gradient (Hz/mm) in reference space, from ReconstructGradient. '
+        'If provided, intensities are modulated by the Jacobian of the distortion.',
+    )
     num_threads = traits.Int(1, usedefault=True, desc='Number of threads to use for resampling')
     output_data_type = traits.Str('float32', usedefault=True, desc='Data type of output image')
     order = traits.Int(3, usedefault=True, desc='Order of interpolation (0=nearest, 3=cubic)')
@@ -82,6 +87,9 @@ class ResampleSeries(SimpleInterface):
         source = nb.load(self.inputs.in_file)
         target = nb.load(self.inputs.ref_file)
         fieldmap = nb.load(self.inputs.fieldmap) if self.inputs.fieldmap else None
+        fieldmap_gradient = (
+            nb.load(self.inputs.fieldmap_gradient) if self.inputs.fieldmap_gradient else None
+        )
 
         nvols = source.shape[3] if source.ndim > 3 else 1
 
@@ -108,7 +116,7 @@ class ResampleSeries(SimpleInterface):
             transforms=transforms,
             fieldmap=fieldmap,
             pe_info=pe_info,
-            jacobian=self.inputs.jacobian,
+            fieldmap_gradient=fieldmap_gradient,
             nthreads=self.inputs.num_threads,
             output_dtype=self.inputs.output_data_type,
             order=self.inputs.order,
@@ -128,9 +136,6 @@ class ReconstructFieldmapInputSpec(TraitedSpec):
     )
     target_ref_file = File(
         exists=True, mandatory=True, desc='Image to reconstruct the field in alignment with'
-    )
-    fmap_ref_file = File(
-        exists=True, mandatory=True, desc='Reference file aligned with coefficients'
     )
     transforms = InputMultiObject(
         File(exists=True),
@@ -152,10 +157,9 @@ class ReconstructFieldmapOutputSpec(TraitedSpec):
 class ReconstructFieldmap(SimpleInterface):
     """Reconstruct a fieldmap from B-spline coefficients in a target space.
 
-    If the target reference does not have an aligned grid (guaranteed if
-    transforms include a warp), then a reference file describing the space
-    where it is valid to extrapolate the field will be used as an intermediate
-    step.
+    The field is evaluated directly at the voxels of the target reference,
+    mapped into the coefficients' space by the transforms. It is zero beyond
+    the support of the coefficients.
     """
 
     input_spec = ReconstructFieldmapInputSpec
@@ -166,17 +170,63 @@ class ReconstructFieldmap(SimpleInterface):
 
         coefficients = [nb.load(coeff_file) for coeff_file in self.inputs.in_coeffs]
         target = nb.load(self.inputs.target_ref_file)
-        fmapref = nb.load(self.inputs.fmap_ref_file)
 
         transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
 
         fieldmap = reconstruct_fieldmap(
             coefficients=coefficients,
-            fmap_reference=fmapref,
             target=target,
             transforms=transforms,
         )
         fieldmap.to_filename(out_path)
+
+        self._results['out_file'] = out_path
+        return runtime
+
+
+class ReconstructGradientInputSpec(ReconstructFieldmapInputSpec):
+    # If we need to accommodate fmap2epi transforms, add another field and set `xor`
+    # Currently, we always have run2fmap, so no need to duplicate.
+    epi2fmap_xfm = File(
+        exists=True,
+        mandatory=True,
+        desc='Affine mapping EPI reference images into the fieldmap space. '
+        'Used to map the fieldmap gradient into EPI.'
+        'Note that this transform is not inverted based on the `inverse` input.',
+    )
+
+
+class ReconstructGradientOutputSpec(TraitedSpec):
+    out_file = File(desc='Fieldmap gradient (Hz/mm) in target_ref_file space')
+
+
+class ReconstructGradient(SimpleInterface):
+    """Evaluate the analytic gradient of a B-spline fieldmap in a target space.
+
+    The gradient is taken along the world axes of the BOLD reference, so that
+    :class:`ResampleSeries` can use it to modulate intensities by the Jacobian
+    of the distortion.
+    """
+
+    input_spec = ReconstructGradientInputSpec
+    output_spec = ReconstructGradientOutputSpec
+
+    def _run_interface(self, runtime):
+        out_path = fname_presuffix(self.inputs.in_coeffs[-1], suffix='grad', newpath=runtime.cwd)
+
+        coefficients = [nb.load(coeff_file) for coeff_file in self.inputs.in_coeffs]
+        target = nb.load(self.inputs.target_ref_file)
+
+        transforms = load_transforms(self.inputs.transforms, self.inputs.inverse)
+        fmap2epi = load_transforms([self.inputs.epi2fmap_xfm], [True])
+
+        gradient = reconstruct_gradient(
+            coefficients=coefficients,
+            target=target,
+            fmap2target=transforms,
+            fmap2epi=fmap2epi,
+        )
+        gradient.to_filename(out_path)
 
         self._results['out_file'] = out_path
         return runtime
