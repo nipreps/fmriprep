@@ -91,8 +91,13 @@ extend-select = [
   "Q",
 ]
 ignore = [
+  "UP",    # Python 2 isn't going to be able to use upgrades
+  "FLY",   # f-strings are not available in Python 2
   "S311",  # We are not using random for cryptographic purposes
   "B905",  # Python 3-only rule
+  "PLW1510",  # subprocess.run() is patched for Python 2
+  "RUF017", # Our lists aren't that long
+  "SIM115", # No unclosed files
 ]
 
 [tool.ruff.lint.flake8-quotes]
