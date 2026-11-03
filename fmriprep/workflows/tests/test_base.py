@@ -13,7 +13,12 @@ from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
 from ...utils.testing import deriv_skeleton, write_derivatives
-from ..base import _compose_bids_query_spec, get_estimator, init_fmriprep_wf, init_single_subject_wf
+from ..base import (
+    _compose_bids_query_spec,
+    get_estimator,
+    init_fmriprep_wf,
+    init_single_subject_wf,
+)
 from ..tests import mock_config
 from .layouts import get_layout
 
