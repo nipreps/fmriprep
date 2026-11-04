@@ -25,9 +25,9 @@ import pytest
 
 from fmriprep.utils.bids import (
     bold_template_zooms,
-    collect_template_selection,
+    collect_selection,
     is_valid_bold_template,
-    resolve_template_selection,
+    resolve_selection,
 )
 
 
@@ -132,13 +132,13 @@ def test_bold_template_zooms(tmp_path: Path, zooms, expected):
         (['include', 'n/a', 'include'], None, [True, False, True]),
     ],
 )
-def test_resolve_template_selection(labels, reference, template_runs):
-    assert resolve_template_selection(labels) == (reference, template_runs)
+def test_resolve_selection(labels, reference, template_runs):
+    assert resolve_selection(labels) == (reference, template_runs)
 
 
-def test_resolve_template_selection_multiple_targets():
+def test_resolve_selection_multiple_targets():
     with pytest.raises(RuntimeError, match='target'):
-        resolve_template_selection(['target', 'include', 'target'])
+        resolve_selection(['target', 'include', 'target'])
 
 
 def _write_scans(path: Path, rows: dict[str, str]):
@@ -153,7 +153,7 @@ def _bold(bids_dir: Path, ses: str, run: int) -> str:
     )
 
 
-def test_collect_template_selection(tmp_path: Path):
+def test_collect_selection(tmp_path: Path):
     """Raw scans files win over derivatives, which fill in sessions raw does not annotate."""
     bids_dir, deriv_dir = tmp_path / 'bids', tmp_path / 'deriv'
     bold_files = [_bold(bids_dir, ses, run) for ses in 'AB' for run in (1, 2)]
@@ -178,11 +178,11 @@ def test_collect_template_selection(tmp_path: Path):
         },
     )
 
-    labels = collect_template_selection(bold_files, bids_dir, [deriv_dir])
+    labels = collect_selection(bold_files, bids_dir, [deriv_dir])
     assert labels == ['target', 'n/a', 'include', 'n/a']
 
 
-def test_collect_template_selection_without_sessions(tmp_path: Path):
+def test_collect_selection_without_sessions(tmp_path: Path):
     bold_files = [
         str(tmp_path / f'sub-01/func/sub-01_task-rest_run-{run}_bold.nii.gz') for run in (1, 2)
     ]
@@ -191,7 +191,7 @@ def test_collect_template_selection_without_sessions(tmp_path: Path):
         {'func/sub-01_task-rest_run-2_bold.nii.gz': 'include'},
     )
 
-    assert collect_template_selection(bold_files, tmp_path, []) == ['n/a', 'include']
+    assert collect_selection(bold_files, tmp_path, []) == ['n/a', 'include']
 
 
 @pytest.mark.parametrize(
@@ -204,10 +204,10 @@ def test_collect_template_selection_without_sessions(tmp_path: Path):
         ('boldref_template\ntarget\n', 'filename'),
     ],
 )
-def test_collect_template_selection_invalid(tmp_path: Path, content, match):
+def test_collect_selection_invalid(tmp_path: Path, content, match):
     scans = tmp_path / 'sub-01/ses-A/sub-01_ses-A_scans.tsv'
     scans.parent.mkdir(parents=True)
     scans.write_text(content)
 
     with pytest.raises(ValueError, match=match):
-        collect_template_selection([_bold(tmp_path, 'A', 1)], tmp_path, [])
+        collect_selection([_bold(tmp_path, 'A', 1)], tmp_path, [])
