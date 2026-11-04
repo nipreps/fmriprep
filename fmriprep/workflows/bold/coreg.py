@@ -320,7 +320,7 @@ def init_bold_template_coreg_wf(
     from fmriprep.utils.bids import (
         GROUP_DISMISS_ENTITIES,
         bold_template_zooms,
-        resolve_template_selection,
+        resolve_selection,
     )
     from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
@@ -331,7 +331,7 @@ def init_bold_template_coreg_wf(
     bids_root = str(config.execution.bids_dir)
     n_runs = len(bold_files)
     if template_reference is None and template_runs is None:
-        template_reference, template_runs = resolve_template_selection(['n/a'] * n_runs)
+        template_reference, template_runs = resolve_selection(['n/a'] * n_runs)
     template_runs = template_runs or [True] * n_runs
     bold_ids = [get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
 
