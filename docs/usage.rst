@@ -236,46 +236,76 @@ registered to the shared anatomical image; with ``sessionwise``, each session is
 processed independently against its own anatomical reference. ``--bold-coreg-level
 subject`` is incompatible with ``--subject-anatomical-reference sessionwise``.
 
+.. _bold_template_selection:
+
 Selecting runs for the BOLD template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-By default, all runs of a group contribute to the template: with two runs, the
+By default, all runs of a group contribute to the template: with one or two runs, the
 first run's reference defines the template space, and with three or more runs an
 unbiased template is constructed.
-Expert users may instead select which runs build the template, by adding a
-``boldref_template`` column to the
+Expert users can further control selection through the ``boldref_template`` column of the
 `scans file <https://bids-specification.readthedocs.io/en/stable/modality-agnostic-files/data-summary-files.html#scans-file>`__
-of each session::
+of each session (or subject, without sessions), e.g.,
+``sub-01/ses-01/sub-01_ses-01_scans.tsv``::
 
     filename	boldref_template
     func/sub-01_ses-01_task-rest_run-1_bold.nii.gz	target
     func/sub-01_ses-01_task-rest_run-2_bold.nii.gz	include
     func/sub-01_ses-01_task-rest_run-3_bold.nii.gz	n/a
 
-The following values are accepted:
-
 ``target``
-    The run's reference defines the template space, and is averaged into the template.
+    The run defines the template space, and is averaged into the template.
+    At most one ``target`` may be selected per template.
 ``include``
-    The run's reference is averaged into the template.
+    The run is averaged into the template.
+    Without a ``target``, a single ``include`` defines the template space, and two or
+    more construct an unbiased template.
 ``n/a``
     The run is registered to the template, but does not contribute to it.
-    Runs not listed in the scans file are treated as ``n/a``.
+    Empty values and unlisted runs are ``n/a``; if no run is ``target`` or ``include``,
+    the default applies.
 
-A single ``target`` (or a single ``include``) fixes the template space to that run,
-and every other run is registered to it.
-Selecting two or more ``include`` runs without a ``target`` constructs an unbiased
-template from those runs, to which the remaining runs are then registered.
-At most one ``target`` may be selected per template.
-
-The scans file of the input BIDS dataset is used if it contains a ``boldref_template``
-column; otherwise, the scans file at the same location in each ``--derivatives``
-dataset is searched, in order.
-Because previously computed templates are reused, the first pass of *fMRIPrep*
-(producing the run references to select from) should be run with
-``--bold-coreg-level run``.
-
+For multi-echo data, label the first echo.
 The template's JSON sidecar records the runs that defined the template space
 (``TemplateSpace``) and those averaged into the template image (``TemplateData``).
+
+.. note::
+   The selection is read from the input dataset's scans file if it has the column, and
+   otherwise from the first ``--derivatives`` dataset that does.
+   A template found in ``--derivatives`` is reused, and the selection ignored: run the
+   first pass with ``--bold-coreg-level run``, and when revising a selection, ensure
+   previous templates and transforms are removed.
+
+Instead of editing scans files by hand, the ``fmriprep-bold-template`` tool can be used
+to compare and select runs:
+
+#. Run a first pass that produces the run references::
+
+       $ fmriprep <bids_dir> <fmriprep_dir> participant \
+           --bold-coreg-level run --level minimal
+
+#. Run ``fmriprep-bold-template`` to create a report with each run's reference in its
+   native space, scaled to the intensity of the brain::
+
+       $ fmriprep-bold-template <bids_dir> <fmriprep_dir> <selection_dir> \
+           --bold-coreg-level session
+
+   This writes a self-contained page (``bold_template.html``) and a scans file per
+   session into ``<selection_dir>``, carrying over the rows and columns of existing
+   scans files.
+#. On the page, mark runs as ``target`` or ``include``, and save ``bold_template.json``
+   into ``<selection_dir>``.
+   Repeating the previous command writes the selection into the scans files, and
+   updates the page.
+#. Run the second pass, with both datasets as derivatives::
+
+       $ fmriprep <bids_dir> <output_dir> participant --bold-coreg-level session \
+           --derivatives fmriprep=<fmriprep_dir> selection=<selection_dir>
+
+Use the ``--bold-coreg-level`` of the second pass: ``subject`` shows all runs of a
+subject together, and allows a single ``target`` across its sessions.
+In both cases, the selection is stored in the scans file of each session.
+Runs may be filtered with ``--participant-label`` and ``--session-label``.
 
 Troubleshooting
 ---------------
