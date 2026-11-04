@@ -269,7 +269,7 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
-      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#ced78c38698d3579dc97d0cb1f30b0dbb59e6ae2
+      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
       - pypi: git+https://github.com/nipreps/smriprep?rev=master#327a6513e4462ea2a998488f53bdd4cfc2498784
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
@@ -629,7 +629,7 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
-      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#ced78c38698d3579dc97d0cb1f30b0dbb59e6ae2
+      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
       - pypi: git+https://github.com/nipreps/smriprep?rev=master#327a6513e4462ea2a998488f53bdd4cfc2498784
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
@@ -1016,7 +1016,7 @@ environments:
       - conda: https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/noarch/fsl-sub-2.10.0-py_0.conda
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
-      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#ced78c38698d3579dc97d0cb1f30b0dbb59e6ae2
+      - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
       - pypi: git+https://github.com/nipreps/smriprep?rev=master#327a6513e4462ea2a998488f53bdd4cfc2498784
       - pypi: https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/d6/15f1ea70e9dde2fbd5c1ea83db6169e5663c9b20d4854678650ff5cefad7/bidsschematools-1.1.0-py3-none-any.whl
@@ -4810,9 +4810,9 @@ packages:
   - niworkflows>=1.14.4 ; extra == 'bids'
   - pybids>=0.21 ; extra == 'bids'
   requires_python: '>=3.12'
-- pypi: git+https://github.com/nipreps/niworkflows?rev=master#ced78c38698d3579dc97d0cb1f30b0dbb59e6ae2
+- pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
   name: niworkflows
-  version: 1.16.0.dev21+gced78c386
+  version: 1.16.0.dev22+g0bdee79e1
   requires_dist:
   - acres>=0.5
   - attrs>=23.1
