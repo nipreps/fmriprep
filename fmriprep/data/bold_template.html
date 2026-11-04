@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOLD template selection</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; color: #222; background: #fafafa; }
+  header { position: sticky; top: 0; z-index: 1; display: flex; gap: 1em; align-items: center;
+           padding: 0.75em 1.5em; background: #fff; border-bottom: 1px solid #ddd; }
+  header h1 { font-size: 1.2em; margin: 0; flex: 1; }
+  main { padding: 1em 1.5em; }
+  section { margin-bottom: 2em; }
+  section h2 { font-size: 1.1em; margin: 0 0 0.25em; }
+  .scans, .filename { font-family: ui-monospace, monospace; font-size: 0.85em; color: #555; }
+  .summary { margin: 0.5em 0; }
+  .summary.error { color: #b00020; }
+  .run { margin: 0.75em 0; padding: 0.5em; background: #fff; border: 1px solid #ddd; }
+  .run.target { border-color: #1565c0; box-shadow: 0 0 0 2px #1565c0; }
+  .run.include { border-color: #2e7d32; box-shadow: 0 0 0 2px #2e7d32; }
+  .run img { display: block; width: 100%; background: #000; }
+  .controls { display: flex; gap: 1.5em; align-items: center; margin-top: 0.4em; }
+  .controls .filename { flex: 1; }
+  #status { font-size: 0.9em; color: #555; }
+  #status.unsaved { color: #b26a00; }
+  button { font: inherit; font-size: 0.9em; font-weight: 500; padding: 0.4em 1em;
+           border: 1px solid #ccc; border-radius: 6px; background: #fff; color: #222;
+           cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  button:hover { background: #f0f0f0; }
+  button:focus-visible { outline: 2px solid #1565c0; outline-offset: 2px; }
+  .actions { display: flex; gap: 0.5em; margin: 0.5em 0 0.75em; }
+  .include-all { background: #1565c0; border-color: #1565c0; color: #fff; }
+  .include-all:hover { background: #0d47a1; border-color: #0d47a1; }
+  #save { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+  #save:hover { background: #1b5e20; border-color: #1b5e20; }
+  #save:focus-visible { outline-color: #2e7d32; }
+  .reset-selection { border-color: #c62828; color: #c62828; }
+  .reset-selection:hover { background: #fdecea; }
+  .reset-selection:focus-visible { outline-color: #c62828; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BOLD template selection</h1>
+  <span id="status"></span>
+  <button id="save" type="button">Save selection</button>
+</header>
+<main id="groups"></main>
+<script id="page" type="application/json">{{ page }}</script>
+<script>
+(() => {
+  const page = JSON.parse(document.getElementById('page').textContent);
+  const status = document.getElementById('status');
+  let fileHandle = null;
+  let unsaved = false;
+
+  const setStatus = (text, isUnsaved) => {
+    status.textContent = text;
+    status.classList.toggle('unsaved', isUnsaved);
+    unsaved = isUnsaved;
+  };
+
+  // Mirrors resolve_selection
+  const describe = (runs) => {
+    const targets = runs.filter((r) => r.value === 'target');
+    const includes = runs.filter((r) => r.value === 'include');
+    const n = runs.length;
+    if (!targets.length && !includes.length) {
+      return n <= 2
+        ? `No selection: the template space is fixed to the first run, and all ${n} run(s) are averaged.`
+        : `No selection: an unbiased template is built from all ${n} runs.`;
+    }
+    const used = targets.length + includes.length;
+    if (targets.length) {
+      return `Fixed to ${targets[0].filename}; ${used} of ${n} run(s) averaged into the template.`;
+    }
+    if (includes.length === 1) {
+      return `Fixed to ${includes[0].filename}; only that run is averaged into the template.`;
+    }
+    return `Unbiased template from ${used} of ${n} runs; the other runs are registered to it.`;
+  };
+
+  const render = (group, element) => {
+    element.querySelector('.summary').textContent = describe(group.runs);
+    group.runs.forEach((run, i) => {
+      const box = element.querySelectorAll('.run')[i];
+      box.className = `run ${run.value === 'n/a' ? '' : run.value}`;
+      box.querySelector(`input[value="${run.value}"]`).checked = true;
+    });
+  };
+
+  const container = document.getElementById('groups');
+  page.groups.forEach((group, s) => {
+    const element = document.createElement('section');
+    element.innerHTML = `
+      <h2></h2>
+      <div class="scans"></div>
+      <p class="summary"></p>
+      <div class="actions">
+        <button type="button" class="include-all">Include all</button>
+        <button type="button" class="reset-selection">Reset selection</button>
+      </div>`;
+    element.querySelector('h2').textContent = group.label;
+    element.querySelector('.scans').textContent = group.scans.join(', ');
+
+    group.runs.forEach((run, r) => {
+      const box = document.createElement('div');
+      box.className = 'run';
+      const img = document.createElement('img');
+      img.src = run.figure;
+      img.alt = run.filename;
+      img.loading = 'lazy';
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      const name = document.createElement('span');
+      name.className = 'filename';
+      name.textContent = run.filename;
+      controls.append(name);
+      page.values.forEach((value) => {
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = `run-${s}-${r}`;
+        input.value = value;
+        input.addEventListener('change', () => {
+          const summary = element.querySelector('.summary');
+          if (value === 'target' && group.runs.some((other) => other !== run && other.value === 'target')) {
+            render(group, element);
+            summary.textContent = `Only one run per ${page.coregLevel} may be the target. Unset the current target first.`;
+            summary.classList.add('error');
+            return;
+          }
+          summary.classList.remove('error');
+          run.value = value;
+          render(group, element);
+          setStatus('Unsaved changes', true);
+        });
+        label.append(input, ` ${value}`);
+        controls.append(label);
+      });
+      box.append(img, controls);
+      element.append(box);
+    });
+
+    const setAll = (update) => {
+      group.runs.forEach(update);
+      element.querySelector('.summary').classList.remove('error');
+      render(group, element);
+      setStatus('Unsaved changes', true);
+    };
+    element.querySelector('.include-all').addEventListener('click', () => {
+      setAll((run) => { if (run.value === 'n/a') run.value = 'include'; });
+    });
+    element.querySelector('.reset-selection').addEventListener('click', () => {
+      setAll((run) => { run.value = 'n/a'; });
+    });
+
+    container.append(element);
+    render(group, element);
+  });
+
+  const selection = () => {
+    const out = {};
+    page.groups.forEach((group) => {
+      group.runs.forEach((r) => { (out[r.scans] = out[r.scans] || {})[r.filename] = r.value; });
+    });
+    return JSON.stringify(out, null, 2) + '\n';
+  };
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const content = selection();
+    const done = `Saved. Place ${page.selectionFile} next to this page, then run the same fmriprep-bold-template command again.`;
+    if (window.showSaveFilePicker) {
+      try {
+        fileHandle = fileHandle || await window.showSaveFilePicker({
+          suggestedName: page.selectionFile,
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        setStatus(done, false);
+      } catch (err) {
+        if (err.name !== 'AbortError') setStatus(`Could not save: ${err.message}`, true);
+      }
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+    link.download = page.selectionFile;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    setStatus(done, false);
+  });
+
+  window.addEventListener('beforeunload', (event) => {
+    if (unsaved) event.preventDefault();
+  });
+})();
+</script>
+</body>
+</html>
