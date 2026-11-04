@@ -236,6 +236,47 @@ registered to the shared anatomical image; with ``sessionwise``, each session is
 processed independently against its own anatomical reference. ``--bold-coreg-level
 subject`` is incompatible with ``--subject-anatomical-reference sessionwise``.
 
+Selecting runs for the BOLD template
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+By default, all runs of a group contribute to the template: with two runs, the
+first run's reference defines the template space, and with three or more runs an
+unbiased template is constructed.
+Expert users may instead select which runs build the template, by adding a
+``boldref_template`` column to the
+`scans file <https://bids-specification.readthedocs.io/en/stable/modality-agnostic-files/data-summary-files.html#scans-file>`__
+of each session::
+
+    filename	boldref_template
+    func/sub-01_ses-01_task-rest_run-1_bold.nii.gz	target
+    func/sub-01_ses-01_task-rest_run-2_bold.nii.gz	include
+    func/sub-01_ses-01_task-rest_run-3_bold.nii.gz	n/a
+
+The following values are accepted:
+
+``target``
+    The run's reference defines the template space, and is averaged into the template.
+``include``
+    The run's reference is averaged into the template.
+``n/a``
+    The run is registered to the template, but does not contribute to it.
+    Runs not listed in the scans file are treated as ``n/a``.
+
+A single ``target`` (or a single ``include``) fixes the template space to that run,
+and every other run is registered to it.
+Selecting two or more ``include`` runs without a ``target`` constructs an unbiased
+template from those runs, to which the remaining runs are then registered.
+At most one ``target`` may be selected per template.
+
+The scans file of the input BIDS dataset is used if it contains a ``boldref_template``
+column; otherwise, the scans file at the same location in each ``--derivatives``
+dataset is searched, in order.
+Because previously computed templates are reused, the first pass of *fMRIPrep*
+(producing the run references to select from) should be run with
+``--bold-coreg-level run``.
+
+The template's JSON sidecar records the runs that defined the template space
+(``TemplateSpace``) and those averaged into the template image (``TemplateData``).
+
 Troubleshooting
 ---------------
 Logs and crashfiles are output into the
