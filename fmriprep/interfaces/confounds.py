@@ -99,15 +99,19 @@ class aCompCorMasks(SimpleInterface):
 class AFNIMotionParams(SimpleInterface):
     """Reconstruct AFNI 3dvolreg motion parameters from affine transforms.
 
-    The columns follow nipype's ``normalize_mc_params(..., 'AFNI')``:
-    ``trans_x``, ``trans_y`` and ``trans_z`` are 3dvolreg's dL, dP and dS (mm),
-    and ``rot_x``, ``rot_y`` and ``rot_z`` are its pitch, yaw and roll, in radians.
-    Rotations are about the center of AFNI's de-obliqued grid, on AFNI's DICOM
-    axes, so translations are positive toward the left, posterior and superior.
+    The parameters are 3dvolreg's, on the RAS+ axes closest to the boldref grid:
+    ``trans_*`` (mm) and ``rot_*`` (rad, right-handed) describe the correction
+    that maps each volume onto the reference.
+    Rotations are composed in 3dvolreg's order, about the center of AFNI's
+    de-obliqued grid.
 
+    3dvolreg's axes point left, posterior and superior, so ``trans_x``, ``trans_y``
+    and ``trans_z`` are ``-dL``, ``-dP`` and ``dS``, and ``rot_x``, ``rot_y`` and
+    ``rot_z`` are ``-pitch``, ``-yaw`` and ``roll``.
     To recover 3dvolreg's ``-1Dfile`` (``roll pitch yaw dS dL dP``, in degrees
-    and mm), convert ``rot_*`` with :func:`numpy.rad2deg` and take the columns
-    in the order ``rot_z rot_x rot_y trans_z trans_x trans_y``.
+    and mm), negate ``trans_x``, ``trans_y``, ``rot_x`` and ``rot_y``, convert
+    ``rot_*`` with :func:`numpy.rad2deg`, and take the columns in the order
+    ``rot_z rot_x rot_y trans_z trans_x trans_y``.
     """
 
     input_spec = MotionParamsInputSpec
@@ -124,11 +128,11 @@ class AFNIMotionParams(SimpleInterface):
 
         params = pd.DataFrame(
             {
-                'trans_x': dL,
-                'trans_y': dP,
+                'trans_x': -dL,
+                'trans_y': -dP,
                 'trans_z': dS,
-                'rot_x': pitch,
-                'rot_y': yaw,
+                'rot_x': -pitch,
+                'rot_y': -yaw,
                 'rot_z': roll,
             }
         )

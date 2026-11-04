@@ -452,14 +452,14 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         },
     }
     if hmc_method == '3dvolreg':
-        # 3dvolreg's dL, dP, dS, pitch, yaw and roll, on AFNI's DICOM axes
+        # 3dvolreg's parameters on RAS+ axes: -dL, -dP, dS, -pitch, -yaw and roll
         motion_metadata = {
             'trans_x': {
-                'Description': 'Translation along right-left axis, positive toward left.',
+                'Description': 'Translation along left-right axis, positive toward right.',
                 'Units': 'mm',
             },
             'trans_y': {
-                'Description': 'Translation along anterior-posterior axis, positive toward posterior.',
+                'Description': 'Translation along anterior-posterior axis, positive toward anterior.',
                 'Units': 'mm',
             },
             'trans_z': {
@@ -467,11 +467,11 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
                 'Units': 'mm',
             },
             'rot_x': {
-                'Description': 'Rotation about right-left axis. AFNI calls this "pitch".',
+                'Description': 'Rotation about left-right axis. AFNI reports its negation as "pitch".',
                 'Units': 'rad',
             },
             'rot_y': {
-                'Description': 'Rotation about anterior-posterior axis. AFNI calls this "yaw".',
+                'Description': 'Rotation about anterior-posterior axis. AFNI reports its negation as "yaw".',
                 'Units': 'rad',
             },
             'rot_z': {
