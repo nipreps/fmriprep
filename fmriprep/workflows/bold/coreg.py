@@ -25,6 +25,7 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.base import Undefined
 from nipype.pipeline import engine as pe
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
+from niworkflows.utils.connections import pop_file
 
 from fmriprep import config
 from fmriprep.interfaces import DerivativesDataSink
@@ -76,6 +77,8 @@ def init_bold_anat_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    template_reference: int | None = None,
+    template_runs: list[bool] | None = None,
     name: str = 'bold_anat_coreg_wf',
 ) -> Workflow:
     """
@@ -114,6 +117,11 @@ def init_bold_anat_coreg_wf(
             alongside a complete set of ``run2template_xfms``, it is reused directly
             instead of reconstructing the reference from run 0. The template brain
             mask is always derived from the run references.
+    template_reference
+        Session-level: index of the run defining the template space, or ``None`` for
+        an unbiased template (see :func:`~fmriprep.workflows.bold.template.init_bold_template_wf`).
+    template_runs
+        Session-level: whether each run is averaged into the template image.
 
     Inputs
     ------
@@ -148,8 +156,17 @@ def init_bold_anat_coreg_wf(
         Per-run fallback flags from registration.
     """
 
-    init_coreg_wf = init_bold_run_coreg_wf if coreg_space == 'run' else init_bold_template_coreg_wf
+    if coreg_space == 'run':
+        init_coreg_wf = init_bold_run_coreg_wf
+        template_kwargs = {}
+    else:
+        init_coreg_wf = init_bold_template_coreg_wf
+        template_kwargs = {
+            'template_reference': template_reference,
+            'template_runs': template_runs,
+        }
     return init_coreg_wf(
+        **template_kwargs,
         bold_files=bold_files,
         coreg_space=coreg_space,
         bold2anat_dof=bold2anat_dof,
@@ -282,6 +299,8 @@ def init_bold_template_coreg_wf(
     output_dir: str,
     reference_anat: str,
     precomputed: dict | None = None,
+    template_reference: int | None = None,
+    template_runs: list[bool] | None = None,
     name: str = 'bold_template_coreg_wf',
 ) -> Workflow:
     """Coregister BOLD runs through a common template to the anatomical.
@@ -290,18 +309,30 @@ def init_bold_template_coreg_wf(
     references are combined into a ``coreg_space`` (``session`` or ``subject``)
     template, that template is registered to the anatomical, and per-run
     ``run->template->anat`` transforms are composed.
+
+    The runs defining the template space and those averaged into the template image
+    are recorded in the ``TemplateSpace`` and ``TemplateData`` metadata of the template.
+    When neither ``template_reference`` nor ``template_runs`` is given, the strategy
+    is chosen from the number of runs.
     """
     from niworkflows.interfaces.nitransforms import ConcatenateXFMs
 
-    from fmriprep.utils.bids import GROUP_DISMISS_ENTITIES, bold_template_zooms
+    from fmriprep.utils.bids import (
+        GROUP_DISMISS_ENTITIES,
+        bold_template_zooms,
+        resolve_template_selection,
+    )
     from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
     from fmriprep.workflows.bold.registration import init_bold_reg_wf
-    from fmriprep.workflows.bold.template import init_bold_template_wf
+    from fmriprep.workflows.bold.template import init_bold_template_wf, select_by_mask
 
     precomputed = precomputed or {}
     bids_root = str(config.execution.bids_dir)
     n_runs = len(bold_files)
+    if template_reference is None and template_runs is None:
+        template_reference, template_runs = resolve_template_selection(['n/a'] * n_runs)
+    template_runs = template_runs or [True] * n_runs
     bold_ids = [get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
 
     workflow = Workflow(name=name)
@@ -382,39 +413,65 @@ def init_bold_template_coreg_wf(
         (run2anat_xfms, outputnode, [('out_xfm', 'run2anat_xfms')]),
     ])  # fmt:skip
 
+    upsample = None
+    if config.workflow.bold_coreg_upsample and not (boldref_template and have_run2template_xfms):
+        upsample = bold_template_zooms(bold_files)
+
+    template_sources = pe.Node(
+        BIDSURI(
+            numinputs=1, dataset_links=config.execution.dataset_links, out_dir=str(output_dir)
+        ),
+        name='template_sources',
+        run_without_submitting=True,
+    )
+    template_data = pe.Node(
+        niu.Function(function=select_by_mask), name='template_data', run_without_submitting=True
+    )
+    template_data.inputs.mask = template_runs
+
+    # Single template is written
+    ds_boldref_template = pe.Node(
+        DerivativesDataSink(
+            base_directory=output_dir,
+            source_file=bold_files[0],
+            space=coreg_space,
+            suffix='boldref',
+            compress=True,
+            dismiss_entities=_dismiss,
+        ),
+        name='ds_boldref_template',
+        run_without_submitting=True,
+    )
+
+    if not (boldref_template and have_run2template_xfms):
+        workflow.connect([
+            (inputnode, template_sources, [('run_boldrefs', 'in1')]),
+            (template_sources, template_data, [('out', 'inlist')]),
+            (template_sources, ds_boldref_template, [('out', 'Sources')]),
+            (template_data, ds_boldref_template, [('out', 'TemplateData')]),
+            (ds_boldref_template, template_buffer, [('out_file', 'boldref')]),
+        ])  # fmt:skip
+
     if not have_run2template_xfms:
         logger.info('Constructing BOLD template from run references.')
 
-        upsample = None
-        if config.workflow.bold_coreg_upsample:
-            upsample = bold_template_zooms(bold_files)
-
         bold_template_wf = init_bold_template_wf(
             num_bold_runs=n_runs,
+            reference=template_reference,
+            template_runs=template_runs,
             upsample=upsample,
             omp_nthreads=omp_nthreads,
         )
 
-        template_sources = pe.Node(
-            BIDSURI(
-                numinputs=1, dataset_links=config.execution.dataset_links, out_dir=str(output_dir)
-            ),
-            name='template_sources',
+        template_space = pe.Node(
+            niu.Function(function=select_by_mask),
+            name='template_space',
             run_without_submitting=True,
         )
-
-        # Single template is written
-        ds_boldref_template = pe.Node(
-            DerivativesDataSink(
-                base_directory=output_dir,
-                source_file=bold_files[0],
-                space=coreg_space,
-                suffix='boldref',
-                compress=True,
-                dismiss_entities=_dismiss,
-            ),
-            name='ds_boldref_template',
-            run_without_submitting=True,
+        template_space.inputs.mask = (
+            template_runs
+            if template_reference is None
+            else [i == template_reference for i in range(n_runs)]
         )
 
         merge_run2template = pe.Node(
@@ -423,10 +480,9 @@ def init_bold_template_coreg_wf(
 
         workflow.connect([
             (inputnode, bold_template_wf, [('run_boldrefs', 'inputnode.boldref_files')]),
-            (inputnode, template_sources, [('run_boldrefs', 'in1')]),
-            (template_sources, ds_boldref_template, [('out', 'Sources')]),
+            (template_sources, template_space, [('out', 'inlist')]),
+            (template_space, ds_boldref_template, [('out', 'TemplateSpace')]),
             (bold_template_wf, ds_boldref_template, [('outputnode.boldref', 'in_file')]),
-            (ds_boldref_template, template_buffer, [('out_file', 'boldref')]),
             (merge_run2template, template_buffer, [('out', 'run2template_xfms')]),
         ])  # fmt:skip
 
@@ -455,29 +511,42 @@ def init_bold_template_coreg_wf(
     elif boldref_template:
         logger.info('Reusing precomputed boldref template; skipping reconstruction.')
     else:
-        from niworkflows.interfaces.fixes import FixHeaderApplyTransforms as ApplyTransforms
+        from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
 
         logger.info(
             f'Found precomputed run2{coreg_space} transforms; '
             'reconstructing boldref template from run references.'
         )
-        select_boldref0 = pe.Node(
-            niu.Select(index=0), name='select_boldref0', run_without_submitting=True
-        )
-        warp_template_boldref = pe.Node(
-            ApplyTransforms(
-                transforms=[run2template_xfms[0]], interpolation='LanczosWindowedSinc'
+        select_reference = pe.Node(
+            niu.Select(
+                index=template_runs.index(True)
+                if template_reference is None
+                else template_reference
             ),
-            name='warp_template_boldref',
+            name='select_reference',
+            run_without_submitting=True,
+        )
+        reconstruct_template = pe.Node(
+            ResampleTemplate(transforms=run2template_xfms, indices=template_runs),
+            mem_gb=0.2 * n_runs,
+            name='reconstruct_template',
         )
         workflow.connect([
-            (inputnode, select_boldref0, [('run_boldrefs', 'inlist')]),
-            (select_boldref0, warp_template_boldref, [
-                ('out', 'input_image'),
-                ('out', 'reference_image'),
-            ]),
-            (warp_template_boldref, template_buffer, [('output_image', 'boldref')]),
+            (inputnode, select_reference, [('run_boldrefs', 'inlist')]),
+            (inputnode, reconstruct_template, [('run_boldrefs', 'in_files')]),
+            (reconstruct_template, ds_boldref_template, [('out_file', 'in_file')]),
         ])  # fmt:skip
+
+        if upsample:
+            upsample_reference = pe.Node(
+                UpsampleToZooms(target_zooms=upsample), name='upsample_reference'
+            )
+            workflow.connect([
+                (select_reference, upsample_reference, [('out', 'in_files')]),
+                (upsample_reference, reconstruct_template, [(('out_files', pop_file), 'reference')]),
+            ])  # fmt:skip
+        else:
+            workflow.connect(select_reference, 'out', reconstruct_template, 'reference')
 
     if not template2anat_xfm:
         logger.info('Registering BOLD template to anatomical.')
