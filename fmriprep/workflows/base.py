@@ -842,9 +842,9 @@ tasks and sessions), the following preprocessing was performed.
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
         collect_func_derivatives,
-        collect_template_selection,
+        collect_selection,
         extract_entities,
-        resolve_template_selection,
+        resolve_selection,
     )
 
     bold_coreg_level = config.workflow.bold_coreg_level
@@ -918,13 +918,13 @@ tasks and sessions), the following preprocessing was performed.
 
         template_reference, template_runs = None, None
         if not coreg_per_run:
-            selection = collect_template_selection(
+            selection = collect_selection(
                 group_bold_files,
                 config.execution.bids_dir,
                 list((config.execution.derivatives or {}).values()),
             )
             try:
-                template_reference, template_runs = resolve_template_selection(selection)
+                template_reference, template_runs = resolve_selection(selection)
             except RuntimeError as err:
                 offending = '\n'.join(
                     f'  - {bold_file}'

@@ -153,16 +153,18 @@ TEMPLATE_SELECTION_COLUMN = 'boldref_template'
 TEMPLATE_SELECTION_VALUES = ('target', 'include', 'n/a')
 
 
-def read_template_selection(scans_file: Path) -> dict[str, str] | None:
+def read_selection(scans_file: Path) -> dict[str, str] | None:
     """Read the ``boldref_template`` column of a scans file, keyed by ``filename``.
 
-    Returns ``None`` if the scans file has no ``boldref_template`` column.
+    Returns ``None`` if the scans file is missing or has no ``boldref_template`` column.
     """
     import pandas as pd
 
+    if not scans_file.is_file():
+        return
     scans = pd.read_csv(scans_file, sep='\t', dtype=str, keep_default_na=False)
     if TEMPLATE_SELECTION_COLUMN not in scans.columns:
-        return None
+        return
     if 'filename' not in scans.columns:
         raise ValueError(
             f'{scans_file} has a "{TEMPLATE_SELECTION_COLUMN}" column but no "filename".'
@@ -180,10 +182,18 @@ def read_template_selection(scans_file: Path) -> dict[str, str] | None:
     return selection
 
 
-def collect_template_selection(
+def _find_selection(scans_dir: Path, roots: list[Path]) -> dict[str, str]:
+    scans_file = scans_dir / f'{"_".join(scans_dir.parts)}_scans.tsv'
+    for root in roots:
+        if (selection := read_selection(root / scans_file)) is not None:
+            return selection
+    return {}
+
+
+def collect_selection(
     bold_files: list[str],
     bids_dir: Path | str,
-    derivatives_dirs: list[Path | str],
+    derivatives: list[Path | str],
 ) -> list[str]:
     """Read the BOLD template selection of each run from ``*_scans.tsv`` files.
 
@@ -197,30 +207,22 @@ def collect_template_selection(
         One of ``target``, ``include`` or ``n/a`` per run.
     """
     bids_dir = Path(bids_dir)
-    roots = [bids_dir, *(Path(d) for d in derivatives_dirs)]
-    selections = {}
+    roots = [bids_dir, *(Path(deriv_dir) for deriv_dir in derivatives)]
+    bold_paths = [Path(bold_file).relative_to(bids_dir) for bold_file in bold_files]
+    selections = {
+        scans_dir: _find_selection(scans_dir, roots)
+        for scans_dir in {bold_path.parent.parent for bold_path in bold_paths}
+    }
 
     labels = []
-    for bold_file in bold_files:
-        bold_path = Path(bold_file).relative_to(bids_dir)
+    for bold_path in bold_paths:
         scans_dir = bold_path.parent.parent
-        scans_path = scans_dir / f'{"_".join(scans_dir.parts)}_scans.tsv'
-
-        if scans_path not in selections:
-            selections[scans_path] = {}
-            for root in roots:
-                if (root / scans_path).is_file():
-                    selection = read_template_selection(root / scans_path)
-                    if selection is not None:
-                        selections[scans_path] = selection
-                        break
-
         filename = bold_path.relative_to(scans_dir).as_posix()
-        labels.append(selections[scans_path].get(filename, 'n/a'))
+        labels.append(selections[scans_dir].get(filename, 'n/a'))
     return labels
 
 
-def resolve_template_selection(labels: list[str]) -> tuple[int | None, list[bool]]:
+def resolve_selection(labels: list[str]) -> tuple[int | None, list[bool]]:
     """Resolve per-run selection labels into the BOLD template construction strategy.
 
     Returns
