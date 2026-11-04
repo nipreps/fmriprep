@@ -486,6 +486,8 @@ Confound regressors description
 - Estimated head-motion parameters:
   ``trans_x``, ``trans_y``, ``trans_z``, ``rot_x``, ``rot_y``, ``rot_z`` - the 6 rigid-body motion
   parameters (3 translations and 3 rotation), estimated relative to a reference image;
+  translations (mm) and right-handed rotations (rad) are on the RAS+ axes closest to the
+  BOLD reference grid, and describe the correction that maps each volume onto the reference;
 
 - Global signals:
 
