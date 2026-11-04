@@ -87,7 +87,11 @@ def test_bold_apply_wf(
     ('hmc_method', 'interface', 'trans_x'),
     [
         ('mcflirt', FSLMotionParams, 'Translation along left-right axis.'),
-        ('3dvolreg', AFNIMotionParams, 'Translation along right-left axis, positive toward left.'),
+        (
+            '3dvolreg',
+            AFNIMotionParams,
+            'Translation along left-right axis, positive toward right.',
+        ),
     ],
 )
 def test_bold_apply_wf_hmc_method(bids_root, monkeypatch, hmc_method, interface, trans_x):
