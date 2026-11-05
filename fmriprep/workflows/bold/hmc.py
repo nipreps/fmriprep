@@ -48,7 +48,7 @@ def init_bold_hmc_wf(
     With ``hmc_method='mcflirt'``, FSL's ``mcflirt`` estimates the motion,
     and its matrices are converted to ITK transforms.
     With ``hmc_method='3dvolreg'``, AFNI's ``3dvolreg`` estimates it
-    (``-heptic -twopass -zpad 4``), and the transforms are built from its
+    (``-cubic -zpad 1``), and the transforms are built from its
     ``-1Dfile`` motion parameters, cross-checked against ``-1Dmatrix_save``.
 
     Workflow Graph
@@ -108,7 +108,7 @@ parameters) are estimated before any spatiotemporal filtering using
 """
         # 3dvolreg is single-threaded; -prefix NULL skips writing a registered series
         volreg = pe.Node(
-            Volreg(interp='heptic', twopass=True, zpad=4, out_file='NULL'),
+            Volreg(interp='cubic', zpad=1, out_file='NULL'),
             name='volreg',
             mem_gb=mem_gb * 3,
         )
