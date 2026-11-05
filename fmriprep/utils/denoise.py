@@ -136,7 +136,7 @@ def load_svht_config(path):
 
     if not isinstance(cfg, dict):
         # A ValueError, like every other problem with the file's contents
-        raise ValueError(f'{source} must contain a JSON object.')  # noqa: TRY004
+        raise ValueError(f'{source} must contain a JSON object.')
 
     unknown = sorted(set(cfg) - SVHT_CONFIG_KEYS)
     if unknown:
