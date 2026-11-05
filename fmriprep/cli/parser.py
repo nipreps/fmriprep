@@ -378,7 +378,7 @@ def _build_parser(**kwargs):
         action='store',
         nargs='+',
         default=[],
-        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian'],
+        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian', 'phase'],
         help='Ignore selected aspects of the input dataset to disable corresponding '
         'parts of the workflow (a space delimited list)',
     )
@@ -452,6 +452,26 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         'finest acquired voxel size if that is smaller, which reduces interpolation '
         'error when resampling at the cost of larger BOLD reference outputs. '
         'Only applies to `--bold-coreg-level session` or `subject`.',
+    )
+    g_conf.add_argument(
+        '--bold-denoise-method',
+        action='store',
+        choices=['none', 'svht'],
+        default='none',
+        help='Thermal-noise denoising of each BOLD series, applied before any other '
+        'step. `none` (default) disables it. `svht` denoises each echo with svht_denoise '
+        '(local PCA with optimal singular value shrinkage), using the part-phase '
+        'companion when the dataset has one (disable with `--ignore phase`), and writes '
+        'noise and rank maps.',
+    )
+    g_conf.add_argument(
+        '--bold-denoise-config',
+        action='store',
+        type=IsFile,
+        metavar='FILE',
+        help='A JSON file of svht_denoise parameters for `--bold-denoise-method svht`. '
+        'Valid keys: aggregator, aggregator_fwhm, extent, filter_method, noise_dof, '
+        'preserve_noise_bias, shape, stride, vst. Unset keys keep svht_denoise defaults.',
     )
     g_conf.add_argument(
         '--force-bbr',
@@ -840,6 +860,17 @@ def parse_args(args=None, namespace=None):
             'processes a single session, so a subject-level BOLD template cannot span '
             'sessions. Use `--bold-coreg-level session` instead.'
         )
+
+    if opts.bold_denoise_config is not None:
+        if opts.bold_denoise_method != 'svht':
+            parser.error('`--bold-denoise-config` requires `--bold-denoise-method svht`.')
+
+        from ..utils.denoise import load_svht_config
+
+        try:
+            load_svht_config(opts.bold_denoise_config)
+        except ValueError as err:
+            parser.error(str(err))
 
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()

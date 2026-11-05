@@ -561,6 +561,8 @@ del _oc_policy
 class workflow(_Config):
     """Configure the particular execution graph of this workflow."""
 
+    _paths = ('bold_denoise_config',)
+
     anat_only = False
     """Execute the anatomical preprocessing only."""
     aroma_err_on_warn = None
@@ -580,6 +582,12 @@ class workflow(_Config):
     ``'subject'``."""
     bold_coreg_upsample = True
     """Upsample run references before building a session- or subject-level BOLD template."""
+    bold_denoise_config = None
+    """A JSON file of ``svht_denoise`` parameters, for ``bold_denoise_method = 'svht'``."""
+    bold_denoise_method = 'none'
+    """Thermal-noise denoising applied to each BOLD series before any other step:
+    ``'none'`` (default) or ``'svht'``. Tested by equality, never truthiness, since the
+    default is the string ``'none'``."""
     cifti_output = None
     """Generate HCP Grayordinates, accepts either ``'91k'`` (default) or ``'170k'``."""
     dummy_scans = None

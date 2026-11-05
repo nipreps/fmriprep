@@ -34,6 +34,18 @@ def _layout(bids_dir):
     return BIDSLayout(str(bids_dir), validate=False)
 
 
+@pytest.fixture(autouse=True)
+def _workflow_warnings():
+    """Let the workflow logger's warnings reach caplog, whatever other tests set."""
+    logger = logging.getLogger('nipype.workflow')
+    old_level, old_propagate = logger.level, logger.propagate
+    logger.setLevel(logging.WARNING)
+    logger.propagate = True
+    yield
+    logger.setLevel(old_level)
+    logger.propagate = old_propagate
+
+
 @pytest.fixture
 def bids_dir(tmp_path):
     return tmp_path / 'bids'

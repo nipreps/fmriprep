@@ -4,6 +4,7 @@ from pathlib import Path
 import nibabel as nb
 import numpy as np
 import pytest
+from nipype.interfaces.base import isdefined
 from nipype.pipeline.engine.utils import generate_expanded_graph
 from niworkflows.utils.testing import generate_bids_skeleton
 
@@ -197,6 +198,122 @@ def test_bold_native(
             fieldmap_id=fieldmap_id,
             omp_nthreads=1,
         )
+
+    flatgraph = wf._create_flat_graph()
+    generate_expanded_graph(flatgraph)
+
+
+def _write_series(bids_root, task):
+    """Write headers the workflows read, and return the BOLD series and its sbref."""
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    func = bids_root / 'sub-01' / 'func'
+    if task == 'rest':
+        bold_series = [str(func / 'sub-01_task-rest_run-1_bold.nii.gz')]
+        sbref = func / 'sub-01_task-rest_run-1_sbref.nii.gz'
+    else:
+        bold_series = [str(func / f'sub-01_task-nback_echo-{i}_bold.nii.gz') for i in range(1, 4)]
+        sbref = func / 'sub-01_task-nback_echo-1_sbref.nii.gz'
+
+    for path in bold_series:
+        img.to_filename(path)
+
+    img.slicer[:, :, :, 0].to_filename(sbref)
+    return bold_series
+
+
+@pytest.mark.parametrize('task', ['rest', 'nback'])
+@pytest.mark.parametrize('denoised', [False, True])
+def test_bold_fit_denoised_input(bids_root: Path, task: str, denoised: bool):
+    """Test that a denoised fit reads its BOLD data from inputnode, and otherwise not."""
+    bold_series = _write_series(bids_root, task)
+    with mock_config(bids_dir=bids_root):
+        wf = init_bold_fit_wf(bold_series=bold_series, omp_nthreads=1, denoised=denoised)
+
+    inputnode = wf.get_node('inputnode')
+    hmc_boldref_inputs = wf.get_node('hmc_boldref_wf').get_node('inputnode').inputs
+    if denoised:
+        assert wf.get_node('first_bold') is not None
+        assert not isdefined(inputnode.inputs.bold_file)
+        # Connected from first_bold, not set from the raw series
+        assert not isdefined(hmc_boldref_inputs.bold_file)
+        edges = wf._graph.get_edge_data(wf.get_node('first_bold'), wf.get_node('hmc_boldref_wf'))
+        assert ('out', 'inputnode.bold_file') in edges['connect']
+    else:
+        assert wf.get_node('first_bold') is None
+        assert inputnode.inputs.bold_file == bold_series
+        assert hmc_boldref_inputs.bold_file == bold_series[0]
+
+    flatgraph = wf._create_flat_graph()
+    generate_expanded_graph(flatgraph)
+
+
+def test_bold_fit_denoised_warns_on_reuse(bids_root: Path, tmp_path: Path, caplog):
+    """Test that reusing precomputed fit results with denoising is allowed, with a warning."""
+    bold_series = _write_series(bids_root, 'rest')
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    deriv_dir = write_derivatives(
+        tmp_path / 'derivatives',
+        ['hmc_boldref', 'hmc'],
+        task='rest',
+        run=1,
+        fmapid='auto00000',
+    )
+    for path in deriv_dir.rglob('*.nii.gz'):
+        img.to_filename(path)
+
+    for path in deriv_dir.rglob('*.txt'):
+        np.savetxt(path, np.eye(4))
+
+    entities = extract_entities(bold_series)
+    entities = {k: v for k, v in entities.items() if k not in dismiss_echo(['part'])}
+    precomputed = collect_func_derivatives([deriv_dir], entities, fieldmap_id=None)
+
+    logger = logging.getLogger('nipype.workflow')
+    old_level, old_propagate = logger.level, logger.propagate
+    with mock_config(bids_dir=bids_root):
+        # After mock_config, which initializes the loggers
+        logger.setLevel(logging.WARNING)
+        logger.propagate = True
+        try:
+            with caplog.at_level(logging.WARNING, logger='nipype.workflow'):
+                wf = init_bold_fit_wf(
+                    bold_series=bold_series,
+                    precomputed=precomputed,
+                    omp_nthreads=1,
+                    denoised=True,
+                )
+        finally:
+            logger.setLevel(old_level)
+            logger.propagate = old_propagate
+
+    assert 'HMC boldref, HMC transforms' in caplog.text
+    assert wf.get_node('hmc_boldref_wf') is None
+    # The validation and dummy-scan detection still read the denoised series
+    edges = wf._graph.get_edge_data(
+        wf.get_node('first_bold'),
+        wf.get_node('validation_and_dummies_wf'),
+    )
+    assert ('out', 'inputnode.bold_file') in edges['connect']
+
+
+@pytest.mark.parametrize('task', ['rest', 'nback'])
+@pytest.mark.parametrize('denoised', [False, True])
+def test_bold_native_denoised_input(bids_root: Path, task: str, denoised: bool):
+    """Test that a denoised native workflow resamples the series from inputnode."""
+    bold_series = _write_series(bids_root, task)
+    with mock_config(bids_dir=bids_root):
+        wf = init_bold_native_wf(bold_series=bold_series, omp_nthreads=1, denoised=denoised)
+
+    bold_source = wf.get_node('bold_source')
+    inputnode = wf.get_node('inputnode')
+    if denoised:
+        assert 'bold_files' in inputnode.inputs.copyable_trait_names()
+        assert not isdefined(bold_source.inputs.inlist)
+        edges = wf._graph.get_edge_data(inputnode, bold_source)
+        assert ('bold_files', 'inlist') in edges['connect']
+    else:
+        assert 'bold_files' not in inputnode.inputs.copyable_trait_names()
+        assert bold_source.inputs.inlist == bold_series
 
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)

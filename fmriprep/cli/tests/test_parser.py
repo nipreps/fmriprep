@@ -335,3 +335,62 @@ def test_reuse_config(tmp_path):
     for v in ('execution.run_uuid', 'execution.fmriprep_dir'):
         assert reused_config[v] != overridden_config[v]
     _reset_config()
+
+
+def _denoise_cli_args(tmp_path):
+    from niworkflows.utils.testing import generate_bids_skeleton
+
+    bids_dir = tmp_path / 'ds000005'
+    generate_bids_skeleton(bids_dir, {'01': {'anat': {'suffix': 'T1w'}}})
+    return [str(bids_dir), str(tmp_path / 'out'), 'participant', '--skip-bids-validation']
+
+
+def test_bold_denoise_defaults(tmp_path):
+    parse_args(_denoise_cli_args(tmp_path))
+    # The string 'none', not None, which config.load would not store
+    assert config.workflow.bold_denoise_method == 'none'
+    assert config.workflow.bold_denoise_config is None
+    _reset_config()
+
+
+def test_bold_denoise_svht(tmp_path):
+    denoise_config = tmp_path / 'denoise.json'
+    denoise_config.write_text('{"extent": 9, "shape": "cube"}')
+    parse_args(
+        _denoise_cli_args(tmp_path)
+        + [
+            '--bold-denoise-method',
+            'svht',
+            '--bold-denoise-config',
+            str(denoise_config),
+            '--ignore',
+            'phase',
+        ]
+    )
+    assert config.workflow.bold_denoise_method == 'svht'
+    assert config.workflow.bold_denoise_config == denoise_config.absolute()
+    assert 'phase' in config.workflow.ignore
+    # A path in the workflow section is serialized as a string
+    assert config.get(flat=True)['workflow.bold_denoise_config'] == str(denoise_config.absolute())
+    _reset_config()
+
+
+@pytest.mark.parametrize(
+    ('method', 'content', 'message'),
+    [
+        ('none', '{}', 'requires `--bold-denoise-method svht`'),
+        ('svht', '{"demean": "shells"}', 'unknown key'),
+        ('svht', '{"extent": 8}', 'odd positive integer'),
+    ],
+)
+def test_bold_denoise_config_errors(tmp_path, capsys, method, content, message):
+    denoise_config = tmp_path / 'denoise.json'
+    denoise_config.write_text(content)
+    with pytest.raises(SystemExit):
+        parse_args(
+            _denoise_cli_args(tmp_path)
+            + ['--bold-denoise-method', method, '--bold-denoise-config', str(denoise_config)]
+        )
+
+    assert message in capsys.readouterr().err
+    _reset_config()
