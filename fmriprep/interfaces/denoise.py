@@ -145,6 +145,16 @@ class _SVHTDenoiseInputSpec(CommandLineInputSpec, reporting.ReportCapableInputSp
         hash_files=False,
         desc='filename for the visual report',
     )
+    compress_report = traits.Enum(
+        'auto',
+        True,
+        False,
+        usedefault=True,
+        desc=(
+            "compress the reportlet with SVGO or WEBP, as niworkflows' reportlets do: "
+            "'auto' compresses if the software is installed"
+        ),
+    )
 
 
 class _SVHTDenoiseOutputSpec(reporting.ReportCapableOutputSpec):
@@ -203,6 +213,7 @@ class SVHTDenoise(reporting.ReportCapableInterface, CommandLine):
             noise_file=outputs['noise_image'],
             signed=isdefined(self.inputs.phase_file),
             out_file=self._out_report,
+            compress=self.inputs.compress_report,
         )
 
 
@@ -307,6 +318,7 @@ def _plot_volume(
     plot_params,
     noise_nii,
     levels,
+    compress='auto',
     order=('z', 'x', 'y'),
 ):
     """Plot one 3D volume along each cut axis, with noise-map contours."""
@@ -333,7 +345,7 @@ def _plot_volume(
             with _fixed_field_of_view(display):
                 display.add_contours(noise_nii, levels=levels, linewidths=0.75)
 
-        svg = extract_svg(display, compress=False)
+        svg = extract_svg(display, compress=compress)
         display.close()
 
         # Give each panel a unique id, so the two frames of the flicker can be told apart
@@ -348,7 +360,15 @@ def _plot_volume(
     return out_files
 
 
-def plot_denoising(in_file, denoised_file, noise_file, signed, out_file, n_cuts=7):
+def plot_denoising(
+    in_file,
+    denoised_file,
+    noise_file,
+    signed,
+    out_file,
+    n_cuts=7,
+    compress='auto',
+):
     """Write a before/after reportlet of one volume of a denoised series.
 
     Parameters
@@ -366,6 +386,9 @@ def plot_denoising(in_file, denoised_file, noise_file, signed, out_file, n_cuts=
         The output SVG.
     n_cuts : int
         The number of slices per view.
+    compress : ``'auto'`` or bool
+        Whether to compress each panel with SVGO and WEBP; ``'auto'`` does so if they are
+        installed.
 
     Returns
     -------
@@ -420,6 +443,7 @@ def plot_denoising(in_file, denoised_file, noise_file, signed, out_file, n_cuts=
             plot_params,
             noise_nii,
             levels,
+            compress=compress,
         ),
         _plot_volume(
             denoised_vol,
@@ -430,6 +454,7 @@ def plot_denoising(in_file, denoised_file, noise_file, signed, out_file, n_cuts=
             plot_params,
             noise_nii,
             levels,
+            compress=compress,
         ),
         out_file=out_file,
     )
