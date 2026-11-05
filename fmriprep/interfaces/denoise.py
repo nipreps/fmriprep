@@ -37,9 +37,12 @@ import nibabel as nb
 import numpy as np
 from nipype import logging
 from nipype.interfaces.base import (
+    BaseInterfaceInputSpec,
     CommandLine,
     CommandLineInputSpec,
     File,
+    SimpleInterface,
+    TraitedSpec,
     isdefined,
     traits,
 )
@@ -201,6 +204,41 @@ class SVHTDenoise(reporting.ReportCapableInterface, CommandLine):
             signed=isdefined(self.inputs.phase_file),
             out_file=self._out_report,
         )
+
+
+class _AbsoluteValueInputSpec(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc='a signed series')
+
+
+class _AbsoluteValueOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='the absolute value of the input series')
+
+
+class AbsoluteValue(SimpleInterface):
+    """Take the absolute value of a signed series.
+
+    ``svht_denoise -phase`` returns the real-axis rotation of the complex data, which is
+    signed. Later steps of fMRIPrep expect positive BOLD, so the magnitude is kept.
+    """
+
+    input_spec = _AbsoluteValueInputSpec
+    output_spec = _AbsoluteValueOutputSpec
+
+    def _run_interface(self, runtime):
+        from nipype.utils.filemanip import fname_presuffix
+
+        img = nb.load(self.inputs.in_file)
+        data = np.abs(np.asanyarray(img.dataobj, dtype=np.float32))
+        header = img.header.copy()
+        header.set_data_dtype(np.float32)
+        out_file = fname_presuffix(
+            self.inputs.in_file,
+            suffix='_abs',
+            newpath=runtime.cwd,
+        )
+        img.__class__(data, img.affine, header).to_filename(out_file)
+        self._results['out_file'] = out_file
+        return runtime
 
 
 def select_report_volume(in_file, n_volumes):

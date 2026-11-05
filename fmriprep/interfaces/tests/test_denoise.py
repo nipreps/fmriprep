@@ -1,8 +1,6 @@
 """Tests for the svht_denoise interface and its report."""
 
 import os
-import sys
-import textwrap
 from pathlib import Path
 
 import nibabel as nb
@@ -11,10 +9,12 @@ import pytest
 from nipype.pipeline import engine as pe
 
 from fmriprep.interfaces.denoise import (
+    AbsoluteValue,
     SVHTDenoise,
     noise_contour_levels,
     select_report_volume,
 )
+from fmriprep.utils.testing import write_bold as _write_bold
 
 
 def _write_image(path, shape=(4, 4, 4, 3)):
@@ -22,64 +22,9 @@ def _write_image(path, shape=(4, 4, 4, 3)):
     return str(path)
 
 
-def _write_bold(path, n_volumes=10, seed=0):
-    """Write a small 4D series: a bright ellipsoid on a dark, noisy background."""
-    rng = np.random.default_rng(seed)
-    shape = (24, 24, 12)
-    ijk = np.indices(shape).astype(float)
-    center = (np.array(shape) - 1) / 2
-    radii = np.array(shape) / 3
-    inside = (((ijk - center[:, None, None, None]) / radii[:, None, None, None]) ** 2).sum(0) <= 1
-    data = np.where(inside, 1000.0, 20.0)[..., None] + rng.normal(0, 10, shape + (n_volumes,))
-    affine = np.diag([3.0, 3.0, 3.0, 1.0])
-    nb.Nifti1Image(np.abs(data).astype(np.float32), affine).to_filename(str(path))
-    return str(path)
-
-
 def _options(cmdline):
     """Split a command line into its option tokens, after the input and output."""
     return cmdline.split()[3:]
-
-
-@pytest.fixture
-def fake_svht(tmp_path, monkeypatch):
-    """Put a stand-in ``svht_denoise`` on the PATH.
-
-    It writes the outputs svht_denoise would: the "denoised" series (the input, signed when
-    ``-phase`` is given), a 3D noise map, and a rank map when ``-rank`` is given.
-    """
-    bin_dir = tmp_path / 'bin'
-    bin_dir.mkdir()
-    script = bin_dir / 'svht_denoise'
-    script.write_text(
-        f'#!{sys.executable}\n'
-        + textwrap.dedent(
-            """
-            import sys
-
-            import nibabel as nb
-            import numpy as np
-
-            args = sys.argv[1:]
-            in_file, out_file = args[0], args[1]
-            opts = dict(zip(args[2::2], args[3::2]))
-            img = nb.load(in_file)
-            data = img.get_fdata(dtype=np.float32)
-            if '-phase' in opts:
-                data = -data
-            nb.Nifti1Image(data, img.affine).to_filename(out_file)
-            noise = np.linspace(1, 2, data[..., 0].size, dtype=np.float32)
-            noise = noise.reshape(data.shape[:3])
-            nb.Nifti1Image(noise, img.affine).to_filename(opts['-noise'])
-            if '-rank' in opts:
-                rank = np.full(data.shape[:3], 2, dtype=np.float32)
-                nb.Nifti1Image(rank, img.affine).to_filename(opts['-rank'])
-            """
-        )
-    )
-    script.chmod(0o755)
-    monkeypatch.setenv('PATH', f'{bin_dir}{os.pathsep}{os.environ["PATH"]}')
-    return script
 
 
 def test_svht_denoise_cmdline(tmp_path):
@@ -208,3 +153,16 @@ def test_svht_denoise_run_and_report(tmp_path, fake_svht, use_phase):
     # The two frames of the flicker
     assert 'moving-image' in report
     assert 'fixed-image' in report
+
+
+def test_absolute_value(tmp_path):
+    in_file = str(tmp_path / 'signed.nii.gz')
+    data = np.array([[[[-2.0, 1.0], [0.5, -0.25]]]], dtype=np.float32)
+    nb.Nifti1Image(data, np.eye(4)).to_filename(in_file)
+
+    node = pe.Node(AbsoluteValue(in_file=in_file), name='absolute', base_dir=str(tmp_path))
+    result = node.run()
+
+    out_img = nb.load(result.outputs.out_file)
+    assert out_img.get_data_dtype() == np.float32
+    assert np.array_equal(out_img.get_fdata(), np.abs(data))

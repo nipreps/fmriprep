@@ -221,6 +221,35 @@ def check_svht_phase(params, use_phase):
         )
 
 
+def svht_phase_units(metadata):
+    """Return the ``phase_units`` to pass svht_denoise for a phase file's sidecar.
+
+    Phase in radians is declared, which is right even when the data do not span a full
+    turn. Any other unit (BIDS allows ``arbitrary``) is left to svht_denoise, which maps the
+    observed range onto one turn.
+
+    Parameters
+    ----------
+    metadata : dict
+        The phase file's sidecar metadata.
+
+    Returns
+    -------
+    str or None
+        ``'radians'``, or ``None`` to let svht_denoise detect the unit.
+
+    Examples
+    --------
+    >>> svht_phase_units({'Units': 'rad'})
+    'radians'
+    >>> svht_phase_units({'Units': 'arbitrary'}) is None
+    True
+    >>> svht_phase_units({}) is None
+    True
+    """
+    return 'radians' if metadata.get('Units') == 'rad' else None
+
+
 def can_svht_denoise(n_volumes):
     """Whether a series is long enough for svht_denoise to write a noise map.
 
