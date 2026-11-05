@@ -386,6 +386,14 @@ Precomputed head-motion and coregistration results passed with ``--derivatives``
 are still reused, with a warning, since they were estimated from data that may
 not have been denoised.
 
+.. note::
+
+   Susceptibility distortion estimation still reads the raw BOLD data when BOLD runs
+   are among the fieldmap's sources: with fieldmap-less SyN SDC (``--use-syn-sdc``),
+   and with PEPOLAR fieldmaps that use a BOLD run as one phase-encoding direction.
+   The estimated field is applied to the denoised series. Denoising moves no voxels,
+   so the field remains valid, but it is estimated from noisier data.
+
 The noise and rank maps are written as derivatives
 (see :ref:`Functional derivatives <func_derivatives>`), and the report shows a randomly
 chosen volume before and after denoising, with contours of the noise map.

@@ -457,7 +457,9 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         '--bold-denoise-method',
         action='store',
         choices=['none', 'svht'],
-        default='none',
+        # None, not 'none': config.load skips None, so a value from --config-file survives.
+        # The configuration default is 'none'.
+        default=None,
         help='Thermal-noise denoising of each BOLD series, applied before any other '
         'step. `none` (default) disables it. `svht` denoises each echo with svht_denoise '
         '(local PCA with optimal singular value shrinkage), using the part-phase '
@@ -861,17 +863,6 @@ def parse_args(args=None, namespace=None):
             'sessions. Use `--bold-coreg-level session` instead.'
         )
 
-    if opts.bold_denoise_config is not None:
-        if opts.bold_denoise_method != 'svht':
-            parser.error('`--bold-denoise-config` requires `--bold-denoise-method svht`.')
-
-        from ..utils.denoise import load_svht_config
-
-        try:
-            load_svht_config(opts.bold_denoise_config)
-        except ValueError as err:
-            parser.error(str(err))
-
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()
 
@@ -880,6 +871,22 @@ def parse_args(args=None, namespace=None):
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
+
+    # Checked after --config-file is applied, so the denoising settings in effect are checked,
+    # whether they came from the command line or from a previous run's configuration
+    denoising = config.workflow.bold_denoise_method == 'svht'
+    if opts.bold_denoise_config is not None and not denoising:
+        # Only a file given on this command line is an error; one inherited from a previous
+        # run's configuration is simply unused when denoising is turned off
+        parser.error('`--bold-denoise-config` requires `--bold-denoise-method svht`.')
+
+    if denoising and config.workflow.bold_denoise_config is not None:
+        from ..utils.denoise import load_svht_config
+
+        try:
+            load_svht_config(config.workflow.bold_denoise_config)
+        except ValueError as err:
+            parser.error(str(err))
 
     if config.execution.work_dir is None:
         config.execution.work_dir = Path('work').absolute()

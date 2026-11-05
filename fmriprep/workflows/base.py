@@ -926,6 +926,26 @@ tasks and sessions), the following preprocessing was performed.
             functional_caches.append(functional_cache)
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
+        if denoise_svht:
+            # As in init_bold_fit_wf: reused, since denoising moves no voxels, but estimated
+            # from data that may not have been denoised
+            reused = [
+                label
+                for label, value in (
+                    ('BOLD-to-anatomical transforms', coreg_precomputed['template2anat_xfm']),
+                    ('run-to-template transforms', coreg_precomputed.get('run2template_xfms')),
+                    ('BOLD template', [coreg_precomputed.get('boldref_template')]),
+                )
+                if any(value or [])
+            ]
+            if reused:
+                config.loggers.workflow.warning(
+                    'Reusing precomputed %s for %s with --bold-denoise-method svht. These were '
+                    'estimated from data that may not have been denoised. Remove them from '
+                    '--derivatives to estimate them from the denoised series.',
+                    ', '.join(reused),
+                    group_id,
+                )
 
         bold_anat_coreg_wf = init_bold_anat_coreg_wf(
             bold_files=group_bold_files,

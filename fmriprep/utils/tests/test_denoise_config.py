@@ -15,6 +15,7 @@ from fmriprep.utils.denoise import (
     check_svht_volumes,
     describe_svht,
     load_svht_config,
+    svht_auto_extent,
     svht_denoise_version,
 )
 
@@ -54,9 +55,11 @@ def test_load_svht_config_valid(tmp_path):
         ({'noise_dof': 0}, 'from 1 to 64'),
         ({'noise_dof': True}, 'from 1 to 64'),
         ({'stride': 3}, 'must be 1 or 2'),
-        ({'extent': 8}, 'odd positive integer'),
-        ({'extent': -1}, 'odd positive integer'),
-        ({'extent': SVHT_MAX_EXTENT + 2}, f'no greater than {SVHT_MAX_EXTENT}'),
+        ({'extent': 8}, f'odd integer from 3 to {SVHT_MAX_EXTENT}'),
+        ({'extent': -1}, 'odd integer from 3'),
+        # svht_denoise's smallest patch is 3 voxels across
+        ({'extent': 1}, 'odd integer from 3'),
+        ({'extent': SVHT_MAX_EXTENT + 2}, f'odd integer from 3 to {SVHT_MAX_EXTENT}'),
         ({'aggregator_fwhm': 0}, 'number > 0'),
         ({'aggregator': 'uniform', 'aggregator_fwhm': 1.0}, 'needs "aggregator" "gaussian"'),
         ({'aggregator': 'exclusive', 'stride': 2}, 'centered on every voxel'),
@@ -100,6 +103,41 @@ def test_check_svht_volumes():
 
     with pytest.raises(ValueError, match='"extent" of 7'):
         check_svht_volumes({'extent': 7}, 343)
+
+
+@pytest.mark.parametrize(
+    ('params', 'n_volumes', 'spatial_shape', 'fits'),
+    [
+        # A 9-voxel cube on a 64x64x20 image fits; a 27-voxel one does not
+        ({'shape': 'cube', 'extent': 9}, 300, (64, 64, 20), True),
+        ({'shape': 'cube', 'extent': 27}, 300, (64, 64, 20), False),
+        # Without an extent, svht_denoise's default (here 7, the smallest odd k with
+        # k**3 > 300) must fit
+        ({'shape': 'cube'}, 300, (64, 64, 7), True),
+        ({'shape': 'cube'}, 300, (64, 64, 6), False),
+        # Spherical patches are sized in mm, and not checked against the grid
+        ({'shape': 'sphere', 'extent': 27}, 300, (64, 64, 20), True),
+        ({'extent': 27}, 300, (64, 64, 20), True),
+        # Without the image's dimensions, nothing is checked
+        ({'shape': 'cube', 'extent': 27}, 300, None, True),
+    ],
+)
+def test_check_svht_volumes_cube_fits(params, n_volumes, spatial_shape, fits):
+    if fits:
+        check_svht_volumes(params, n_volumes, spatial_shape=spatial_shape)
+        return
+
+    with pytest.raises(ValueError, match=r'too small for the \d+-voxel cubic patch'):
+        check_svht_volumes(params, n_volumes, spatial_shape=spatial_shape)
+
+
+@pytest.mark.parametrize(
+    ('n_volumes', 'extent'),
+    [(2, 3), (26, 3), (27, 5), (124, 5), (125, 7), (243, 7), (4096, 17)],
+)
+def test_svht_auto_extent(n_volumes, extent):
+    """Test the default extent against svht_denoise's rule: smallest odd k >= 3, k**3 > n."""
+    assert svht_auto_extent(n_volumes) == extent
 
 
 @pytest.fixture

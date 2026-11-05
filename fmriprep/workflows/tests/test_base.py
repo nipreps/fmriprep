@@ -838,6 +838,9 @@ def test_bold_denoise_wiring(bids_root_factory, method, layout_id, ignore, expec
     """Test that denoising runs first for every BOLD run, only when asked for."""
     bids_dir = bids_root_factory(layout_id)
     with mock_config(bids_dir=bids_dir):
+        # mock_config does not reset the level, which other tests in a worker may have set;
+        # the apply workflows checked below exist only above the minimal level
+        config.workflow.level = 'full'
         config.workflow.bold_denoise_method = method
         config.workflow.ignore = ignore
         wf = init_single_subject_wf('01')

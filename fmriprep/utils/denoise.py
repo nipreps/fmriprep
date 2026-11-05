@@ -44,6 +44,9 @@ SVHT_MAX_VOLUMES = 4096
 #: The largest patch side svht_denoise accepts (``DN_MAX_EXTENT`` in its ``src/dn.h``)
 SVHT_MAX_EXTENT = 27
 
+#: The smallest patch side svht_denoise accepts (``dn_geom_init`` in its ``src/dn_patch.c``)
+SVHT_MIN_EXTENT = 3
+
 _SVHT_ENUM_PARAMETERS = {
     'aggregator': ('exclusive', 'gaussian', 'uniform'),
     'filter_method': ('optshrink', 'optthresh', 'truncate'),
@@ -161,10 +164,15 @@ def load_svht_config(path):
             if not _is_int(value) or value not in (1, 2):
                 raise ValueError(f'{source} sets {name}={value!r}; must be 1 or 2.')
         elif name == 'extent':
-            if not _is_int(value) or value < 1 or value % 2 == 0 or value > SVHT_MAX_EXTENT:
+            if (
+                not _is_int(value)
+                or value < SVHT_MIN_EXTENT
+                or value % 2 == 0
+                or value > SVHT_MAX_EXTENT
+            ):
                 raise ValueError(
-                    f'{source} sets {name}={value!r}; must be an odd positive integer no '
-                    f'greater than {SVHT_MAX_EXTENT}.'
+                    f'{source} sets {name}={value!r}; must be an odd integer from '
+                    f'{SVHT_MIN_EXTENT} to {SVHT_MAX_EXTENT}.'
                 )
         elif name == 'aggregator_fwhm':
             if not _is_number(value) or value <= 0:
@@ -258,12 +266,30 @@ def can_svht_denoise(n_volumes):
     return n_volumes >= SVHT_MIN_VOLUMES
 
 
-def check_svht_volumes(params, n_volumes, bold_file=None):
+def svht_auto_extent(n_volumes):
+    """Return svht_denoise's default patch extent: the smallest odd k >= 3 with k**3 > n.
+
+    Mirrors ``dn_auto_extent`` in svht_denoise's ``src/dn_patch.c``.
+
+    Examples
+    --------
+    >>> svht_auto_extent(10), svht_auto_extent(27), svht_auto_extent(243)
+    (3, 5, 7)
+    """
+    extent = SVHT_MIN_EXTENT
+    while extent**3 <= n_volumes:
+        extent += 2
+
+    return extent
+
+
+def check_svht_volumes(params, n_volumes, bold_file=None, spatial_shape=None):
     """Reject a series svht_denoise would refuse, before the workflow runs.
 
     svht_denoise accepts at most :data:`SVHT_MAX_VOLUMES` volumes, and needs ``extent**3``
-    to exceed the number of volumes. The volume count is known only per run, so this is
-    checked while the workflow is built.
+    to exceed the number of volumes. A cubic patch must also fit within the image, so its
+    extent (set, or svht_denoise's default) may not exceed any spatial dimension. These are
+    known only per run, so they are checked while the workflow is built.
 
     Parameters
     ----------
@@ -273,6 +299,8 @@ def check_svht_volumes(params, n_volumes, bold_file=None):
         The number of volumes in the series being denoised.
     bold_file : str, optional
         The series, named in the error message.
+    spatial_shape : tuple of int, optional
+        The series' spatial dimensions, to check that a cubic patch fits.
     """
     series = f'{bold_file} has' if bold_file else 'The series has'
     if n_volumes > SVHT_MAX_VOLUMES:
@@ -288,6 +316,16 @@ def check_svht_volumes(params, n_volumes, bold_file=None):
             f'the number of volumes, and the "extent" of {extent} in --bold-denoise-config '
             'is too small.'
         )
+
+    if params.get('shape') == 'cube' and spatial_shape is not None:
+        cube = extent if extent is not None else svht_auto_extent(n_volumes)
+        if cube > min(spatial_shape):
+            dims = 'x'.join(str(dim) for dim in spatial_shape)
+            raise ValueError(
+                f'{series} spatial dimensions {dims}, too small for the {cube}-voxel cubic '
+                'patch svht_denoise would use. Use "shape": "sphere" or a smaller "extent" '
+                'in --bold-denoise-config.'
+            )
 
 
 @cache

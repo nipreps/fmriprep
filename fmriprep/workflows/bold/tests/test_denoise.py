@@ -129,6 +129,18 @@ def test_build_errors(bids_dir):
         with pytest.raises(ValueError, match='"extent" of 3'):
             _build([long_file], denoise_params={'extent': 3})
 
+        # A 13-voxel cube does not fit the 12-slice image
+        with pytest.raises(ValueError, match='too small for the 13-voxel cubic patch'):
+            _build([bold_file], denoise_params={'shape': 'cube', 'extent': 13})
+
+
+def test_build_rejects_mismatched_echoes(bids_dir):
+    """Test that every echo is checked, so a later echo cannot fail inside svht_denoise."""
+    echo1, _ = _write_run(bids_dir, 'task-rest_echo-1', n_volumes=10)
+    echo2, _ = _write_run(bids_dir, 'task-rest_echo-2', n_volumes=12)
+    with mock_config(bids_dir=bids_dir), pytest.raises(ValueError, match='differ in shape'):
+        _build([echo1, echo2])
+
 
 def _node_output(graph, name, output):
     node = next(node for node in graph.nodes() if node.name == name)

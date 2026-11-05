@@ -130,7 +130,19 @@ def init_bold_denoise_wf(
             f'Got {len(phase_series)} phase files for a series of {len(bold_series)} echoes.'
         )
 
-    n_volumes = nb.load(bold_series[0]).shape[3]
+    # Every echo is denoised, so every echo must pass; they must also agree, since all are
+    # checked against the same limits (and fMRIPrep combines them later)
+    shapes = [nb.load(bold_file).shape for bold_file in bold_series]
+    if len(set(shapes)) > 1:
+        listing = ', '.join(
+            f'{bold_file} {shape}' for bold_file, shape in zip(bold_series, shapes, strict=True)
+        )
+        raise ValueError(f'The echoes of this BOLD series differ in shape: {listing}.')
+
+    if len(shapes[0]) != 4:
+        raise ValueError(f'{bold_series[0]} is not a 4D series: {shapes[0]}.')
+
+    n_volumes = shapes[0][3]
     if not can_svht_denoise(n_volumes):
         raise ValueError(
             f'{bold_series[0]} has {n_volumes} volumes, too few for svht_denoise to estimate '
@@ -138,7 +150,12 @@ def init_bold_denoise_wf(
         )
 
     check_svht_phase(params, use_phase)
-    check_svht_volumes(params, n_volumes, bold_file=bold_series[0])
+    check_svht_volumes(
+        params,
+        n_volumes,
+        bold_file=bold_series[0],
+        spatial_shape=shapes[0][:3],
+    )
 
     workflow = Workflow(name=name)
 

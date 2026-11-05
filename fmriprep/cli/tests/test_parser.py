@@ -380,17 +380,50 @@ def test_bold_denoise_svht(tmp_path):
     [
         ('none', '{}', 'requires `--bold-denoise-method svht`'),
         ('svht', '{"demean": "shells"}', 'unknown key'),
-        ('svht', '{"extent": 8}', 'odd positive integer'),
+        ('svht', '{"extent": 8}', 'odd integer from 3'),
     ],
 )
 def test_bold_denoise_config_errors(tmp_path, capsys, method, content, message):
     denoise_config = tmp_path / 'denoise.json'
     denoise_config.write_text(content)
-    with pytest.raises(SystemExit):
-        parse_args(
-            _denoise_cli_args(tmp_path)
-            + ['--bold-denoise-method', method, '--bold-denoise-config', str(denoise_config)]
-        )
+    try:
+        with pytest.raises(SystemExit):
+            parse_args(
+                _denoise_cli_args(tmp_path)
+                + ['--bold-denoise-method', method, '--bold-denoise-config', str(denoise_config)]
+            )
 
-    assert message in capsys.readouterr().err
-    _reset_config()
+        assert message in capsys.readouterr().err
+    finally:
+        # The errors are raised after the configuration is applied, so always restore it
+        _reset_config()
+
+
+def test_bold_denoise_survives_config_reuse(tmp_path):
+    """Test that a saved --bold-denoise-method is kept when rerunning from --config-file."""
+    cli_args = _denoise_cli_args(tmp_path)
+    denoise_config = tmp_path / 'denoise.json'
+    denoise_config.write_text('{"extent": 9}')
+    saved = data.load('tests/config.toml').read_text()
+    saved = saved.replace(
+        '[workflow]\n',
+        '[workflow]\n'
+        'bold_denoise_method = "svht"\n'
+        f'bold_denoise_config = "{denoise_config.as_posix()}"\n',
+        1,
+    )
+    config_file = tmp_path / 'saved_config.toml'
+    config_file.write_text(saved)
+
+    try:
+        parse_args(cli_args + ['--config-file', str(config_file)])
+        assert config.workflow.bold_denoise_method == 'svht'
+        assert config.workflow.bold_denoise_config == denoise_config.absolute()
+        _reset_config()
+
+        # An explicit flag still overrides the saved value, and the saved
+        # --bold-denoise-config is then unused rather than an error
+        parse_args(cli_args + ['--config-file', str(config_file), '--bold-denoise-method', 'none'])
+        assert config.workflow.bold_denoise_method == 'none'
+    finally:
+        _reset_config()
