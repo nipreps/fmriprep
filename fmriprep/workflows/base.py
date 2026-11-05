@@ -188,7 +188,12 @@ def init_single_subject_wf(
     from fmriprep.interfaces.bids import BIDSSourceFile, CreateFreeSurferID
     from fmriprep.interfaces.reports import FunctionalSummary
     from fmriprep.utils.bids import collect_bold_phase, is_valid_bold_template
-    from fmriprep.utils.denoise import can_svht_denoise, load_svht_config
+    from fmriprep.utils.denoise import (
+        can_svht_denoise,
+        describe_svht,
+        load_svht_config,
+        svht_denoise_version,
+    )
     from fmriprep.utils.misc import estimate_bold_mem_usage, get_wf_name
     from fmriprep.workflows.bold.base import init_bold_apply_wf
     from fmriprep.workflows.bold.coreg import init_bold_anat_coreg_wf
@@ -1013,7 +1018,18 @@ tasks and sessions), the following preprocessing was performed.
                 denoised=denoised,
                 name=f'bold_fit_{bold_id}_wf',
             )
-            bold_fit_wf.__desc__ = func_pre_desc + (bold_fit_wf.__desc__ or '')
+            # Denoising is described here, after the heading and before the fit steps, since
+            # the boilerplate visits workflows in graph order and the heading is attached here
+            denoise_desc = ''
+            if denoised:
+                denoise_desc = describe_svht(
+                    denoise_params,
+                    use_phase=phase_series is not None,
+                    multiecho=len(bold_series) > 1,
+                    version=svht_denoise_version(),
+                )
+
+            bold_fit_wf.__desc__ = func_pre_desc + denoise_desc + (bold_fit_wf.__desc__ or '')
             if denoised:
                 workflow.connect([
                     (bold_denoise_wf, bold_fit_wf, [

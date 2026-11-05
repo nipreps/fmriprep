@@ -13,6 +13,7 @@ from fmriprep.utils.denoise import (
     can_svht_denoise,
     check_svht_phase,
     check_svht_volumes,
+    describe_svht,
     load_svht_config,
     svht_denoise_version,
 )
@@ -126,3 +127,84 @@ def test_svht_denoise_version_missing(monkeypatch):
 
     monkeypatch.setattr(denoise.subprocess, 'run', _missing)
     assert svht_denoise_version() is None
+
+
+@pytest.mark.parametrize(
+    ('params', 'use_phase', 'multiecho', 'present', 'absent'),
+    [
+        (
+            {},
+            False,
+            False,
+            ['variance-stabilized', 'sized automatically', 'spherical', '@gavish2017'],
+            ['rotated onto the real axis', 'Each echo', 'receive channels'],
+        ),
+        (
+            {},
+            True,
+            True,
+            ['rotated onto the real axis [@nordic]', 'Each echo', 'absolute value'],
+            ['variance-stabilized', 'noise-floor bias'],
+        ),
+        (
+            {'shape': 'cube', 'extent': 9, 'filter_method': 'optthresh', 'noise_dof': 8},
+            False,
+            False,
+            ['9x9x9 voxels', 'optimal hard threshold', 'assuming 8 receive channels'],
+            ['@gavish2017'],
+        ),
+        (
+            {'vst': False},
+            False,
+            False,
+            ['The magnitude data were denoised'],
+            ['variance-stabiliz'],
+        ),
+        (
+            {'preserve_noise_bias': True},
+            False,
+            False,
+            ['variance-stabilized'],
+            ['noise-floor bias'],
+        ),
+        (
+            {'extent': 7, 'aggregator': 'exclusive'},
+            False,
+            False,
+            ['holding at least 343 voxels', 'solely from the patch centered on it'],
+            ['@manjon2013'],
+        ),
+    ],
+)
+def test_describe_svht(params, use_phase, multiecho, present, absent):
+    desc = describe_svht(params, use_phase=use_phase, multiecho=multiecho, version='1.2.3')
+    assert desc.startswith('Before any other processing')
+    assert '`svht_denoise` 1.2.3 [@svht_denoise]' in desc
+    for text in present:
+        assert text in desc
+
+    for text in absent:
+        assert text not in desc
+
+
+def test_describe_svht_citations_exist():
+    """Test that every citation the description can make is in the boilerplate bib file."""
+    import re
+
+    from fmriprep import data
+
+    bib = data.load.readable('boilerplate.bib').read_text()
+    bib_keys = set(re.findall(r'^@\w+\{([^,]+),', bib, flags=re.MULTILINE))
+
+    cited = set()
+    for filter_method in ('optshrink', 'optthresh', 'truncate'):
+        for aggregator in ('gaussian', 'uniform', 'exclusive'):
+            for use_phase in (False, True):
+                params = {'filter_method': filter_method, 'aggregator': aggregator}
+                desc = describe_svht(params, use_phase=use_phase)
+                cited |= set(re.findall(r'@([A-Za-z0-9_]+)', desc))
+
+    assert cited
+    assert cited <= bib_keys, cited - bib_keys
+    # Without a version, the software is named alone
+    assert '`svht_denoise` [@svht_denoise]' in describe_svht({}, use_phase=False)

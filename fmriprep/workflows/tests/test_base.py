@@ -845,10 +845,19 @@ def test_bold_denoise_wiring(bids_root_factory, method, layout_id, ignore, expec
     names = wf.list_node_names()
     denoise_wfs = {name.split('.')[0] for name in names if name.startswith('bold_denoise_')}
     fit_firsts = [name for name in names if name.startswith('bold_fit_') and 'first_bold' in name]
+    desc = wf.visit_desc()
     if method == 'none':
         assert not denoise_wfs
         assert not fit_firsts
+        assert 'thermal noise' not in desc
         return
+
+    # Denoising is described first among the functional steps, under their heading
+    heading = desc.index('Functional data preprocessing')
+    denoising = desc.index('thermal noise was removed')
+    reference = desc.index('a reference volume was generated')
+    assert heading < denoising < reference
+    assert ('[@nordic]' in desc) == expect_phase
 
     # Two single-echo rest runs and one three-echo nback run
     assert len(denoise_wfs) == 3

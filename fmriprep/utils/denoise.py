@@ -310,3 +310,110 @@ def svht_denoise_version():
 
     match = re.search(r'svht_denoise (\S+)', proc.stdout)
     return match.group(1) if match else None
+
+
+_SVHT_FILTERS = {
+    'optshrink': (
+        'each component was shrunk by the Frobenius-optimal rule [@gavish2017], using a '
+        'noise level estimated with the median estimator of @gavish2014'
+    ),
+    'optthresh': (
+        'components were kept by the optimal hard threshold for an unknown noise level '
+        '[@gavish2014]'
+    ),
+    'truncate': (
+        'components were truncated at the edge of the noise bulk, using a noise level '
+        'estimated with the median estimator of @gavish2014'
+    ),
+}
+
+_SVHT_AGGREGATORS = {
+    'gaussian': (
+        'the patch estimates were averaged where they overlapped, weighted by a Gaussian '
+        'function of the distance to each patch center [@manjon2013]'
+    ),
+    'uniform': 'the patch estimates were averaged where they overlapped [@manjon2013]',
+    'exclusive': 'each voxel was reconstructed solely from the patch centered on it',
+}
+
+
+def describe_svht(parameters, use_phase, multiecho=False, version=None):
+    """Describe svht_denoise BOLD denoising for the methods boilerplate.
+
+    Adapted from QSIPrep's ``describe_svht``.
+
+    Parameters
+    ----------
+    parameters : dict
+        SVHTDenoise parameters, as returned by :func:`load_svht_config`.
+    use_phase : bool
+        Whether the magnitude and phase data were rotated onto the real axis.
+    multiecho : bool
+        Whether the series has more than one echo, each denoised separately.
+    version : str, optional
+        svht_denoise's version.
+
+    Returns
+    -------
+    str
+        Boilerplate text with inline ``[@citation]`` keys.
+
+    Examples
+    --------
+    >>> print(describe_svht({}, use_phase=False, version='1.0'))
+    Before any other processing, thermal noise was removed from the BOLD data.
+    The magnitude data were variance-stabilized ... `svht_denoise` 1.0 [@svht_denoise]. ...
+    """
+    shape = 'cubic' if parameters.get('shape') == 'cube' else 'spherical'
+    extent = parameters.get('extent')
+    if extent is None:
+        # svht_denoise's default, the smallest odd k with k**3 above the volume count
+        size = 'sized automatically from the number of volumes'
+    elif shape == 'cubic':
+        size = f'of {extent}x{extent}x{extent} voxels'
+    else:
+        size = f'holding at least {extent**3} voxels'
+
+    filter_desc = _SVHT_FILTERS[parameters.get('filter_method', 'optshrink')]
+    aggregator_desc = _SVHT_AGGREGATORS[parameters.get('aggregator', 'gaussian')]
+    software = '`svht_denoise`' + (f' {version}' if version else '')
+    data = 'each echo' if multiecho else 'the series'
+
+    sentences = ['Before any other processing, thermal noise was removed from the BOLD data.']
+    vst = parameters.get('vst', True) and not use_phase
+    if use_phase:
+        sentences.append(
+            f'The magnitude and phase data of {data} were rotated onto the real axis '
+            '[@nordic], so that the noise remained zero-mean Gaussian, and then denoised'
+        )
+    elif vst:
+        stabilized = (
+            'The magnitude data were variance-stabilized to render the noise approximately '
+            'Gaussian [@foi2011]'
+        )
+        if 'noise_dof' in parameters:
+            stabilized += f', assuming {parameters["noise_dof"]} receive channels'
+
+        sentences.append(f'{stabilized}, and then denoised')
+    else:
+        sentences.append('The magnitude data were denoised')
+
+    sentences[-1] += (
+        ' by local principal component analysis with optimal singular value shrinkage, '
+        f'as implemented in {software} [@svht_denoise]. '
+        f'Overlapping {shape} patches, {size}, were decomposed by singular value '
+        f'decomposition, {filter_desc}, and {aggregator_desc}.'
+    )
+    if multiecho:
+        sentences.append('Each echo was denoised separately.')
+
+    if use_phase:
+        sentences.append('The absolute value of the denoised data was retained.')
+    elif vst and not parameters.get('preserve_noise_bias', False):
+        sentences.append(
+            'The variance-stabilizing transform was inverted at the exact-unbiased operating '
+            'point, removing the noise-floor bias from the denoised magnitude data.'
+        )
+
+    # Joined into the paragraph it is added to, like the other workflow descriptions
+    return '\n'.join(sentences) + '\n'
