@@ -335,3 +335,42 @@ def test_reuse_config(tmp_path):
     for v in ('execution.run_uuid', 'execution.fmriprep_dir'):
         assert reused_config[v] != overridden_config[v]
     _reset_config()
+
+
+@pytest.mark.parametrize(
+    ('args', 'expected'),
+    [
+        ([], 'mcflirt'),
+        (['--hmc-method', 'mcflirt'], 'mcflirt'),
+        (['--hmc-method', '3dvolreg'], '3dvolreg'),
+    ],
+)
+def test_hmc_flag(tmp_path, minimal_bids, args, expected):
+    parse_args(
+        args=[
+            str(minimal_bids),
+            str(tmp_path / 'out'),
+            'participant',
+            '-w',
+            str(tmp_path / 'work'),
+            '--skip-bids-validation',
+            *args,
+        ]
+    )
+    assert config.workflow.hmc_method == expected
+    _reset_config()
+
+
+def test_hmc_flag_hidden_and_validated(tmp_path, capsys):
+    bids_path = tmp_path / 'data'
+    bids_path.mkdir()
+    parser = _build_parser()
+
+    assert '--hmc-method' not in parser.format_help()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [str(bids_path), str(tmp_path / 'out'), 'participant', '--hmc-method', 'fsl']
+        )
+    assert "invalid choice: 'fsl'" in capsys.readouterr().err
+    _reset_config()

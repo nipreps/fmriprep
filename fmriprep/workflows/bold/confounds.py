@@ -41,6 +41,7 @@ from templateflow.api import get as get_template
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
+    AFNIMotionParams,
     FilterDropped,
     FMRISummary,
     GatherConfounds,
@@ -56,6 +57,7 @@ def init_bold_confs_wf(
     regressors_dvars_th: float,
     regressors_fd_th: float,
     freesurfer: bool = False,
+    hmc_method: str = 'mcflirt',
     name: str = 'bold_confs_wf',
 ):
     """
@@ -119,6 +121,10 @@ def init_bold_confs_wf(
         Set to ``True`` if the input volume fractions for the anatomical
         component-based noise correction maps come from FreeSurfer's ``aseg``.
         sMRIPrep always uses FAST for tissue probability maps, so we always set this to False.
+    hmc_method : :obj:`str`
+        Head-motion estimator whose parameter convention the motion parameters follow:
+        ``'mcflirt'`` (default, FSL's) or ``'3dvolreg'`` (AFNI's, see
+        :class:`~fmriprep.interfaces.confounds.AFNIMotionParams`)
     name : :obj:`str`
         Name of workflow (default: ``bold_confs_wf``)
 
@@ -275,8 +281,11 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         mem_gb=mem_gb,
     )
 
-    # Motion parameters
-    motion_params = pe.Node(FSLMotionParams(), name='motion_params')
+    # Motion parameters, in the convention of the head-motion estimator
+    motion_params = pe.Node(
+        AFNIMotionParams() if hmc_method == '3dvolreg' else FSLMotionParams(),
+        name='motion_params',
+    )
 
     # Frame displacement
     fdisp = pe.Node(FramewiseDisplacement(), name='fdisp')
@@ -425,7 +434,7 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     # Tissue mean time series
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
     # Movement parameters
-    mrg_conf_metadata.inputs.in4 = {
+    motion_metadata = {
         'trans_x': {'Description': 'Translation along left-right axis.', 'Units': 'mm'},
         'trans_y': {'Description': 'Translation along anterior-posterior axis.', 'Units': 'mm'},
         'trans_z': {'Description': 'Translation along superior-inferior axis.', 'Units': 'mm'},
@@ -441,6 +450,37 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
             'Description': 'Rotation about superior-inferior axis. Also known as "yaw".',
             'Units': 'rad',
         },
+    }
+    if hmc_method == '3dvolreg':
+        # 3dvolreg's parameters on RAS+ axes: -dL, -dP, dS, -pitch, -yaw and roll
+        motion_metadata = {
+            'trans_x': {
+                'Description': 'Translation along left-right axis, positive toward right.',
+                'Units': 'mm',
+            },
+            'trans_y': {
+                'Description': 'Translation along anterior-posterior axis, positive toward anterior.',
+                'Units': 'mm',
+            },
+            'trans_z': {
+                'Description': 'Translation along inferior-superior axis, positive toward superior.',
+                'Units': 'mm',
+            },
+            'rot_x': {
+                'Description': 'Rotation about left-right axis. AFNI reports its negation as "pitch".',
+                'Units': 'rad',
+            },
+            'rot_y': {
+                'Description': 'Rotation about anterior-posterior axis. AFNI reports its negation as "yaw".',
+                'Units': 'rad',
+            },
+            'rot_z': {
+                'Description': 'Rotation about inferior-superior axis. AFNI calls this "roll".',
+                'Units': 'rad',
+            },
+        }
+    mrg_conf_metadata.inputs.in4 = {
+        **motion_metadata,
         'framewise_displacement': {'Units': 'mm'},
     }
     mrg_conf_metadata2 = pe.Node(
