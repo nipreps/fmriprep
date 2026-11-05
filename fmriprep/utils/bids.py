@@ -501,6 +501,106 @@ def extract_entities(file_list):
     return {k: _unique(v) for k, v in entities.items()}
 
 
+#: Tolerance for comparing the affines of a magnitude image and its phase companion
+PHASE_AFFINE_TOLERANCE = 1e-4
+
+
+def _find_phase_file(layout, magnitude_file):
+    """Find the ``part-phase`` companion of one magnitude BOLD file, or ``None``.
+
+    A companion has every entity of the magnitude file except ``part``, with the same values,
+    and no other entity. The magnitude file may be labeled ``part-mag`` or carry no ``part``.
+    """
+    from bids.layout import parse_file_entities
+
+    def _key(entities):
+        return {k: v for k, v in entities.items() if k not in ('part', 'extension')}
+
+    target = _key(parse_file_entities(str(magnitude_file)))
+    candidates = layout.get(
+        return_type='file',
+        **target,
+        part='phase',
+        extension=['.nii', '.nii.gz'],
+    )
+    matches = sorted(c for c in candidates if _key(parse_file_entities(c)) == target)
+    if len(matches) > 1:
+        config.loggers.workflow.warning(
+            'Found more than one phase file for %s (%s); not using phase data for it.',
+            magnitude_file,
+            ', '.join(matches),
+        )
+        return None
+
+    return matches[0] if matches else None
+
+
+def _phase_matches_magnitude(magnitude_file, phase_file):
+    """Return why a phase file does not fit its magnitude file, or ``None`` if it does."""
+    mag_img = nb.load(magnitude_file)
+    phase_img = nb.load(phase_file)
+    if mag_img.shape != phase_img.shape:
+        return f'its shape {phase_img.shape} differs from the magnitude shape {mag_img.shape}'
+
+    if not np.allclose(mag_img.affine, phase_img.affine, atol=PHASE_AFFINE_TOLERANCE):
+        return 'its affine differs from the magnitude affine'
+
+    return None
+
+
+def collect_bold_phase(layout, bold_series):
+    """Find the ``part-phase`` companions of a BOLD series, one per echo.
+
+    Phase data are used for a run only when every echo has a phase file that fits its
+    magnitude, so that all echoes are denoised the same way. Otherwise a warning is logged
+    and the run is denoised from the magnitude alone.
+
+    Parameters
+    ----------
+    layout : :obj:`bids.layout.BIDSLayout`
+        The input dataset's layout.
+    bold_series : :obj:`list` of :obj:`str`
+        The magnitude BOLD file of each echo, in echo order.
+
+    Returns
+    -------
+    :obj:`list` of :obj:`str` or ``None``
+        The phase file of each echo, in the order of ``bold_series``, or ``None`` when the
+        run is to be denoised from the magnitude alone.
+    """
+    bold_series = listify(bold_series)
+    phase_series = [_find_phase_file(layout, bold_file) for bold_file in bold_series]
+    missing = [
+        bold_file
+        for bold_file, phase_file in zip(bold_series, phase_series, strict=True)
+        if phase_file is None
+    ]
+    if len(missing) == len(bold_series):
+        return None
+
+    if missing:
+        config.loggers.workflow.warning(
+            'Phase data were found for only some echoes of %s; missing for %s. '
+            'All echoes will be denoised from the magnitude alone.',
+            bold_series[0],
+            ', '.join(missing),
+        )
+        return None
+
+    for bold_file, phase_file in zip(bold_series, phase_series, strict=True):
+        mismatch = _phase_matches_magnitude(bold_file, phase_file)
+        if mismatch is not None:
+            config.loggers.workflow.warning(
+                'Not using phase file %s: %s. %s will be denoised from the magnitude alone.',
+                phase_file,
+                mismatch,
+                'All echoes of the run' if len(bold_series) > 1 else 'The run',
+            )
+            return None
+
+    return phase_series
+
+
 def dismiss_echo(entities=None):
     """Set entities to dismiss in a DerivativesDataSink."""
     if entities is None:
