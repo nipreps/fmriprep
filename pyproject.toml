@@ -25,22 +25,24 @@ requires-python = ">=3.12"
 dependencies = [
     "acres >= 0.5.0",
     "looseversion >= 1.3",
+    "matplotlib >= 3.10",
     "nibabel >= 5.3.0",
-    "nipype >= 1.9.0",
-    "nireports >= 25.0.1",
+    "nipype >= 1.12.0",
+    "nireports >= 25.3.0",
     "nitime >= 0.12",
     "nitransforms >= 25.0.1",
     "niworkflows @ git+https://github.com/nipreps/niworkflows@master",
-    "numpy >= 2.1",
+    "numpy >= 2.2",
     "packaging >= 24.2",
     "pandas >= 2.2.3",
     "psutil >= 6.1.0",
     "pybids >= 0.21",
     "requests >= 2.32.4",
+    "scipy >= 1.15",
     "sdcflows >= 2.17.1",
     "smriprep @ git+https://github.com/nipreps/smriprep@master",
-    "tedana >= 25.1.0",
-    "templateflow >= 24.2.2",
+    "tedana >= 26.0.0",
+    "templateflow >= 25.0",
     "transforms3d >= 0.4.2",
     "toml >= 0.10",
     "codecarbon >= 2.7.0",
@@ -131,49 +133,61 @@ platforms = ["linux-64"]
 FSLDIR = "$CONDA_PREFIX"
 
 [tool.pixi.environments]
-# Local installs will use editable
-default = { features = ["editable"], solve-group = "default" }
-test = { features = ["editable", "test"], solve-group = "default" }
-# Use "fmriprep" feature for production environment, so it is identifiable
-fmriprep = { features = ["production", "container", "telemetry"], solve-group = "production" }
+default = ["production", "conda"]  # "bare-metal"
+dev = ["test", "conda"]
+min = ["test", "conda", "min"]
+# Use "fmriprep" feature for container environment, so it is identifiable
+fmriprep = ["production", "container", "telemetry", "conda"]
+# CI
+py313 = ["test", "py313"]
 
-[tool.pixi.feature.editable.pypi-dependencies]
+[tool.pixi.pypi-dependencies]
 fmriprep = { path = ".", editable = true }
 [tool.pixi.feature.production.pypi-dependencies]
 fmriprep = { path = ".", editable = false }
 
 [tool.pixi.tasks]
 
-[tool.pixi.pypi-options.dependency-overrides]
-numpy = ">=2.2"
+[tool.pixi.feature.test.tasks]
+fetch-templates = "python scripts/fetch_templates.py"
+test = { cmd = "pytest --cov-report term-missing --durations=20 --durations-min=1.0 -n auto", depends-on = ["fetch-templates"], env = { NO_ET = "1" } }
 
-[tool.pixi.dependencies]
+[tool.pixi.feature.min]
+solve-strategy = "lowest-direct"
+[tool.pixi.feature.min.dependencies]
 python = "3.12.*"
-nodejs = "20.*"
-mkl = "2024.2.2.*"
-mkl-service = "2.4.2.*"
-numpy = "2.2.*"
-scipy = "1.15.*"
-matplotlib = "3.10.*"
-pandas = "2.2.*"
-h5py = "3.13.*"
-nitime = "0.12.*"
-scikit-image = "0.25.*"
-scikit-learn = "1.6.*"
-ants = "2.6.*"
-connectome-workbench-cli = { version = "2.0.*", build = "*qt6*" }
-fsl-bet2 = "2111.8.*"
-fsl-flirt = "2111.4.*"
-fsl-fast4 = "2111.3.*"
-fsl-fugue = "2201.5.*"
-fsl-mcflirt = "2111.0.*"
-fsl-miscmaths = "2412.4.*"
-fsl-topup = "2203.5.*"
-graphviz = "12.2.*"
-pandoc = "3.7.*"
+
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"
+
+[tool.pixi.feature.conda.dependencies]
+ants = ">=2.6"
+connectome-workbench-cli = { version = ">=2.0", build = "*qt6*" }
+fsl-bet2 = ">=2111.8"
+fsl-flirt = ">=2111.4"
+fsl-fast4 = ">=2111.3"
+fsl-fugue = ">=2201.5"
+fsl-mcflirt = ">=2111.0"
+fsl-miscmaths = ">=2412.4"
+fsl-topup = ">=2203.5"
+graphviz = ">=12.2"
+pandoc = ">=3.7"
+# Installed from conda as dependencies of conda packages; keep in sync with
+# project.dependencies so the min environment can resolve with lowest-direct
+nibabel = ">=5.3"
+numpy = ">=2.2"
+packaging = ">=24.2"
+scipy = ">=1.15"
+matplotlib = ">=3.10"
+pandas = ">=2.2.3"
+nitime = ">=0.12"
+# Indirect dependencies, but built against numpy and scipy
+scikit-image = ">=0.25"
+scikit-learn = ">=1.6"
 
 [tool.pixi.feature.container.dependencies]
 git = "*"
+nodejs = ">=20"
 
 [tool.pixi.feature.container.pypi-dependencies]
 git-annex = ">=10.20250721"
@@ -185,6 +199,40 @@ git-annex = ">=10.20250721"
 # Disable black
 [tool.black]
 exclude = ".*"
+
+# Pre-release tests; other test environments are managed with pixi
+[tool.tox]
+requires = ["tox>=4.21"]
+env_list = ["py312-pre", "py313-pre", "py314-pre", "py315-pre"]
+skip_missing_interpreters = true
+
+[tool.tox.env_run_base]
+description = "Pytest with coverage against pre-release dependencies"
+pip_pre = true
+pass_env = [
+    "PYTHON_GIL",
+    # Pass user color preferences through
+    "PY_COLORS",
+    "FORCE_COLOR",
+    "NO_COLOR",
+    "CLICOLOR",
+    "CLICOLOR_FORCE",
+]
+extras = ["test"]
+commands_pre = [["python", "scripts/fetch_templates.py"]]
+commands = [[
+    "pytest",
+    "--cov-report=term-missing",
+    "--durations=20",
+    "--durations-min=1.0",
+    { replace = "posargs", default = ["-n", "auto"], extend = true },
+]]
+
+[tool.tox.env_run_base.set_env]
+PIP_EXTRA_INDEX_URL = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+UV_INDEX = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+UV_INDEX_STRATEGY = "unsafe-best-match"
+NO_ET = "1"
 
 [tool.pytest.ini_options]
 minversion = "6"
