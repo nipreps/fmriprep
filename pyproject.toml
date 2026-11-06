@@ -135,8 +135,12 @@ FSLDIR = "$CONDA_PREFIX"
 [tool.pixi.environments]
 default = ["production", "conda"]  # "bare-metal"
 dev = ["test", "conda"]
+min = ["test", "conda", "min"]
 # Use "fmriprep" feature for container environment, so it is identifiable
 fmriprep = ["production", "container", "telemetry", "conda"]
+# CI
+py313 = ["test", "py313"]
+py314 = ["test", "py314"]
 
 [tool.pixi.pypi-dependencies]
 fmriprep = { path = ".", editable = true }
@@ -145,7 +149,19 @@ fmriprep = { path = ".", editable = false }
 
 [tool.pixi.tasks]
 
+[tool.pixi.feature.test.tasks]
+fetch-templates = "python scripts/fetch_templates.py"
+test = { cmd = "pytest --cov-report term-missing --durations=20 --durations-min=1.0 -n auto", depends-on = ["fetch-templates"], env = { NO_ET = "1" } }
 
+[tool.pixi.feature.min]
+solve-strategy = "lowest-direct"
+[tool.pixi.feature.min.dependencies]
+python = "3.12.*"
+
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"
+[tool.pixi.feature.py314.dependencies]
+python = "3.14.*"
 
 [tool.pixi.feature.conda.dependencies]
 ants = ">=2.6"
