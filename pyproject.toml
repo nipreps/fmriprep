@@ -187,6 +187,40 @@ git-annex = ">=10.20250721"
 [tool.black]
 exclude = ".*"
 
+# Pre-release tests; other test environments are managed with pixi
+[tool.tox]
+requires = ["tox>=4.21"]
+env_list = ["py312-pre", "py313-pre", "py314-pre"]
+skip_missing_interpreters = true
+
+[tool.tox.env_run_base]
+description = "Pytest with coverage against pre-release dependencies"
+pip_pre = true
+pass_env = [
+    "PYTHON_GIL",
+    # Pass user color preferences through
+    "PY_COLORS",
+    "FORCE_COLOR",
+    "NO_COLOR",
+    "CLICOLOR",
+    "CLICOLOR_FORCE",
+]
+extras = ["test"]
+commands_pre = [["python", "scripts/fetch_templates.py"]]
+commands = [[
+    "pytest",
+    "--cov-report=term-missing",
+    "--durations=20",
+    "--durations-min=1.0",
+    { replace = "posargs", default = ["-n", "auto"], extend = true },
+]]
+
+[tool.tox.env_run_base.set_env]
+PIP_EXTRA_INDEX_URL = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+UV_INDEX = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple"
+UV_INDEX_STRATEGY = "unsafe-best-match"
+NO_ET = "1"
+
 [tool.pytest.ini_options]
 minversion = "6"
 testpaths = ["fmriprep"]
