@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: ["py312-pre", "py313-pre", "py314-pre"]
+        environment: ["py312-pre", "py313-pre", "py314-pre", "py315-pre"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

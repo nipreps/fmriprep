@@ -206,7 +206,7 @@ exclude = ".*"
 # Pre-release tests; other test environments are managed with pixi
 [tool.tox]
 requires = ["tox>=4.21"]
-env_list = ["py312-pre", "py313-pre", "py314-pre"]
+env_list = ["py312-pre", "py313-pre", "py314-pre", "py315-pre"]
 skip_missing_interpreters = true
 
 [tool.tox.env_run_base]
