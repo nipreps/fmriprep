@@ -91,7 +91,12 @@ extend-select = [
   "F",
 ]
 ignore = [
-  "B905",  # Python 3-only rule
+  "B905",    # Python 3-only rule
+  "SIM",     # Python 3-only rules
+  "FLY002",  # Python 3-only rule
+  "PLW1510", # Python 3-only rule
+  "UP",      # Python 3-only rules
+  "RUF",     # Python 3-only rules
 ]
 
 [tool.ruff.lint.flake8-quotes]
