@@ -279,16 +279,16 @@ class MetricResample(WBCommand, OpenMPCommandMixin):
     _cmd = 'wb_command -metric-resample'
 
     def _format_arg(self, opt, spec, val):
-        if opt in ('current_area', 'new_area'):
-            if not self.inputs.area_surfs and not self.inputs.area_metrics:
-                raise ValueError(f'{opt} was set but neither area_surfs or area_metrics were set')
-        if opt == 'method':
-            if (
-                val == 'ADAP_BARY_AREA'
-                and not self.inputs.area_surfs
-                and not self.inputs.area_metrics
-            ):
-                raise ValueError('Exactly one of area_surfs or area_metrics must be specified')
+        if opt in ('current_area', 'new_area') and not (
+            self.inputs.area_surfs or self.inputs.area_metrics
+        ):
+            raise ValueError(f'{opt} was set but neither area_surfs or area_metrics were set')
+        if (
+            opt == 'method'
+            and val == 'ADAP_BARY_AREA'
+            and not (self.inputs.area_surfs or self.inputs.area_metrics)
+        ):
+            raise ValueError('Exactly one of area_surfs or area_metrics must be specified')
         if opt == 'valid_roi_out' and val:
             # generate a filename and add it to argstr
             roi_out = self._gen_filename(self.inputs.in_file, suffix='_roi')
@@ -589,7 +589,7 @@ class VolumeToSurfaceMapping(WBCommand, OpenMPCommandMixin):
         if opt in self.input_spec._ribbon_constrained:
             if self.inputs.method != 'ribbon-constrained':
                 return ''
-        elif opt in self.input_spec._myelin_style:
+        elif opt in self.input_spec._myelin_style:  # noqa: SIM102
             if self.inputs.method != 'myelin-style':
                 return ''
         return super()._format_arg(opt, spec, val)
