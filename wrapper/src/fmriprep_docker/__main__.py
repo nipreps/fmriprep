@@ -106,7 +106,7 @@ def check_docker():
 
         if e.errno == ENOENT:
             return -1
-        raise e
+        raise
     if ret.stderr.startswith(b'Cannot connect to the Docker daemon.'):
         return 0
     return 1
