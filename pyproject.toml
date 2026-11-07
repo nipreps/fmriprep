@@ -58,7 +58,7 @@ Paper = "https://doi.org/10.1038/s41592-018-0235-4"
 "Docker Images" = "https://hub.docker.com/r/nipreps/fmriprep/tags/"
 NiPreps = "https://www.nipreps.org/"
 
-[project.optional-dependencies]
+[dependency-groups]
 doc = [
     "pydot >= 1.2.3",
     "sphinx >= 5",
@@ -72,7 +72,7 @@ dev = [
 duecredit = ["duecredit"]
 resmon = []
 container = [
-    "fmriprep[telemetry]",
+    {include-group = "telemetry"},
     # templateflow extras
     "datalad",
     "datalad-osf",
@@ -93,9 +93,14 @@ maint = [
     "python-Levenshtein",
 ]
 # Aliases
-docs = ["fmriprep[doc]"]
-tests = ["fmriprep[test]"]
-all = ["fmriprep[doc,maint,telemetry,test]"]
+docs = [{include-group = "doc"}]
+tests = [{include-group = "test"}]
+all = [
+    {include-group = "doc"},
+    {include-group = "maint"},
+    {include-group = "telemetry"},
+    {include-group = "test"},
+]
 
 [project.scripts]
 fmriprep = "fmriprep.cli.run:main"
@@ -202,7 +207,7 @@ exclude = ".*"
 
 # Pre-release tests; other test environments are managed with pixi
 [tool.tox]
-requires = ["tox>=4.21"]
+requires = ["tox>=4.26"]
 env_list = ["py312-pre", "py313-pre", "py314-pre", "py315-pre"]
 skip_missing_interpreters = true
 
@@ -218,7 +223,7 @@ pass_env = [
     "CLICOLOR",
     "CLICOLOR_FORCE",
 ]
-extras = ["test"]
+dependency_groups = ["test"]
 commands_pre = [["python", "scripts/fetch_templates.py"]]
 commands = [[
     "pytest",
