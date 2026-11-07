@@ -7,6 +7,7 @@ import nibabel as nb
 import numpy as np
 import pytest
 from nipype.pipeline import engine as pe
+from nipype.pipeline.engine.nodes import NodeExecutionError
 
 from fmriprep.interfaces.denoise import (
     AbsoluteValue,
@@ -109,6 +110,18 @@ def test_select_report_volume_is_reproducible():
     assert select_report_volume(names[0], 1) == 0
 
 
+def test_select_report_volume_ignores_echo():
+    """Test that every echo of a run gets the same volume, and other entities still count."""
+    for run in range(10):
+        echoes = [
+            f'sub-01_task-rest_run-{run}_echo-{echo}_part-mag_bold.nii.gz' for echo in (1, 2, 5)
+        ]
+        assert len({select_report_volume(echo, 300) for echo in echoes}) == 1
+
+    runs = [f'sub-01_task-rest_run-{run}_echo-1_bold.nii.gz' for run in range(20)]
+    assert len({select_report_volume(run, 300) for run in runs}) > 1
+
+
 def test_noise_contour_levels():
     noise = np.arange(100, dtype=np.float32).reshape(10, 10)
     mask = np.ones_like(noise, dtype=bool)
@@ -153,6 +166,30 @@ def test_svht_denoise_run_and_report(tmp_path, fake_svht, use_phase):
     # The two frames of the flicker
     assert 'moving-image' in report
     assert 'fixed-image' in report
+
+
+def test_svht_denoise_report_volume(tmp_path, fake_svht):
+    """Test that an explicit report_volume is shown, and that one out of range is refused."""
+    in_file = _write_bold(tmp_path / 'sub-01_task-rest_bold.nii.gz')
+    default = select_report_volume(in_file, 10)
+    chosen = (default + 3) % 10
+
+    node = pe.Node(
+        SVHTDenoise(in_file=in_file, nthreads=1, report_volume=chosen),
+        name='denoise',
+        base_dir=str(tmp_path),
+    )
+    report = Path(node.run().outputs.out_report).read_text()
+    assert f'Before denoising: volume {chosen}' in report
+    assert f'volume {default}' not in report
+
+    out_of_range = pe.Node(
+        SVHTDenoise(in_file=in_file, nthreads=1, report_volume=10),
+        name='denoise_out_of_range',
+        base_dir=str(tmp_path),
+    )
+    with pytest.raises(NodeExecutionError, match='out of range for 10 volumes'):
+        out_of_range.run()
 
 
 def test_absolute_value(tmp_path):

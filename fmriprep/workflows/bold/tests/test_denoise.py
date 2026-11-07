@@ -1,6 +1,7 @@
 """Tests for the svht_denoise BOLD denoising workflow."""
 
 import json
+import re
 
 import nibabel as nb
 import numpy as np
@@ -110,6 +111,11 @@ def test_multi_echo_graph(bids_dir):
     edges = wf._graph.get_edge_data(wf.get_node('absolute_echo2'), wf.get_node('merge_bold'))
     assert ('out_file', 'in2') in edges['connect']
 
+    # Every echo's reportlet shows the same volume
+    volumes = {wf.get_node(f'denoiser_echo{i}').inputs.report_volume for i in (1, 2)}
+    assert len(volumes) == 1
+    assert 0 <= volumes.pop() < 10
+
 
 def test_build_errors(bids_dir):
     bold_file, phase_file = _write_run(bids_dir, 'task-rest', phase_units='rad')
@@ -178,6 +184,21 @@ def test_run_writes_derivatives(bids_dir, use_phase):
             assert len(meta['Sources']) == (2 if use_phase else 1)
             if use_phase:
                 assert meta['PhaseUnits'] == 'radians'
+
+        # Both echoes' figures show the same volume
+        labels = {
+            re.search(
+                r'Before denoising: volume \d+',
+                (
+                    out_dir
+                    / 'sub-01'
+                    / 'figures'
+                    / f'sub-01_task-rest_echo-{echo}_desc-denoising_bold.svg'
+                ).read_text(),
+            ).group()
+            for echo in (1, 2)
+        }
+        assert len(labels) == 1
 
         noise_files = _node_output(graph, 'merge_noise', 'out')
         assert [f.split('/')[-1] for f in noise_files] == [

@@ -397,7 +397,8 @@ not have been denoised.
 The noise and rank maps are written as derivatives
 (see :ref:`Functional derivatives <func_derivatives>`), and the report shows a randomly
 chosen volume before and after denoising, with contours of the noise map.
-For multi-echo data, each echo has its own figure, in its own section of the report.
+For multi-echo data, each echo has its own figure, in its own section of the report;
+every echo of a run shows the same volume.
 
 .. _bold_ref:
 

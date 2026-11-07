@@ -30,6 +30,7 @@ The interface is adapted from QSIPrep's ``qsiprep.interfaces.svht.SVHTDenoise``.
 """
 
 import os
+import re
 import zlib
 from contextlib import contextmanager
 
@@ -155,6 +156,14 @@ class _SVHTDenoiseInputSpec(CommandLineInputSpec, reporting.ReportCapableInputSp
             "'auto' compresses if the software is installed"
         ),
     )
+    report_volume = traits.Range(
+        low=0,
+        desc=(
+            'the volume the report shows. Set it to show the same volume for every echo of '
+            'a run; if undefined, it is chosen from the input file name '
+            '(see select_report_volume)'
+        ),
+    )
 
 
 class _SVHTDenoiseOutputSpec(reporting.ReportCapableOutputSpec):
@@ -171,8 +180,9 @@ class SVHTDenoise(reporting.ReportCapableInterface, CommandLine):
     With ``phase_file``, the complex data are rotated onto the real axis instead, and the
     output is signed.
 
-    The visual report shows one volume, chosen at random but reproducibly from the input
-    file's name, before and after denoising, with contours of the noise map.
+    The visual report shows one volume before and after denoising, with contours of the noise
+    map: ``report_volume`` if set, otherwise one chosen at random but reproducibly from the
+    input file's name.
 
     Examples
     --------
@@ -214,6 +224,7 @@ class SVHTDenoise(reporting.ReportCapableInterface, CommandLine):
             signed=isdefined(self.inputs.phase_file),
             out_file=self._out_report,
             compress=self.inputs.compress_report,
+            index=self.inputs.report_volume if isdefined(self.inputs.report_volume) else None,
         )
 
 
@@ -255,13 +266,14 @@ class AbsoluteValue(SimpleInterface):
 def select_report_volume(in_file, n_volumes):
     """Choose the volume a denoising report shows.
 
-    The choice is random across files but fixed for a given file name, so that a rerun
-    (or a cached node) shows the same volume.
+    The choice is random across runs but fixed for a given file name, so that a rerun
+    (or a cached node) shows the same volume. The ``echo-`` entity is ignored, so every
+    echo of a run gets the same volume.
 
     Parameters
     ----------
     in_file : str
-        The input series. Only its base name is used.
+        The input series (any echo of the run). Only its base name is used.
     n_volumes : int
         The number of volumes in the series.
 
@@ -269,8 +281,15 @@ def select_report_volume(in_file, n_volumes):
     -------
     int
         A volume index in ``range(n_volumes)``.
+
+    Examples
+    --------
+    >>> echoes = [f'sub-01_task-rest_echo-{echo}_part-mag_bold.nii.gz' for echo in (1, 2, 3)]
+    >>> len({select_report_volume(echo, 200) for echo in echoes})
+    1
     """
-    seed = zlib.crc32(os.path.basename(str(in_file)).encode())
+    run_name = re.sub(r'_echo-[^_]+', '', os.path.basename(str(in_file)))
+    seed = zlib.crc32(run_name.encode())
     return int(np.random.default_rng(seed).integers(n_volumes))
 
 
@@ -368,6 +387,7 @@ def plot_denoising(
     out_file,
     n_cuts=7,
     compress='auto',
+    index=None,
 ):
     """Write a before/after reportlet of one volume of a denoised series.
 
@@ -389,6 +409,8 @@ def plot_denoising(
     compress : ``'auto'`` or bool
         Whether to compress each panel with SVGO and WEBP; ``'auto'`` does so if they are
         installed.
+    index : int, optional
+        The volume to show. If ``None``, it is chosen with :func:`select_report_volume`.
 
     Returns
     -------
@@ -402,7 +424,10 @@ def plot_denoising(
     raw_nii = nb.load(in_file)
     denoised_nii = nb.load(denoised_file)
     n_volumes = raw_nii.shape[3] if raw_nii.ndim == 4 else 1
-    index = select_report_volume(in_file, n_volumes)
+    if index is None:
+        index = select_report_volume(in_file, n_volumes)
+    elif not 0 <= index < n_volumes:
+        raise ValueError(f'Report volume {index} is out of range for {n_volumes} volumes.')
 
     raw_vol = nb.Nifti1Image(
         np.asanyarray(raw_nii.dataobj[..., index], dtype=np.float32),

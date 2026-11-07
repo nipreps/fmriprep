@@ -77,7 +77,8 @@ sections:
   - bids: {datatype: figures, desc: summary, suffix: bold}
   - bids: {datatype: figures, desc: denoising, suffix: bold}
     caption: Thermal-noise denoising with <code>svht_denoise</code>, the first step of BOLD
-      preprocessing. One volume, chosen at random, is shown before and after denoising.
+      preprocessing. One volume, chosen at random (the same one for every echo of a run), is
+      shown before and after denoising.
       The contours mark the 25th, 50th and 75th percentiles of the estimated noise
       standard deviation within the brain.
     static: false

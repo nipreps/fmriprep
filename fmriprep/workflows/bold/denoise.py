@@ -37,7 +37,7 @@ from ... import config
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.bids import BIDSURI
-from ...interfaces.denoise import AbsoluteValue, SVHTDenoise
+from ...interfaces.denoise import AbsoluteValue, SVHTDenoise, select_report_volume
 from ...utils.denoise import (
     can_svht_denoise,
     check_svht_phase,
@@ -184,6 +184,9 @@ def init_bold_denoise_wf(
     if version is not None:
         provenance['SoftwareVersion'] = version
 
+    # One volume for the whole run, so every echo's reportlet shows the same volume
+    report_volume = select_report_volume(bold_series[0], n_volumes)
+
     for i, bold_file in enumerate(bold_series):
         echo = f'echo{i + 1}'
         phase_file = phase_series[i] if use_phase else None
@@ -203,7 +206,12 @@ def init_bold_denoise_wf(
             mem_gb=mem_gb,
         )
         denoiser = pe.Node(
-            SVHTDenoise(rank_image='rank.nii.gz', nthreads=omp_nthreads, **denoiser_kwargs),
+            SVHTDenoise(
+                rank_image='rank.nii.gz',
+                nthreads=omp_nthreads,
+                report_volume=report_volume,
+                **denoiser_kwargs,
+            ),
             name=f'denoiser_{echo}',
             n_procs=omp_nthreads,
             mem_gb=mem_gb * SVHT_MEM_FACTOR,
