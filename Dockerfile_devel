@@ -12,7 +12,7 @@ ENV PYTHONNOUSERSITE=0
 
 RUN cd /src/fmriprep &&\
     pip install --upgrade "pip>=25.1" &&\
-    pip install -e . --group all &&\
+    pip install -e . --group dev &&\
     cp -R /src/fmriprep/fmriprep.egg-info /src/ 2>/dev/null || true
 
 # create freesurfer license
