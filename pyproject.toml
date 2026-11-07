@@ -261,8 +261,6 @@ line-length = 99
 
 [tool.ruff.lint]
 extend-select = [
-  "I",
-  "UP",
   "YTT",
   "S",
   "BLE",
@@ -285,6 +283,7 @@ extend-select = [
   # "SIM",
   # "TID",
   "FLY",
+  "I",
   # "PD",
   "PERF",
   "W",
@@ -292,6 +291,7 @@ extend-select = [
   "PLC",
   "PLE",
   "PLW",
+  "UP",
   "FURB",
   "RUF",
 ]
