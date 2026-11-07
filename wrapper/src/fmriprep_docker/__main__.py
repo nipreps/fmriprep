@@ -145,9 +145,12 @@ def merge_help(wrapper_help, target_help):
             line = targ.lstrip()
             if line.startswith('usage'):
                 continue
-            if line[0].isalnum() or line[0] == '{':
-                posargs.append(line)
-            elif line[0] == '[' and (line[1].isalnum() or line[1] == '{'):
+            if (
+                line[0].isalnum()
+                or line[0] == '{'
+                or line[0] == '['
+                and (line[1].isalnum() or line[1] == '{')
+            ):
                 posargs.append(line)
         return ' '.join(posargs)
 
