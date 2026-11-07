@@ -858,7 +858,8 @@ def test_bold_denoise_wiring(bids_root_factory, method, layout_id, ignore, expec
     # Denoising is described first among the functional steps, under their heading
     heading = desc.index('Functional data preprocessing')
     denoising = desc.index('thermal noise was removed')
-    reference = desc.index('a reference volume was generated')
+    # Not tied to the reference step's opening word, which changes with its position
+    reference = desc.index('reference volume was generated')
     assert heading < denoising < reference
     assert ('[@nordic]' in desc) == expect_phase
 
