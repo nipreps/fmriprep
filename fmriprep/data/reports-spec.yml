@@ -75,6 +75,14 @@ sections:
   ordering: session,task,acquisition,ceagent,reconstruction,direction,run,echo
   reportlets:
   - bids: {datatype: figures, desc: summary, suffix: bold}
+  - bids: {datatype: figures, desc: denoising, suffix: bold}
+    caption: Thermal-noise denoising with <code>svht_denoise</code>, the first step of BOLD
+      preprocessing. One volume, chosen at random (the same one for every echo of a run), is
+      shown before and after denoising.
+      The contours mark the 25th, 50th and 75th percentiles of the estimated noise
+      standard deviation within the brain.
+    static: false
+    subtitle: Thermal-noise denoising
   - bids: {datatype: figures, desc: validation, suffix: bold}
   - bids: {datatype: figures, desc: fmapCoreg, suffix: bold}
     caption: The estimated fieldmap was aligned to the corresponding BOLD reference

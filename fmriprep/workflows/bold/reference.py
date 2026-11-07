@@ -84,7 +84,7 @@ def init_raw_boldref_wf(
 
     workflow = Workflow(name=name)
     workflow.__desc__ = f"""\
-First, a reference volume was generated{' from the shortest echo of the BOLD run' * multiecho},
+A reference volume was generated{' from the shortest echo of the BOLD run' * multiecho},
 using a custom methodology of *fMRIPrep*, for use in head motion correction.
 """
 

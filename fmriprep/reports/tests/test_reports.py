@@ -109,3 +109,18 @@ def test_ReportSeparation(
         assert 'One or more execution steps failed' in html_content, (
             f'The file {expected_files[0]} did not contain the reported error.'
         )
+
+
+@pytest.mark.parametrize('spec_name', ['reports-spec.yml', 'reports-spec-func.yml'])
+def test_functional_spec_shows_denoising(spec_name):
+    """Test that every report layout with a Functional section shows the denoising figure.
+
+    The per-subject report uses reports-spec.yml and per-session functional reports use
+    reports-spec-func.yml, so both must list it, right after the run summary.
+    """
+    import yaml
+
+    spec = yaml.safe_load(data.load.readable(spec_name).read_text())
+    functional = next(section for section in spec['sections'] if section['name'] == 'Functional')
+    descs = [reportlet['bids'].get('desc') for reportlet in functional['reportlets']]
+    assert descs.index('denoising') == descs.index('summary') + 1
