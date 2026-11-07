@@ -241,7 +241,7 @@ def publication(
     pis = load(pi)
     entries = contrib | maint
 
-    authors = [entries[name] for name in hits.keys() if name not in pis]
+    authors = [entries[name] for name in hits if name not in pis]
     authors += pis.values()
 
     def _aslist(value):
