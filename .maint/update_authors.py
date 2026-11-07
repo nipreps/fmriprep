@@ -104,7 +104,7 @@ def get_git_lines(fname='line-contributors.txt'):
 
     git_line_summary_path = shutil.which('git-line-summary')
     if not git_line_summary_path:
-        git_line_summary_path = 'git summary --dedup-by-email'.split(' ')
+        git_line_summary_path = ['git', 'summary', '--dedup-by-email']
     else:
         git_line_summary_path = [git_line_summary_path]
 
