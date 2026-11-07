@@ -106,7 +106,7 @@ def check_docker():
 
         if e.errno == ENOENT:
             return -1
-        raise e
+        raise
     if ret.stderr.startswith(b'Cannot connect to the Docker daemon.'):
         return 0
     return 1
@@ -145,9 +145,12 @@ def merge_help(wrapper_help, target_help):
             line = targ.lstrip()
             if line.startswith('usage'):
                 continue
-            if line[0].isalnum() or line[0] == '{':
-                posargs.append(line)
-            elif line[0] == '[' and (line[1].isalnum() or line[1] == '{'):
+            if (
+                line[0].isalnum()
+                or line[0] == '{'
+                or line[0] == '['
+                and (line[1].isalnum() or line[1] == '{')
+            ):
                 posargs.append(line)
         return ' '.join(posargs)
 
@@ -528,13 +531,12 @@ def main():
         unknown_args.extend(['-w', '/scratch'])
 
     # Check that work_dir is not a child of bids_dir
-    if opts.work_dir and opts.bids_dir:
-        if is_in_directory(opts.work_dir, opts.bids_dir):
-            print(
-                'The selected working directory is a subdirectory of the input BIDS folder. '
-                'Please modify the output path.'
-            )
-            return 1
+    if opts.work_dir and opts.bids_dir and is_in_directory(opts.work_dir, opts.bids_dir):
+        print(
+            'The selected working directory is a subdirectory of the input BIDS folder. '
+            'Please modify the output path.'
+        )
+        return 1
 
     if opts.config:
         command.extend(['-v', ':'.join((opts.config, '/home/fmriprep/.nipype/nipype.cfg', 'ro'))])
