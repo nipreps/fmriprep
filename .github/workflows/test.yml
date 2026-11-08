@@ -44,7 +44,7 @@ jobs:
         with:
           path: ~/.cache/templateflow
           key: templateflow-v1
-      - uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347 # v0.10.1
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           pixi-version: v0.78.0
           environments: ${{ matrix.environment }}
