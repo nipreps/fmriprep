@@ -163,6 +163,7 @@ python = "3.13.*"
 [tool.pixi.feature.conda.dependencies]
 ants = ">=2.6"
 connectome-workbench-cli = { version = ">=2.0", build = "*qt6*" }
+fsl-avwutils = ">=2209.3"  # fslmaths
 fsl-bet2 = ">=2111.8"
 fsl-flirt = ">=2111.4"
 fsl-fast4 = ">=2111.3"
