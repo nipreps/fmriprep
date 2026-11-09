@@ -32,7 +32,7 @@ __bugreports__ = 'https://github.com/nipreps/fmriprep/issues'
 MISSING = """
 Image '{}' is missing
 Would you like to download? [Y/n] """
-PKG_PATH = '/app/.pixi/envs/fmriprep/lib/python3.12/site-packages'
+PKG_PATH = '/patches'
 TF_TEMPLATES = (
     'MNI152Lin',
     'MNI152NLin2009cAsym',
@@ -483,6 +483,7 @@ def main():
 
     # Patch working repositories into installed package directories
     if opts.patch:
+        command.extend(['-e', 'PYTHONPATH={}'.format(PKG_PATH)])
         for pkg, repo_path in opts.patch.items():
             command.extend(['-v', '{}:{}/{}:ro'.format(repo_path, PKG_PATH, pkg)])
 

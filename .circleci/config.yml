@@ -11,7 +11,7 @@ _machine_defaults: &machine_defaults
 
 _python_defaults: &python_defaults
   docker:
-    - image: cimg/python:3.12
+    - image: cimg/python:3.14
   working_directory: /tmp/src/fmriprep
 
 _docker_auth: &docker_auth
