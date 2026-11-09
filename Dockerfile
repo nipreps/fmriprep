@@ -64,7 +64,7 @@ RUN --mount=type=cache,target=/root/.cache/rattler pixi install -e fmriprep -e d
 #
 # Pre-fetch templates
 #
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS templates
+FROM ghcr.io/astral-sh/uv:python3.14-alpine AS templates
 ENV TEMPLATEFLOW_HOME="/templateflow"
 RUN uv pip install --system templateflow
 COPY scripts/fetch_templates.py fetch_templates.py
