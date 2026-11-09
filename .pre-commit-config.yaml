@@ -28,5 +28,9 @@ repos:
     rev: 57b21406f092110c18776e39b0bda50d37c945c8  # frozen: v2.4.3
     hooks:
       - id: codespell
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7  # frozen: v1.32.0
+    hooks:
+      - id: zizmor
 ci:
   autoupdate_schedule: monthly
