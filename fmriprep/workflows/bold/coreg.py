@@ -106,22 +106,22 @@ def init_bold_anat_coreg_wf(
 
         ``template2anat_xfm``
             Run-level: list of per-run boldref->anat transforms (``None`` where
-            absent). Session-level: a single template->anat transform. Where a
+            absent). Template-level: a single template->anat transform. Where a
             transform is present, registration is skipped for that boldref.
         ``run2template_xfms``
-            Session-level: list of per-run run->template transforms. When all runs
+            Template-level: list of per-run run->template transforms. When all runs
             are present, the template workflow is skipped and these transforms are
             applied to the run references to reconstruct the template space.
         ``boldref_template``
-            Session-level: the precomputed template reference. When supplied
+            Template-level: the precomputed template reference. When supplied
             alongside a complete set of ``run2template_xfms``, it is reused directly
-            instead of reconstructing the reference from run 0. The template brain
-            mask is always derived from the run references.
+            instead of reconstructing the reference from the template runs. The
+            template brain mask is always derived from the run references.
     template_reference
-        Session-level: index of the run defining the template space, or ``None`` for
-        an unbiased template (see :func:`~fmriprep.workflows.bold.template.init_bold_template_wf`).
+        Index of the run defining the template space, or ``None`` for an unbiased
+        template (see :func:`~fmriprep.workflows.bold.template.init_bold_template_wf`).
     template_runs
-        Session-level: whether each run is averaged into the template image.
+        Whether each run is averaged into the template image.
 
     Inputs
     ------
@@ -143,8 +143,8 @@ def init_bold_anat_coreg_wf(
     Outputs
     -------
     template_boldrefs
-        Per-run boldref in coregistration target space: session template repeated
-        n times (session-level) or each run's own boldref (run-level).
+        Per-run boldref in coregistration target space: template repeated
+        n times (template-level) or each run's own boldref (run-level).
     run2template_xfms
         Per-run transform from run space to the coregistration template.
         Identity transforms for run-level coregistration.
@@ -305,7 +305,7 @@ def init_bold_template_coreg_wf(
 ) -> Workflow:
     """Coregister BOLD runs through a common template to the anatomical.
 
-    Shares the input/output signature of :func:`init_bold_anat_coreg_wf`. All run
+    Shares the input/output signature of :func:`init_bold_anat_coreg_wf`. The run
     references are combined into a ``coreg_space`` (``session`` or ``subject``)
     template, that template is registered to the anatomical, and per-run
     ``run->template->anat`` transforms are composed.
