@@ -539,6 +539,7 @@ jobs:
                 --sloppy --write-graph --mem-mb 14336 \
                 --skull-strip-template OASIS30ANTs:res-1 \
                 --output-spaces fsaverage5 fsnative \
+                --hmc-method 3dvolreg \
                 --use-plugin /tmp/src/fmriprep/.circleci/legacy.yml \
                 --nthreads 4 -vv
       - store_artifacts:
@@ -571,6 +572,7 @@ jobs:
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
                 --use-syn-sdc --fallback-total-readout-time 0.03125 \
+                --hmc-method 3dvolreg \
                 --sloppy --write-graph --mem-mb 14336 \
                 --output-spaces MNI152NLin2009cAsym fsaverage5 fsnative MNI152NLin6Asym anat \
                 --nthreads 4 --cifti-output --project-goodvoxels -vv
@@ -595,6 +597,7 @@ jobs:
                 /tmp/data/${DATASET} /tmp/${DATASET}/fmriprep-partial-noT1w participant \
                 --fs-subjects-dir /tmp/${DATASET}/freesurfer \
                 ${FASTRACK_ARG} \
+                --hmc-method 3dvolreg \
                 --sloppy --write-graph --mem-mb 14336 \
                 --level minimal --nthreads 4 -vv
       - run:
