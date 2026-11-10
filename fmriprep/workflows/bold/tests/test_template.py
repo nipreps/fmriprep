@@ -18,37 +18,39 @@
 #     https://www.nipreps.org/community/licensing/
 #
 import pytest
+from nipype.interfaces.base import isdefined
 
 from ..template import init_bold_template_wf
 
 
 @pytest.mark.parametrize(
-    ('reference', 'template_runs', 'fixed', 'registered'),
+    ('reference', 'template_runs', 'initial_timepoint', 'order'),
     [
-        (0, None, True, False),
-        (None, None, False, False),
-        (2, [False, True, True], True, False),
-        (None, [True, False, True], False, True),
+        (0, None, 1, None),
+        (None, None, None, None),
+        (2, [False, True, True], 2, [2, 0, 1]),
+        (None, [True, False, True], None, [0, 2, 1]),
+        (1, [False, True, False], 1, [1, 0, 2]),
     ],
 )
-def test_template_selection(reference, template_runs, fixed, registered):
-    """The reference fixes the template space; excluded runs are registered to unbiased ones."""
+def test_template_selection(reference, template_runs, initial_timepoint, order):
+    """Only the template runs build the template; the rest are registered to it, in run order."""
     wf = init_bold_template_wf(num_bold_runs=3, reference=reference, template_runs=template_runs)
 
+    fixed = reference is not None
     robust_template = wf.get_node('boldref_template').inputs
     assert robust_template.fixed_timepoint is fixed
     assert robust_template.no_iteration is fixed
     if fixed:
-        assert robust_template.initial_timepoint == reference + 1
-    assert (wf.get_node('register_excluded_runs') is not None) is registered
-    if template_runs and not registered:
-        assert wf.get_node('resample_template').inputs.indices == template_runs
+        assert robust_template.initial_timepoint == initial_timepoint
+    # A single template run is copied, and writes no intensity scale
+    assert isdefined(robust_template.scaled_intensity_outputs) is (
+        sum(template_runs or [1] * 3) > 1
+    )
+
+    sort_xfms = wf.get_node('sort_xfms')
+    assert (wf.get_node('register_excluded_wf') is not None) is (order is not None)
+    if order is not None:
+        assert sort_xfms.inputs.index == order
     if template_runs:
         assert 'selected' in wf.__desc__
-
-
-def test_merge_xfms_order():
-    """Transforms of registered runs are returned in the original run order."""
-    from ..template import _interleave
-
-    assert _interleave(['b', 'd'], ['a', 'c'], [False, True, False, True]) == ['a', 'b', 'c', 'd']

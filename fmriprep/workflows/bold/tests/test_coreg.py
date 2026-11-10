@@ -55,18 +55,19 @@ def test_template_reconstruct(tmp_path: Path):
             template_runs=[True, True],
         )
 
-    assert wf.get_node('reconstruct_template').inputs.indices == [True, True]
-    assert wf.get_node('select_reference').inputs.index == [1]
+    reconstruct_template_wf = wf.get_node('reconstruct_template_wf')
+    assert reconstruct_template_wf.get_node('reconstruct_template').inputs.indices == [True, True]
+    assert reconstruct_template_wf.get_node('select_reference').inputs.index == [1]
     assert wf.get_node('template_space') is None
-    assert wf.get_node('template_data').inputs.mask == [True, True]
+    assert wf.get_node('template_data').inputs.index == [0, 1]
 
 
 @pytest.mark.parametrize(
     ('reference', 'template_runs', 'space', 'data'),
     [
-        (None, None, [True, True, True], [True, True, True]),
-        (1, [True, True, False], [False, True, False], [True, True, False]),
-        (None, [True, False, True], [True, False, True], [True, False, True]),
+        (None, None, [0, 1, 2], [0, 1, 2]),
+        (1, [True, True, False], [1], [0, 1]),
+        (None, [True, False, True], [0, 2], [0, 2]),
     ],
 )
 def test_template_provenance(tmp_path: Path, reference, template_runs, space, data):
@@ -92,5 +93,5 @@ def test_template_provenance(tmp_path: Path, reference, template_runs, space, da
             template_runs=template_runs,
         )
 
-    assert wf.get_node('template_space').inputs.mask == space
-    assert wf.get_node('template_data').inputs.mask == data
+    assert wf.get_node('template_space').inputs.index == space
+    assert wf.get_node('template_data').inputs.index == data
