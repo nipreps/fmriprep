@@ -187,10 +187,17 @@ def init_single_subject_wf(
 
     from fmriprep.interfaces.bids import BIDSSourceFile, CreateFreeSurferID
     from fmriprep.interfaces.reports import FunctionalSummary
-    from fmriprep.utils.bids import is_valid_bold_template
-    from fmriprep.utils.misc import get_wf_name
+    from fmriprep.utils.bids import collect_bold_phase, is_valid_bold_template
+    from fmriprep.utils.denoise import (
+        can_svht_denoise,
+        describe_svht,
+        load_svht_config,
+        svht_denoise_version,
+    )
+    from fmriprep.utils.misc import estimate_bold_mem_usage, get_wf_name
     from fmriprep.workflows.bold.base import init_bold_apply_wf
     from fmriprep.workflows.bold.coreg import init_bold_anat_coreg_wf
+    from fmriprep.workflows.bold.denoise import init_bold_denoise_wf
     from fmriprep.workflows.bold.fit import init_bold_fit_wf
     from fmriprep.workflows.bold.outputs import init_func_fit_reports_wf
 
@@ -893,6 +900,12 @@ tasks and sessions), the following preprocessing was performed.
             return est_type == est_type.__class__.PEPOLAR
         return False
 
+    # Thermal-noise denoising; the default is the string 'none', so test for equality
+    denoise_svht = config.workflow.bold_denoise_method == 'svht'
+    denoise_params = {}
+    if denoise_svht and config.workflow.bold_denoise_config is not None:
+        denoise_params = load_svht_config(config.workflow.bold_denoise_config)
+
     for group in coreg_groups:
         group_bold_files = [series[0] for series in group]
         group_id = get_wf_name(group_bold_files[0], None).removesuffix('_wf')
@@ -913,6 +926,26 @@ tasks and sessions), the following preprocessing was performed.
             functional_caches.append(functional_cache)
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
+        if denoise_svht:
+            # As in init_bold_fit_wf: reused, since denoising moves no voxels, but estimated
+            # from data that may not have been denoised
+            reused = [
+                label
+                for label, value in (
+                    ('BOLD-to-anatomical transforms', coreg_precomputed['template2anat_xfm']),
+                    ('run-to-template transforms', coreg_precomputed.get('run2template_xfms')),
+                    ('BOLD template', [coreg_precomputed.get('boldref_template')]),
+                )
+                if any(value or [])
+            ]
+            if reused:
+                config.loggers.workflow.warning(
+                    'Reusing precomputed %s for %s with --bold-denoise-method svht. These were '
+                    'estimated from data that may not have been denoised. Remove them from '
+                    '--derivatives to estimate them from the denoised series.',
+                    ', '.join(reused),
+                    group_id,
+                )
 
         bold_anat_coreg_wf = init_bold_anat_coreg_wf(
             bold_files=group_bold_files,
@@ -967,15 +1000,62 @@ tasks and sessions), the following preprocessing was performed.
             entities = extract_entities(bold_series)
             bold_id = get_wf_name(bold_file, None).removesuffix('_wf')
 
+            # Denoising is the first step: when it runs, fit and resampling read its output
+            bold_denoise_wf = None
+            if denoise_svht:
+                bold_img = nb.load(bold_file)
+                n_volumes = bold_img.shape[3] if bold_img.ndim == 4 else 1
+                if can_svht_denoise(n_volumes):
+                    phase_series = None
+                    if 'phase' not in config.workflow.ignore:
+                        phase_series = collect_bold_phase(config.execution.layout, bold_series)
+
+                    bold_denoise_wf = init_bold_denoise_wf(
+                        bold_series=bold_series,
+                        phase_series=phase_series,
+                        denoise_params=denoise_params,
+                        mem_gb=estimate_bold_mem_usage(bold_file)[1]['filesize'],
+                        omp_nthreads=omp_nthreads,
+                        output_dir=fmriprep_dir,
+                        name=f'bold_denoise_{bold_id}_wf',
+                    )
+                else:
+                    config.loggers.workflow.warning(
+                        'Not denoising %s: its %d volume(s) are too few for svht_denoise '
+                        'to estimate the noise.',
+                        bold_file,
+                        n_volumes,
+                    )
+
+            denoised = bold_denoise_wf is not None
+
             bold_fit_wf = init_bold_fit_wf(
                 bold_series=bold_series,
                 precomputed=functional_cache,
                 fieldmap_id=fieldmap_id,
                 jacobian=jacobian,
                 omp_nthreads=omp_nthreads,
+                denoised=denoised,
                 name=f'bold_fit_{bold_id}_wf',
             )
-            bold_fit_wf.__desc__ = func_pre_desc + (bold_fit_wf.__desc__ or '')
+            # Denoising is described here, after the heading and before the fit steps, since
+            # the boilerplate visits workflows in graph order and the heading is attached here
+            denoise_desc = ''
+            if denoised:
+                denoise_desc = describe_svht(
+                    denoise_params,
+                    use_phase=phase_series is not None,
+                    multiecho=len(bold_series) > 1,
+                    version=svht_denoise_version(),
+                )
+
+            bold_fit_wf.__desc__ = func_pre_desc + denoise_desc + (bold_fit_wf.__desc__ or '')
+            if denoised:
+                workflow.connect([
+                    (bold_denoise_wf, bold_fit_wf, [
+                        ('outputnode.bold_files', 'inputnode.bold_file'),
+                    ]),
+                ])  # fmt:skip
 
             boldref_buffer = pe.Node(
                 niu.IdentityInterface(
@@ -1127,8 +1207,15 @@ tasks and sessions), the following preprocessing was performed.
                 bold_series=bold_series,
                 fieldmap_id=fieldmap_id,
                 jacobian=jacobian,
+                denoised=denoised,
                 name=f'bold_apply_{bold_id}_wf',
             )
+            if denoised:
+                workflow.connect([
+                    (bold_denoise_wf, bold_apply_wf, [
+                        ('outputnode.bold_files', 'inputnode.bold_files'),
+                    ]),
+                ])  # fmt:skip
 
             workflow.connect([
                 (anat_fit_wf, bold_apply_wf, [

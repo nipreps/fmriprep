@@ -378,7 +378,7 @@ def _build_parser(**kwargs):
         action='store',
         nargs='+',
         default=[],
-        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian'],
+        choices=['fieldmaps', 'slicetiming', 'sbref', 't2w', 'flair', 'fmap-jacobian', 'phase'],
         help='Ignore selected aspects of the input dataset to disable corresponding '
         'parts of the workflow (a space delimited list)',
     )
@@ -452,6 +452,28 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         'finest acquired voxel size if that is smaller, which reduces interpolation '
         'error when resampling at the cost of larger BOLD reference outputs. '
         'Only applies to `--bold-coreg-level session` or `subject`.',
+    )
+    g_conf.add_argument(
+        '--bold-denoise-method',
+        action='store',
+        choices=['none', 'svht'],
+        # None, not 'none': config.load skips None, so a value from --config-file survives.
+        # The configuration default is 'none'.
+        default=None,
+        help='Thermal-noise denoising of each BOLD series, applied before any other '
+        'step. `none` (default) disables it. `svht` denoises each echo with svht_denoise '
+        '(local PCA with optimal singular value shrinkage), using the part-phase '
+        'companion when the dataset has one (disable with `--ignore phase`), and writes '
+        'noise and rank maps.',
+    )
+    g_conf.add_argument(
+        '--bold-denoise-config',
+        action='store',
+        type=IsFile,
+        metavar='FILE',
+        help='A JSON file of svht_denoise parameters for `--bold-denoise-method svht`. '
+        'Valid keys: aggregator, aggregator_fwhm, extent, filter_method, noise_dof, '
+        'preserve_noise_bias, shape, stride, vst. Unset keys keep svht_denoise defaults.',
     )
     g_conf.add_argument(
         '--force-bbr',
@@ -849,6 +871,22 @@ def parse_args(args=None, namespace=None):
 
     config.execution.log_level = int(max(25 - 5 * opts.verbose_count, logging.DEBUG))
     config.from_dict(vars(opts), init=['nipype'])
+
+    # Checked after --config-file is applied, so the denoising settings in effect are checked,
+    # whether they came from the command line or from a previous run's configuration
+    denoising = config.workflow.bold_denoise_method == 'svht'
+    if opts.bold_denoise_config is not None and not denoising:
+        # Only a file given on this command line is an error; one inherited from a previous
+        # run's configuration is simply unused when denoising is turned off
+        parser.error('`--bold-denoise-config` requires `--bold-denoise-method svht`.')
+
+    if denoising and config.workflow.bold_denoise_config is not None:
+        from ..utils.denoise import load_svht_config
+
+        try:
+            load_svht_config(config.workflow.bold_denoise_config)
+        except ValueError as err:
+            parser.error(str(err))
 
     if config.execution.work_dir is None:
         config.execution.work_dir = Path('work').absolute()
