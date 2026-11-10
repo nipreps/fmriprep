@@ -11,8 +11,9 @@ RUN apt-get update &&\
 ENV PYTHONNOUSERSITE=0
 
 RUN cd /src/fmriprep &&\
-    pip install --no-use-pep517 -e .[all] &&\
-    cp -R /src/fmriprep/fmriprep.egg-info /src/
+    pip install --upgrade "pip>=25.1" &&\
+    pip install -e . --group dev &&\
+    cp -R /src/fmriprep/fmriprep.egg-info /src/ 2>/dev/null || true
 
 # create freesurfer license
 RUN cd /tmp &&\
