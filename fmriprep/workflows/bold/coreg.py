@@ -25,7 +25,7 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.base import Undefined
 from nipype.pipeline import engine as pe
 from niworkflows.engine.workflows import LiterateWorkflow as Workflow
-from niworkflows.utils.connections import pop_file
+from niworkflows.utils.connections import listify, pop_file
 
 from fmriprep import config
 from fmriprep.interfaces import DerivativesDataSink
@@ -325,7 +325,7 @@ def init_bold_template_coreg_wf(
     from fmriprep.utils.misc import get_wf_name
     from fmriprep.workflows.bold.outputs import init_ds_registration_wf
     from fmriprep.workflows.bold.registration import init_bold_reg_wf
-    from fmriprep.workflows.bold.template import init_bold_template_wf, select_by_mask
+    from fmriprep.workflows.bold.template import init_bold_template_wf
 
     precomputed = precomputed or {}
     bids_root = str(config.execution.bids_dir)
@@ -333,6 +333,7 @@ def init_bold_template_coreg_wf(
     if template_reference is None and template_runs is None:
         template_reference, template_runs = resolve_selection(['n/a'] * n_runs)
     template_runs = template_runs or [True] * n_runs
+    template_indices = [i for i, keep in enumerate(template_runs) if keep]
     bold_ids = [get_wf_name(bold_file, None).removesuffix('_wf') for bold_file in bold_files]
 
     workflow = Workflow(name=name)
@@ -425,9 +426,8 @@ def init_bold_template_coreg_wf(
         run_without_submitting=True,
     )
     template_data = pe.Node(
-        niu.Function(function=select_by_mask), name='template_data', run_without_submitting=True
+        niu.Select(index=template_indices), name='template_data', run_without_submitting=True
     )
-    template_data.inputs.mask = template_runs
 
     # Single template is written
     ds_boldref_template = pe.Node(
@@ -448,7 +448,7 @@ def init_bold_template_coreg_wf(
             (inputnode, template_sources, [('run_boldrefs', 'in1')]),
             (template_sources, template_data, [('out', 'inlist')]),
             (template_sources, ds_boldref_template, [('out', 'Sources')]),
-            (template_data, ds_boldref_template, [('out', 'TemplateData')]),
+            (template_data, ds_boldref_template, [(('out', listify), 'TemplateData')]),
             (ds_boldref_template, template_buffer, [('out_file', 'boldref')]),
         ])  # fmt:skip
 
@@ -464,14 +464,11 @@ def init_bold_template_coreg_wf(
         )
 
         template_space = pe.Node(
-            niu.Function(function=select_by_mask),
+            niu.Select(
+                index=template_indices if template_reference is None else template_reference
+            ),
             name='template_space',
             run_without_submitting=True,
-        )
-        template_space.inputs.mask = (
-            template_runs
-            if template_reference is None
-            else [i == template_reference for i in range(n_runs)]
         )
 
         merge_run2template = pe.Node(
@@ -481,7 +478,7 @@ def init_bold_template_coreg_wf(
         workflow.connect([
             (inputnode, bold_template_wf, [('run_boldrefs', 'inputnode.boldref_files')]),
             (template_sources, template_space, [('out', 'inlist')]),
-            (template_space, ds_boldref_template, [('out', 'TemplateSpace')]),
+            (template_space, ds_boldref_template, [(('out', listify), 'TemplateSpace')]),
             (bold_template_wf, ds_boldref_template, [('outputnode.boldref', 'in_file')]),
             (merge_run2template, template_buffer, [('out', 'run2template_xfms')]),
         ])  # fmt:skip
