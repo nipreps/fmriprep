@@ -72,10 +72,6 @@ line-length = 99
 
 [tool.ruff.lint]
 extend-select = [
-  "F",
-  "E",
-  "W",
-  "I",
   "YTT",
   "BLE",
   "B",
@@ -89,10 +85,18 @@ extend-select = [
   "ICN",
   "PT",
   "Q",
+  "I",
+  "E",
+  "W",
+  "F",
 ]
 ignore = [
-  "S311",  # We are not using random for cryptographic purposes
-  "B905",  # Python 3-only rule
+  "B905",    # Python 3-only rule
+  "SIM",     # Python 3-only rules
+  "FLY002",  # Python 3-only rule
+  "PLW1510", # Python 3-only rule
+  "UP",      # Python 3-only rules
+  "RUF",     # Python 3-only rules
 ]
 
 [tool.ruff.lint.flake8-quotes]
