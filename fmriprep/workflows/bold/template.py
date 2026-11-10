@@ -23,6 +23,7 @@ BOLD template creation workflow.
 
 .. autofunction:: init_bold_template_wf
 .. autofunction:: init_register_excluded_wf
+.. autofunction:: init_reconstruct_template_wf
 
 """
 
@@ -309,5 +310,91 @@ def init_register_excluded_wf(
         (register_runs, to_itk, [('out_reg_file', 'in_xfm')]),
         (to_itk, outputnode, [('out_xfm', 'run2template_xfms')]),
     ])  # fmt:skip
+
+    return workflow
+
+
+def init_reconstruct_template_wf(
+    *,
+    run2template_xfms: list[str],
+    reference: int | None = None,
+    template_runs: list[bool] | None = None,
+    upsample: tuple[float, float, float] | None = None,
+    name: str = 'reconstruct_template_wf',
+) -> Workflow:
+    """
+    Reconstruct a BOLD template from the run references and precomputed transforms.
+
+    Parameters
+    ----------
+    run2template_xfms : :obj:`list` of :obj:`str`
+        Transforms from each run's original space to the boldref template.
+    reference : :obj:`int` or None
+        Index of the run whose reference defines the template grid, or ``None``
+        (default) to use the first template run.
+    template_runs : :obj:`list` of :obj:`bool` or None
+        Whether each run's reference is averaged into the template image, one per run,
+        or ``None`` (default) to average all runs.
+    upsample : :obj:`tuple` or None
+        Isotropic zooms to upsample the template grid to, or ``None`` to keep the
+        acquired resolution.
+
+    Inputs
+    ------
+    boldref_files
+        List of BOLD reference files, one per run.
+
+    Outputs
+    -------
+    boldref
+        The reconstructed BOLD template reference.
+
+    """
+    from niworkflows.utils.connections import pop_file
+
+    from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
+
+    num_bold_runs = len(run2template_xfms)
+    if template_runs is None:
+        template_runs = [True] * num_bold_runs
+
+    workflow = Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['boldref_files']),
+        name='inputnode',
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['boldref']),
+        name='outputnode',
+    )
+
+    select_reference = pe.Node(
+        niu.Select(index=template_runs.index(True) if reference is None else reference),
+        name='select_reference',
+        run_without_submitting=True,
+    )
+    reconstruct_template = pe.Node(
+        ResampleTemplate(transforms=run2template_xfms, indices=template_runs),
+        mem_gb=0.2 * num_bold_runs,
+        name='reconstruct_template',
+    )
+
+    workflow.connect([
+        (inputnode, select_reference, [('boldref_files', 'inlist')]),
+        (inputnode, reconstruct_template, [('boldref_files', 'in_files')]),
+        (reconstruct_template, outputnode, [('out_file', 'boldref')]),
+    ])  # fmt:skip
+
+    if upsample:
+        upsample_reference = pe.Node(
+            UpsampleToZooms(target_zooms=upsample), name='upsample_reference'
+        )
+        workflow.connect([
+            (select_reference, upsample_reference, [('out', 'in_files')]),
+            (upsample_reference, reconstruct_template, [(('out_files', pop_file), 'reference')]),
+        ])  # fmt:skip
+    else:
+        workflow.connect(select_reference, 'out', reconstruct_template, 'reference')
 
     return workflow
