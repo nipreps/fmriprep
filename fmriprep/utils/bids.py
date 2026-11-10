@@ -363,7 +363,9 @@ def write_bidsignore(deriv_dir):
     ignore_file.write_text('\n'.join(bids_ignore) + '\n')
 
 
-def write_derivative_description(bids_dir, deriv_dir, dataset_links=None):
+def write_derivative_description(
+    bids_dir, deriv_dir, dataset_links=None, name='fMRIPrep - fMRI PREProcessing workflow'
+):
     from .. import __version__
 
     DOWNLOAD_URL = f'https://github.com/nipreps/fmriprep/archive/{__version__}.tar.gz'
@@ -371,7 +373,7 @@ def write_derivative_description(bids_dir, deriv_dir, dataset_links=None):
     bids_dir = Path(bids_dir)
     deriv_dir = Path(deriv_dir)
     desc = {
-        'Name': 'fMRIPrep - fMRI PREProcessing workflow',
+        'Name': name,
         'BIDSVersion': '1.4.0',
         'DatasetType': 'derivative',
         'GeneratedBy': [
