@@ -1,0 +1,163 @@
+name: Pixi lock push
+
+# Pushes the pixi.lock patch produced by pixi-lock.yml to the PR branch.
+# The artifact is untrusted: it is validated, nothing from the PR is run, and
+# only the patch's diff is used. The commit and its message are written here.
+on:
+  # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["Pixi lock"]
+    types:
+      - completed
+
+permissions: {}
+
+jobs:
+  push-lockfile:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write # push the lockfile commit
+      actions: read # find and download the patch artifact
+      pull-requests: read # look up the PR head
+    steps:
+      - name: Download lockfile patch
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=pixi-lock" \
+            --jq '[.artifacts[].id] | if length == 1 then .[0] else empty end')
+          if [[ -z "$id" ]]; then
+            echo "No pixi-lock artifact; nothing to push."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Keep the zip whole: its entry names are untrusted, so nothing is
+          # extracted by name
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/pixi-lock.zip"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+      - name: Validate pull request
+        id: pr
+        if: steps.find.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          zip="$RUNNER_TEMP/pixi-lock.zip"
+          entries=$(unzip -Z1 "$zip" | LC_ALL=C sort)
+          if [[ "$entries" != $'pixi-lock.patch\npr-number' ]]; then
+            echo "::error::Unexpected artifact contents:"
+            printf '%s\n' "$entries"
+            exit 1
+          fi
+          pr_number=$(unzip -p "$zip" pr-number | head -c 16) || true
+          if ! [[ "$pr_number" =~ ^[0-9]{1,10}$ ]]; then
+            echo "::error::PR number is not numeric"
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number" > "$RUNNER_TEMP/pr.json"
+          state=$(jq -r '.state' "$RUNNER_TEMP/pr.json")
+          head_sha=$(jq -r '.head.sha' "$RUNNER_TEMP/pr.json")
+          head_repo=$(jq -r '.head.repo.full_name' "$RUNNER_TEMP/pr.json")
+          head_ref=$(jq -r '.head.ref' "$RUNNER_TEMP/pr.json")
+          clone_url=$(jq -r '.head.repo.clone_url' "$RUNNER_TEMP/pr.json")
+          if [[ "$state" != open ]]; then
+            echo "::error::PR #$pr_number is not open"
+            exit 1
+          fi
+          # The PR must be the one the run tested, not another with the same head
+          if [[ "$head_sha" != "$RUN_HEAD_SHA" || "$head_repo" != "$RUN_HEAD_REPO" || "$head_ref" != "$RUN_HEAD_BRANCH" ]]; then
+            echo "::error::PR #$pr_number head does not match the workflow run"
+            exit 1
+          fi
+          if ! git check-ref-format "refs/heads/$head_ref"; then
+            echo "::error::Invalid head ref"
+            exit 1
+          fi
+          if ! [[ "$clone_url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git$ ]]; then
+            echo "::error::Unexpected clone URL"
+            exit 1
+          fi
+          unzip -p "$zip" pixi-lock.patch > "$RUNNER_TEMP/pixi-lock.patch"
+          {
+            echo "head_ref=$head_ref"
+            echo "clone_url=$clone_url"
+          } >> "$GITHUB_OUTPUT"
+      - name: Checkout pull request
+        if: steps.find.outputs.found == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          allow-unsafe-pr-checkout: true
+      - name: Apply lockfile patch
+        if: steps.find.outputs.found == 'true'
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          patch="$RUNNER_TEMP/pixi-lock.patch"
+          # The patch must modify pixi.lock and nothing else: no other paths,
+          # renames, deletions or mode changes
+          numstat=$(git apply --numstat "$patch")
+          summary=$(git apply --summary "$patch")
+          if ! [[ "$numstat" =~ ^([0-9]+|-)$'\t'([0-9]+|-)$'\t'pixi\.lock$ ]] || [[ -n "$summary" ]]; then
+            echo "::error::Patch must modify only pixi.lock"
+            printf '%s\n%s\n' "$numstat" "$summary"
+            exit 1
+          fi
+          git config user.name "nipreps[bot]"
+          git config user.email "bot@nipreps.org"
+          # The patch's author and message are untrusted (a forged datalad
+          # record would run on `datalad rerun`), so apply only its diff
+          git apply --index "$patch"
+          git commit -q -F - <<'EOF'
+          [DATALAD RUNCMD] pixi lock
+
+          === Do not change lines below ===
+          {
+           "chain": [],
+           "cmd": "pixi lock",
+           "exit": 0,
+           "extra_inputs": [],
+           "inputs": [
+            "pixi.lock",
+            "pyproject.toml"
+           ],
+           "outputs": [
+            "pixi.lock"
+           ],
+           "pwd": "."
+          }
+          ^^^ Do not change lines above ^^^
+          EOF
+          # Re-check the commit: one commit on the PR head,
+          # changing only the content of pixi.lock
+          if [[ "$(git rev-parse HEAD~1)" != "$HEAD_SHA" ]] ||
+             [[ "$(git diff --name-status HEAD~1 HEAD)" != $'M\tpixi.lock' ]] ||
+             [[ -n "$(git diff --summary HEAD~1 HEAD)" ]]; then
+            echo "::error::Applied commit must modify only pixi.lock"
+            exit 1
+          fi
+      - name: Push lockfile commit
+        if: steps.find.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLONE_URL: ${{ steps.pr.outputs.clone_url }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          # Pushes made with GITHUB_TOKEN trigger no workflows, so checks do not
+          # run on this commit until the PR is updated or reopened
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push "$CLONE_URL" "HEAD:refs/heads/$HEAD_REF"
