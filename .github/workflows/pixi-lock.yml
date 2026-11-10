@@ -1,56 +1,77 @@
+name: Pixi lock
+
+# Runs PR code with a read-only token. A stale lockfile is regenerated here and
+# handed to pixi-lock-push.yml as a patch artifact, which pushes it.
 on:
-  pull_request_target
+  pull_request:
+    paths:
+      - pyproject.toml
+      - pixi.lock
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   check-lockfile:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    runs-on: ubuntu-slim
     steps:
       - name: Checkout pull request
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          allow-unsafe-pr-checkout: true
           ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      - name: Find submitting repository
-        id: get-source-repo
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.repository }}
-          PULL: ${{ github.event.number }}
-        with:
-          script: |
-            const { data } = await github.rest.pulls.get({
-              owner: process.env.OWNER,
-              repo: process.env.REPO.split('/')[1],
-              pull_number: process.env.PULL,
-            });
-            core.setOutput('remote', data.head.repo.html_url)
-            core.setOutput('branch', data.head.ref)
-      - name: Set git identity
-        run: |
-          git config --global user.name "nipreps[bot]"
-          git config --global user.email "bot@nipreps.org"
+          persist-credentials: false
       - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           pixi-version: v0.78.0
           run-install: false
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: Update lockfile
-        run: >
-          uvx datalad run -i pixi.lock -i pyproject.toml -o pixi.lock --
-          bash -c '! pixi lock --check || git checkout .'
-      - name: Push updated lockfile, if needed
+      - name: Check lockfile
+        id: check
         run: |
-          git push $REMOTE HEAD:$BRANCH
+          if pixi lock --check; then
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+          # Leave a clean tree for datalad run to record the update
+          git checkout -- pixi.lock
+      - name: Set git identity
+        if: steps.check.outputs.stale == 'true'
+        run: |
+          git config --global user.name "nipreps[bot]"
+          git config --global user.email "bot@nipreps.org"
+      - name: Update lockfile
+        if: steps.check.outputs.stale == 'true'
+        run: >
+          pixi exec datalad run -i pixi.lock -i pyproject.toml -o pixi.lock -- pixi lock
+      - name: Export lockfile patch
+        if: steps.check.outputs.stale == 'true'
         env:
-          REMOTE: ${{ steps.get-source-repo.outputs.remote }}
-          BRANCH: ${{ steps.get-source-repo.outputs.branch }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # datalad run makes no commit when pixi lock changes nothing, as after
+          # a transient check failure; exporting HEAD would export the PR head
+          if [[ "$(git rev-parse HEAD~1)" != "$HEAD_SHA" ]]; then
+            echo "::error file=pixi.lock::pixi lock --check failed, but pixi lock changed nothing; re-run this job."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/pixi-lock"
+          git format-patch -1 --stdout > "$RUNNER_TEMP/pixi-lock/pixi-lock.patch"
+          printf '%s\n' "$PR_NUMBER" > "$RUNNER_TEMP/pixi-lock/pr-number"
+      - name: Upload lockfile patch
+        if: steps.check.outputs.stale == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pixi-lock
+          path: ${{ runner.temp }}/pixi-lock/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Fail on stale lockfile
+        if: steps.check.outputs.stale == 'true'
+        run: |
+          echo "::error file=pixi.lock::pixi.lock is out of date. The Pixi lock push workflow will commit a regenerated pixi.lock to this branch, but checks will not run on that commit; push another commit, or close and reopen the PR, to run them. Otherwise, run \`pixi lock\` and commit the result."
+          exit 1

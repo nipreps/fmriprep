@@ -15,3 +15,5 @@ updates:
       docker:
         patterns:
           - "docker/*"
+    cooldown:
+      default-days: 7
