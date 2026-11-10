@@ -804,7 +804,7 @@ def test_reuse_precomputed_template_coreg(
     )
 
     # Existing transforms can regenerate a final template
-    assert has(coreg_nodes, 'warp_template_boldref') == (have_run2template and not reuse_boldref)
+    assert has(coreg_nodes, 'reconstruct_template') == (have_run2template and not reuse_boldref)
 
     template_buffer = wf.get_node(f'{coreg_wf}.template_buffer').inputs
     reg_buffer = wf.get_node(f'{coreg_wf}.reg_buffer').inputs

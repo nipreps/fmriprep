@@ -22,6 +22,8 @@ BOLD template creation workflow.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: init_bold_template_wf
+.. autofunction:: init_register_excluded_wf
+.. autofunction:: init_reconstruct_template_wf
 
 """
 
@@ -33,9 +35,9 @@ from niworkflows.engine.workflows import LiterateWorkflow as Workflow
 def init_bold_template_wf(
     *,
     num_bold_runs: int,
-    unbiased: bool | None = None,
-    upsample: tuple[float, float, float] | None = None,
+    reference: int | None = None,
     template_runs: list[bool] | None = None,
+    upsample: tuple[float, float, float] | None = None,
     omp_nthreads: int = 1,
     name: str = 'bold_template_wf',
 ) -> Workflow:
@@ -46,19 +48,20 @@ def init_bold_template_wf(
     ----------
     num_bold_runs : :obj:`int`
         Number of BOLD runs.
+    reference : :obj:`int` or None
+        Index of the run whose reference defines the template space, to which the
+        other template runs are registered.
+        When ``None`` (default), an unbiased (iterative) mean-shape template is
+        constructed from the template runs.
+    template_runs : :obj:`list` of :obj:`bool` or None
+        Whether each run's reference is used to construct the template, one per run,
+        or ``None`` (default) to use all runs. The remaining runs are registered to
+        the finished template.
+    upsample : :obj:`tuple` or None
+        Isotropic zooms to upsample the run references to before registration,
+        or ``None`` to register them at the acquired resolution.
     omp_nthreads : :obj:`int`
         Number of threads.
-    unbiased : :obj:`bool` or None
-        Whether to use an unbiased (iterative) registration strategy.
-        When ``None`` (default), the strategy is chosen automatically:
-        ``False`` (fixed first run as reference) for 2 runs, ``True``
-        (iterative mean-shape template) for 3 or more runs.
-    upsample : :obj:`tuple` or None
-        Isotropic zooms to upsample the run references to before constructing the
-        template, or ``None`` to construct it at the acquired resolution.
-    template_runs : :obj:`list` of :obj:`bool` or None
-        Whether each run's reference is averaged into the template image, one per run,
-        or ``None`` (default) to average all runs. All runs define the template space.
 
     Inputs
     ------
@@ -78,25 +81,47 @@ def init_bold_template_wf(
 
     from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
 
-    if unbiased is None:
-        unbiased = num_bold_runs >= 3
+    if template_runs is None:
+        template_runs = [True] * num_bold_runs
+    if len(template_runs) != num_bold_runs or not any(template_runs):
+        raise ValueError(f'Expected {num_bold_runs} template runs, with at least one selected.')
+    template_indices = [i for i, keep in enumerate(template_runs) if keep]
+    excluded_indices = [i for i, keep in enumerate(template_runs) if not keep]
+    if reference is not None and reference not in template_indices:
+        raise ValueError(f'The reference run ({reference}) must be one of the template runs.')
+    n_template = len(template_indices)
+    unbiased = reference is None
 
     workflow = Workflow(name=name)
     workflow.__desc__ = 'All BOLD runs were coregistered to '
     if unbiased:
-        workflow.__desc__ += 'an unbiased session-level BOLD reference using an iterative template construction strategy.'
+        workflow.__desc__ += 'an unbiased BOLD reference'
+        if excluded_indices:
+            workflow.__desc__ += f', constructed from {n_template} of the {num_bold_runs} runs'
+        workflow.__desc__ += ' using an iterative template construction strategy.'
     else:
-        workflow.__desc__ += "the first run's BOLD reference."
+        workflow.__desc__ += (
+            'the BOLD reference of a selected run.'
+            if reference or excluded_indices
+            else "the first run's BOLD reference."
+        )
 
     if upsample:
         workflow.__desc__ += (
             f' The run references were upsampled to {upsample[0]:g}mm isotropic resolution '
-            'prior to template construction.'
+            'prior to registration.'
         )
-    workflow.__desc__ += (
-        ' The template image was computed as the voxelwise median of the '
-        'intensity-normalized run references, each resampled once into the template space.'
-    )
+    if n_template == 1:
+        workflow.__desc__ += (
+            " The template image was the selected run's reference, resampled into the "
+            'template space.'
+        )
+    else:
+        selected = f'{n_template} selected ' if excluded_indices else ''
+        workflow.__desc__ += (
+            f' The template image was computed as the voxelwise median of the {selected}'
+            'intensity-normalized run references, each resampled once into the template space.'
+        )
 
     inputnode = pe.Node(
         niu.IdentityInterface(fields=['boldref_files']),
@@ -108,19 +133,19 @@ def init_bold_template_wf(
         name='outputnode',
     )
 
+    # A single reference is copied with an identity transform
     boldref_template = pe.Node(
         StructuralReference(
             auto_detect_sensitivity=True,
-            initial_timepoint=1,
+            initial_timepoint=1 if unbiased else template_indices.index(reference) + 1,
             intensity_scaling=True,
             subsample_threshold=200,
             fixed_timepoint=not unbiased,
             no_iteration=not unbiased,
             transform_outputs=True,
-            scaled_intensity_outputs=True,
             out_file='boldref_template.nii.gz',
         ),
-        mem_gb=2 * num_bold_runs - 1,
+        mem_gb=2 * n_template - 1,
         name='boldref_template',
         n_procs=omp_nthreads,
     )
@@ -134,12 +159,13 @@ def init_bold_template_wf(
     # Only the grid, transforms and intensity scales of mri_robust_template are kept
     resample_template = pe.Node(
         ResampleTemplate(),
-        mem_gb=0.2 * num_bold_runs,
+        mem_gb=0.2 * n_template,
         name='resample_template',
     )
-    if template_runs is not None:
-        resample_template.inputs.indices = template_runs
 
+    boldref_buffer = pe.Node(
+        niu.IdentityInterface(fields=['boldref_files']), name='boldref_buffer'
+    )
     if upsample:
         upsample_boldrefs = pe.Node(
             UpsampleToZooms(target_zooms=upsample), name='upsample_boldrefs'
@@ -147,25 +173,228 @@ def init_bold_template_wf(
 
         workflow.connect([
             (inputnode, upsample_boldrefs, [('boldref_files', 'in_files')]),
-            (upsample_boldrefs, boldref_template, [('out_files', 'in_files')]),
+            (upsample_boldrefs, boldref_buffer, [('out_files', 'boldref_files')]),
         ])  # fmt:skip
     else:
-        workflow.connect(inputnode, 'boldref_files', boldref_template, 'in_files')
+        workflow.connect(inputnode, 'boldref_files', boldref_buffer, 'boldref_files')
+
+    # single reference writes no intensity scale
+    if n_template > 1:
+        boldref_template.inputs.scaled_intensity_outputs = True
+        workflow.connect(
+            boldref_template, 'scaled_intensity_outputs', resample_template, 'intensity_scales'
+        )
 
     workflow.connect([
-        (inputnode, resample_template, [('boldref_files', 'in_files')]),
-        (boldref_template, resample_template, [
-            ('out_file', 'reference'),
-            ('scaled_intensity_outputs', 'intensity_scales'),
-        ]),
-        (boldref_template, to_itk, [
-            ('transform_outputs', 'in_xfm'),
-        ]),
+        (boldref_template, resample_template, [('out_file', 'reference')]),
+        (boldref_template, to_itk, [('transform_outputs', 'in_xfm')]),
         (to_itk, resample_template, [('out_xfm', 'transforms')]),
         (resample_template, outputnode, [('out_file', 'boldref')]),
-        (to_itk, outputnode, [
-            ('out_xfm', 'run2template_xfms'),
-        ]),
     ])  # fmt:skip
+
+    # If no runs are excluded, connect the template directly to the output
+    if not excluded_indices:
+        workflow.connect([
+            (inputnode, resample_template, [('boldref_files', 'in_files')]),
+            (boldref_buffer, boldref_template, [('boldref_files', 'in_files')]),
+            (to_itk, outputnode, [('out_xfm', 'run2template_xfms')]),
+        ])  # fmt:skip
+        return workflow
+
+    # Excluded runs do not shape the template, but are registered to it from the same
+    # (upsampled) references as the template runs, for consistency
+    select_template = pe.Node(
+        niu.Select(index=template_indices), name='select_template', run_without_submitting=True
+    )
+    # The template image is resampled from the original references, not the upsampled ones
+    select_resample = pe.Node(
+        niu.Select(index=template_indices), name='select_resample', run_without_submitting=True
+    )
+    select_excluded = pe.Node(
+        niu.Select(index=excluded_indices), name='select_excluded', run_without_submitting=True
+    )
+    register_excluded_wf = init_register_excluded_wf(
+        num_bold_runs=len(excluded_indices), omp_nthreads=omp_nthreads
+    )
+    merge_xfms = pe.Node(niu.Merge(2), name='merge_xfms', run_without_submitting=True)
+    # Restore the run order of the template and excluded transforms
+    merged_runs = template_indices + excluded_indices
+    sort_xfms = pe.Node(
+        niu.Select(index=[merged_runs.index(i) for i in range(num_bold_runs)]),
+        name='sort_xfms',
+        run_without_submitting=True,
+    )
+
+    workflow.connect([
+        (boldref_buffer, select_template, [('boldref_files', 'inlist')]),
+        (inputnode, select_resample, [('boldref_files', 'inlist')]),
+        (boldref_buffer, select_excluded, [('boldref_files', 'inlist')]),
+        (select_template, boldref_template, [('out', 'in_files')]),
+        (select_resample, resample_template, [('out', 'in_files')]),
+        (select_excluded, register_excluded_wf, [('out', 'inputnode.boldref_files')]),
+        (resample_template, register_excluded_wf, [('out_file', 'inputnode.boldref')]),
+        (to_itk, merge_xfms, [('out_xfm', 'in1')]),
+        (register_excluded_wf, merge_xfms, [('outputnode.run2template_xfms', 'in2')]),
+        (merge_xfms, sort_xfms, [('out', 'inlist')]),
+        (sort_xfms, outputnode, [('out', 'run2template_xfms')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
+def init_register_excluded_wf(
+    *,
+    num_bold_runs: int,
+    omp_nthreads: int = 1,
+    name: str = 'register_excluded_wf',
+) -> Workflow:
+    """
+    Register the references of runs excluded from a BOLD template to it.
+
+    Parameters
+    ----------
+    num_bold_runs : :obj:`int`
+        Number of excluded BOLD runs.
+    omp_nthreads : :obj:`int`
+        Number of threads.
+
+    Inputs
+    ------
+    boldref_files
+        List of BOLD reference files of the excluded runs.
+    boldref
+        The BOLD template reference.
+
+    Outputs
+    -------
+    run2template_xfms
+        Transforms from each excluded run's original space to the boldref template.
+
+    """
+    from nipype.interfaces.freesurfer import RobustRegister
+    from niworkflows.interfaces.nitransforms import ConvertAffine
+
+    workflow = Workflow(name=name)
+    workflow.__desc__ = (
+        ' The remaining run was registered to the resulting template.'
+        if num_bold_runs == 1
+        else ' The remaining runs were registered to the resulting template.'
+    )
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['boldref_files', 'boldref']),
+        name='inputnode',
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['run2template_xfms']),
+        name='outputnode',
+    )
+
+    register_runs = pe.MapNode(
+        RobustRegister(auto_sens=True, est_int_scale=True, out_reg_file=True),
+        iterfield=['source_file'],
+        name='register_runs',
+        n_procs=omp_nthreads,
+    )
+    to_itk = pe.MapNode(
+        ConvertAffine(in_fmt='fs', out_fmt='itk'),
+        iterfield=['in_xfm'],
+        name='to_itk',
+    )
+
+    workflow.connect([
+        (inputnode, register_runs, [
+            ('boldref_files', 'source_file'),
+            ('boldref', 'target_file'),
+        ]),
+        (register_runs, to_itk, [('out_reg_file', 'in_xfm')]),
+        (to_itk, outputnode, [('out_xfm', 'run2template_xfms')]),
+    ])  # fmt:skip
+
+    return workflow
+
+
+def init_reconstruct_template_wf(
+    *,
+    run2template_xfms: list[str],
+    reference: int | None = None,
+    template_runs: list[bool] | None = None,
+    upsample: tuple[float, float, float] | None = None,
+    name: str = 'reconstruct_template_wf',
+) -> Workflow:
+    """
+    Reconstruct a BOLD template from the run references and precomputed transforms.
+
+    Parameters
+    ----------
+    run2template_xfms : :obj:`list` of :obj:`str`
+        Transforms from each run's original space to the boldref template.
+    reference : :obj:`int` or None
+        Index of the run whose reference defines the template grid, or ``None``
+        (default) to use the first template run.
+    template_runs : :obj:`list` of :obj:`bool` or None
+        Whether each run's reference is averaged into the template image, one per run,
+        or ``None`` (default) to average all runs.
+    upsample : :obj:`tuple` or None
+        Isotropic zooms to upsample the template grid to, or ``None`` to keep the
+        acquired resolution.
+
+    Inputs
+    ------
+    boldref_files
+        List of BOLD reference files, one per run.
+
+    Outputs
+    -------
+    boldref
+        The reconstructed BOLD template reference.
+
+    """
+    from niworkflows.utils.connections import pop_file
+
+    from fmriprep.interfaces.resampling import ResampleTemplate, UpsampleToZooms
+
+    num_bold_runs = len(run2template_xfms)
+    if template_runs is None:
+        template_runs = [True] * num_bold_runs
+
+    workflow = Workflow(name=name)
+
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=['boldref_files']),
+        name='inputnode',
+    )
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=['boldref']),
+        name='outputnode',
+    )
+
+    select_reference = pe.Node(
+        niu.Select(index=template_runs.index(True) if reference is None else reference),
+        name='select_reference',
+        run_without_submitting=True,
+    )
+    reconstruct_template = pe.Node(
+        ResampleTemplate(transforms=run2template_xfms, indices=template_runs),
+        mem_gb=0.2 * num_bold_runs,
+        name='reconstruct_template',
+    )
+
+    workflow.connect([
+        (inputnode, select_reference, [('boldref_files', 'inlist')]),
+        (inputnode, reconstruct_template, [('boldref_files', 'in_files')]),
+        (reconstruct_template, outputnode, [('out_file', 'boldref')]),
+    ])  # fmt:skip
+
+    if upsample:
+        upsample_reference = pe.Node(
+            UpsampleToZooms(target_zooms=upsample), name='upsample_reference'
+        )
+        workflow.connect([
+            (select_reference, upsample_reference, [('out', 'in_files')]),
+            (upsample_reference, reconstruct_template, [(('out_files', pop_file), 'reference')]),
+        ])  # fmt:skip
+    else:
+        workflow.connect(select_reference, 'out', reconstruct_template, 'reference')
 
     return workflow
