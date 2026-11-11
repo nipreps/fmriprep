@@ -149,6 +149,109 @@ def bold_template_zooms(
     return (target,) * 3
 
 
+TEMPLATE_SELECTION_COLUMN = 'boldref_template'
+TEMPLATE_SELECTION_VALUES = ('target', 'include', 'n/a')
+
+
+def read_selection(scans_file: Path) -> dict[str, str] | None:
+    """Read the ``boldref_template`` column of a scans file, keyed by ``filename``.
+
+    Returns ``None`` if the scans file is missing or has no ``boldref_template`` column.
+    """
+    import pandas as pd
+
+    if not scans_file.is_file():
+        return
+    scans = pd.read_csv(scans_file, sep='\t', dtype=str, keep_default_na=False)
+    if TEMPLATE_SELECTION_COLUMN not in scans.columns:
+        return
+    if 'filename' not in scans.columns:
+        raise ValueError(
+            f'{scans_file} has a "{TEMPLATE_SELECTION_COLUMN}" column but no "filename".'
+        )
+
+    selection = {}
+    for filename, value in zip(scans['filename'], scans[TEMPLATE_SELECTION_COLUMN], strict=True):
+        value = value.strip() or 'n/a'
+        if value not in TEMPLATE_SELECTION_VALUES:
+            raise ValueError(
+                f'{scans_file}: invalid {TEMPLATE_SELECTION_COLUMN} value "{value}" for '
+                f'{filename} (expected one of {", ".join(TEMPLATE_SELECTION_VALUES)}).'
+            )
+        selection[filename] = value
+    return selection
+
+
+def _find_selection(scans_dir: Path, roots: list[Path]) -> dict[str, str]:
+    scans_file = scans_dir / f'{"_".join(scans_dir.parts)}_scans.tsv'
+    for root in roots:
+        if (selection := read_selection(root / scans_file)) is not None:
+            return selection
+    return {}
+
+
+def collect_selection(
+    bold_files: list[str],
+    bids_dir: Path | str,
+    derivatives: list[Path | str],
+) -> list[str]:
+    """Read the BOLD template selection of each run from ``*_scans.tsv`` files.
+
+    For each subject/session, the scans file of the raw dataset is used if it has a
+    ``boldref_template`` column, otherwise the first derivatives dataset whose scans file
+    at the same relative path does.
+
+    Returns
+    -------
+    list of str
+        One of ``target``, ``include`` or ``n/a`` per run.
+    """
+    bids_dir = Path(bids_dir)
+    roots = [bids_dir, *(Path(deriv_dir) for deriv_dir in derivatives)]
+    bold_paths = [Path(bold_file).relative_to(bids_dir) for bold_file in bold_files]
+    selections = {
+        scans_dir: _find_selection(scans_dir, roots)
+        for scans_dir in {bold_path.parent.parent for bold_path in bold_paths}
+    }
+
+    labels = []
+    for bold_path in bold_paths:
+        scans_dir = bold_path.parent.parent
+        filename = bold_path.relative_to(scans_dir).as_posix()
+        labels.append(selections[scans_dir].get(filename, 'n/a'))
+    return labels
+
+
+def resolve_selection(labels: list[str]) -> tuple[int | None, list[bool]]:
+    """Resolve per-run selection labels into the BOLD template construction strategy.
+
+    Returns
+    -------
+    reference : int or None
+        Index of the run defining the template space, or ``None`` for an unbiased template.
+    template_runs : list of bool
+        List of runs to be averaged into the template image.
+    """
+    n_runs = len(labels)
+    targets = [i for i, label in enumerate(labels) if label == 'target']
+    includes = [i for i, label in enumerate(labels) if label == 'include']
+
+    if len(targets) > 1:
+        raise RuntimeError(
+            'Only one BOLD run may be selected as the "target" of a BOLD template; '
+            f'found {len(targets)}.'
+        )
+    if not targets and not includes:
+        return (0 if n_runs <= 2 else None), [True] * n_runs
+
+    template_runs = [label in ('target', 'include') for label in labels]
+    if targets:
+        return targets[0], template_runs
+    if len(includes) == 1:
+        return includes[0], template_runs
+    return None, template_runs
+
+
 def _merge(merged: dict, found: dict, kind: str, deriv_dir) -> None:
     """Update ``merged`` with ``found``, logging each entry that is replaced."""
     for name, value in found.items():

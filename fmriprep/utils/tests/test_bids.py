@@ -23,7 +23,12 @@ import nibabel as nb
 import numpy as np
 import pytest
 
-from fmriprep.utils.bids import bold_template_zooms, is_valid_bold_template
+from fmriprep.utils.bids import (
+    bold_template_zooms,
+    collect_selection,
+    is_valid_bold_template,
+    resolve_selection,
+)
 
 
 class _MockLayout:
@@ -114,3 +119,95 @@ def test_bold_template_zooms(tmp_path: Path, zooms, expected):
         bold_files.append(path)
 
     assert bold_template_zooms(bold_files) == expected
+
+
+@pytest.mark.parametrize(
+    ('labels', 'reference', 'template_runs'),
+    [
+        (['n/a', 'n/a'], 0, [True, True]),
+        (['n/a', 'n/a', 'n/a'], None, [True, True, True]),
+        (['n/a', 'target', 'n/a'], 1, [False, True, False]),
+        (['include', 'n/a', 'target'], 2, [True, False, True]),
+        (['n/a', 'include', 'n/a'], 1, [False, True, False]),
+        (['include', 'n/a', 'include'], None, [True, False, True]),
+    ],
+)
+def test_resolve_selection(labels, reference, template_runs):
+    assert resolve_selection(labels) == (reference, template_runs)
+
+
+def test_resolve_selection_multiple_targets():
+    with pytest.raises(RuntimeError, match='target'):
+        resolve_selection(['target', 'include', 'target'])
+
+
+def _write_scans(path: Path, rows: dict[str, str]):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ['filename\tboldref_template'] + [f'{f}\t{v}' for f, v in rows.items()]
+    path.write_text('\n'.join(lines) + '\n')
+
+
+def _bold(bids_dir: Path, ses: str, run: int) -> str:
+    return str(
+        bids_dir / f'sub-01/ses-{ses}/func/sub-01_ses-{ses}_task-rest_run-{run}_bold.nii.gz'
+    )
+
+
+def test_collect_selection(tmp_path: Path):
+    """Raw scans files win over derivatives, which fill in sessions raw does not annotate."""
+    bids_dir, deriv_dir = tmp_path / 'bids', tmp_path / 'deriv'
+    bold_files = [_bold(bids_dir, ses, run) for ses in 'AB' for run in (1, 2)]
+
+    _write_scans(
+        bids_dir / 'sub-01/ses-A/sub-01_ses-A_scans.tsv',
+        {'func/sub-01_ses-A_task-rest_run-1_bold.nii.gz': 'target'},
+    )
+    _write_scans(
+        deriv_dir / 'sub-01/ses-A/sub-01_ses-A_scans.tsv',
+        {'func/sub-01_ses-A_task-rest_run-2_bold.nii.gz': 'target'},
+    )
+    (bids_dir / 'sub-01/ses-B').mkdir(parents=True)
+    (bids_dir / 'sub-01/ses-B/sub-01_ses-B_scans.tsv').write_text(
+        'filename\tacq_time\nfunc/sub-01_ses-B_task-rest_run-1_bold.nii.gz\tn/a\n'
+    )
+    _write_scans(
+        deriv_dir / 'sub-01/ses-B/sub-01_ses-B_scans.tsv',
+        {
+            'func/sub-01_ses-B_task-rest_run-1_bold.nii.gz': 'include',
+            'func/sub-01_ses-B_task-rest_run-2_bold.nii.gz': 'n/a',
+        },
+    )
+
+    labels = collect_selection(bold_files, bids_dir, [deriv_dir])
+    assert labels == ['target', 'n/a', 'include', 'n/a']
+
+
+def test_collect_selection_without_sessions(tmp_path: Path):
+    bold_files = [
+        str(tmp_path / f'sub-01/func/sub-01_task-rest_run-{run}_bold.nii.gz') for run in (1, 2)
+    ]
+    _write_scans(
+        tmp_path / 'sub-01/sub-01_scans.tsv',
+        {'func/sub-01_task-rest_run-2_bold.nii.gz': 'include'},
+    )
+
+    assert collect_selection(bold_files, tmp_path, []) == ['n/a', 'include']
+
+
+@pytest.mark.parametrize(
+    ('content', 'match'),
+    [
+        (
+            'filename\tboldref_template\nfunc/sub-01_ses-A_task-rest_run-1_bold.nii.gz\tbest\n',
+            'best',
+        ),
+        ('boldref_template\ntarget\n', 'filename'),
+    ],
+)
+def test_collect_selection_invalid(tmp_path: Path, content, match):
+    scans = tmp_path / 'sub-01/ses-A/sub-01_ses-A_scans.tsv'
+    scans.parent.mkdir(parents=True)
+    scans.write_text(content)
+
+    with pytest.raises(ValueError, match=match):
+        collect_selection([_bold(tmp_path, 'A', 1)], tmp_path, [])
