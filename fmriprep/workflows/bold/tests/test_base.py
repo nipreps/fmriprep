@@ -4,9 +4,11 @@ import nibabel as nb
 import numpy as np
 import pytest
 from nipype.pipeline.engine.utils import generate_expanded_graph
+from niworkflows.interfaces.confounds import FSLMotionParams
 from niworkflows.utils.testing import generate_bids_skeleton
 
 from .... import config
+from ....interfaces.confounds import AFNIMotionParams
 from ...tests import mock_config
 from ...tests.layouts import get_layout
 from ..base import init_bold_apply_wf
@@ -79,3 +81,32 @@ def test_bold_apply_wf(
 
     flatgraph = wf._create_flat_graph()
     generate_expanded_graph(flatgraph)
+
+
+@pytest.mark.parametrize(
+    ('hmc_method', 'interface', 'trans_x'),
+    [
+        ('mcflirt', FSLMotionParams, 'Translation along left-right axis.'),
+        (
+            '3dvolreg',
+            AFNIMotionParams,
+            'Translation along left-right axis, positive toward right.',
+        ),
+    ],
+)
+def test_bold_apply_wf_hmc_method(bids_root, monkeypatch, hmc_method, interface, trans_x):
+    """The motion parameters, and their sidecar, follow the head-motion estimator."""
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    bold_series = [str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz')]
+    img.to_filename(bold_series[0])
+    img.to_filename(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_sbref.nii.gz')
+
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'level', 'full')
+        monkeypatch.setattr(config.workflow, 'hmc_method', hmc_method)
+        wf = init_bold_apply_wf(bold_series=bold_series)
+
+    motion_params = wf.get_node('bold_confounds_wf.motion_params')
+    assert isinstance(motion_params.interface, interface)
+    metadata = wf.get_node('bold_confounds_wf.merge_confound_metadata').inputs.in4
+    assert metadata['trans_x']['Description'] == trans_x

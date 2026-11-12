@@ -32,7 +32,8 @@ from time import sleep
 import nipype.interfaces.freesurfer as fs
 import nipype.interfaces.io as nio
 from nipype.algorithms import confounds as nac
-from nipype.interfaces.base import File, traits
+from nipype.interfaces import afni
+from nipype.interfaces.base import File, Undefined, traits
 from numpy.linalg import LinAlgError
 
 
@@ -115,3 +116,47 @@ class FreeSurferSource(nio.FreeSurferSource):
     """
 
     output_spec = _FSSourceOutputSpec
+
+
+class _VolregInputSpec(afni.preprocess.VolregInputSpec):
+    # Redefined without argstr or name_template, so -maxdisp1D is never passed
+    md1d_file = File(desc='not used: -maxdisp1D is never passed')
+    twopass = traits.Bool(
+        argstr='-twopass',
+        desc='register in two passes: a coarse pass on blurred images, then a fine pass',
+    )
+
+
+class _VolregOutputSpec(afni.preprocess.VolregOutputSpec):
+    out_file = File(desc="registered file; undefined if ``out_file`` is ``'NULL'``")
+
+
+class Volreg(afni.Volreg):
+    """
+    Patched to add ``-twopass``, to skip ``-maxdisp1D``, and to accept ``out_file='NULL'``.
+
+    With ``out_file='NULL'``, 3dvolreg estimates motion without writing a
+    registered series, and the ``out_file`` output is undefined.
+
+    >>> volreg = Volreg(
+    ...     in_file='bold.nii.gz',
+    ...     basefile='boldref.nii.gz',
+    ...     interp='heptic',
+    ...     twopass=True,
+    ...     zpad=4,
+    ...     out_file='NULL'
+    ... )
+    >>> volreg.cmdline  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    '3dvolreg -heptic -1Dfile bold.1D -1Dmatrix_save bold.aff12.1D -prefix NULL \
+    -twopass -base boldref.nii.gz -zpad 4 bold.nii.gz'
+
+    """
+
+    input_spec = _VolregInputSpec
+    output_spec = _VolregOutputSpec
+
+    def _list_outputs(self):
+        outputs = super()._list_outputs()
+        if self.inputs.out_file == 'NULL':
+            outputs['out_file'] = Undefined
+        return outputs

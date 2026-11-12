@@ -24,11 +24,14 @@
 
 from pathlib import Path
 
+import nibabel as nb
+import numpy as np
 from nipype.interfaces.base import (
     BaseInterfaceInputSpec,
     File,
     SimpleInterface,
     TraitedSpec,
+    isdefined,
     traits,
 )
 from nipype.utils.filemanip import fname_presuffix
@@ -98,4 +101,78 @@ class ConvertAffine(SimpleInterface):
             self._results['out_inv'] = out_inv
             inv_affine.to_filename(out_inv, moving=reference, fmt=self.inputs.out_fmt)
 
+        return runtime
+
+
+class _VolregToITKInputSpec(BaseInterfaceInputSpec):
+    in_params = File(exists=True, mandatory=True, desc='motion parameters from 3dvolreg -1Dfile')
+    in_matrices = File(
+        exists=True, desc='matrices from 3dvolreg -1Dmatrix_save, to cross-check the conversion'
+    )
+    in_reference = File(
+        exists=True,
+        mandatory=True,
+        desc='3dvolreg base image, on the grid of the registered BOLD series',
+    )
+
+
+class _VolregToITKOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='ITK transform file, one affine per volume')
+
+
+class VolregToITK(SimpleInterface):
+    """Convert 3dvolreg motion parameters to an ITK transform file.
+
+    The transforms are built from the ``-1Dfile`` parameters, which are
+    3dvolreg's reported motion. They are written at full precision, so the
+    stored transforms reproduce the parameters to better than 1e-5 (degrees
+    and mm). ``-1Dmatrix_save`` is printed to only 6 significant digits; if it
+    is given, it is used only to check the conversion, and a disagreement
+    larger than its print precision raises ``RuntimeError``.
+    """
+
+    input_spec = _VolregToITKInputSpec
+    output_spec = _VolregToITKOutputSpec
+
+    def _run_interface(self, runtime):
+        from nitransforms.linear import load as load_affine
+
+        from ..utils.transforms import volreg_to_ras, write_itk_affines
+
+        params = np.loadtxt(self.inputs.in_params, ndmin=2)
+        if params.shape[1] != 6:
+            raise ValueError(
+                f'{self.inputs.in_params} has {params.shape[1]} columns; 3dvolreg -1Dfile writes 6'
+            )
+
+        ref = nb.load(self.inputs.in_reference)
+        ras = volreg_to_ras(params, ref)
+
+        if isdefined(self.inputs.in_matrices):
+            saved = load_affine(
+                self.inputs.in_matrices,
+                fmt='afni',
+                reference=ref,
+                moving=ref,
+            ).matrix.reshape(-1, 4, 4)
+            if len(saved) != len(ras):
+                raise ValueError(
+                    f'{self.inputs.in_params} has {len(ras)} rows, but '
+                    f'{self.inputs.in_matrices} has {len(saved)} matrices'
+                )
+            # 6 significant digits leave about 1e-6 in the rotation and 1e-4 mm
+            rot_err = np.abs(saved[:, :3, :3] - ras[:, :3, :3]).max(axis=(1, 2))
+            trans_err = np.abs(saved[:, :3, 3] - ras[:, :3, 3]).max(axis=1)
+            bad = np.flatnonzero((rot_err > 1e-5) | (trans_err > 1e-3))
+            if bad.size:
+                raise RuntimeError(
+                    f'3dvolreg parameters and matrices disagree at volume {bad[0]}: '
+                    f'{rot_err[bad[0]]:.2g} in the rotation, '
+                    f'{trans_err[bad[0]]:.2g} mm in the translation'
+                )
+
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.in_reference, suffix='_hmc.txt', newpath=runtime.cwd, use_ext=False
+        )
+        write_itk_affines(ras, self._results['out_file'])
         return runtime
