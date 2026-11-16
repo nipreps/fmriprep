@@ -842,7 +842,9 @@ tasks and sessions), the following preprocessing was performed.
     from fmriprep.utils.bids import (
         aggregate_coreg_precomputed,
         collect_func_derivatives,
+        collect_selection,
         extract_entities,
+        resolve_selection,
     )
 
     bold_coreg_level = config.workflow.bold_coreg_level
@@ -914,6 +916,23 @@ tasks and sessions), the following preprocessing was performed.
 
         coreg_precomputed = aggregate_coreg_precomputed(functional_caches, bold_coreg_level)
 
+        template_reference, template_runs = None, None
+        if not coreg_per_run:
+            selection = collect_selection(
+                group_bold_files,
+                config.execution.bids_dir,
+                list((config.execution.derivatives or {}).values()),
+            )
+            try:
+                template_reference, template_runs = resolve_selection(selection)
+            except RuntimeError as err:
+                offending = '\n'.join(
+                    f'  - {bold_file}'
+                    for bold_file, label in zip(group_bold_files, selection, strict=True)
+                    if label == 'target'
+                )
+                raise RuntimeError(f'{err}\nBOLD runs:\n{offending}') from err
+
         bold_anat_coreg_wf = init_bold_anat_coreg_wf(
             bold_files=group_bold_files,
             coreg_space=bold_coreg_level,
@@ -927,6 +946,8 @@ tasks and sessions), the following preprocessing was performed.
             output_dir=fmriprep_dir,
             reference_anat='T1w',
             precomputed=coreg_precomputed,
+            template_reference=template_reference,
+            template_runs=template_runs,
             name=f'bold_anat_coreg_{group_id}_wf',
         )
 
