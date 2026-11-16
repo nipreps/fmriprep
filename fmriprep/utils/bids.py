@@ -186,6 +186,7 @@ def _find_selection(scans_dir: Path, roots: list[Path]) -> dict[str, str]:
     scans_file = scans_dir / f'{"_".join(scans_dir.parts)}_scans.tsv'
     for root in roots:
         if (selection := read_selection(root / scans_file)) is not None:
+            config.loggers.utils.info(f'Reading BOLD template selection from {root / scans_file}')
             return selection
     return {}
 
@@ -197,9 +198,9 @@ def collect_selection(
 ) -> list[str]:
     """Read the BOLD template selection of each run from ``*_scans.tsv`` files.
 
-    For each subject/session, the scans file of the raw dataset is used if it has a
-    ``boldref_template`` column, otherwise the first derivatives dataset whose scans file
-    at the same relative path does.
+    For each subject/session, the scans file of the last derivatives dataset with a
+    ``boldref_template`` column at the same relative path is used, otherwise that of the
+    raw dataset.
 
     Returns
     -------
@@ -207,7 +208,7 @@ def collect_selection(
         One of ``target``, ``include`` or ``n/a`` per run.
     """
     bids_dir = Path(bids_dir)
-    roots = [bids_dir, *(Path(deriv_dir) for deriv_dir in derivatives)]
+    roots = [*(Path(deriv_dir) for deriv_dir in reversed(derivatives)), bids_dir]
     bold_paths = [Path(bold_file).relative_to(bids_dir) for bold_file in bold_files]
     selections = {
         scans_dir: _find_selection(scans_dir, roots)

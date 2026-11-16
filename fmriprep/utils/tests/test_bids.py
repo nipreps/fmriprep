@@ -154,8 +154,8 @@ def _bold(bids_dir: Path, ses: str, run: int) -> str:
 
 
 def test_collect_selection(tmp_path: Path):
-    """Raw scans files win over derivatives, which fill in sessions raw does not annotate."""
-    bids_dir, deriv_dir = tmp_path / 'bids', tmp_path / 'deriv'
+    """Later derivatives override earlier ones and raw, which fills in unannotated sessions."""
+    bids_dir, deriv_dir, late_dir = tmp_path / 'bids', tmp_path / 'deriv', tmp_path / 'late'
     bold_files = [_bold(bids_dir, ses, run) for ses in 'AB' for run in (1, 2)]
 
     _write_scans(
@@ -166,20 +166,17 @@ def test_collect_selection(tmp_path: Path):
         deriv_dir / 'sub-01/ses-A/sub-01_ses-A_scans.tsv',
         {'func/sub-01_ses-A_task-rest_run-2_bold.nii.gz': 'target'},
     )
-    (bids_dir / 'sub-01/ses-B').mkdir(parents=True)
-    (bids_dir / 'sub-01/ses-B/sub-01_ses-B_scans.tsv').write_text(
-        'filename\tacq_time\nfunc/sub-01_ses-B_task-rest_run-1_bold.nii.gz\tn/a\n'
+    (late_dir / 'sub-01/ses-A').mkdir(parents=True)
+    (late_dir / 'sub-01/ses-A/sub-01_ses-A_scans.tsv').write_text(
+        'filename\tacq_time\nfunc/sub-01_ses-A_task-rest_run-1_bold.nii.gz\tn/a\n'
     )
     _write_scans(
-        deriv_dir / 'sub-01/ses-B/sub-01_ses-B_scans.tsv',
-        {
-            'func/sub-01_ses-B_task-rest_run-1_bold.nii.gz': 'include',
-            'func/sub-01_ses-B_task-rest_run-2_bold.nii.gz': 'n/a',
-        },
+        bids_dir / 'sub-01/ses-B/sub-01_ses-B_scans.tsv',
+        {'func/sub-01_ses-B_task-rest_run-1_bold.nii.gz': 'include'},
     )
 
-    labels = collect_selection(bold_files, bids_dir, [deriv_dir])
-    assert labels == ['target', 'n/a', 'include', 'n/a']
+    labels = collect_selection(bold_files, bids_dir, [deriv_dir, late_dir])
+    assert labels == ['n/a', 'target', 'include', 'n/a']
 
 
 def test_collect_selection_without_sessions(tmp_path: Path):

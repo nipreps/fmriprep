@@ -267,9 +267,10 @@ Selecting two or more ``include`` runs without a ``target`` constructs an unbias
 template from those runs, to which the remaining runs are then registered.
 At most one ``target`` may be selected per template.
 
-The scans file of the input BIDS dataset is used if it contains a ``boldref_template``
-column; otherwise, the scans file at the same location in each ``--derivatives``
-dataset is searched, in order.
+The scans file at the same location in a ``--derivatives`` dataset overrides the one
+of the input BIDS dataset, so runs can be selected without modifying the raw data.
+As with other derivatives, a later dataset takes precedence over an earlier one, and
+the first scans file found with a ``boldref_template`` column is used as a whole.
 Because previously computed templates are reused, the first pass of *fMRIPrep*
 (producing the run references to select from) should be run with
 ``--bold-coreg-level run``.
