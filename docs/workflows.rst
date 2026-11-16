@@ -335,6 +335,71 @@ subgraph:
 Preprocessing of :abbr:`BOLD (blood-oxygen level-dependent)` files is
 split into multiple sub-workflows described below.
 
+.. _bold_denoise:
+
+Thermal-noise denoising (optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:py:func:`~fmriprep.workflows.bold.denoise.init_bold_denoise_wf`
+
+.. workflow::
+    :graph2use: orig
+    :simple_form: yes
+
+    from fmriprep.workflows.tests import mock_config
+    from fmriprep import config
+    from fmriprep.workflows.bold.denoise import init_bold_denoise_wf
+    with mock_config():
+        bold_file = config.execution.bids_dir / 'sub-01' / 'func' \
+            / 'sub-01_task-mixedgamblestask_run-01_bold.nii.gz'
+        wf = init_bold_denoise_wf(
+            bold_series=[str(bold_file)],
+            output_dir=str(config.execution.fmriprep_dir),
+        )
+
+With ``--bold-denoise-method svht``, each BOLD series is denoised with
+`svht_denoise <https://github.com/rordenlab/svht_denoise>`__ before any other step,
+so that the BOLD reference, head-motion estimation, slice-timing correction and
+resampling all use the denoised data.
+``svht_denoise`` decomposes local patches by singular value decomposition and
+suppresses the noise components with the optimal singular value shrinkage of
+Gavish and Donoho, estimating the noise level from the data themselves.
+The whole series is denoised, including any non-steady-state volumes.
+
+If the dataset has a ``part-phase`` companion for every echo of a run
+(with the magnitude labeled ``part-mag`` or carrying no ``part`` entity),
+the magnitude and phase are rotated onto the real axis before denoising,
+as in NORDIC, so that the noise remains zero-mean Gaussian.
+The absolute value of the result is kept.
+Phase in radians should declare ``"Units": "rad"`` in its sidecar;
+otherwise its unit is inferred from the range of the data.
+Use ``--ignore phase`` to denoise from the magnitude alone.
+Without phase, the magnitude is variance-stabilized first, so the Rician noise floor
+is removed rather than denoised.
+Multi-echo data are denoised one echo at a time.
+
+``svht_denoise`` parameters can be set with ``--bold-denoise-config``, a JSON file
+with any of the keys ``aggregator``, ``aggregator_fwhm``, ``extent``,
+``filter_method``, ``noise_dof``, ``preserve_noise_bias``, ``shape``, ``stride`` and
+``vst``.
+Runs with fewer than three volumes are not denoised.
+Precomputed head-motion and coregistration results passed with ``--derivatives``
+are still reused, with a warning, since they were estimated from data that may
+not have been denoised.
+
+.. note::
+
+   Susceptibility distortion estimation still reads the raw BOLD data when BOLD runs
+   are among the fieldmap's sources: with fieldmap-less SyN SDC (``--use-syn-sdc``),
+   and with PEPOLAR fieldmaps that use a BOLD run as one phase-encoding direction.
+   The estimated field is applied to the denoised series. Denoising moves no voxels,
+   so the field remains valid, but it is estimated from noisier data.
+
+The noise and rank maps are written as derivatives
+(see :ref:`Functional derivatives <func_derivatives>`), and the report shows a randomly
+chosen volume before and after denoising, with contours of the noise map.
+For multi-echo data, each echo has its own figure, in its own section of the report;
+every echo of a run shows the same volume.
+
 .. _bold_ref:
 
 BOLD reference image estimation

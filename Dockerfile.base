@@ -58,6 +58,34 @@ RUN curl -L -H "Accept: application/octet-stream" https://api.github.com/repos/e
     && chmod +x /usr/local/bin/msm
 
 #
+# Build stages
+#
+
+# svht_denoise 0.1.20261001 (--bold-denoise-method svht). Pinned to a commit: the only
+# release tag (v0.1.20260813) predates the shrinkage, patch-averaging, patch-shape,
+# stride and variance-stabilizing options fMRIPrep passes. It links libm, pthreads and
+# the system zlib (zlib-ng is used by default on macOS only), all present in the base
+# image, and is built with portable -O3 (no -march=native).
+FROM ${BASE_IMAGE} AS svht_denoise
+ARG SVHT_DENOISE_COMMIT=f04dbceabf50eea7eaeff736c399b44976f88b1d
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    build-essential \
+                    ca-certificates \
+                    git \
+                    zlib1g-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN git init /src/svht_denoise && \
+    cd /src/svht_denoise && \
+    git remote add origin https://github.com/rordenlab/svht_denoise.git && \
+    git fetch --depth 1 origin "${SVHT_DENOISE_COMMIT}" && \
+    git checkout --detach FETCH_HEAD && \
+    make -C src ZLIBNG=0 && \
+    make -C src ZLIBNG=0 test && \
+    ./src/svht_denoise --version && \
+    install -m 0755 src/svht_denoise /usr/local/bin/svht_denoise
+
+#
 # Main stage
 #
 FROM ${BASE_IMAGE} AS base
@@ -70,6 +98,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 # Install downloaded files from stages
 COPY --link --from=freesurfer /opt/freesurfer /opt/freesurfer
 COPY --link --from=msm /usr/local/bin/msm /usr/local/bin/msm
+COPY --link --from=svht_denoise /usr/local/bin/svht_denoise /usr/local/bin/svht_denoise
 
 # Some baseline tools; bc is needed for FreeSurfer, so don't drop it
 RUN apt-get update && \

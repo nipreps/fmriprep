@@ -112,3 +112,36 @@ def write_derivatives(path, include=None, **kwargs) -> Path:
         generate_bids_skeleton(Path(tmpdir) / 'deriv', skeleton)
         shutil.copytree(Path(tmpdir) / 'deriv', path, dirs_exist_ok=True)
     return path
+
+
+def write_bold(path, n_volumes=10, seed=0):
+    """Write a small synthetic 4D series: a bright ellipsoid on a dark, noisy background.
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        The output NIfTI file. Missing parent directories are created.
+    n_volumes : int
+        The number of volumes.
+    seed : int
+        The seed of the noise.
+
+    Returns
+    -------
+    str
+        The output file.
+    """
+    import nibabel as nb
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    shape = (24, 24, 12)
+    ijk = np.indices(shape).astype(float)
+    center = (np.array(shape) - 1) / 2
+    radii = np.array(shape) / 3
+    inside = (((ijk - center[:, None, None, None]) / radii[:, None, None, None]) ** 2).sum(0) <= 1
+    data = np.where(inside, 1000.0, 20.0)[..., None] + rng.normal(0, 10, shape + (n_volumes,))
+    affine = np.diag([3.0, 3.0, 3.0, 1.0])
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    nb.Nifti1Image(np.abs(data).astype(np.float32), affine).to_filename(str(path))
+    return str(path)

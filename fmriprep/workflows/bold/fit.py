@@ -108,6 +108,7 @@ def init_bold_fit_wf(
     fieldmap_id: str | None = None,
     jacobian: bool = False,
     omp_nthreads: int = 1,
+    denoised: bool = False,
     name: str = 'bold_fit_wf',
 ) -> pe.Workflow:
     """
@@ -137,11 +138,16 @@ def init_bold_fit_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    denoised
+        If :obj:`True`, the BOLD data come from ``inputnode.bold_file``, connected to
+        the denoised series, rather than from ``bold_series``. ``bold_series`` still
+        names the outputs and supplies the metadata.
 
     Inputs
     ------
     bold_file
-        BOLD series NIfTI file
+        BOLD series NIfTI files, one per echo. Set from ``bold_series`` unless
+        ``denoised``, in which case it must be connected.
     fmap_ref
         Fieldmap reference file
     fmap_coeff
@@ -236,6 +242,28 @@ def init_bold_fit_wf(
     hmc_xforms = transforms.get('hmc')
     run2fmap_xform = transforms.get('run2fmap')
 
+    if denoised:
+        # Denoising moves no voxels, so these remain valid for the denoised series, but
+        # they were estimated from data that may not have been denoised
+        reused = [
+            label
+            for label, value in (
+                ('HMC boldref', hmc_boldref),
+                ('HMC transforms', hmc_xforms),
+                ('BOLD-to-fieldmap transform', run2fmap_xform),
+                ('coregistration boldref', run_boldref),
+            )
+            if value
+        ]
+        if reused:
+            config.loggers.workflow.warning(
+                'Reusing precomputed %s for %s with --bold-denoise-method svht. These were '
+                'estimated from data that may not have been denoised. Remove them from '
+                '--derivatives to estimate them from the denoised series.',
+                ', '.join(reused),
+                basename,
+            )
+
     workflow = Workflow(name=name)
 
     inputnode = pe.Node(
@@ -250,7 +278,6 @@ def init_bold_fit_wf(
         ),
         name='inputnode',
     )
-    inputnode.inputs.bold_file = bold_series
 
     outputnode = pe.Node(
         niu.IdentityInterface(
@@ -273,6 +300,15 @@ def init_bold_fit_wf(
 
     # If all derivatives exist, inputnode could go unconnected, so add explicitly
     workflow.add_nodes([inputnode])
+
+    # The BOLD data the fit reads: the shortest echo of the input, or of the denoised series
+    bold_source = bold_file
+    if denoised:
+        bold_source = None
+        first_bold = pe.Node(niu.Select(index=0), name='first_bold', run_without_submitting=True)
+        workflow.connect([(inputnode, first_bold, [('bold_file', 'inlist')])])
+    else:
+        inputnode.inputs.bold_file = bold_series
 
     hmcref_buffer = pe.Node(
         niu.IdentityInterface(fields=['boldref', 'bold_file', 'dummy_scans']),
@@ -324,10 +360,14 @@ def init_bold_fit_wf(
         config.loggers.workflow.info('Stage 1: Adding HMC boldref workflow')
         hmc_boldref_wf = init_raw_boldref_wf(
             name='hmc_boldref_wf',
-            bold_file=bold_file,
+            bold_file=bold_source,
             multiecho=multiecho,
         )
         hmc_boldref_wf.inputs.inputnode.dummy_scans = config.workflow.dummy_scans
+        if denoised:
+            workflow.connect([
+                (first_bold, hmc_boldref_wf, [('out', 'inputnode.bold_file')]),
+            ])  # fmt:skip
 
         ds_hmc_boldref_wf = init_ds_boldref_wf(
             source_file=bold_file,
@@ -357,7 +397,11 @@ def init_bold_fit_wf(
     else:
         config.loggers.workflow.info('Found HMC boldref - skipping Stage 1')
 
-        validation_and_dummies_wf = init_validation_and_dummies_wf(bold_file=bold_file)
+        validation_and_dummies_wf = init_validation_and_dummies_wf(bold_file=bold_source)
+        if denoised:
+            workflow.connect([
+                (first_bold, validation_and_dummies_wf, [('out', 'inputnode.bold_file')]),
+            ])  # fmt:skip
 
         workflow.connect([
             (validation_and_dummies_wf, hmcref_buffer, [
@@ -589,6 +633,7 @@ def init_bold_native_wf(
     fieldmap_id: str | None = None,
     jacobian: bool = False,
     omp_nthreads: int = 1,
+    denoised: bool = False,
     name: str = 'bold_native_wf',
 ) -> pe.Workflow:
     r"""
@@ -619,9 +664,16 @@ def init_bold_native_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    denoised
+        If :obj:`True`, the BOLD data come from ``inputnode.bold_files``, connected to
+        the denoised series, rather than from ``bold_series``. ``bold_series`` still
+        supplies the metadata.
 
     Inputs
     ------
+    bold_files
+        The denoised series of each echo, in the order of ``bold_series``. Present only
+        if ``denoised``.
     run_boldref
         BOLD reference file
     run_mask
@@ -713,6 +765,8 @@ def init_bold_native_wf(
                 # Fieldmap fit
                 'fmap_ref',
                 'fmap_coeff',
+                # Denoised BOLD series, one per echo
+                *(['bold_files'] if denoised else []),
             ],
         ),
         name='inputnode',
@@ -747,8 +801,13 @@ def init_bold_native_wf(
     else:
         echo_index.inputs.echoidx = 0
 
-    # BOLD source: track original BOLD file(s)
-    bold_source = pe.Node(niu.Select(inlist=bold_series), name='bold_source')
+    # BOLD source: track original BOLD file(s), or their denoised series
+    bold_source = pe.Node(niu.Select(), name='bold_source')
+    if denoised:
+        workflow.connect([(inputnode, bold_source, [('bold_files', 'inlist')])])
+    else:
+        bold_source.inputs.inlist = bold_series
+
     validate_bold = pe.Node(ValidateImage(), name='validate_bold')
     workflow.connect([
         (echo_index, bold_source, [('echoidx', 'index')]),

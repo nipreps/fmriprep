@@ -207,6 +207,8 @@ This is strictly true when pre-computed FreeSurfer derivatives are provided eith
 the ``sourcedata/`` directory or passed via the ``--fs-subjects-dir`` flag;
 if fMRIPrep runs FreeSurfer, then there is a mutual dependency.
 
+.. _func_derivatives:
+
 Functional derivatives
 ~~~~~~~~~~~~~~~~~~~~~~
 Functional derivatives are stored in the ``func/`` subfolder.
@@ -377,6 +379,27 @@ corresponding :abbr:`BOLD (blood-oxygen level dependent)` time series::
   669.14166 0.0 489.4421  1.168398  17.575331 0.07211929999999998 -0.4506846719 0.1191909139  -0.0945884724 0.1542023065  -0.2302324641 0.0838194238  -0.032426848599999995 0.4284323184  -0.5809158299 0.1382414008  -0.1203486637 0.3783661265  0.0 0.0 0.0207752 0.0463124 -0.000270924  -0.0  0.0
   665.3969  0.0 488.03  1.085204  16.323903999999995  0.0348966 0.010819676200000001  0.0651895837  -0.09556632150000001  -0.033148835  -0.4768871111 0.20641088559999998 0.2818768463  0.4303863764  0.41323714850000004 -0.2115232212 -0.0037154909000000004  0.10636180070000001 0.0 0.0 0.0 0.0457372 0.0 -0.0  0.0
   662.82715 0.0 487.37302 1.01591 15.281561 0.0333937 0.3328022893  -0.2220965269 -0.0912891436 0.2326688125  0.279138129 -0.111878887  0.16901660629999998 0.0550480212  0.1798747037  -0.25383302620000003  0.1646403629  0.3953613889  0.0 0.010164  -0.0103568  0.0424513 0.0 -0.0  0.00019174
+
+**Denoising maps**.
+With ``--bold-denoise-method svht`` (see :ref:`bold_denoise`), each echo of each run gets
+a noise map, the estimated standard deviation of the thermal noise in the intensity units
+of the input, and a rank map, the number of principal components kept as signal::
+
+  sub-<subject_label>/
+    func/
+      sub-<subject_label>_[specifiers]_desc-noise_boldmap.nii.gz
+      sub-<subject_label>_[specifiers]_desc-noise_boldmap.json
+      sub-<subject_label>_[specifiers]_desc-rank_boldmap.nii.gz
+      sub-<subject_label>_[specifiers]_desc-rank_boldmap.json
+
+Both are in the space of the input BOLD series, before head-motion correction.
+For multi-echo data, ``[specifiers]`` include the ``echo-<index>`` entity; the ``part``
+entity of a magnitude input is dropped.
+The sidecars record the ``svht_denoise`` version and the parameters set, the input
+files (``Sources``), whether phase data were used (``UsedPhase``) and, if so, in what
+units (``PhaseUnits``).
+The denoised series itself is not written out; every other functional derivative is
+computed from it.
 
 **Multi-echo derivatives**.
 For multi-echo datasets, the output ``_bold`` series are "optimally combined" by

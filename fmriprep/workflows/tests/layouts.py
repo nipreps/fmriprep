@@ -132,12 +132,42 @@ def _make_func_only_sessions():
     }
 
 
+def _make_complex_func():
+    """The no-session functional data, with each BOLD file split into magnitude and phase."""
+    func = []
+    for entry in _make_func():
+        if entry['suffix'] != 'bold':
+            func.append(entry)
+            continue
+
+        func.append({**entry, 'part': 'mag'})
+        func.append(
+            {
+                **entry,
+                'part': 'phase',
+                'metadata': {**entry['metadata'], 'Units': 'rad'},
+            }
+        )
+    return func
+
+
+def _make_complex_bold():
+    return {
+        '01': {
+            'anat': _make_anat(),
+            'func': _make_complex_func(),
+            'fmap': _make_fmap(),
+        },
+    }
+
+
 _LAYOUT_FACTORIES = {
     'no_session': _make_no_session,
     'single_session': _make_single_session,
     'homogeneous_sessions': _make_homogeneous_sessions,
     'heterogeneous_sessions': _make_heterogeneous_sessions,
     'func_only_sessions': _make_func_only_sessions,
+    'complex_bold': _make_complex_bold,
 }
 
 

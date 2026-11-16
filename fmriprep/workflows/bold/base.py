@@ -56,6 +56,7 @@ def init_bold_apply_wf(
     bold_series: list[str],
     fieldmap_id: str | None = None,
     jacobian: bool = False,
+    denoised: bool = False,
     name: str = 'bold_apply_wf',
 ) -> pe.Workflow:
     """
@@ -84,9 +85,15 @@ def init_bold_apply_wf(
     fieldmap_id
         ID of the fieldmap to use to correct this BOLD series. If :obj:`None`,
         no correction will be applied.
+    denoised
+        If :obj:`True`, the BOLD data come from ``inputnode.bold_files``, connected to
+        the denoised series, rather than from ``bold_series``.
 
     Inputs
     ------
+    bold_files
+        The denoised series of each echo, in the order of ``bold_series``. Present only
+        if ``denoised``.
     t1w_preproc
         Bias-corrected structural template image
     t1w_mask
@@ -226,6 +233,8 @@ configured with cubic B-spline interpolation.
                 'mni6_mask',
                 # MNI152NLin2009cAsym inverse warp, for carpetplotting
                 'mni2009c2anat_xfm',
+                # Denoised BOLD series, one per echo
+                *(['bold_files'] if denoised else []),
             ],
         ),
         name='inputnode',
@@ -250,7 +259,13 @@ configured with cubic B-spline interpolation.
         fieldmap_id=fieldmap_id,
         jacobian=jacobian,
         omp_nthreads=omp_nthreads,
+        denoised=denoised,
     )
+
+    if denoised:
+        workflow.connect([
+            (inputnode, bold_native_wf, [('bold_files', 'inputnode.bold_files')]),
+        ])  # fmt:skip
 
     workflow.connect([
         (inputnode, bold_native_wf, [

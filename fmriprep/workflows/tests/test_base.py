@@ -823,3 +823,59 @@ def test_reuse_precomputed_template_coreg(
 
 
 ### /Precomputed coregistration tests
+
+
+@pytest.mark.parametrize(
+    ('method', 'layout_id', 'ignore', 'expect_phase'),
+    [
+        ('none', 'complex_bold', [], False),
+        ('svht', 'no_session', [], False),
+        ('svht', 'complex_bold', [], True),
+        ('svht', 'complex_bold', ['phase'], False),
+    ],
+)
+def test_bold_denoise_wiring(bids_root_factory, method, layout_id, ignore, expect_phase):
+    """Test that denoising runs first for every BOLD run, only when asked for."""
+    bids_dir = bids_root_factory(layout_id)
+    with mock_config(bids_dir=bids_dir):
+        # mock_config does not reset the level, which other tests in a worker may have set;
+        # the apply workflows checked below exist only above the minimal level
+        config.workflow.level = 'full'
+        config.workflow.bold_denoise_method = method
+        config.workflow.ignore = ignore
+        wf = init_single_subject_wf('01')
+
+    names = wf.list_node_names()
+    denoise_wfs = {name.split('.')[0] for name in names if name.startswith('bold_denoise_')}
+    fit_firsts = [name for name in names if name.startswith('bold_fit_') and 'first_bold' in name]
+    desc = wf.visit_desc()
+    if method == 'none':
+        assert not denoise_wfs
+        assert not fit_firsts
+        assert 'thermal noise' not in desc
+        return
+
+    # Denoising is described first among the functional steps, under their heading
+    heading = desc.index('Functional data preprocessing')
+    denoising = desc.index('thermal noise was removed')
+    # Not tied to the reference step's opening word, which changes with its position
+    reference = desc.index('reference volume was generated')
+    assert heading < denoising < reference
+    assert ('[@nordic]' in desc) == expect_phase
+
+    # Two single-echo rest runs and one three-echo nback run
+    assert len(denoise_wfs) == 3
+    assert len(fit_firsts) == 3
+    assert sum('denoiser_echo' in name for name in names) == 5
+    assert any('validate_phase_echo' in name for name in names) == expect_phase
+
+    # Each run's denoised series feeds both its fit and its resampling
+    for denoise_name in denoise_wfs:
+        bold_id = denoise_name.removeprefix('bold_denoise_').removesuffix('_wf')
+        denoise_wf = wf.get_node(denoise_name)
+        for target, field in (
+            (f'bold_fit_{bold_id}_wf', 'inputnode.bold_file'),
+            (f'bold_apply_{bold_id}_wf', 'inputnode.bold_files'),
+        ):
+            edges = wf._graph.get_edge_data(denoise_wf, wf.get_node(target))
+            assert ('outputnode.bold_files', field) in edges['connect']
