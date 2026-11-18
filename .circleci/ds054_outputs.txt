@@ -1,6 +1,7 @@
 
 .bidsignore
 dataset_description.json
+descriptions.tsv
 logs
 logs/CITATION.bib
 logs/CITATION.html
