@@ -261,9 +261,8 @@ line-length = 99
 
 [tool.ruff.lint]
 extend-select = [
-  "I",
-  "UP",
   "YTT",
+  "ASYNC",
   "S",
   "BLE",
   "B",
@@ -278,13 +277,19 @@ extend-select = [
   "ISC",
   "ICN",
   "LOG",
+  # 'G',
   "PIE",
   "PYI",
   "PT",
   "Q",
+  # "RET",
   # "SIM",
+  # "TC",
   # "TID",
+  # "PTH",
   "FLY",
+  "I",
+  # "N",
   # "PD",
   "PERF",
   "W",
@@ -292,8 +297,10 @@ extend-select = [
   "PLC",
   "PLE",
   "PLW",
+  "UP",
   "FURB",
   "RUF",
+  # "TRY",
 ]
 ignore = [
   "S311",  # We are not using random for cryptographic purposes
