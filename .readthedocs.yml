@@ -7,6 +7,9 @@ build:
   apt_packages:
     - graphviz
   jobs:
+    # Install the "doc" dependency group (RTD has no native support yet)
+    post_install:
+      - python -m pip install --group doc .
     post_checkout:
       - git fetch --unshallow
 
@@ -14,8 +17,6 @@ python:
   install:
     - requirements: docs/requirements.txt
     - path: .
-      extra_requirements:
-        - doc
     - path: wrapper/
 
 sphinx:
