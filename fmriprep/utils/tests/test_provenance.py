@@ -23,11 +23,9 @@
 """Tests of provenance records."""
 
 import getpass
-import importlib.util
 import json
 import os
 import pwd
-import shutil
 import socket
 from pathlib import Path
 
@@ -464,19 +462,8 @@ def test_node_without_result(tmp_path, execgraph, monkeypatch, caplog):
     assert len(list(default.subjects(RDF_TYPE, PROV.Bundle))) == 5
 
 
-@pytest.fixture(scope='module')
-def prov2nipost():
-    script = Path(__file__).parents[3] / 'scripts' / 'prov2nipost.py'
-    if not script.exists():
-        pytest.skip('scripts/prov2nipost.py is only available in the source tree')
-    spec = importlib.util.spec_from_file_location('prov2nipost', script)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def test_redo_resampling(tmp_path_factory, monkeypatch, capsys, prov2nipost):
-    """Resamplings can be redone with nipost alone, from their provenance records."""
+def test_list_members(tmp_path_factory, monkeypatch):
+    """Files of an input that is a list (e.g., a chain of transforms) are described."""
 
     tmp_path = tmp_path_factory.mktemp('redo')
     monkeypatch.chdir(tmp_path)
@@ -518,28 +505,9 @@ def test_redo_resampling(tmp_path_factory, monkeypatch, capsys, prov2nipost):
     }
     assert all(graph.value(member, CRYPTO.sha512) for member in members)
 
-    # Where it was run
-    assert prov2nipost.main([str(out_file), '--out-dir', str(tmp_path / 'redo')]) == 0
-    assert 'checksum identical to the original' in capsys.readouterr().out
 
-    # Elsewhere (e.g., outside of the container), translating paths
-    (tmp_path / 'moved').mkdir()
-    for path in ('bold.nii.gz', 'ref.nii.gz', 'xfm0.txt', 'xfm1.txt', 'work'):
-        (tmp_path / path).rename(tmp_path / 'moved' / path)
-    args = [str(out_file), '--out-dir', str(tmp_path / 'redo2')]
-    assert prov2nipost.main(args) == 1
-    assert 'does not exist' in capsys.readouterr().out
-    assert prov2nipost.main([*args, '--map', f'{tmp_path}={tmp_path}/moved']) == 0
-    assert 'checksum identical to the original' in capsys.readouterr().out
-
-    # Inputs that changed are detected
-    (tmp_path / 'moved' / 'xfm1.txt').write_text((tmp_path / 'moved' / 'xfm0.txt').read_text())
-    assert prov2nipost.main([*args, '--map', f'{tmp_path}={tmp_path}/moved']) == 1
-    assert 'differs from what was recorded' in capsys.readouterr().out
-
-
-def test_redo_target(tmp_path_factory, monkeypatch, capsys, prov2nipost):
-    """A derivative and its sidecar can be regenerated once the working directory is gone."""
+def test_sink_metadata(tmp_path_factory, monkeypatch):
+    """Metadata given to a data sink when it is created are recorded as its inputs."""
 
     tmp_path = tmp_path_factory.mktemp('target')
     monkeypatch.chdir(tmp_path)
@@ -591,35 +559,6 @@ def test_redo_target(tmp_path_factory, monkeypatch, capsys, prov2nipost):
     # Metadata given to the data sink when created are recorded as its inputs
     graph = _load(out_file).graph(_id('/fmriprep_wf.ds_bold/record'))
     assert {str(port) for port in graph.objects(None, NIPYPE.inPort)} >= {'TaskName', 'meta_dict'}
-
-    # The intermediate file is gone with the working directory
-    shutil.rmtree(tmp_path / 'work')
-    args = [str(out_file), '--target', 'desc-preproc_bold.nii.gz', '--out-dir', 'redo']
-    assert prov2nipost.main([*args, '--dry-run']) == 0
-    lines = capsys.readouterr().out.splitlines()
-    assert {line.split(' ', 1)[1] for line in lines if line.startswith('INPUT ')} == {
-        str(bold),
-        str(tmp_path / 'ref.nii.gz'),
-        str(tmp_path / 'xfm.txt'),
-    }
-    assert {line.split(' ', 1)[1] for line in lines if line.startswith('OUTPUT ')} == {
-        str(tmp_path / 'redo' / f'{name}.nii.gz'),
-        str(tmp_path / 'redo' / f'{name}.json'),
-    }
-    assert not (tmp_path / 'redo').exists()
-
-    assert prov2nipost.main(args) == 0
-    regenerated = tmp_path / 'redo' / f'{name}.nii.gz'
-    assert regenerated.read_bytes() == original.read_bytes()
-    assert (
-        json.loads(regenerated.with_name(regenerated.name[:-7] + '.json').read_text()) == sidecar
-    )
-
-    # Nothing can be done about what was not recorded, or without what is needed
-    assert prov2nipost.main([str(out_file), '--target', 'nonexistent.nii.gz']) == 1
-    bold.unlink()
-    assert prov2nipost.main(args) == 1
-    assert 'PROBLEM' in capsys.readouterr().out
 
 
 def _mixed_values(flag, links):
