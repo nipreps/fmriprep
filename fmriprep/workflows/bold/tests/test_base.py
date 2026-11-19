@@ -84,17 +84,10 @@ def test_bold_apply_wf(
 
 
 @pytest.mark.parametrize(
-    ('hmc_method', 'interface', 'trans_x'),
-    [
-        ('mcflirt', FSLMotionParams, 'Translation along left-right axis.'),
-        (
-            '3dvolreg',
-            AFNIMotionParams,
-            'Translation along left-right axis, positive toward right.',
-        ),
-    ],
+    ('hmc_method', 'interface'),
+    [('mcflirt', FSLMotionParams), ('3dvolreg', AFNIMotionParams)],
 )
-def test_bold_apply_wf_hmc_method(bids_root, monkeypatch, hmc_method, interface, trans_x):
+def test_bold_apply_wf_hmc_method(bids_root, monkeypatch, hmc_method, interface):
     """The motion parameters, and their sidecar, follow the head-motion estimator."""
     img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
     bold_series = [str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz')]
@@ -109,4 +102,5 @@ def test_bold_apply_wf_hmc_method(bids_root, monkeypatch, hmc_method, interface,
     motion_params = wf.get_node('bold_confounds_wf.motion_params')
     assert isinstance(motion_params.interface, interface)
     metadata = wf.get_node('bold_confounds_wf.merge_confound_metadata').inputs.in4
-    assert metadata['trans_x']['Description'] == trans_x
+    assert 'left-right' in metadata['trans_x']['Description']
+    assert metadata['trans_x']['Method'] == hmc_method

@@ -433,54 +433,30 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     )
     # Tissue mean time series
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
+
     # Movement parameters
-    motion_metadata = {
-        'trans_x': {'Description': 'Translation along left-right axis.', 'Units': 'mm'},
-        'trans_y': {'Description': 'Translation along anterior-posterior axis.', 'Units': 'mm'},
-        'trans_z': {'Description': 'Translation along superior-inferior axis.', 'Units': 'mm'},
-        'rot_x': {
-            'Description': 'Rotation about left-right axis. Also known as "pitch".',
-            'Units': 'rad',
-        },
-        'rot_y': {
-            'Description': 'Rotation about anterior-posterior axis. Also known as "roll".',
-            'Units': 'rad',
-        },
-        'rot_z': {
-            'Description': 'Rotation about superior-inferior axis. Also known as "yaw".',
-            'Units': 'rad',
-        },
-    }
-    if hmc_method == '3dvolreg':
-        # 3dvolreg's parameters on RAS+ axes: -dL, -dP, dS, -pitch, -yaw and roll
-        motion_metadata = {
-            'trans_x': {
-                'Description': 'Translation along left-right axis, positive toward right.',
-                'Units': 'mm',
-            },
-            'trans_y': {
-                'Description': 'Translation along anterior-posterior axis, positive toward anterior.',
-                'Units': 'mm',
-            },
-            'trans_z': {
-                'Description': 'Translation along inferior-superior axis, positive toward superior.',
-                'Units': 'mm',
-            },
-            'rot_x': {
-                'Description': 'Rotation about left-right axis. AFNI reports its negation as "pitch".',
-                'Units': 'rad',
-            },
-            'rot_y': {
-                'Description': 'Rotation about anterior-posterior axis. AFNI reports its negation as "yaw".',
-                'Units': 'rad',
-            },
-            'rot_z': {
-                'Description': 'Rotation about inferior-superior axis. AFNI calls this "roll".',
-                'Units': 'rad',
-            },
+    def _trans(neg, pos):
+        return {
+            'Description': f'Translation along {neg}-{pos} axis, positive toward {pos}.',
+            'Units': 'mm',
+            'Method': hmc_method,
         }
+
+    def _rot(axis, name, afni_note):
+        note = f' {afni_note}' if hmc_method == '3dvolreg' else ''
+        return {
+            'Description': f'Rotation about {axis} axis, also known as "{name}".{note}',
+            'Units': 'rad',
+            'Method': hmc_method,
+        }
+
     mrg_conf_metadata.inputs.in4 = {
-        **motion_metadata,
+        'trans_x': _trans('left', 'right'),
+        'trans_y': _trans('posterior', 'anterior'),
+        'trans_z': _trans('inferior', 'superior'),
+        'rot_x': _rot('left-right', 'pitch', 'Negated from AFNI.'),
+        'rot_y': _rot('posterior-anterior', 'roll', 'AFNI reports its negation as "yaw".'),
+        'rot_z': _rot('inferior-superior', 'yaw', 'AFNI reports as "roll".'),
         'framewise_displacement': {'Units': 'mm'},
     }
     mrg_conf_metadata2 = pe.Node(
