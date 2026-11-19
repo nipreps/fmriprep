@@ -34,7 +34,6 @@ def _build_parser(**kwargs):
     ``kwargs`` are passed to ``argparse.ArgumentParser`` (mainly useful for debugging).
     """
     from argparse import (
-        SUPPRESS,
         Action,
         ArgumentDefaultsHelpFormatter,
         ArgumentParser,
@@ -513,13 +512,18 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
             'It is faster and less memory intensive, but may be less accurate.'
         ),
     )
-    # Hidden expert option, to evaluate 3dvolreg against MCFLIRT
     g_conf.add_argument(
         '--hmc-method',
         action='store',
         default='mcflirt',
         choices=['mcflirt', '3dvolreg'],
-        help=SUPPRESS,
+        help=(
+            'The tool to use for head-motion correction. '
+            'Note that 3dvolreg support is experimental, added for testing, '
+            'and its parameters may change in patch releases. '
+            'This option is an expert option and may be removed without notice '
+            'in future releases.'
+        ),
     )
 
     g_outputs = parser.add_argument_group('Options for modulating outputs')
