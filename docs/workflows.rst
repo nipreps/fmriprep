@@ -505,6 +505,15 @@ of each run and the reconstructed subject using the gray/white matter boundary
 (FreeSurfer's ``?h.white`` surfaces) is calculated by the ``bbregister`` routine.
 See :func:`fmriprep.workflows.bold.registration.init_bbreg_wf` for further details.
 
+The starting point of ``bbregister`` is set with ``--bold2anat-init``.
+By default, it is estimated with ``mri_coreg``, using the T2w image if available.
+With ``header``, the scanner coordinates in the image headers are used instead,
+which is often more robust when the BOLD series covers only part of the brain.
+With ``session-header``, for data with a T1w image in every session, the header
+alignment is first corrected by the transform that aligns the T1w image of the
+BOLD session to the T1w reference, as the headers of a session only agree with
+the T1w image acquired in that same session.
+
 .. figure:: _static/EPIT1Normalization.svg
 
     Animation showing :abbr:`EPI (echo-planar imaging)` to T1w registration (FreeSurfer ``bbregister``)

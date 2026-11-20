@@ -159,6 +159,38 @@ def test_parse_args(tmp_path, minimal_bids):
     _reset_config()
 
 
+@pytest.mark.parametrize(
+    ('extra_args', 'valid'),
+    [
+        ([], True),
+        (['--bold-coreg-level', 'session'], True),
+        (['--bold-coreg-level', 'subject'], False),
+        (['--fs-no-reconall'], False),
+    ],
+)
+def test_bold2anat_init_session_header(tmp_path, minimal_bids, extra_args, valid):
+    args = [
+        str(minimal_bids),
+        str(tmp_path / 'out'),
+        'participant',
+        '-w',
+        str(tmp_path / 'work'),
+        '--skip-bids-validation',
+        '--bold2anat-init',
+        'session-header',
+        *extra_args,
+    ]
+
+    if valid:
+        parse_args(args=args)
+        assert config.workflow.bold2anat_init == 'session-header'
+    else:
+        with pytest.raises(SystemExit):
+            parse_args(args=args)
+
+    _reset_config()
+
+
 def test_bids_filter_file(tmp_path, capsys):
     bids_path = tmp_path / 'data'
     out_path = tmp_path / 'out'

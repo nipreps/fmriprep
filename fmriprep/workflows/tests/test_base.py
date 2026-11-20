@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -369,6 +370,104 @@ def test_fmriprep_wf_builds(
         config.workflow.bold_coreg_level = bold_coreg_level
         config._create_processing_groups()
         assert init_fmriprep_wf()
+
+
+@pytest.mark.parametrize('bold_coreg_level', ['run', 'session'])
+def test_fmriprep_wf_session_header(bids_root_factory, monkeypatch, bold_coreg_level):
+    bids_dir = bids_root_factory('homogeneous_sessions')
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        monkeypatch.setattr(config.workflow, 'bold_coreg_level', bold_coreg_level)
+        wf = init_fmriprep_wf()
+
+    init_xfm_nodes = [
+        node for node in wf._create_flat_graph().nodes() if 'select_init_xfm' in node.fullname
+    ]
+    n_groups = 6 if bold_coreg_level == 'run' else 2
+    assert len(init_xfm_nodes) == n_groups
+    generate_expanded_graph(wf._create_flat_graph())
+
+
+def test_fmriprep_wf_session_header_missing_t1w(bids_root_factory, monkeypatch):
+    bids_dir = bids_root_factory('heterogeneous_sessions')
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        with pytest.raises(OSError, match='every BOLD session'):
+            init_fmriprep_wf()
+
+
+def test_fmriprep_wf_session_header_no_sessions(bids_root_factory, monkeypatch):
+    bids_dir = bids_root_factory('no_session')
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        with pytest.raises(OSError, match='organized in sessions'):
+            init_fmriprep_wf()
+
+
+def _make_precomputed_anat(deriv_dir, sessions):
+    """Write a precomputed T1w reference and per-session realignment transforms."""
+    anat = deriv_dir / 'sub-01' / 'anat'
+    anat.mkdir(parents=True)
+    (deriv_dir / 'dataset_description.json').write_text(
+        '{"Name": "sMRIPrep", "BIDSVersion": "1.8.0", "DatasetType": "derivative"}'
+    )
+    nb.Nifti1Image(np.zeros((10, 10, 10)), np.eye(4)).to_filename(
+        anat / 'sub-01_desc-preproc_T1w.nii.gz'
+    )
+    xfms = {}
+    for session in sessions:
+        ses_anat = deriv_dir / 'sub-01' / f'ses-{session}' / 'anat'
+        ses_anat.mkdir(parents=True)
+        xfm = ses_anat / f'sub-01_ses-{session}_from-orig_to-T1w_mode-image_xfm.txt'
+        xfm.write_text('#Insight Transform File V1.0\n')
+        xfms[session] = str(xfm)
+    return xfms
+
+
+def _coreg_init_xfms(wf):
+    """Map each BOLD coregistration workflow name to its ``init_xfm`` input."""
+    sub_wf = wf.get_node('sub_01_wf')
+    return {
+        name.removesuffix('.inputnode'): sub_wf.get_node(name).inputs.init_xfm
+        for name in sub_wf.list_node_names()
+        if re.fullmatch(r'bold_anat_coreg_\w+_wf\.inputnode', name)
+    }
+
+
+@pytest.mark.parametrize('bold_coreg_level', ['run', 'session'])
+def test_fmriprep_wf_session_header_precomputed(
+    bids_root_factory, tmp_path, monkeypatch, bold_coreg_level
+):
+    bids_dir = bids_root_factory('homogeneous_sessions')
+    xfms = _make_precomputed_anat(tmp_path / 'anat_derivs', ['pre', 'post'])
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        monkeypatch.setattr(config.workflow, 'bold_coreg_level', bold_coreg_level)
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': tmp_path / 'anat_derivs'})
+        wf = init_fmriprep_wf()
+
+    flat_graph = wf._create_flat_graph()
+    assert not [node for node in flat_graph.nodes() if 'select_init_xfm' in node.fullname]
+
+    init_xfms = _coreg_init_xfms(wf)
+    n_groups = 6 if bold_coreg_level == 'run' else 2
+    assert len(init_xfms) == n_groups
+    for name, init_xfm in init_xfms.items():
+        session = 'pre' if '_ses_pre_' in name else 'post'
+        assert init_xfm == xfms[session]
+    generate_expanded_graph(flat_graph)
+
+
+def test_fmriprep_wf_session_header_precomputed_missing_xfm(
+    bids_root_factory, tmp_path, monkeypatch
+):
+    bids_dir = bids_root_factory('homogeneous_sessions')
+    _make_precomputed_anat(tmp_path / 'anat_derivs', ['pre'])
+    with mock_config(bids_dir=bids_dir):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        monkeypatch.setattr(config.execution, 'derivatives', {'anat': tmp_path / 'anat_derivs'})
+        with pytest.raises(OSError, match=r'from-orig_to-T1w.*session\(s\): post'):
+            init_fmriprep_wf()
 
 
 @pytest.mark.parametrize(

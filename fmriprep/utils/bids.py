@@ -605,6 +605,65 @@ def extract_entities(file_list):
     return {k: _unique(v) for k, v in entities.items()}
 
 
+def select_session_xfm(source_files, xfms, session):
+    """
+    Select the transform of the first anatomical image (in input order) of a session.
+
+    Examples
+    --------
+    >>> select_session_xfm(
+    ...     ["sub-01/ses-1/anat/sub-01_ses-1_T1w.nii.gz", "sub-01/ses-2/anat/sub-01_ses-2_T1w.nii.gz"],
+    ...     ["ses-1_xfm.txt", "ses-2_xfm.txt"],
+    ...     "2",
+    ... )
+    'ses-2_xfm.txt'
+
+    """
+    from bids.layout import parse_file_entities
+
+    for source_file, xfm in zip(source_files, xfms, strict=True):
+        if parse_file_entities(source_file).get('session') == session:
+            return xfm
+    raise ValueError(f'No anatomical image found for session {session}.')
+
+
+def collect_session_anat_xfms(
+    derivatives_dir: Path, subject_id: str, sessions: list[str] | set[str]
+) -> dict[str, str]:
+    """
+    Collect precomputed transforms realigning each session's T1w to the T1w reference.
+
+    sMRIPrep writes one ``from-orig_to-T1w_mode-image_xfm.txt`` transform per input
+    T1w image when more than one T1w image is averaged into the reference.
+    If a session has several T1w images, the first one (in sorted order) is selected,
+    consistently with :func:`select_session_xfm`.
+
+    Returns
+    -------
+    :obj:`dict`
+        Mapping of session label to transform path, for the sessions where one was found.
+
+    """
+    xfms = {}
+    for session in sessions:
+        prefix = f'sub-{subject_id}_ses-{session}'
+        found = sorted(
+            str(xfm)
+            for xfm in Path(derivatives_dir).glob(
+                f'sub-{subject_id}/ses-{session}/anat/{prefix}_*from-orig_to-T1w_mode-image_xfm.txt'
+            )
+        )
+        if not found:
+            continue
+        if len(found) > 1:
+            config.loggers.workflow.warning(
+                f'Found {len(found)} T1w realignment transforms for session {session}; '
+                f'using {found[0]}.'
+            )
+        xfms[session] = found[0]
+    return xfms
+
+
 def dismiss_echo(entities=None):
     """Set entities to dismiss in a DerivativesDataSink."""
     if entities is None:

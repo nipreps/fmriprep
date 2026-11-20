@@ -418,11 +418,17 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
     )
     g_conf.add_argument(
         '--bold2anat-init',
-        choices=['auto', 't1w', 't2w', 'header'],
+        choices=['auto', 't1w', 't2w', 'header', 'session-header'],
         default='auto',
         help='Method of initial BOLD to anatomical coregistration. If `auto`, a T2w image is used '
         'if available, otherwise the T1w image. `t1w` forces use of the T1w, `t2w` forces use of '
-        'the T2w, and `header` uses the BOLD header information without an initial registration.',
+        'the T2w, and `header` uses the BOLD header information without an initial registration. '
+        '`session-header` is like `header`, but first applies the transform that aligns the T1w '
+        'image of the BOLD session to the T1w reference; useful for multi-session data, '
+        'especially with partial field-of-view BOLD acquisitions. It requires a T1w image in every BOLD '
+        'session and FreeSurfer surface preprocessing. With precomputed anatomical derivatives, '
+        'the per-session `*_from-orig_to-T1w_mode-image_xfm.txt` transforms must be present '
+        'next to the precomputed T1w reference.',
     )
     g_conf.add_argument(
         '--bold2anat-dof',
@@ -853,6 +859,18 @@ def parse_args(args=None, namespace=None):
             'processes a single session, so a subject-level BOLD template cannot span '
             'sessions. Use `--bold-coreg-level session` instead.'
         )
+
+    if opts.bold2anat_init == 'session-header':
+        if opts.bold_coreg_level == 'subject':
+            parser.error(
+                '`--bold2anat-init session-header` is incompatible with '
+                '`--bold-coreg-level subject`: the initialization is specific to each session. '
+                'Use `--bold-coreg-level session` or `run` instead.'
+            )
+        if not opts.run_reconall:
+            parser.error(
+                '`--bold2anat-init session-header` requires FreeSurfer surface preprocessing.'
+            )
 
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()

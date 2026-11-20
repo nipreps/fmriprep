@@ -45,7 +45,7 @@ DEFAULT_MEMORY_MIN_GB = config.DEFAULT_MEMORY_MIN_GB
 LOGGER = config.loggers.workflow
 
 AffineDOF = ty.Literal[6, 9, 12]
-RegistrationInit = ty.Literal['t1w', 't2w', 'header']
+RegistrationInit = ty.Literal['t1w', 't2w', 'header', 'session-header']
 
 
 def init_bold_reg_wf(
@@ -92,8 +92,10 @@ def init_bold_reg_wf(
         If ``None``, test BBR result for distortion before accepting.
     bold2anat_dof : 6, 9 or 12
         Degrees-of-freedom for BOLD-anatomical registration
-    bold2anat_init : str, 't1w', 't2w' or 'header'
+    bold2anat_init : str, 't1w', 't2w', 'header' or 'session-header'
         If ``'header'``, use header information for initialization of BOLD and T1 images.
+        If ``'session-header'``, use header information after realigning the T1w image
+        of the BOLD session to the T1w reference (requires ``init_xfm``).
         If ``'t1w'``, align BOLD to T1w by their centers.
         If ``'t2w'``, align BOLD to T1w using the T2w as an intermediate.
     mem_gb : :obj:`float`
@@ -119,6 +121,9 @@ def init_bold_reg_wf(
         FreeSurfer subject ID
     fsnative2t1w_xfm
         LTA-style affine matrix translating from FreeSurfer-conformed subject space to T1w
+    init_xfm
+        Affine transform realigning the T1w image of the BOLD session to the T1w
+        reference (ITK format). Only used if ``bold2anat_init == 'session-header'``.
 
     Outputs
     -------
@@ -150,6 +155,7 @@ def init_bold_reg_wf(
                 'subjects_dir',
                 'subject_id',
                 'fsnative2t1w_xfm',
+                'init_xfm',
             ]
         ),
         name='inputnode',
@@ -193,6 +199,9 @@ def init_bold_reg_wf(
             ('outputnode.metadata', 'metadata'),
         ]),
     ])  # fmt:skip
+
+    if bold2anat_init == 'session-header':
+        workflow.connect(inputnode, 'init_xfm', bbr_wf, 'inputnode.init_xfm')
 
     return workflow
 
@@ -239,8 +248,10 @@ def init_bbreg_wf(
         If ``None``, test BBR result for distortion before accepting.
     bold2anat_dof : 6, 9 or 12
         Degrees-of-freedom for BOLD-anatomical registration
-    bold2anat_init : str, 't1w', 't2w' or 'header'
+    bold2anat_init : str, 't1w', 't2w', 'header' or 'session-header'
         If ``'header'``, use header information for initialization of BOLD and T1 images.
+        If ``'session-header'``, use header information after realigning the T1w image
+        of the BOLD session to the T1w reference (requires ``init_xfm``).
         If ``'t1w'``, align BOLD to T1w by their centers.
         If ``'t2w'``, align BOLD to T1w using the T2w as an intermediate.
     name : :obj:`str`, optional
@@ -252,6 +263,9 @@ def init_bbreg_wf(
         Reference BOLD image to be registered
     fsnative2t1w_xfm
         FSL-style affine matrix translating from FreeSurfer T1.mgz to T1w
+    init_xfm
+        Affine transform realigning the T1w image of the BOLD session to the T1w
+        reference (ITK format). Only used if ``bold2anat_init == 'session-header'``.
     subjects_dir
         FreeSurfer SUBJECTS_DIR
     subject_id
@@ -296,12 +310,18 @@ Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
     use_t2w = bold2anat_init == 't2w'
     if use_t2w:
         workflow.__desc__ += ' The aligned T2w image was used for initial co-registration.'
+    if bold2anat_init == 'session-header':
+        workflow.__desc__ += (
+            ' Co-registration was initialized from the BOLD image header, combined with the '
+            'transform that aligns the T1w image of the same session to the T1w reference.'
+        )
 
     inputnode = pe.Node(
         niu.IdentityInterface(
             [
                 'in_file',
                 'fsnative2t1w_xfm',  # BBRegister
+                'init_xfm',
                 'subjects_dir',
                 'subject_id',
                 't1w_preproc',  # FLIRT BBR
@@ -321,11 +341,11 @@ Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
 
     # For now make BBR unconditional - in the future, we can fall back to identity,
     # but adding the flexibility without testing seems a bit dangerous
-    if bold2anat_init == 'header':
+    if bold2anat_init in ('header', 'session-header'):
         if use_bbr is False:
-            raise ValueError('Cannot disable BBR and use header registration')
+            raise ValueError(f'Cannot disable BBR and use {bold2anat_init} registration')
         if use_bbr is None:
-            LOGGER.warning('Initializing BBR with header; affine fallback disabled')
+            LOGGER.warning(f'Initializing BBR with {bold2anat_init}; affine fallback disabled')
             use_bbr = True
 
     fssource = pe.Node(FreeSurferSource(), name='fssource')
@@ -383,8 +403,34 @@ Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
         (merge_meta, outputnode, [('out_dict', 'metadata')]),
     ])  # fmt:skip
 
+    if bold2anat_init == 'session-header':
+        fsnative2t1w_inv = pe.Node(ConvertAffine(inverse=True), name='fsnative2t1w_inv')
+        init_xfms = pe.Node(niu.Merge(2), name='init_xfms', run_without_submitting=True)
+        init_lta = pe.Node(ConcatenateXFMs(out_fmt='fs'), name='init_lta')
+        # NiTransforms labels the LTA geometry the other way around than bbregister reads it
+        # and leaves the subject unset; see _fs_init_lta.
+        fs_init_lta = pe.Node(
+            niu.Function(function=_fs_init_lta),
+            name='fs_init_lta',
+            run_without_submitting=True,
+        )
+
+        workflow.connect([
+            (inputnode, fsnative2t1w_inv, [('fsnative2t1w_xfm', 'in_xfm')]),
+            (fsnative2t1w_inv, init_xfms, [('out_inv', 'in1')]),
+            (inputnode, init_xfms, [('init_xfm', 'in2')]),
+            (init_xfms, init_lta, [('out', 'in_xfms')]),
+            (inputnode, init_lta, [('in_file', 'moving')]),
+            (inputnode, fssource, [('subjects_dir', 'subjects_dir'),
+                                   ('subject_id', 'subject_id')]),
+            (fssource, init_lta, [('orig', 'reference')]),
+            (init_lta, fs_init_lta, [('out_xfm', 'in_lta')]),
+            (inputnode, fs_init_lta, [('subject_id', 'subject_id')]),
+            (fs_init_lta, bbregister, [('out', 'init_reg_file')]),
+        ])  # fmt:skip
+
     # Do not initialize with header, use mri_coreg
-    if bold2anat_init != 'header':
+    if bold2anat_init not in ('header', 'session-header'):
         gen_by.inputs.in2 = {
             'GeneratedBy': [
                 {'Name': 'mri_coreg', 'Version': mri_coreg.interface.version or '<unknown>'}
@@ -584,7 +630,7 @@ Co-registration was configured with {dof_text} degrees of freedom{reason_text}.
     if bold2anat_init not in ty.get_args(RegistrationInit):
         raise ValueError(f'Unknown BOLD-T1w initialization option: {bold2anat_init}')
 
-    if bold2anat_init == 'header':
+    if bold2anat_init in ('header', 'session-header'):
         raise NotImplementedError('Header-based registration initialization not supported for FSL')
     if bold2anat_init == 't2w':
         LOGGER.warning(
@@ -809,6 +855,39 @@ def _conditional_downsampling(in_file, in_mask, zoom_th=4.0):
     nb.Nifti1Image(newmaskdata, newmask.affine, hdr).to_filename(out_mask)
 
     return str(out_file), str(out_mask)
+
+
+def _fs_init_lta(in_lta, subject_id):
+    """Make a NiTransforms LTA usable as ``bbregister --init-reg``.
+
+    NiTransforms writes the reference (FreeSurfer ``orig``) as ``src`` and the moving image
+    (BOLD) as ``dst``, with a matrix that maps BOLD to ``orig`` coordinates. FreeSurfer reads
+    the matrix as mapping ``src`` to ``dst`` coordinates, and bbregister expects the moving
+    image as ``src``. The matrix is right as it is; only the two volume geometries are swapped.
+    bbregister also takes the subject from the LTA (``subject-unknown`` if unset), not from
+    ``--s``, so the subject is written into the file.
+    """
+    from pathlib import Path
+
+    lines = Path(in_lta).read_text().splitlines()
+    lta_type = next(line for line in lines if line.startswith('type'))
+    if int(lta_type.split('=')[1].split()[0]) != 1:
+        raise ValueError(f'Expected a RAS2RAS (type 1) LTA: {in_lta}')
+
+    src = lines.index('src volume info')
+    dst = lines.index('dst volume info')
+    # each volume info block: valid, filename, volume, voxelsize, xras, yras, zras, cras
+    src_info, dst_info = lines[src + 1 : dst], lines[dst + 1 : dst + 9]
+
+    out_file = Path('init_reg.lta').absolute()
+    out_file.write_text(
+        '\n'.join(
+            lines[:src]
+            + ['src volume info', *dst_info, 'dst volume info', *src_info]
+            + [f'subject {subject_id}', '']
+        )
+    )
+    return str(out_file)
 
 
 def _read_cost(cost_file) -> dict[str, float]:

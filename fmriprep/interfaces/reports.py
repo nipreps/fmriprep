@@ -222,8 +222,9 @@ class FunctionalSummaryInputSpec(TraitedSpec):
         't1w',
         't2w',
         'header',
+        'session-header',
         mandatory=True,
-        desc='Whether to initialize registration with the "header"'
+        desc='Whether to initialize registration with the "header" ("header" or "session-header")'
         ' or by centering the volumes ("t1w" or "t2w")',
     )
     tr = traits.Float(desc='Repetition time', mandatory=True)
