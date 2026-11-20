@@ -34,17 +34,21 @@ for the description of each interface, split the description by participant
 .. note::
     *Nipype*'s own ``write_provenance`` execution option is deliberately **not** used:
 
-    * for every interface run in the main process it writes ``provenance.provn`` and
-      ``provenance.ttl`` files into the working directory of the node, while it has
-      no effect on the worker processes *fMRIPrep* starts;
+    * every interface run in a process that carries the option (the main process, or
+      workers that were forked from it, but not the ``forkserver`` workers *fMRIPrep*
+      starts) writes ``provenance.provn`` and ``provenance.ttl`` into the directory
+      the workflow was launched from, each overwriting those of the previous one;
     * at the end of the run it writes ``workflow_provenance_<date>.provn`` and ``.trig``
       into the base of the working directory (i.e., not with the derivatives),
       for all participants together, with random identifiers, and the names of the user
-      and of the host; and
-    * a failure to write them (e.g., when the user is unknown to the system, as is common
-      in containers) makes a successful run of *fMRIPrep* fail.
+      and of the host;
+    * a failure to write the latter (e.g., when the user is unknown to the system, as is
+      common in containers) makes a successful run of *fMRIPrep* fail; and
+    * enabling it with ``nipype.config.enable_provenance()`` also changes how the inputs
+      of nodes are hashed.
 
-    These are reported as `nipy/nipype#3818 <https://github.com/nipy/nipype/issues/3818>`__.
+    The first, third and fourth are reported as
+    `nipy/nipype#3818 <https://github.com/nipy/nipype/issues/3818>`__.
     Its description of each interface is reused, working around how it encodes some
     values (see :func:`_nipype_patches`).
 
