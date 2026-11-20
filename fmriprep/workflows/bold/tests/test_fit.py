@@ -161,6 +161,24 @@ def test_bold_fit_precomputes(
     generate_expanded_graph(flatgraph)
 
 
+@pytest.mark.parametrize(('hmc_method', 'node'), [('mcflirt', 'mcflirt'), ('3dvolreg', 'volreg')])
+def test_bold_fit_hmc_method(bids_root, monkeypatch, hmc_method, node):
+    """--hmc selects the estimator in the head-motion stage."""
+    img = nb.Nifti1Image(np.zeros((10, 10, 10, 10)), np.eye(4))
+    bold_series = [str(bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_bold.nii.gz')]
+    img.to_filename(bold_series[0])
+    img.slicer[:, :, :, 0].to_filename(
+        bids_root / 'sub-01' / 'func' / 'sub-01_task-rest_run-1_sbref.nii.gz'
+    )
+
+    with mock_config(bids_dir=bids_root):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 't1w')
+        monkeypatch.setattr(config.workflow, 'hmc_method', hmc_method)
+        wf = init_bold_fit_wf(bold_series=bold_series, omp_nthreads=1)
+
+    assert wf.get_node(f'bold_hmc_wf.{node}') is not None
+
+
 @pytest.mark.parametrize('task', ['rest', 'nback'])
 @pytest.mark.parametrize('fieldmap_id', ['phasediff', None])
 @pytest.mark.parametrize('run_stc', [True, False])

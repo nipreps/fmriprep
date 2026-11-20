@@ -28,18 +28,28 @@ Head-Motion Estimation and Correction (HMC) of BOLD images
 
 """
 
-from nipype.interfaces import fsl
+from nipype.interfaces import afni, fsl
 from nipype.interfaces import utility as niu
 from nipype.pipeline import engine as pe
 
 
-def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'):
+def init_bold_hmc_wf(
+    mem_gb: float,
+    omp_nthreads: int,
+    hmc_method: str = 'mcflirt',
+    name: str = 'bold_hmc_wf',
+):
     """
     Build a workflow to estimate head-motion parameters.
 
     This workflow estimates the motion parameters to perform
     :abbr:`HMC (head motion correction)` over the input
     :abbr:`BOLD (blood-oxygen-level dependent)` image.
+    With ``hmc_method='mcflirt'``, FSL's ``mcflirt`` estimates the motion,
+    and its matrices are converted to ITK transforms.
+    With ``hmc_method='3dvolreg'``, AFNI's ``3dvolreg`` estimates it
+    (``-cubic -zpad 1``), and the transforms are built from its
+    ``-1Dfile`` motion parameters, cross-checked against ``-1Dmatrix_save``.
 
     Workflow Graph
         .. workflow::
@@ -57,6 +67,8 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
         Size of BOLD file in GB
     omp_nthreads : :obj:`int`
         Maximum number of threads an individual process may use
+    hmc_method : :obj:`str`
+        Head-motion estimator: ``'mcflirt'`` (default) or ``'3dvolreg'``
     name : :obj:`str`
         Name of workflow (default: ``bold_hmc_wf``)
 
@@ -76,12 +88,23 @@ def init_bold_hmc_wf(mem_gb: float, omp_nthreads: int, name: str = 'bold_hmc_wf'
     from niworkflows.engine.workflows import LiterateWorkflow as Workflow
     from niworkflows.interfaces.itk import MCFLIRT2ITK
 
+    from ...interfaces.nitransforms import VolregToITK
+    from ...interfaces.patches import Volreg
+
     workflow = Workflow(name=name)
+    match hmc_method:
+        case 'mcflirt':
+            package, version, citation = 'FSL', fsl.Info.version(), '@mcflirt'
+        case '3dvolreg':
+            package, citation = 'AFNI', '@afni; @volreg'
+            version = ''.join(f'{v:02d}' for v in afni.Info.version() or [])
+        case _:
+            raise ValueError(f"Unknown HMC method: {hmc_method}. Must be 'mcflirt' or '3dvolreg'.")
     workflow.__desc__ = f"""\
 Head-motion parameters with respect to the BOLD reference
 (transformation matrices, and six corresponding rotation and translation
 parameters) are estimated before any spatiotemporal filtering using
-`mcflirt` [FSL {fsl.Info().version() or '<ver>'}, @mcflirt].
+`{hmc_method}` [{package} {version or '<ver>'}, {citation}].
 """
 
     inputnode = pe.Node(
@@ -89,18 +112,35 @@ parameters) are estimated before any spatiotemporal filtering using
     )
     outputnode = pe.Node(niu.IdentityInterface(fields=['xforms']), name='outputnode')
 
-    # Head motion correction (hmc)
-    mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True), name='mcflirt', mem_gb=mem_gb * 3)
-
-    fsl2itk = pe.Node(MCFLIRT2ITK(), name='fsl2itk', mem_gb=0.05, n_procs=omp_nthreads)
+    motion2itk = pe.Node(
+        MCFLIRT2ITK() if hmc_method == 'mcflirt' else VolregToITK(),
+        name=f'{hmc_method}2itk',
+        mem_gb=0.05,
+    )
 
     workflow.connect([
-        (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
-                              ('bold_file', 'in_file')]),
-        (inputnode, fsl2itk, [('raw_ref_image', 'in_source'),
-                              ('raw_ref_image', 'in_reference')]),
-        (mcflirt, fsl2itk, [('mat_file', 'in_files')]),
-        (fsl2itk, outputnode, [('out_file', 'xforms')]),
+        (inputnode, motion2itk, [('raw_ref_image', 'in_reference')]),
+        (motion2itk, outputnode, [('out_file', 'xforms')]),
     ])  # fmt:skip
+
+    if hmc_method == '3dvolreg':
+        volreg = pe.Node(
+            Volreg(interp='cubic', zpad=1, out_file='NULL'), name='volreg', mem_gb=mem_gb * 3
+        )
+        workflow.connect([
+            (inputnode, volreg, [('raw_ref_image', 'basefile'),
+                                 ('bold_file', 'in_file')]),
+            (volreg, motion2itk, [('oned_file', 'in_params'),
+                                  ('oned_matrix_save', 'in_matrices')]),
+        ])  # fmt:skip
+    else:
+        mcflirt = pe.Node(fsl.MCFLIRT(save_mats=True), name='mcflirt', mem_gb=mem_gb * 3)
+
+        workflow.connect([
+            (inputnode, mcflirt, [('raw_ref_image', 'ref_file'),
+                                  ('bold_file', 'in_file')]),
+            (inputnode, motion2itk, [('raw_ref_image', 'in_source')]),
+            (mcflirt, motion2itk, [('mat_file', 'in_files')]),
+        ])  # fmt:skip
 
     return workflow

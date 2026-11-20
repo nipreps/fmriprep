@@ -41,6 +41,7 @@ from templateflow.api import get as get_template
 from ...config import DEFAULT_MEMORY_MIN_GB
 from ...interfaces import DerivativesDataSink
 from ...interfaces.confounds import (
+    AFNIMotionParams,
     FilterDropped,
     FMRISummary,
     GatherConfounds,
@@ -56,6 +57,7 @@ def init_bold_confs_wf(
     regressors_dvars_th: float,
     regressors_fd_th: float,
     freesurfer: bool = False,
+    hmc_method: str = 'mcflirt',
     name: str = 'bold_confs_wf',
 ):
     """
@@ -119,6 +121,10 @@ def init_bold_confs_wf(
         Set to ``True`` if the input volume fractions for the anatomical
         component-based noise correction maps come from FreeSurfer's ``aseg``.
         sMRIPrep always uses FAST for tissue probability maps, so we always set this to False.
+    hmc_method : :obj:`str`
+        Head-motion estimator whose parameter convention the motion parameters follow:
+        ``'mcflirt'`` (default, FSL's) or ``'3dvolreg'`` (AFNI's, see
+        :class:`~fmriprep.interfaces.confounds.AFNIMotionParams`)
     name : :obj:`str`
         Name of workflow (default: ``bold_confs_wf``)
 
@@ -275,8 +281,11 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
         mem_gb=mem_gb,
     )
 
-    # Motion parameters
-    motion_params = pe.Node(FSLMotionParams(), name='motion_params')
+    # Motion parameters, in the convention of the head-motion estimator
+    motion_params = pe.Node(
+        AFNIMotionParams() if hmc_method == '3dvolreg' else FSLMotionParams(),
+        name='motion_params',
+    )
 
     # Frame displacement
     fdisp = pe.Node(FramewiseDisplacement(), name='fdisp')
@@ -424,23 +433,30 @@ the edge of the brain, as proposed by [@patriat_improved_2017].
     )
     # Tissue mean time series
     mrg_conf_metadata.inputs.in3 = {label: {'Method': 'Mean'} for label in signals_class_labels}
+
     # Movement parameters
+    def _trans(neg, pos):
+        return {
+            'Description': f'Translation along {neg}-{pos} axis, positive toward {pos}.',
+            'Units': 'mm',
+            'Method': hmc_method,
+        }
+
+    def _rot(axis, name, afni_note):
+        note = f' {afni_note}' if hmc_method == '3dvolreg' else ''
+        return {
+            'Description': f'Rotation about {axis} axis, also known as "{name}".{note}',
+            'Units': 'rad',
+            'Method': hmc_method,
+        }
+
     mrg_conf_metadata.inputs.in4 = {
-        'trans_x': {'Description': 'Translation along left-right axis.', 'Units': 'mm'},
-        'trans_y': {'Description': 'Translation along anterior-posterior axis.', 'Units': 'mm'},
-        'trans_z': {'Description': 'Translation along superior-inferior axis.', 'Units': 'mm'},
-        'rot_x': {
-            'Description': 'Rotation about left-right axis. Also known as "pitch".',
-            'Units': 'rad',
-        },
-        'rot_y': {
-            'Description': 'Rotation about anterior-posterior axis. Also known as "roll".',
-            'Units': 'rad',
-        },
-        'rot_z': {
-            'Description': 'Rotation about superior-inferior axis. Also known as "yaw".',
-            'Units': 'rad',
-        },
+        'trans_x': _trans('left', 'right'),
+        'trans_y': _trans('posterior', 'anterior'),
+        'trans_z': _trans('inferior', 'superior'),
+        'rot_x': _rot('left-right', 'pitch', 'Negated from AFNI.'),
+        'rot_y': _rot('posterior-anterior', 'roll', 'AFNI reports its negation as "yaw".'),
+        'rot_z': _rot('inferior-superior', 'yaw', 'AFNI reports as "roll".'),
         'framewise_displacement': {'Units': 'mm'},
     }
     mrg_conf_metadata2 = pe.Node(

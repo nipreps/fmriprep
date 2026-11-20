@@ -34,6 +34,7 @@ import os
 import re
 
 import nibabel as nb
+import nitransforms as nt
 import numpy as np
 import pandas as pd
 from nipype import logging
@@ -49,7 +50,15 @@ from nipype.interfaces.base import (
 )
 from nipype.utils.filemanip import fname_presuffix
 from nireports.reportlets.modality.func import fMRIPlot
+from niworkflows.interfaces.confounds import (
+    _FSLMotionParamsInputSpec as MotionParamsInputSpec,
+)
+from niworkflows.interfaces.confounds import (
+    _FSLMotionParamsOutputSpec as MotionParamsOutputSpec,
+)
 from niworkflows.utils.timeseries import _cifti_timeseries, _nifti_timeseries
+
+from ..utils.transforms import ras_to_volreg
 
 LOGGER = logging.getLogger('nipype.interface')
 
@@ -84,6 +93,51 @@ class aCompCorMasks(SimpleInterface):
             is_aseg=self.inputs.is_aseg,
             zooms=self.inputs.bold_zooms,
         )
+        return runtime
+
+
+class AFNIMotionParams(SimpleInterface):
+    """Reconstruct AFNI 3dvolreg motion parameters from affine transforms.
+
+    The parameters are 3dvolreg's, on the RAS+ axes closest to the boldref grid:
+    ``trans_*`` (mm) and ``rot_*`` (rad, right-handed) describe the correction
+    that maps each volume onto the reference.
+    Rotations are composed in 3dvolreg's order, about the center of AFNI's
+    de-obliqued grid.
+
+    3dvolreg's axes point left, posterior and superior, so ``trans_x``, ``trans_y``
+    and ``trans_z`` are ``-dL``, ``-dP`` and ``dS``, and ``rot_x``, ``rot_y`` and
+    ``rot_z`` are ``-pitch``, ``-yaw`` and ``roll``.
+    To recover 3dvolreg's ``-1Dfile`` (``roll pitch yaw dS dL dP``, in degrees
+    and mm), negate ``trans_x``, ``trans_y``, ``rot_x`` and ``rot_y``, convert
+    ``rot_*`` with :func:`numpy.rad2deg`, and take the columns in the order
+    ``rot_z rot_x rot_y trans_z trans_x trans_y``.
+    """
+
+    input_spec = MotionParamsInputSpec
+    output_spec = MotionParamsOutputSpec
+
+    def _run_interface(self, runtime):
+        self._results['out_file'] = fname_presuffix(
+            self.inputs.boldref_file, suffix='_motion.tsv', newpath=runtime.cwd
+        )
+
+        boldref = nb.load(self.inputs.boldref_file)
+        hmc = nt.linear.load(self.inputs.xfm_file)
+        roll, pitch, yaw, dS, dL, dP = ras_to_volreg(hmc.matrix, boldref, degrees=False).T
+
+        params = pd.DataFrame(
+            {
+                'trans_x': -dL,
+                'trans_y': -dP,
+                'trans_z': dS,
+                'rot_x': -pitch,
+                'rot_y': -yaw,
+                'rot_z': roll,
+            }
+        )
+        params.to_csv(self._results['out_file'], sep='\t', index=False, na_rep='n/a')
+
         return runtime
 
 

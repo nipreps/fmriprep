@@ -335,3 +335,27 @@ def test_reuse_config(tmp_path):
     for v in ('execution.run_uuid', 'execution.fmriprep_dir'):
         assert reused_config[v] != overridden_config[v]
     _reset_config()
+
+
+@pytest.mark.parametrize(
+    ('args', 'expected'),
+    [
+        ([], 'mcflirt'),
+        (['--hmc-method', 'mcflirt'], 'mcflirt'),
+        (['--hmc-method', '3dvolreg'], '3dvolreg'),
+    ],
+)
+def test_hmc_flag(tmp_path, minimal_bids, args, expected):
+    parse_args(
+        args=[
+            str(minimal_bids),
+            str(tmp_path / 'out'),
+            'participant',
+            '-w',
+            str(tmp_path / 'work'),
+            '--skip-bids-validation',
+            *args,
+        ]
+    )
+    assert config.workflow.hmc_method == expected
+    _reset_config()
