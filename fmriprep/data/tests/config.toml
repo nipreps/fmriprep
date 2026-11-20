@@ -28,6 +28,7 @@ processing_groups = [ "sub-01",]
 templateflow_home = "~/.cache/templateflow"
 work_dir = "work/"
 write_graph = false
+write_provenance = false
 
 [workflow]
 anat_only = false

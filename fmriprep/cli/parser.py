@@ -767,6 +767,14 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         help="Enable Nipype's resource monitoring to keep track of memory and CPU usage",
     )
     g_other.add_argument(
+        '--write-provenance',
+        action='store_true',
+        default=False,
+        help='Write a description (W3C PROV, as JSON-LD) of all the processing steps that were '
+        'executed, with their inputs and outputs, into the log directory of each participant. '
+        'Absolute paths and command lines are recorded: review before sharing.',
+    )
+    g_other.add_argument(
         '--config-file',
         action='store',
         metavar='FILE',

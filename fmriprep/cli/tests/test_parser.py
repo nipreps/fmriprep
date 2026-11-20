@@ -282,6 +282,8 @@ def test_derivatives(tmp_path):
         (['--bold-coreg-upsample'], 'bold_coreg_upsample', True),
         (['--no-bold-coreg-upsample'], 'bold_coreg_upsample', False),
         ([], 'bold_coreg_upsample', True),
+        (['--write-provenance'], 'write_provenance', True),
+        ([], 'write_provenance', False),
     ],
 )
 def test_optional_booleans(tmp_path, supp_args, opt, expected):

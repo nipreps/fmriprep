@@ -454,6 +454,8 @@ class execution(_Config):
     """Path to a working directory where intermediate results will be available."""
     write_graph = False
     """Write out the computational graph corresponding to the planned preprocessing."""
+    write_provenance = False
+    """Write `W3C PROV <https://www.w3.org/TR/prov-overview/>`__ records of the execution."""
     dataset_links = {}
     """A dictionary of dataset links to be used to track Sources in sidecars."""
 
