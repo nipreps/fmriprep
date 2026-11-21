@@ -33,7 +33,6 @@ import os
 import sys
 import warnings
 from copy import deepcopy
-from pathlib import Path
 
 import bids
 from nipost.bids import sanitize_fieldmap_id
@@ -844,14 +843,11 @@ tasks and sessions), the following preprocessing was performed.
         aggregate_coreg_precomputed,
         collect_func_derivatives,
         collect_selection,
-        collect_session_anat_xfms,
         extract_entities,
         resolve_selection,
         select_session_xfm,
     )
 
-    # Session-to-reference T1w transforms read from precomputed anatomical derivatives
-    precomputed_init_xfms = None
     if bold2anat_init == 'session-header':
         parse_entities = config.execution.layout.parse_file_entities
         bold_sessions = {parse_entities(series[0]).get('session') for series in bold_runs}
@@ -861,40 +857,20 @@ tasks and sessions), the following preprocessing was performed.
                 'Use `--bold2anat-init header` instead.'
             )
 
+        # sMRIPrep saves a transform realigning each T1w image to the T1w reference
+        # (`t1w_realign_xfm`) if the reference is computed from several T1w images
         if 't1w_preproc' in anat_images:
-            # The T1w reference is precomputed, so the realignment transforms cannot be
-            # taken from the anatomical workflow. Read them from the derivatives folder(s)
-            # holding that reference, so they are consistent with it.
-            t1w_ref = Path(anat_images['t1w_preproc']).resolve()
-            ref_dirs = [
-                Path(deriv_dir)
-                for deriv_dir in config.execution.derivatives.values()
-                if t1w_ref.is_relative_to(Path(deriv_dir).resolve())
-            ]
-            precomputed_init_xfms = {}
-            for deriv_dir in ref_dirs:
-                precomputed_init_xfms.update(
-                    collect_session_anat_xfms(deriv_dir, subject_id, bold_sessions)
-                )
-            if missing_sessions := bold_sessions - set(precomputed_init_xfms):
-                raise OSError(
-                    '`session-header` coregistration with a precomputed T1w reference requires '
-                    'the transforms realigning each session T1w to that reference '
-                    '(`*_from-orig_to-T1w_mode-image_xfm.txt`), but none was found in '
-                    f'{", ".join(map(str, ref_dirs)) or "the derivatives folders"} for '
-                    f'session(s): {", ".join(sorted(map(str, missing_sessions)))}. '
-                    'These are only written when the reference was computed from several T1w '
-                    'images. Use `--bold2anat-init header` instead.'
-                )
+            realigned = anat_images.get('t1w_realign_xfm', [])
         else:
-            anat_sessions = {parse_entities(t1w).get('session') for t1w in subject_data['t1w']}
-            if missing_sessions := bold_sessions - anat_sessions:
-                raise OSError(
-                    'A T1w image is expected in every BOLD session for `session-header` '
-                    'coregistration, but none was found for session(s): '
-                    f'{", ".join(sorted(map(str, missing_sessions)))}. '
-                    'Use `--bold2anat-init header` instead.'
-                )
+            realigned = subject_data['t1w'] if len(subject_data['t1w']) > 1 else []
+        if missing := bold_sessions - {parse_entities(f).get('session') for f in realigned}:
+            raise OSError(
+                '`session-header` coregistration requires, in every BOLD session, a T1w image '
+                'realigned to the T1w reference (`*_from-orig_to-T1w_mode-image_xfm.txt` in '
+                'precomputed derivatives), which exists only if the reference was computed '
+                'from several T1w images. None found for session(s): '
+                f'{", ".join(sorted(missing))}. Use `--bold2anat-init header` instead.'
+            )
 
     bold_coreg_level = config.workflow.bold_coreg_level
     coreg_per_run = bold_coreg_level == 'run'
@@ -1017,22 +993,15 @@ tasks and sessions), the following preprocessing was performed.
             (merge_fit_boldrefs, bold_anat_coreg_wf, [('out', 'inputnode.run_boldrefs')]),
         ])  # fmt:skip
 
-        if precomputed_init_xfms is not None:
-            group_session = parse_entities(group_bold_files[0]).get('session')
-            bold_anat_coreg_wf.inputs.inputnode.init_xfm = precomputed_init_xfms[group_session]
-        elif bold2anat_init == 'session-header':
-            group_session = parse_entities(group_bold_files[0]).get('session')
+        if bold2anat_init == 'session-header':
             select_init_xfm = pe.Node(
                 niu.Function(function=select_session_xfm),
                 name=f'select_init_xfm_{group_id}',
                 run_without_submitting=True,
             )
-            select_init_xfm.inputs.session = group_session
+            select_init_xfm.inputs.session = parse_entities(group_bold_files[0]).get('session')
             workflow.connect([
-                (anat_fit_wf, select_init_xfm, [
-                    ('outputnode.t1w_valid_list', 'source_files'),
-                    ('outputnode.t1w_realign_xfm', 'xfms'),
-                ]),
+                (anat_fit_wf, select_init_xfm, [('outputnode.t1w_realign_xfm', 'xfms')]),
                 (select_init_xfm, bold_anat_coreg_wf, [('out', 'inputnode.init_xfm')]),
             ])  # fmt:skip
 

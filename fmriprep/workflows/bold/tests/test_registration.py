@@ -28,6 +28,7 @@ import nitransforms as nt
 import numpy as np
 import pytest
 from niworkflows.interfaces.nitransforms import ConcatenateXFMs
+from scipy.spatial.transform import Rotation
 
 from fmriprep.interfaces.nitransforms import ConvertAffine
 from fmriprep.workflows.bold.registration import (
@@ -39,30 +40,8 @@ from fmriprep.workflows.bold.registration import (
 
 def _rigid(seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
-    alpha, beta, gamma = rng.uniform(-0.2, 0.2, 3)
-    rot_x = np.array(
-        [
-            [1, 0, 0],
-            [0, np.cos(alpha), -np.sin(alpha)],
-            [0, np.sin(alpha), np.cos(alpha)],
-        ]
-    )
-    rot_y = np.array(
-        [
-            [np.cos(beta), 0, np.sin(beta)],
-            [0, 1, 0],
-            [-np.sin(beta), 0, np.cos(beta)],
-        ]
-    )
-    rot_z = np.array(
-        [
-            [np.cos(gamma), -np.sin(gamma), 0],
-            [np.sin(gamma), np.cos(gamma), 0],
-            [0, 0, 1],
-        ]
-    )
     affine = np.eye(4)
-    affine[:3, :3] = rot_x @ rot_y @ rot_z
+    affine[:3, :3] = Rotation.from_euler('xyz', rng.uniform(-0.2, 0.2, 3)).as_matrix()
     affine[:3, 3] = rng.uniform(-10, 10, 3)
     return affine
 
@@ -86,38 +65,6 @@ def _lta_geometry(path: Path, which: str) -> tuple[tuple[int, ...], np.ndarray, 
     vox2ras[:3, :3] = axes * zooms
     vox2ras[:3, 3] = np.array(fields['cras'].split(), dtype=float) - vox2ras[:3, :3] @ (shape / 2)
     return tuple(int(n) for n in shape), zooms, vox2ras
-
-
-def _tkr_vox2ras(shape, zooms) -> np.ndarray:
-    """FreeSurfer's tkregister vox2ras of a volume."""
-    (nx, ny, nz), (dx, dy, dz) = shape[:3], zooms[:3]
-    return np.array(
-        [
-            [-dx, 0, 0, dx * nx / 2],
-            [0, 0, dz, -dz * nz / 2],
-            [0, -dy, 0, dy * ny / 2],
-            [0, 0, 0, 1],
-        ]
-    )
-
-
-def _register_dat(lta: Path) -> np.ndarray:
-    """The register.dat that ``lta_convert --outreg`` (run inside bbregister) derives.
-
-    FreeSurfer takes ``src`` as the moving and ``dst`` as the target volume, reads the matrix
-    as mapping ``src`` to ``dst`` scanner coordinates, and register.dat maps target to moving
-    tkregister coordinates. (Checked against the ``Input reg`` that bbregister printed for
-    LTA files written by NiTransforms.)
-    """
-    mov_shape, mov_zooms, mov_vox2ras = _lta_geometry(lta, 'src')
-    targ_shape, targ_zooms, targ_vox2ras = _lta_geometry(lta, 'dst')
-    return (
-        _tkr_vox2ras(mov_shape, mov_zooms)
-        @ np.linalg.inv(mov_vox2ras)
-        @ np.linalg.inv(_lta_ras2ras(lta))
-        @ targ_vox2ras
-        @ np.linalg.inv(_tkr_vox2ras(targ_shape, targ_zooms))
-    )
 
 
 def _session_header_lta(tmp_path, bold, fsnative, bold2t1w, fsnative2t1w, subject_id='sub-01'):
@@ -214,26 +161,3 @@ def test_session_header_init_lta(tmp_path, monkeypatch):
     np.testing.assert_allclose(dst_affine, nb.load(fsnative).affine, atol=1e-4)
     # bbregister reads the subject from the LTA (subject-unknown if unset), not from --s
     assert 'subject sub-01' in fs_lta.read_text().splitlines()
-
-
-def test_session_header_init_matches_header(tmp_path, monkeypatch):
-    """Without session movement, session-header must start where ``--init-header`` does.
-
-    Regression test: the raw NiTransforms LTA gave bbregister the inverse of this.
-    """
-    monkeypatch.chdir(tmp_path)
-    bold, fsnative = _write_images(tmp_path)
-    raw_lta, fs_lta = _session_header_lta(tmp_path, bold, fsnative, np.eye(4), np.eye(4))
-    mov, targ = nb.load(bold), nb.load(fsnative)
-
-    # tkregister2 --regheader: the registration bbregister --init-header starts from
-    header_reg = (
-        _tkr_vox2ras(mov.shape, mov.header.get_zooms())
-        @ np.linalg.inv(mov.affine)
-        @ targ.affine
-        @ np.linalg.inv(_tkr_vox2ras(targ.shape, targ.header.get_zooms()))
-    )
-    np.testing.assert_allclose(_register_dat(fs_lta), header_reg, atol=1e-4)
-    # the raw NiTransforms LTA would have started bbregister from the inverse
-    np.testing.assert_allclose(_register_dat(raw_lta), np.linalg.inv(header_reg), atol=1e-4)
-    assert not np.allclose(header_reg, np.linalg.inv(header_reg), atol=1e-2)

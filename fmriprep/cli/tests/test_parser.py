@@ -165,7 +165,6 @@ def test_parse_args(tmp_path, minimal_bids):
         ([], True),
         (['--bold-coreg-level', 'session'], True),
         (['--bold-coreg-level', 'subject'], False),
-        (['--fs-no-reconall'], False),
     ],
 )
 def test_bold2anat_init_session_header(tmp_path, minimal_bids, extra_args, valid):

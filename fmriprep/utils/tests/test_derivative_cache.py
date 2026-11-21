@@ -24,24 +24,6 @@ def _entities(session):
     return {**ENTITIES, 'session': session} if session else ENTITIES
 
 
-def test_collect_session_anat_xfms(tmp_path: Path):
-    expected = {}
-    for session, acqs in (('1', ['b', 'a']), ('2', [None])):
-        anat = tmp_path / 'sub-0' / f'ses-{session}' / 'anat'
-        anat.mkdir(parents=True)
-        for acq in acqs:
-            acq_ent = f'_acq-{acq}' if acq else ''
-            xfm = anat / f'sub-0_ses-{session}{acq_ent}_from-orig_to-T1w_mode-image_xfm.txt'
-            xfm.touch()
-        expected[session] = str(sorted(anat.glob('*_xfm.txt'))[0])
-    # Not a session realignment transform
-    (tmp_path / 'sub-0' / 'anat').mkdir()
-    (tmp_path / 'sub-0' / 'anat' / 'sub-0_from-T1w_to-fsnative_mode-image_xfm.txt').touch()
-
-    xfms = bids.collect_session_anat_xfms(tmp_path, '0', ['1', '2', '3'])
-    assert xfms == expected
-
-
 BOLDREFS = [
     'hmc_boldref',
     'hmc_boldref_legacy',

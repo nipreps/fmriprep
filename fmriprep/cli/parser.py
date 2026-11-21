@@ -426,9 +426,9 @@ https://fmriprep.readthedocs.io/en/{currentv.base_version if is_release else 'la
         '`session-header` is like `header`, but first applies the transform that aligns the T1w '
         'image of the BOLD session to the T1w reference; useful for multi-session data, '
         'especially with partial field-of-view BOLD acquisitions. It requires a T1w image in every BOLD '
-        'session and FreeSurfer surface preprocessing. With precomputed anatomical derivatives, '
+        'session and FreeSurfer surface preprocessing. With a precomputed T1w reference, '
         'the per-session `*_from-orig_to-T1w_mode-image_xfm.txt` transforms must be present '
-        'next to the precomputed T1w reference.',
+        'in the anatomical derivatives.',
     )
     g_conf.add_argument(
         '--bold2anat-dof',
@@ -860,17 +860,12 @@ def parse_args(args=None, namespace=None):
             'sessions. Use `--bold-coreg-level session` instead.'
         )
 
-    if opts.bold2anat_init == 'session-header':
-        if opts.bold_coreg_level == 'subject':
-            parser.error(
-                '`--bold2anat-init session-header` is incompatible with '
-                '`--bold-coreg-level subject`: the initialization is specific to each session. '
-                'Use `--bold-coreg-level session` or `run` instead.'
-            )
-        if not opts.run_reconall:
-            parser.error(
-                '`--bold2anat-init session-header` requires FreeSurfer surface preprocessing.'
-            )
+    if opts.bold2anat_init == 'session-header' and opts.bold_coreg_level == 'subject':
+        parser.error(
+            '`--bold2anat-init session-header` is incompatible with '
+            '`--bold-coreg-level subject`: the initialization is specific to each session. '
+            'Use `--bold-coreg-level session` or `run` instead.'
+        )
 
     if opts.config_file:
         reuse_skips = config.default_reuse_skips()
