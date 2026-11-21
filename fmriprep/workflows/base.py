@@ -845,7 +845,32 @@ tasks and sessions), the following preprocessing was performed.
         collect_selection,
         extract_entities,
         resolve_selection,
+        select_session_xfm,
     )
+
+    if bold2anat_init == 'session-header':
+        parse_entities = config.execution.layout.parse_file_entities
+        bold_sessions = {parse_entities(series[0]).get('session') for series in bold_runs}
+        if None in bold_sessions:
+            raise OSError(
+                '`session-header` coregistration requires BOLD runs to be organized in sessions. '
+                'Use `--bold2anat-init header` instead.'
+            )
+
+        # sMRIPrep saves a transform realigning each T1w image to the T1w reference
+        # (`t1w_realign_xfm`) if the reference is computed from several T1w images
+        if 't1w_preproc' in anat_images:
+            realigned = anat_images.get('t1w_realign_xfm', [])
+        else:
+            realigned = subject_data['t1w'] if len(subject_data['t1w']) > 1 else []
+        if missing := bold_sessions - {parse_entities(f).get('session') for f in realigned}:
+            raise OSError(
+                '`session-header` coregistration requires, in every BOLD session, a T1w image '
+                'realigned to the T1w reference (`*_from-orig_to-T1w_mode-image_xfm.txt` in '
+                'precomputed derivatives), which exists only if the reference was computed '
+                'from several T1w images. None found for session(s): '
+                f'{", ".join(sorted(missing))}. Use `--bold2anat-init header` instead.'
+            )
 
     bold_coreg_level = config.workflow.bold_coreg_level
     coreg_per_run = bold_coreg_level == 'run'
@@ -967,6 +992,18 @@ tasks and sessions), the following preprocessing was performed.
             ]),
             (merge_fit_boldrefs, bold_anat_coreg_wf, [('out', 'inputnode.run_boldrefs')]),
         ])  # fmt:skip
+
+        if bold2anat_init == 'session-header':
+            select_init_xfm = pe.Node(
+                niu.Function(function=select_session_xfm),
+                name=f'select_init_xfm_{group_id}',
+                run_without_submitting=True,
+            )
+            select_init_xfm.inputs.session = parse_entities(group_bold_files[0]).get('session')
+            workflow.connect([
+                (anat_fit_wf, select_init_xfm, [('outputnode.t1w_realign_xfm', 'xfms')]),
+                (select_init_xfm, bold_anat_coreg_wf, [('out', 'inputnode.init_xfm')]),
+            ])  # fmt:skip
 
         for i, bold_series in enumerate(group):
             bold_file = bold_series[0]

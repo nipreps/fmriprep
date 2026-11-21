@@ -262,7 +262,7 @@ environments:
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
       - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
-      - pypi: git+https://github.com/nipreps/smriprep?rev=master#9d65419ca4322be4b6e34d7a10ea72e2c0648986
+      - pypi: git+https://github.com/nipreps/smriprep.git?rev=refs%2Fpull%2F593%2Fhead#bd15c6acb868ea9434ecf8ed9d65b94087cc9bc3
       - pypi: https://files.pythonhosted.org/packages/00/05/76184fe08339723d643ab47887a8e4de8f2921ca4e008617ab7490af7857/filelock-4.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/c2/6604a71269e0c1bd75656d5a001432d16f2cc5b8c057140ec797155c295e/rdflib-7.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/d5/27742bf24dde737fe05e6fba615d9aa1bf95f4dda258a45cf97eb403366e/ci_info-0.4.0-py2.py3-none-any.whl
@@ -606,7 +606,7 @@ environments:
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
       - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
-      - pypi: git+https://github.com/nipreps/smriprep?rev=master#9d65419ca4322be4b6e34d7a10ea72e2c0648986
+      - pypi: git+https://github.com/nipreps/smriprep.git?rev=refs%2Fpull%2F593%2Fhead#bd15c6acb868ea9434ecf8ed9d65b94087cc9bc3
       - pypi: https://files.pythonhosted.org/packages/00/05/76184fe08339723d643ab47887a8e4de8f2921ca4e008617ab7490af7857/filelock-4.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/c2/6604a71269e0c1bd75656d5a001432d16f2cc5b8c057140ec797155c295e/rdflib-7.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/d5/27742bf24dde737fe05e6fba615d9aa1bf95f4dda258a45cf97eb403366e/ci_info-0.4.0-py2.py3-none-any.whl
@@ -964,7 +964,7 @@ environments:
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
       - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
-      - pypi: git+https://github.com/nipreps/smriprep?rev=master#9d65419ca4322be4b6e34d7a10ea72e2c0648986
+      - pypi: git+https://github.com/nipreps/smriprep.git?rev=refs%2Fpull%2F593%2Fhead#bd15c6acb868ea9434ecf8ed9d65b94087cc9bc3
       - pypi: https://files.pythonhosted.org/packages/00/05/76184fe08339723d643ab47887a8e4de8f2921ca4e008617ab7490af7857/filelock-4.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/36/ecc85bc96c273dc8a11273ed4782272975e6338d4a3e9228621175edf0e3/jaraco_functools-4.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/f7/09296ca1d4621c9c2766d074822035eee6aebb79eff80c0af3bd96283d05/chardet-7.7.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -1345,7 +1345,7 @@ environments:
       - pypi: ./
       - pypi: git+https://github.com/nipreps/nipost?rev=main#8f6d4bdadbfafca9e150272c24d4df0e045fc09b
       - pypi: git+https://github.com/nipreps/niworkflows?rev=master#0bdee79e10c30d6727591e18aa040d0a8e9fdb74
-      - pypi: git+https://github.com/nipreps/smriprep?rev=master#9d65419ca4322be4b6e34d7a10ea72e2c0648986
+      - pypi: git+https://github.com/nipreps/smriprep.git?rev=refs%2Fpull%2F593%2Fhead#bd15c6acb868ea9434ecf8ed9d65b94087cc9bc3
       - pypi: https://files.pythonhosted.org/packages/00/05/76184fe08339723d643ab47887a8e4de8f2921ca4e008617ab7490af7857/filelock-4.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/08/ee/bd12dbd819e3c3ef51d84f5e88c19b3d358a24f59be739b8b52800a1f6b2/codecarbon-2.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/b2/0e802fde6f1c5b2f7ae7e9ad42b83fd4ecebac18a8a8c2f2f14e39dce6e1/pytest_xdist-3.7.0-py3-none-any.whl
@@ -6580,7 +6580,7 @@ packages:
   - requests>=2.32.4
   - scipy>=1.15
   - sdcflows>=2.17.1
-  - smriprep @ git+https://github.com/nipreps/smriprep@master
+  - smriprep @ git+https://github.com/nipreps/smriprep.git@refs/pull/593/head
   - tedana>=26.0.0
   - templateflow>=25.0
   - toml>=0.10
@@ -6699,9 +6699,9 @@ packages:
   - pytest-xvfb>=2 ; extra == 'tests'
   - pytest>=8 ; extra == 'tests'
   requires_python: '>=3.12'
-- pypi: git+https://github.com/nipreps/smriprep?rev=master#9d65419ca4322be4b6e34d7a10ea72e2c0648986
+- pypi: git+https://github.com/nipreps/smriprep.git?rev=refs%2Fpull%2F593%2Fhead#bd15c6acb868ea9434ecf8ed9d65b94087cc9bc3
   name: smriprep
-  version: 0.20.1.dev14+g9d65419ca
+  version: 0.20.1.dev18+gbd15c6acb
   requires_dist:
   - acres>=0.5.0
   - indexed-gzip>=1.8.7

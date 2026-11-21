@@ -12,6 +12,7 @@ from sdcflows.fieldmaps import clear_registry
 from sdcflows.utils.wrangler import find_estimators
 
 from ... import config
+from ...utils.bids import select_session_xfm
 from ...utils.testing import deriv_skeleton, write_derivatives
 from ..base import get_estimator, init_fmriprep_wf, init_single_subject_wf
 from ..tests import mock_config
@@ -369,6 +370,71 @@ def test_fmriprep_wf_builds(
         config.workflow.bold_coreg_level = bold_coreg_level
         config._create_processing_groups()
         assert init_fmriprep_wf()
+
+
+def _make_precomputed_anat(deriv_dir, sessions):
+    """Write a precomputed T1w reference and per-session realignment transforms."""
+    anat = deriv_dir / 'sub-01' / 'anat'
+    anat.mkdir(parents=True)
+    (deriv_dir / 'dataset_description.json').write_text(
+        '{"Name": "sMRIPrep", "BIDSVersion": "1.8.0", "DatasetType": "derivative"}'
+    )
+    nb.Nifti1Image(np.zeros((10, 10, 10)), np.eye(4)).to_filename(
+        anat / 'sub-01_desc-preproc_T1w.nii.gz'
+    )
+    xfms = {}
+    for session in sessions:
+        ses_anat = deriv_dir / 'sub-01' / f'ses-{session}' / 'anat'
+        ses_anat.mkdir(parents=True)
+        xfm = ses_anat / f'sub-01_ses-{session}_from-orig_to-T1w_mode-image_xfm.txt'
+        xfm.write_text('#Insight Transform File V1.0\n')
+        xfms[session] = str(xfm)
+    return xfms
+
+
+@pytest.mark.parametrize('precomputed', [False, True])
+@pytest.mark.parametrize('bold_coreg_level', ['run', 'session'])
+def test_fmriprep_wf_session_header(
+    bids_root_factory, tmp_path, monkeypatch, bold_coreg_level, precomputed
+):
+    with mock_config(bids_dir=bids_root_factory('homogeneous_sessions')):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        monkeypatch.setattr(config.workflow, 'bold_coreg_level', bold_coreg_level)
+        if precomputed:
+            xfms = _make_precomputed_anat(tmp_path, ['pre', 'post'])
+            monkeypatch.setattr(config.execution, 'derivatives', {'anat': tmp_path})
+        wf = init_fmriprep_wf()
+
+    flat_graph = wf._create_flat_graph()
+    select_nodes = [node for node in flat_graph.nodes() if 'select_init_xfm' in node.fullname]
+    assert len(select_nodes) == (6 if bold_coreg_level == 'run' else 2)
+    if precomputed:
+        # sMRIPrep passes on the precomputed transforms; each BOLD group selects its session's
+        realign_xfms = wf.get_node('sub_01_wf.anat_fit_wf.outputnode').inputs.t1w_realign_xfm
+        for node in select_nodes:
+            session = node.inputs.session
+            assert select_session_xfm(realign_xfms, session) == xfms[session]
+    generate_expanded_graph(flat_graph)
+
+
+@pytest.mark.parametrize(
+    ('layout', 'xfm_sessions', 'match'),
+    [
+        ('no_session', None, 'organized in sessions'),
+        ('heterogeneous_sessions', None, r'session\(s\): func1\.'),
+        ('homogeneous_sessions', ['pre'], r'session\(s\): post\.'),
+    ],
+)
+def test_fmriprep_wf_session_header_errors(
+    bids_root_factory, tmp_path, monkeypatch, layout, xfm_sessions, match
+):
+    with mock_config(bids_dir=bids_root_factory(layout)):
+        monkeypatch.setattr(config.workflow, 'bold2anat_init', 'session-header')
+        if xfm_sessions:
+            _make_precomputed_anat(tmp_path, xfm_sessions)
+            monkeypatch.setattr(config.execution, 'derivatives', {'anat': tmp_path})
+        with pytest.raises(OSError, match=match):
+            init_fmriprep_wf()
 
 
 @pytest.mark.parametrize(

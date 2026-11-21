@@ -41,6 +41,7 @@ INPUT_FIELDS = [
     'subjects_dir',
     'subject_id',
     'fsnative2t1w_xfm',
+    'init_xfm',
 ]
 OUTPUT_FIELDS = [
     'template_boldrefs',
@@ -56,6 +57,7 @@ ANAT_REG_INPUTS = [
     ('subjects_dir', 'inputnode.subjects_dir'),
     ('subject_id', 'inputnode.subject_id'),
     ('fsnative2t1w_xfm', 'inputnode.fsnative2t1w_xfm'),
+    ('init_xfm', 'inputnode.init_xfm'),
 ]
 
 
@@ -139,6 +141,9 @@ def init_bold_anat_coreg_wf(
         FreeSurfer subject ID (may be undefined).
     fsnative2t1w_xfm
         Transform from FreeSurfer native to anatomical space (may be undefined).
+    init_xfm
+        Transform realigning the anatomical image of the BOLD session to the anatomical
+        reference (may be undefined; only used with ``bold2anat_init='session-header'``).
 
     Outputs
     -------

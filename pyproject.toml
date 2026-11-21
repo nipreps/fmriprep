@@ -39,7 +39,7 @@ dependencies = [
     "requests >= 2.32.4",
     "scipy >= 1.15",
     "sdcflows >= 2.17.1",
-    "smriprep @ git+https://github.com/nipreps/smriprep@master",
+    "smriprep @ git+https://github.com/nipreps/smriprep.git@refs/pull/593/head",
     "tedana >= 26.0.0",
     "templateflow >= 25.0",
     "transforms3d >= 0.4.2",

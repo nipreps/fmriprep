@@ -605,6 +605,28 @@ def extract_entities(file_list):
     return {k: _unique(v) for k, v in entities.items()}
 
 
+def select_session_xfm(xfms, session):
+    """
+    Select the first T1w realignment transform of a session.
+
+    Examples
+    --------
+    >>> select_session_xfm(
+    ...     ["sub-01_ses-1_from-orig_to-T1w_mode-image_xfm.txt",
+    ...      "sub-01_ses-2_from-orig_to-T1w_mode-image_xfm.txt"],
+    ...     "2",
+    ... )
+    'sub-01_ses-2_from-orig_to-T1w_mode-image_xfm.txt'
+
+    """
+    from bids.layout import parse_file_entities
+
+    for xfm in xfms:
+        if parse_file_entities(xfm).get('session') == session:
+            return xfm
+    raise ValueError(f'No T1w realignment transform found for session {session}.')
+
+
 def dismiss_echo(entities=None):
     """Set entities to dismiss in a DerivativesDataSink."""
     if entities is None:
